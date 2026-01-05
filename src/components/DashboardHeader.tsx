@@ -1,33 +1,29 @@
-import { User } from 'lucide-react';
 import { demoContractor } from '@/data/mockAsset';
 
 export function DashboardHeader() {
   return (
-    <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50">
-      <div className="flex items-center justify-between px-4 py-3">
+    <header className="bg-card border-b border-border px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+      <div className="flex items-center gap-3">
+        {/* Contractor Logo */}
+        <div 
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold shadow-sm"
+          style={{ backgroundColor: demoContractor.accentColor }}
+        >
+          {demoContractor.name.charAt(0)}
+        </div>
         <div>
-          <h1 className="text-lg font-semibold text-foreground">
+          <div className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">
+            Powered by
+          </div>
+          <div className="font-bold text-foreground leading-none">
             {demoContractor.name}
-          </h1>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="text-status-optimal">●</span>
-            <span>MONITORING ACTIVE</span>
           </div>
         </div>
-
-        <button 
-          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
-          aria-label="Profile"
-        >
-          <User className="w-5 h-5 text-muted-foreground" />
-        </button>
       </div>
-
-      {/* Authorized Partner Badge */}
-      <div className="px-4 pb-2">
-        <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">
-          Authorized Partner
-        </span>
+      
+      {/* User Avatar Placeholder */}
+      <div className="w-8 h-8 bg-muted rounded-full border border-card shadow-sm flex items-center justify-center text-xs font-bold text-muted-foreground">
+        HO
       </div>
     </header>
   );

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
@@ -25,13 +24,8 @@ export function CommandCenter({
         <HealthGauge healthScore={demoHealthScore} />
       </div>
 
-      {/* Vitals Grid */}
-      <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-        <div className="px-4 mb-3">
-          <h3 className="text-xs uppercase tracking-widest text-muted-foreground">
-            The Vitals Grid
-          </h3>
-        </div>
+      {/* Vitals Grid / Action List */}
+      <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.2s' }}>
         <VitalsGrid vitals={demoVitals} />
       </div>
 
