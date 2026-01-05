@@ -1,4 +1,4 @@
-import { Phone, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ActionDockProps {
@@ -24,15 +24,15 @@ export function ActionDock({
       <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       
       <div className="max-w-md mx-auto flex gap-3">
-        {/* Emergency Call */}
+        {/* Emergency Button */}
         <button 
           onClick={onPanicMode}
-          className="bg-secondary hover:bg-red-950/50 text-muted-foreground hover:text-red-400 p-4 rounded-xl border border-border hover:border-red-800/50 transition-all"
+          className="bg-red-950/60 hover:bg-red-900/70 text-red-400 hover:text-red-300 p-4 rounded-xl border border-red-800/50 transition-all"
           style={{
-            boxShadow: 'inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 0 20px -4px rgba(239, 68, 68, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
           }}
         >
-          <Phone className="w-6 h-6" />
+          <AlertTriangle className="w-6 h-6" />
         </button>
 
         {/* Primary Action with glow */}
