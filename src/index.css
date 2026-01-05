@@ -1,63 +1,69 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Opterra "Home Asset Vault" Design System
-   Aesthetic: Clean Banking App / Warm Urgency
-   Mode: Light with depth
+/* Opterra "Command Center" Design System
+   Aesthetic: Dark Diagnostic Terminal / Mission Control
+   Mode: Dark with glowing accents
 */
 
 @layer base {
   :root {
-    /* Core Light Theme - Warmer Gray Background */
-    --background: 215 20% 91%;
-    --foreground: 215 28% 17%;
+    /* Dark Command Center Theme */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 215 28% 17%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 17%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
 
     /* Primary - Orange Accent for CTAs */
     --primary: 24 95% 53%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 25% 93%;
-    --secondary-foreground: 215 28% 17%;
+    --secondary: 217 33% 25%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 20% 85%;
-    --muted-foreground: 215 16% 45%;
+    --muted: 217 33% 25%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 210 25% 93%;
-    --accent-foreground: 215 28% 17%;
+    --accent: 217 33% 25%;
+    --accent-foreground: 210 40% 98%;
 
-    /* Status Colors */
+    /* Status Colors - More vibrant for dark theme */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --status-critical: 0 84% 60%;
+    --status-critical: 0 72% 51%;
     --status-warning: 38 92% 50%;
-    --status-optimal: 142 76% 36%;
+    --status-optimal: 142 71% 45%;
 
     /* Borders & Inputs */
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
     --ring: 24 95% 53%;
 
     --radius: 1rem;
 
     /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 28% 17%;
+    --sidebar-background: 217 33% 17%;
+    --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 24 95% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 25% 93%;
-    --sidebar-accent-foreground: 215 28% 17%;
-    --sidebar-border: 220 13% 88%;
+    --sidebar-accent: 217 33% 25%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 25%;
     --sidebar-ring: 24 95% 53%;
+
+    /* Glow effects */
+    --glow-critical: 0 72% 51%;
+    --glow-warning: 38 92% 50%;
+    --glow-optimal: 142 71% 45%;
+    --glow-primary: 24 95% 53%;
   }
 }
 
@@ -77,63 +83,136 @@
 }
 
 @layer components {
-  /* Clean Card Style - Enhanced shadows */
-  .clean-card {
-    @apply bg-card rounded-3xl shadow-md border border-border p-6;
+  /* Tech Grid Background */
+  .tech-grid-bg {
+    background-image: 
+      radial-gradient(circle at 1px 1px, hsl(217 33% 30%) 1px, transparent 0);
+    background-size: 24px 24px;
   }
 
-  /* Action Item Styles */
+  /* Clean Card Style - Dark with glow */
+  .clean-card {
+    @apply bg-card rounded-2xl border border-border p-6;
+    box-shadow: 
+      0 4px 24px -4px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Action Item Styles - Dark with glowing borders */
   .action-item {
-    @apply w-full bg-card p-4 rounded-2xl shadow-md border border-border flex items-center justify-between;
+    @apply w-full bg-card p-4 rounded-xl border border-border flex items-center justify-between;
     @apply active:scale-[0.98] transition-all;
+    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
   }
 
   .action-item-critical {
     @apply border-l-4 border-l-red-500;
-    box-shadow: 0 4px 14px -4px rgba(239, 68, 68, 0.2);
+    box-shadow: 
+      0 4px 20px -4px rgba(239, 68, 68, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   }
 
   .action-item-critical:hover {
-    box-shadow: 0 6px 20px -4px rgba(239, 68, 68, 0.3);
+    box-shadow: 
+      0 6px 28px -4px rgba(239, 68, 68, 0.5),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   }
 
   .action-item-warning {
     @apply border-l-4 border-l-amber-500;
-    box-shadow: 0 4px 14px -4px rgba(245, 158, 11, 0.2);
+    box-shadow: 
+      0 4px 20px -4px rgba(245, 158, 11, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   }
 
   .action-item-warning:hover {
-    box-shadow: 0 6px 20px -4px rgba(245, 158, 11, 0.3);
+    box-shadow: 
+      0 6px 28px -4px rgba(245, 158, 11, 0.5),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   }
 
   .action-item-optimal {
     @apply border-l-4 border-l-green-500;
+    box-shadow: 
+      0 4px 16px -4px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   }
 
-  /* Status Badge Styles - More prominent */
+  /* Status Badge Styles - Dark with glow */
   .status-badge-critical {
-    @apply bg-red-100 text-red-700 border border-red-200 shadow-sm;
+    @apply bg-red-950/60 text-red-400 border border-red-800/50;
+    box-shadow: 0 0 12px -2px rgba(239, 68, 68, 0.3);
   }
 
   .status-badge-warning {
-    @apply bg-amber-100 text-amber-700 border border-amber-200 shadow-sm;
+    @apply bg-amber-950/60 text-amber-400 border border-amber-800/50;
+    box-shadow: 0 0 12px -2px rgba(245, 158, 11, 0.3);
   }
 
   .status-badge-optimal {
-    @apply bg-green-100 text-green-700 border border-green-200 shadow-sm;
+    @apply bg-green-950/60 text-green-400 border border-green-800/50;
+    box-shadow: 0 0 12px -2px rgba(34, 197, 94, 0.3);
   }
 
-  /* Status Icon Containers - Larger with shadows */
+  /* Status Icon Containers - Glowing */
   .status-icon-critical {
-    @apply w-11 h-11 rounded-full bg-red-100 flex items-center justify-center text-red-600 shadow-sm;
+    @apply w-11 h-11 rounded-full bg-red-950/60 flex items-center justify-center text-red-400 border border-red-800/50;
+    box-shadow: 0 0 16px -2px rgba(239, 68, 68, 0.4);
   }
 
   .status-icon-warning {
-    @apply w-11 h-11 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shadow-sm;
+    @apply w-11 h-11 rounded-full bg-amber-950/60 flex items-center justify-center text-amber-400 border border-amber-800/50;
+    box-shadow: 0 0 16px -2px rgba(245, 158, 11, 0.4);
   }
 
   .status-icon-optimal {
-    @apply w-11 h-11 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm;
+    @apply w-11 h-11 rounded-full bg-green-950/60 flex items-center justify-center text-green-400 border border-green-800/50;
+    box-shadow: 0 0 16px -2px rgba(34, 197, 94, 0.4);
+  }
+
+  /* Glowing data box */
+  .data-box {
+    @apply bg-secondary/50 rounded-xl p-4 border border-border;
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .data-box-critical {
+    @apply border-l-2 border-l-red-500;
+    box-shadow: 
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+      -4px 0 16px -4px rgba(239, 68, 68, 0.3);
+  }
+
+  .data-box-warning {
+    @apply border-l-2 border-l-amber-500;
+    box-shadow: 
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+      -4px 0 16px -4px rgba(245, 158, 11, 0.3);
+  }
+
+  /* Tech corner accents */
+  .tech-corners::before,
+  .tech-corners::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: hsl(var(--muted-foreground) / 0.3);
+    pointer-events: none;
+  }
+
+  .tech-corners::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid;
+    border-left: 2px solid;
+  }
+
+  .tech-corners::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 2px solid;
+    border-right: 2px solid;
   }
 }
 
@@ -170,11 +249,11 @@
     animation: scale-in 0.3s ease-out forwards;
   }
 
-  /* Pulse Glow Animation */
+  /* Pulse Glow Animation - Enhanced */
   @keyframes pulse-glow {
     0%, 100% {
-      opacity: 0.5;
-      transform: scale(0.95);
+      opacity: 0.4;
+      transform: scale(0.98);
     }
     50% {
       opacity: 1;
@@ -184,6 +263,44 @@
 
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Critical Pulse - Faster for urgency */
+  @keyframes critical-pulse {
+    0%, 100% {
+      opacity: 0.6;
+      box-shadow: 0 0 20px -4px rgba(239, 68, 68, 0.5);
+    }
+    50% {
+      opacity: 1;
+      box-shadow: 0 0 32px -4px rgba(239, 68, 68, 0.8);
+    }
+  }
+
+  .animate-critical-pulse {
+    animation: critical-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* Scan Line */
+  @keyframes scan-line {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.5;
+    }
+    90% {
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateY(400%);
+      opacity: 0;
+    }
+  }
+
+  .animate-scan-line {
+    animation: scan-line 3s ease-in-out infinite;
   }
 
   /* Radar Sweep for Service Request */
@@ -234,5 +351,25 @@
 
   .animate-laser-scan {
     animation: laser-scan 2s ease-in-out infinite;
+  }
+
+  /* Ring glow animation */
+  @keyframes ring-glow {
+    0%, 100% {
+      filter: drop-shadow(0 0 8px currentColor);
+    }
+    50% {
+      filter: drop-shadow(0 0 20px currentColor);
+    }
+  }
+
+  .animate-ring-glow {
+    animation: ring-glow 2s ease-in-out infinite;
+  }
+
+  /* Monospace styling for data */
+  .font-data {
+    font-family: 'JetBrains Mono', monospace;
+    font-feature-settings: 'tnum' on, 'lnum' on;
   }
 }
