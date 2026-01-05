@@ -1,96 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Opterra "Industrial Stealth" Design System
+   Aesthetic: SpaceX Mission Control / Tesla Service Mode
+   Mode: Dark Only
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
+    /* Core Dark Theme */
+    --background: 222 47% 4%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 47% 7%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 47% 7%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Primary - Brand Accent (Demo: Orange) */
+    --primary: 24 100% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 215 28% 17%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 55%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 215 28% 17%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* Status Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --status-critical: 0 84% 60%;
+    --status-warning: 38 92% 50%;
+    --status-optimal: 160 84% 39%;
+
+    /* Borders & Inputs */
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 24 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar (not used in MVP but kept for consistency) */
+    --sidebar-background: 222 47% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 24 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 215 28% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 28% 17%;
+    --sidebar-ring: 24 100% 50%;
+
+    /* Custom Gradients */
+    --gradient-glow: radial-gradient(ellipse at center, hsl(var(--primary) / 0.15) 0%, transparent 70%);
+    --gradient-critical: radial-gradient(ellipse at center, hsl(var(--status-critical) / 0.2) 0%, transparent 70%);
+    --gradient-warning: radial-gradient(ellipse at center, hsl(var(--status-warning) / 0.2) 0%, transparent 70%);
+    --gradient-optimal: radial-gradient(ellipse at center, hsl(var(--status-optimal) / 0.2) 0%, transparent 70%);
+
+    /* Glass Effect */
+    --glass-bg: hsl(222 47% 7% / 0.8);
+    --glass-border: hsl(215 28% 25% / 0.5);
+  }
+
+  /* Dark mode is the only mode */
+  .dark {
+    --background: 222 47% 4%;
+    --foreground: 210 40% 98%;
   }
 }
 
@@ -99,7 +82,184 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    @apply dark;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Mono font for data/numbers */
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  /* Glassmorphism Card */
+  .glass-card {
+    @apply rounded-lg border border-border/50 p-4;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Status Badge Styles */
+  .status-critical {
+    @apply text-red-500;
+    text-shadow: 0 0 10px hsl(var(--status-critical) / 0.5);
+  }
+
+  .status-warning {
+    @apply text-amber-500;
+    text-shadow: 0 0 10px hsl(var(--status-warning) / 0.5);
+  }
+
+  .status-optimal {
+    @apply text-emerald-500;
+    text-shadow: 0 0 10px hsl(var(--status-optimal) / 0.5);
+  }
+
+  /* Glow Effects */
+  .glow-critical {
+    box-shadow: 0 0 30px hsl(var(--status-critical) / 0.3),
+                0 0 60px hsl(var(--status-critical) / 0.1);
+  }
+
+  .glow-warning {
+    box-shadow: 0 0 30px hsl(var(--status-warning) / 0.3),
+                0 0 60px hsl(var(--status-warning) / 0.1);
+  }
+
+  .glow-optimal {
+    box-shadow: 0 0 30px hsl(var(--status-optimal) / 0.3),
+                0 0 60px hsl(var(--status-optimal) / 0.1);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.3),
+                0 0 60px hsl(var(--primary) / 0.1);
+  }
+}
+
+@layer utilities {
+  /* Laser Scan Animation */
+  @keyframes laser-scan {
+    0%, 100% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh);
+      opacity: 0;
+    }
+  }
+
+  .animate-laser-scan {
+    animation: laser-scan 2s ease-in-out infinite;
+  }
+
+  /* Pulse Glow Animation */
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Typewriter Cursor */
+  @keyframes blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    51%, 100% {
+      opacity: 0;
+    }
+  }
+
+  .animate-blink {
+    animation: blink 1s step-end infinite;
+  }
+
+  /* Radar Sweep */
+  @keyframes radar-sweep {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-radar {
+    animation: radar-sweep 2s linear infinite;
+  }
+
+  /* Fade In Up */
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out forwards;
+  }
+
+  /* Scale In */
+  @keyframes scale-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out forwards;
+  }
+
+  /* Shimmer Effect */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--primary) / 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
   }
 }
