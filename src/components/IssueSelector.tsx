@@ -108,10 +108,7 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground mb-2">{fullReplacement.description}</p>
-                <p className="text-sm font-medium text-foreground">
-                  {formatCurrency(fullReplacement.costMin)} - {formatCurrency(fullReplacement.costMax)}
-                </p>
+                <p className="text-sm text-muted-foreground">{fullReplacement.description}</p>
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-green-400">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Resets all risk to zero</span>
@@ -158,10 +155,7 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
                       <Wrench className="w-4 h-4 text-muted-foreground" />
                       <span className="font-semibold text-foreground">{repair.name}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{repair.description}</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {formatCurrency(repair.costMin)} - {formatCurrency(repair.costMax)}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{repair.description}</p>
                   </div>
                 </div>
               </button>

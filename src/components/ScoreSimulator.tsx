@@ -204,21 +204,10 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Selected Repairs</p>
           <div className="space-y-2">
             {selectedRepairs.map(repair => (
-              <div key={repair.id} className="flex items-center justify-between">
-                <span className="text-sm text-foreground">{repair.name}</span>
-                <span className="text-sm text-muted-foreground font-data">
-                  {formatCurrency(repair.costMin)} - {formatCurrency(repair.costMax)}
-                </span>
+              <div key={repair.id} className="flex items-center">
+                <span className="text-sm text-foreground">• {repair.name}</span>
               </div>
             ))}
-          </div>
-          <div className="border-t border-border mt-3 pt-3">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-foreground">Total Estimate</span>
-              <span className="font-bold text-primary font-data">
-                {formatCurrency(result.totalCostMin)} - {formatCurrency(result.totalCostMax)}
-              </span>
-            </div>
           </div>
         </div>
 
