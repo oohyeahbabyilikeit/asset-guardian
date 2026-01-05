@@ -8,7 +8,7 @@ import { ServiceRequest } from '@/components/ServiceRequest';
 type Screen = 'loading' | 'dashboard' | 'report' | 'panic' | 'service';
 
 const Index = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('loading');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
 
   const handleLoadingComplete = () => {
     setCurrentScreen('dashboard');

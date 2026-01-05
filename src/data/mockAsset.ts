@@ -66,6 +66,52 @@ export interface HealthScore {
   recommendation: string;
 }
 
+export interface BurstCostScenario {
+  min: number;
+  max: number;
+  label: string;
+}
+
+export interface BurstCostData {
+  scenarioA: BurstCostScenario; // "Lucky" outcome
+  scenarioB: BurstCostScenario; // "Nightmare" outcome
+  whyCostJumps: string;
+}
+
+export const burstCostByLocation: Record<string, BurstCostData> = {
+  'Garage': {
+    scenarioA: { min: 0, max: 500, label: 'Minor / Unfinished' },
+    scenarioB: { min: 2500, max: 6000, label: 'Major / Finished' },
+    whyCostJumps: 'The "Fire Wall" Trap. If water hits the shared wall, it wicks into fire-rated drywall that must be replaced for code compliance.',
+  },
+  'Basement': {
+    scenarioA: { min: 1500, max: 3500, label: 'Minor / Unfinished' },
+    scenarioB: { min: 15000, max: 40000, label: 'Major / Finished' },
+    whyCostJumps: 'The "Sponge" Effect. Finished basements require gutting carpet and a "Flood Cut" removing bottom 2ft of drywall.',
+  },
+  'Attic': {
+    scenarioA: { min: 5000, max: 12000, label: 'Minor / Unfinished' },
+    scenarioB: { min: 45000, max: 80000, label: 'Major / Finished' },
+    whyCostJumps: 'The Gravity Multiplier. Water flows down, destroying ceiling, insulation, 2nd-floor carpet, and 1st-floor hardwoods. Mold risk is 100%.',
+  },
+  'Utility Closet': {
+    scenarioA: { min: 4000, max: 8000, label: 'Minor / Unfinished' },
+    scenarioB: { min: 15000, max: 35000, label: 'Major / Finished' },
+    whyCostJumps: 'The "Cabinet Killer." Main floor closets connect to hallways or kitchens. Water wicks into hardwood and cabinets instantly.',
+  },
+};
+
+export function getBurstCostByLocation(location: string): BurstCostData {
+  return burstCostByLocation[location] || burstCostByLocation['Garage'];
+}
+
+export function formatCurrency(amount: number): string {
+  if (amount >= 1000) {
+    return '$' + (amount / 1000).toFixed(0) + 'K';
+  }
+  return '$' + amount.toLocaleString();
+}
+
 // Demo Contractor
 export const demoContractor: ContractorData = {
   name: "Bob's Plumbing",
