@@ -128,7 +128,7 @@ export function ServiceRequest({ onBack, onCancel, selectedRepairs = [] }: Servi
                   <>
                     <p className="mt-2 font-medium">Selected Repairs:</p>
                     {selectedRepairs.map(repair => (
-                      <p key={repair.id}>• {repair.name} ({formatCurrency(repair.costMin)} - {formatCurrency(repair.costMax)})</p>
+                      <p key={repair.id}>• {repair.name}</p>
                     ))}
                   </>
                 )}
