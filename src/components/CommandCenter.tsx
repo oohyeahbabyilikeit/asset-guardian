@@ -2,7 +2,7 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
-import { demoVitals, demoHealthScore } from '@/data/mockAsset';
+import { demoVitals, demoHealthScore, demoAsset } from '@/data/mockAsset';
 
 interface CommandCenterProps {
   onPanicMode: () => void;
@@ -21,7 +21,7 @@ export function CommandCenter({
 
       {/* Hero Health Gauge */}
       <div className="animate-fade-in-up">
-        <HealthGauge healthScore={demoHealthScore} />
+        <HealthGauge healthScore={demoHealthScore} location={demoAsset.location} />
       </div>
 
       {/* Vitals Grid / Action List */}
