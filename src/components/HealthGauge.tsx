@@ -59,18 +59,24 @@ export function HealthGauge({ healthScore }: HealthGaugeProps) {
     return '#22C55E';
   };
 
+  const getGlowStyle = () => {
+    if (status === 'critical') return 'shadow-[0_0_30px_-5px_rgba(239,68,68,0.4)]';
+    if (status === 'warning') return 'shadow-[0_0_30px_-5px_rgba(245,158,11,0.4)]';
+    return 'shadow-[0_0_30px_-5px_rgba(34,197,94,0.3)]';
+  };
+
   return (
     <div className="clean-card flex flex-col items-center text-center relative overflow-hidden mx-4 mt-4">
       {/* Top Gradient Bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-orange-400 to-green-500 opacity-80" />
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-500 via-orange-400 to-green-500" />
       
-      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-6">
+      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-6 mt-2">
         System Health Score
       </span>
 
       {/* Score Ring */}
-      <div className="relative mb-6">
-        <div className="w-32 h-32 rounded-full border-[8px] border-muted flex items-center justify-center">
+      <div className={cn("relative mb-6 rounded-full", getGlowStyle())}>
+        <div className="w-36 h-36 rounded-full border-[8px] border-muted/50 flex items-center justify-center bg-card">
           <div className="text-center">
             <span className="block text-5xl font-black text-foreground tracking-tight">
               {score}
@@ -80,28 +86,28 @@ export function HealthGauge({ healthScore }: HealthGaugeProps) {
         </div>
         
         {/* Colored Progress Ring */}
-        <svg className="absolute top-0 left-0 w-32 h-32 -rotate-90 drop-shadow-lg">
+        <svg className="absolute top-0 left-0 w-36 h-36 -rotate-90 drop-shadow-lg">
           <circle 
-            cx="64" 
-            cy="64" 
-            r="56" 
+            cx="72" 
+            cy="72" 
+            r="64" 
             fill="none" 
             stroke={getRingColor()} 
             strokeWidth="8" 
-            strokeDasharray={circumference} 
-            strokeDashoffset={strokeDashoffset} 
+            strokeDasharray="402" 
+            strokeDashoffset={402 - (score / 100) * 402} 
             strokeLinecap="round" 
           />
         </svg>
       </div>
 
       {/* Status Badge */}
-      <div className="mb-3">
+      <div className="mb-4">
         {getStatusBadge()}
       </div>
       
       {/* Status Message */}
-      <p className="text-sm text-muted-foreground leading-relaxed px-4">
+      <p className="text-sm text-muted-foreground leading-relaxed px-4 pb-2">
         {getStatusMessage()}
       </p>
     </div>

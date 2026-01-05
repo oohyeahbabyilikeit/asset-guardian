@@ -15,12 +15,15 @@ export function ActionDock({
   estimatedCost = 450 
 }: ActionDockProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 shadow-2xl safe-area-bottom">
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 shadow-[0_-8px_30px_-10px_rgba(0,0,0,0.15)] safe-area-bottom">
+      {/* Gradient fade above dock */}
+      <div className="absolute -top-6 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+      
       <div className="max-w-md mx-auto flex gap-3">
         {/* Emergency Call */}
         <button 
           onClick={onPanicMode}
-          className="bg-muted hover:bg-red-50 text-muted-foreground hover:text-red-600 p-4 rounded-xl border border-border transition-colors"
+          className="bg-muted hover:bg-red-100 text-muted-foreground hover:text-red-600 p-4 rounded-xl border border-border transition-colors shadow-sm"
         >
           <Phone className="w-6 h-6" />
         </button>
@@ -29,7 +32,7 @@ export function ActionDock({
         <Button
           onClick={onFixPressure}
           size="lg"
-          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 h-auto rounded-xl shadow-lg active:scale-[0.98] transition-all text-lg"
+          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 h-auto rounded-xl shadow-lg active:scale-[0.98] transition-all text-lg shadow-[0_4px_14px_-3px_rgba(234,88,12,0.5)]"
         >
           Resolve Issues
           <ChevronRight className="w-5 h-5 ml-2" />

@@ -5,14 +5,14 @@
 @tailwind utilities;
 
 /* Opterra "Home Asset Vault" Design System
-   Aesthetic: Clean Banking App / Credit Score Style
-   Mode: Light
+   Aesthetic: Clean Banking App / Warm Urgency
+   Mode: Light with depth
 */
 
 @layer base {
   :root {
-    /* Core Light Theme */
-    --background: 210 40% 98%;
+    /* Core Light Theme - Warmer Gray Background */
+    --background: 215 20% 91%;
     --foreground: 215 28% 17%;
 
     --card: 0 0% 100%;
@@ -21,17 +21,17 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 17%;
 
-    /* Primary - Brand Accent (Slate/Dark) */
-    --primary: 215 28% 17%;
+    /* Primary - Orange Accent for CTAs */
+    --primary: 24 95% 53%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
+    --secondary: 210 25% 93%;
     --secondary-foreground: 215 28% 17%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 20% 85%;
+    --muted-foreground: 215 16% 45%;
 
-    --accent: 210 40% 96%;
+    --accent: 210 25% 93%;
     --accent-foreground: 215 28% 17%;
 
     /* Status Colors */
@@ -43,21 +43,21 @@
     --status-optimal: 142 76% 36%;
 
     /* Borders & Inputs */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 215 28% 17%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 24 95% 53%;
 
     --radius: 1rem;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 28% 17%;
-    --sidebar-primary: 215 28% 17%;
+    --sidebar-primary: 24 95% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent: 210 25% 93%;
     --sidebar-accent-foreground: 215 28% 17%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 215 28% 17%;
+    --sidebar-border: 220 13% 88%;
+    --sidebar-ring: 24 95% 53%;
   }
 }
 
@@ -71,48 +71,69 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
 
-  /* Safe area for mobile devices */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }
 
 @layer components {
-  /* Clean Card Style */
+  /* Clean Card Style - Enhanced shadows */
   .clean-card {
-    @apply bg-card rounded-3xl shadow-sm border border-border p-6;
+    @apply bg-card rounded-3xl shadow-md border border-border p-6;
   }
 
-  /* Action Item Style */
+  /* Action Item Styles */
   .action-item {
-    @apply w-full bg-card p-4 rounded-2xl shadow-sm border border-border flex items-center justify-between;
+    @apply w-full bg-card p-4 rounded-2xl shadow-md border border-border flex items-center justify-between;
     @apply active:scale-[0.98] transition-all;
   }
 
-  /* Status Badge Styles */
+  .action-item-critical {
+    @apply border-l-4 border-l-red-500;
+    box-shadow: 0 4px 14px -4px rgba(239, 68, 68, 0.2);
+  }
+
+  .action-item-critical:hover {
+    box-shadow: 0 6px 20px -4px rgba(239, 68, 68, 0.3);
+  }
+
+  .action-item-warning {
+    @apply border-l-4 border-l-amber-500;
+    box-shadow: 0 4px 14px -4px rgba(245, 158, 11, 0.2);
+  }
+
+  .action-item-warning:hover {
+    box-shadow: 0 6px 20px -4px rgba(245, 158, 11, 0.3);
+  }
+
+  .action-item-optimal {
+    @apply border-l-4 border-l-green-500;
+  }
+
+  /* Status Badge Styles - More prominent */
   .status-badge-critical {
-    @apply bg-red-50 text-red-700 border border-red-100;
+    @apply bg-red-100 text-red-700 border border-red-200 shadow-sm;
   }
 
   .status-badge-warning {
-    @apply bg-amber-50 text-amber-700 border border-amber-100;
+    @apply bg-amber-100 text-amber-700 border border-amber-200 shadow-sm;
   }
 
   .status-badge-optimal {
-    @apply bg-green-50 text-green-700 border border-green-100;
+    @apply bg-green-100 text-green-700 border border-green-200 shadow-sm;
   }
 
-  /* Status Icon Containers */
+  /* Status Icon Containers - Larger with shadows */
   .status-icon-critical {
-    @apply w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600;
+    @apply w-11 h-11 rounded-full bg-red-100 flex items-center justify-center text-red-600 shadow-sm;
   }
 
   .status-icon-warning {
-    @apply w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600;
+    @apply w-11 h-11 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shadow-sm;
   }
 
   .status-icon-optimal {
-    @apply w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600;
+    @apply w-11 h-11 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm;
   }
 }
 
