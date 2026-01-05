@@ -15,16 +15,18 @@ interface ActionItemProps {
   isPassed?: boolean;
 }
 
-function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPassed }: ActionItemProps) {
+function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPassed, status }: ActionItemProps & { status?: 'critical' | 'warning' | 'optimal' }) {
   return (
     <button 
       className={cn(
         "action-item group",
-        isPassed && "opacity-60 grayscale hover:grayscale-0"
+        status === 'critical' && "action-item-critical",
+        status === 'warning' && "action-item-warning",
+        isPassed && "action-item-optimal"
       )}
     >
       <div className="flex items-center gap-4">
-        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform", iconBgClass)}>
+        <div className={cn("w-11 h-11 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm", iconBgClass)}>
           {icon}
         </div>
         <div className="text-left">
@@ -38,7 +40,6 @@ function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPasse
 }
 
 export function VitalsGrid({ vitals }: VitalsGridProps) {
-  // Count issues for the header
   const issueCount = [
     vitals.pressure.status !== 'optimal',
     vitals.biologicalAge.status !== 'optimal',
@@ -53,9 +54,9 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
   };
 
   const getIconBgClass = (status: 'critical' | 'warning' | 'optimal') => {
-    if (status === 'critical') return 'bg-red-50 text-red-600';
-    if (status === 'warning') return 'bg-amber-50 text-amber-600';
-    return 'bg-green-50 text-green-600';
+    if (status === 'critical') return 'bg-red-100 text-red-600';
+    if (status === 'warning') return 'bg-amber-100 text-amber-600';
+    return 'bg-green-100 text-green-600';
   };
 
   const getSubtitleClass = (status: 'critical' | 'warning' | 'optimal') => {
@@ -64,7 +65,6 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     return 'text-green-600';
   };
 
-  // Separate issues from passed items
   const items = [
     {
       status: vitals.pressure.status,
@@ -96,11 +96,12 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
   const passed = items.filter(item => item.status === 'optimal');
 
   return (
-    <div className="px-4 space-y-4">
+    <div className="px-4 space-y-5">
       {/* Issues Section */}
       {issues.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 ml-1">
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 ml-1 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
             Required Actions ({issues.length})
           </h3>
           <div className="space-y-3">
@@ -112,6 +113,7 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
                 title={item.title}
                 subtitle={item.subtitle}
                 subtitleClass={getSubtitleClass(item.status)}
+                status={item.status}
               />
             ))}
           </div>
@@ -120,18 +122,23 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
 
       {/* Passed Items Section */}
       {passed.length > 0 && (
-        <div className="space-y-3">
-          {passed.map((item, idx) => (
-            <ActionItem
-              key={idx}
-              icon={<CheckCircle2 className="w-5 h-5" />}
-              iconBgClass="bg-green-50 text-green-600"
-              title={item.title}
-              subtitle={item.subtitle}
-              subtitleClass="text-green-600"
-              isPassed
-            />
-          ))}
+        <div>
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 ml-1">
+            Verified Systems
+          </h3>
+          <div className="space-y-3">
+            {passed.map((item, idx) => (
+              <ActionItem
+                key={idx}
+                icon={<CheckCircle2 className="w-5 h-5" />}
+                iconBgClass="bg-green-100 text-green-600"
+                title={item.title}
+                subtitle={item.subtitle}
+                subtitleClass="text-green-600"
+                isPassed
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
