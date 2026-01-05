@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, X, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTypewriter } from '@/hooks/useTypewriter';
-import { demoAsset, demoVitals, demoContractor } from '@/data/mockAsset';
+import { demoAsset, demoContractor, formatCurrency } from '@/data/mockAsset';
+import { RepairOption } from '@/data/repairOptions';
 
 interface ServiceRequestProps {
   onBack: () => void;
   onCancel: () => void;
+  selectedRepairs?: RepairOption[];
 }
 
 const transmissionSteps = [
@@ -19,7 +21,7 @@ function generateTicketNumber(): string {
   return `#${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
-export function ServiceRequest({ onBack, onCancel }: ServiceRequestProps) {
+export function ServiceRequest({ onBack, onCancel, selectedRepairs = [] }: ServiceRequestProps) {
   const [ticketNumber] = useState(generateTicketNumber);
   const [stepStatuses, setStepStatuses] = useState<('pending' | 'ok' | 'sent')[]>(['pending', 'pending', 'pending']);
   
@@ -121,8 +123,15 @@ export function ServiceRequest({ onBack, onCancel }: ServiceRequestProps) {
               <p className="text-muted-foreground mb-2 text-xs font-medium uppercase">Transmitted Data</p>
               <div className="space-y-1 text-foreground">
                 <p>• Asset: {demoAsset.brand} {demoAsset.specs.capacity}</p>
-                <p>• Issue: Pressure {demoVitals.pressure.current} PSI</p>
                 <p>• Location: {demoAsset.location}</p>
+                {selectedRepairs.length > 0 && (
+                  <>
+                    <p className="mt-2 font-medium">Selected Repairs:</p>
+                    {selectedRepairs.map(repair => (
+                      <p key={repair.id}>• {repair.name} ({formatCurrency(repair.costMin)} - {formatCurrency(repair.costMax)})</p>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
 
