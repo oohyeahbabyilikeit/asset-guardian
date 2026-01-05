@@ -1,38 +1,38 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Opterra "Industrial Stealth" Design System
-   Aesthetic: SpaceX Mission Control / Tesla Service Mode
-   Mode: Dark Only
+/* Opterra "Home Asset Vault" Design System
+   Aesthetic: Clean Banking App / Credit Score Style
+   Mode: Light
 */
 
 @layer base {
   :root {
-    /* Core Dark Theme */
-    --background: 222 47% 4%;
-    --foreground: 210 40% 98%;
+    /* Core Light Theme */
+    --background: 210 40% 98%;
+    --foreground: 215 28% 17%;
 
-    --card: 222 47% 7%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 17%;
 
-    --popover: 222 47% 7%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 17%;
 
-    /* Primary - Brand Accent (Demo: Orange) */
-    --primary: 24 100% 50%;
+    /* Primary - Brand Accent (Slate/Dark) */
+    --primary: 215 28% 17%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 215 28% 17%;
 
-    --muted: 215 28% 17%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 215 28% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 215 28% 17%;
 
     /* Status Colors */
     --destructive: 0 84% 60%;
@@ -40,40 +40,24 @@
 
     --status-critical: 0 84% 60%;
     --status-warning: 38 92% 50%;
-    --status-optimal: 160 84% 39%;
+    --status-optimal: 142 76% 36%;
 
     /* Borders & Inputs */
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 24 100% 50%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 215 28% 17%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Sidebar (not used in MVP but kept for consistency) */
-    --sidebar-background: 222 47% 4%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 24 100% 50%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 28% 17%;
+    --sidebar-primary: 215 28% 17%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 28% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 215 28% 17%;
-    --sidebar-ring: 24 100% 50%;
-
-    /* Custom Gradients */
-    --gradient-glow: radial-gradient(ellipse at center, hsl(var(--primary) / 0.15) 0%, transparent 70%);
-    --gradient-critical: radial-gradient(ellipse at center, hsl(var(--status-critical) / 0.2) 0%, transparent 70%);
-    --gradient-warning: radial-gradient(ellipse at center, hsl(var(--status-warning) / 0.2) 0%, transparent 70%);
-    --gradient-optimal: radial-gradient(ellipse at center, hsl(var(--status-optimal) / 0.2) 0%, transparent 70%);
-
-    /* Glass Effect */
-    --glass-bg: hsl(222 47% 7% / 0.8);
-    --glass-border: hsl(215 28% 25% / 0.5);
-  }
-
-  /* Dark mode is the only mode */
-  .dark {
-    --background: 222 47% 4%;
-    --foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 215 28% 17%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 215 28% 17%;
   }
 }
 
@@ -82,134 +66,57 @@
     @apply border-border;
   }
 
-  html {
-    @apply dark;
-  }
-
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
 
-  /* Mono font for data/numbers */
-  .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+  /* Safe area for mobile devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }
 
 @layer components {
-  /* Glassmorphism Card */
-  .glass-card {
-    @apply rounded-lg border border-border/50 p-4;
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
+  /* Clean Card Style */
+  .clean-card {
+    @apply bg-card rounded-3xl shadow-sm border border-border p-6;
+  }
+
+  /* Action Item Style */
+  .action-item {
+    @apply w-full bg-card p-4 rounded-2xl shadow-sm border border-border flex items-center justify-between;
+    @apply active:scale-[0.98] transition-all;
   }
 
   /* Status Badge Styles */
-  .status-critical {
-    @apply text-red-500;
-    text-shadow: 0 0 10px hsl(var(--status-critical) / 0.5);
+  .status-badge-critical {
+    @apply bg-red-50 text-red-700 border border-red-100;
   }
 
-  .status-warning {
-    @apply text-amber-500;
-    text-shadow: 0 0 10px hsl(var(--status-warning) / 0.5);
+  .status-badge-warning {
+    @apply bg-amber-50 text-amber-700 border border-amber-100;
   }
 
-  .status-optimal {
-    @apply text-emerald-500;
-    text-shadow: 0 0 10px hsl(var(--status-optimal) / 0.5);
+  .status-badge-optimal {
+    @apply bg-green-50 text-green-700 border border-green-100;
   }
 
-  /* Glow Effects */
-  .glow-critical {
-    box-shadow: 0 0 30px hsl(var(--status-critical) / 0.3),
-                0 0 60px hsl(var(--status-critical) / 0.1);
+  /* Status Icon Containers */
+  .status-icon-critical {
+    @apply w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600;
   }
 
-  .glow-warning {
-    box-shadow: 0 0 30px hsl(var(--status-warning) / 0.3),
-                0 0 60px hsl(var(--status-warning) / 0.1);
+  .status-icon-warning {
+    @apply w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600;
   }
 
-  .glow-optimal {
-    box-shadow: 0 0 30px hsl(var(--status-optimal) / 0.3),
-                0 0 60px hsl(var(--status-optimal) / 0.1);
-  }
-
-  .glow-primary {
-    box-shadow: 0 0 30px hsl(var(--primary) / 0.3),
-                0 0 60px hsl(var(--primary) / 0.1);
+  .status-icon-optimal {
+    @apply w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600;
   }
 }
 
 @layer utilities {
-  /* Laser Scan Animation */
-  @keyframes laser-scan {
-    0%, 100% {
-      transform: translateY(-100%);
-      opacity: 0;
-    }
-    10% {
-      opacity: 1;
-    }
-    90% {
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(100vh);
-      opacity: 0;
-    }
-  }
-
-  .animate-laser-scan {
-    animation: laser-scan 2s ease-in-out infinite;
-  }
-
-  /* Pulse Glow Animation */
-  @keyframes pulse-glow {
-    0%, 100% {
-      opacity: 0.5;
-      transform: scale(0.95);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  /* Typewriter Cursor */
-  @keyframes blink {
-    0%, 50% {
-      opacity: 1;
-    }
-    51%, 100% {
-      opacity: 0;
-    }
-  }
-
-  .animate-blink {
-    animation: blink 1s step-end infinite;
-  }
-
-  /* Radar Sweep */
-  @keyframes radar-sweep {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-
-  .animate-radar {
-    animation: radar-sweep 2s linear infinite;
-  }
-
   /* Fade In Up */
   @keyframes fade-in-up {
     0% {
@@ -242,24 +149,69 @@
     animation: scale-in 0.3s ease-out forwards;
   }
 
-  /* Shimmer Effect */
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
+  /* Pulse Glow Animation */
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 0.5;
+      transform: scale(0.95);
     }
-    100% {
-      background-position: 200% 0;
+    50% {
+      opacity: 1;
+      transform: scale(1);
     }
   }
 
-  .animate-shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      hsl(var(--primary) / 0.1) 50%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 2s linear infinite;
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Radar Sweep for Service Request */
+  @keyframes radar-sweep {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-radar {
+    animation: radar-sweep 2s linear infinite;
+  }
+
+  /* Typewriter Cursor */
+  @keyframes blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    51%, 100% {
+      opacity: 0;
+    }
+  }
+
+  .animate-blink {
+    animation: blink 1s step-end infinite;
+  }
+
+  /* Laser scan for loading */
+  @keyframes laser-scan {
+    0%, 100% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh);
+      opacity: 0;
+    }
+  }
+
+  .animate-laser-scan {
+    animation: laser-scan 2s ease-in-out infinite;
   }
 }

@@ -1,108 +1,139 @@
+import { Activity, ShieldAlert, CheckCircle2, ChevronRight, Clock, Gauge } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Check, Gauge, Clock, Weight, Shield } from 'lucide-react';
-import { type VitalsData, getStatusClass } from '@/data/mockAsset';
+import { type VitalsData } from '@/data/mockAsset';
 
 interface VitalsGridProps {
   vitals: VitalsData;
 }
 
-interface VitalCardProps {
+interface ActionItemProps {
   icon: React.ReactNode;
-  label: string;
-  value: string;
-  subValue?: string;
-  status: 'critical' | 'warning' | 'optimal';
-  statusLabel: string;
+  iconBgClass: string;
+  title: string;
+  subtitle: string;
+  subtitleClass: string;
+  isPassed?: boolean;
 }
 
-function VitalCard({ icon, label, value, subValue, status, statusLabel }: VitalCardProps) {
+function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPassed }: ActionItemProps) {
   return (
-    <div className="glass-card relative overflow-hidden group">
-      {/* Status indicator bar */}
-      <div className={cn(
-        "absolute top-0 left-0 right-0 h-1",
-        status === 'critical' && 'bg-status-critical',
-        status === 'warning' && 'bg-status-warning',
-        status === 'optimal' && 'bg-status-optimal'
-      )} />
-
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          {icon}
-          <span className="text-xs uppercase tracking-wider">{label}</span>
-        </div>
-        {status !== 'optimal' ? (
-          <AlertTriangle className={cn("w-4 h-4", getStatusClass(status))} />
-        ) : (
-          <Check className="w-4 h-4 text-status-optimal" />
-        )}
-      </div>
-
-      <div className="flex items-baseline gap-2">
-        <span className={cn(
-          "font-mono text-2xl font-bold",
-          getStatusClass(status)
-        )}>
-          {value}
-        </span>
-        <span className={cn(
-          "text-xs uppercase px-1.5 py-0.5 rounded",
-          status === 'critical' && 'bg-status-critical/20 text-status-critical',
-          status === 'warning' && 'bg-status-warning/20 text-status-warning',
-          status === 'optimal' && 'bg-status-optimal/20 text-status-optimal'
-        )}>
-          {statusLabel}
-        </span>
-      </div>
-
-      {subValue && (
-        <p className="mt-1 text-xs text-muted-foreground">{subValue}</p>
+    <button 
+      className={cn(
+        "action-item group",
+        isPassed && "opacity-60 grayscale hover:grayscale-0"
       )}
-
-      {/* Hover shimmer effect */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none animate-shimmer" />
-    </div>
+    >
+      <div className="flex items-center gap-4">
+        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform", iconBgClass)}>
+          {icon}
+        </div>
+        <div className="text-left">
+          <div className="font-bold text-foreground">{title}</div>
+          <div className={cn("text-xs font-bold", subtitleClass)}>{subtitle}</div>
+        </div>
+      </div>
+      {!isPassed && <ChevronRight className="w-5 h-5 text-muted-foreground/50" />}
+    </button>
   );
 }
 
 export function VitalsGrid({ vitals }: VitalsGridProps) {
+  // Count issues for the header
+  const issueCount = [
+    vitals.pressure.status !== 'optimal',
+    vitals.biologicalAge.status !== 'optimal',
+    vitals.sedimentLoad.status !== 'optimal',
+    vitals.liabilityStatus.status !== 'optimal',
+  ].filter(Boolean).length;
+
+  const getStatusIcon = (status: 'critical' | 'warning' | 'optimal') => {
+    if (status === 'critical') return <Activity className="w-5 h-5" />;
+    if (status === 'warning') return <ShieldAlert className="w-5 h-5" />;
+    return <CheckCircle2 className="w-5 h-5" />;
+  };
+
+  const getIconBgClass = (status: 'critical' | 'warning' | 'optimal') => {
+    if (status === 'critical') return 'bg-red-50 text-red-600';
+    if (status === 'warning') return 'bg-amber-50 text-amber-600';
+    return 'bg-green-50 text-green-600';
+  };
+
+  const getSubtitleClass = (status: 'critical' | 'warning' | 'optimal') => {
+    if (status === 'critical') return 'text-red-600';
+    if (status === 'warning') return 'text-amber-600';
+    return 'text-green-600';
+  };
+
+  // Separate issues from passed items
+  const items = [
+    {
+      status: vitals.pressure.status,
+      icon: <Gauge className="w-5 h-5" />,
+      title: vitals.pressure.status === 'optimal' ? 'Pressure Normal' : 'High Pressure',
+      subtitle: vitals.pressure.status === 'optimal' 
+        ? 'Within safe range' 
+        : `${vitals.pressure.current} PSI (Limit: ${vitals.pressure.limit})`,
+    },
+    {
+      status: vitals.biologicalAge.status,
+      icon: <Clock className="w-5 h-5" />,
+      title: vitals.biologicalAge.status === 'optimal' ? 'Age Normal' : 'Accelerated Aging',
+      subtitle: vitals.biologicalAge.status === 'optimal'
+        ? 'Within expected range'
+        : `Bio Age: ${vitals.biologicalAge.real} yrs (Actual: ${vitals.biologicalAge.paper})`,
+    },
+    {
+      status: vitals.liabilityStatus.status,
+      icon: <ShieldAlert className="w-5 h-5" />,
+      title: vitals.liabilityStatus.status === 'optimal' ? 'Coverage Verified' : 'Missing Expansion Tank',
+      subtitle: vitals.liabilityStatus.status === 'optimal'
+        ? 'Liability insured'
+        : 'Code Violation',
+    },
+  ];
+
+  const issues = items.filter(item => item.status !== 'optimal');
+  const passed = items.filter(item => item.status === 'optimal');
+
   return (
-    <div className="grid grid-cols-2 gap-3 px-4">
-      <VitalCard
-        icon={<Gauge className="w-4 h-4" />}
-        label="Pressure"
-        value={`${vitals.pressure.current} PSI`}
-        subValue={`Limit: ${vitals.pressure.limit} PSI`}
-        status={vitals.pressure.status}
-        statusLabel="HIGH"
-      />
+    <div className="px-4 space-y-4">
+      {/* Issues Section */}
+      {issues.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 ml-1">
+            Required Actions ({issues.length})
+          </h3>
+          <div className="space-y-3">
+            {issues.map((item, idx) => (
+              <ActionItem
+                key={idx}
+                icon={getStatusIcon(item.status)}
+                iconBgClass={getIconBgClass(item.status)}
+                title={item.title}
+                subtitle={item.subtitle}
+                subtitleClass={getSubtitleClass(item.status)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-      <VitalCard
-        icon={<Clock className="w-4 h-4" />}
-        label="Biological Age"
-        value={`${vitals.biologicalAge.real} YRS`}
-        subValue={`Real Age: ${vitals.biologicalAge.paper} Yrs`}
-        status={vitals.biologicalAge.status}
-        statusLabel="OLD"
-      />
-
-      <VitalCard
-        icon={<Weight className="w-4 h-4" />}
-        label="Sediment Load"
-        value={`${vitals.sedimentLoad.pounds} LBS`}
-        subValue={`Est. Gas Loss: $${vitals.sedimentLoad.gasLossEstimate}`}
-        status={vitals.sedimentLoad.status}
-        statusLabel="HIGH"
-      />
-
-      <VitalCard
-        icon={<Shield className="w-4 h-4" />}
-        label="Liability Status"
-        value={vitals.liabilityStatus.insured ? 'INSURED' : 'UNINSURED'}
-        subValue={`Loc: ${vitals.liabilityStatus.location}`}
-        status={vitals.liabilityStatus.status}
-        statusLabel="RISK"
-      />
+      {/* Passed Items Section */}
+      {passed.length > 0 && (
+        <div className="space-y-3">
+          {passed.map((item, idx) => (
+            <ActionItem
+              key={idx}
+              icon={<CheckCircle2 className="w-5 h-5" />}
+              iconBgClass="bg-green-50 text-green-600"
+              title={item.title}
+              subtitle={item.subtitle}
+              subtitleClass="text-green-600"
+              isPassed
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, X, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTypewriter } from '@/hooks/useTypewriter';
-import { demoAsset, demoVitals } from '@/data/mockAsset';
+import { demoAsset, demoVitals, demoContractor } from '@/data/mockAsset';
 
 interface ServiceRequestProps {
   onBack: () => void;
@@ -10,9 +10,9 @@ interface ServiceRequestProps {
 }
 
 const transmissionSteps = [
-  '> TRANSMITTING TELEMETRY TO DISPATCH...',
-  '> VERIFYING TRUCK STOCK (3/4" PRV)...',
-  '> ALERTING SERVICE MANAGER...',
+  'Transmitting telemetry to dispatch...',
+  'Verifying truck stock...',
+  'Alerting service manager...',
 ];
 
 function generateTicketNumber(): string {
@@ -25,16 +25,14 @@ export function ServiceRequest({ onBack, onCancel }: ServiceRequestProps) {
   
   const { displayedLines, currentLineIndex, isComplete } = useTypewriter({
     lines: transmissionSteps,
-    typingSpeed: 20,
-    lineDelay: 800,
+    typingSpeed: 25,
+    lineDelay: 600,
   });
 
-  // Update step statuses as typewriter progresses
   useEffect(() => {
     if (currentLineIndex > 0) {
       setStepStatuses(prev => {
         const newStatuses = [...prev];
-        // Mark previous step as complete
         if (currentLineIndex <= transmissionSteps.length) {
           newStatuses[currentLineIndex - 1] = currentLineIndex - 1 === 2 ? 'sent' : 'ok';
         }
@@ -47,17 +45,10 @@ export function ServiceRequest({ onBack, onCancel }: ServiceRequestProps) {
     }
   }, [currentLineIndex, isComplete]);
 
-  const getStatusLabel = (index: number) => {
-    const status = stepStatuses[index];
-    if (status === 'ok') return '[OK]';
-    if (status === 'sent') return '[SENT]';
-    return '';
-  };
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border/50 py-4 px-4">
+      <header className="bg-card border-b border-border py-4 px-4">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
@@ -66,89 +57,82 @@ export function ServiceRequest({ onBack, onCancel }: ServiceRequestProps) {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="text-center">
-            <p className="text-xs text-muted-foreground">TICKET</p>
-            <p className="font-mono font-bold text-primary">{ticketNumber}: OPEN</p>
+            <p className="text-xs text-muted-foreground">Ticket</p>
+            <p className="font-bold text-foreground">{ticketNumber}</p>
           </div>
-          <div className="w-10" /> {/* Spacer for centering */}
+          <div className="w-10" />
         </div>
       </header>
 
-      <div className="p-6 flex flex-col items-center">
-        {/* Radar Animation */}
-        <div className="relative w-48 h-48 mb-8">
-          {/* Outer ring */}
-          <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-          <div className="absolute inset-4 rounded-full border border-primary/30" />
-          <div className="absolute inset-8 rounded-full border border-primary/40" />
-          
-          {/* Radar sweep */}
+      <div className="p-6 flex flex-col items-center max-w-md mx-auto">
+        {/* Loading Animation */}
+        <div className="relative w-32 h-32 mb-8">
+          <div className="absolute inset-0 rounded-full border-4 border-muted"></div>
           <div 
-            className="absolute inset-0 origin-center animate-radar"
-            style={{ 
-              background: 'conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary) / 0.3) 30deg, transparent 60deg)'
-            }}
-          />
+            className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary animate-spin"
+          ></div>
           
-          {/* Center dot */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary animate-pulse" />
-          
-          {/* Blips */}
-          <div className="absolute top-1/4 left-1/3 w-2 h-2 rounded-full bg-primary/60 animate-ping" />
-          <div className="absolute top-2/3 right-1/4 w-2 h-2 rounded-full bg-primary/60 animate-ping" style={{ animationDelay: '0.5s' }} />
+          {/* Center Icon */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div 
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl"
+              style={{ backgroundColor: demoContractor.accentColor }}
+            >
+              {demoContractor.name.charAt(0)}
+            </div>
+          </div>
         </div>
 
-        {/* Terminal Output */}
-        <div className="w-full max-w-sm font-mono text-sm space-y-2 mb-8">
+        {/* Status Steps */}
+        <div className="w-full space-y-3 mb-8">
           {displayedLines.map((line, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <span className="text-muted-foreground">{line}</span>
+            <div 
+              key={index} 
+              className="flex items-center justify-between bg-card rounded-xl p-4 border border-border"
+            >
+              <span className="text-sm text-foreground">{line}</span>
               <span className={
-                stepStatuses[index] === 'ok' ? 'text-status-optimal' :
-                stepStatuses[index] === 'sent' ? 'text-primary' :
-                'text-muted-foreground/50'
+                stepStatuses[index] === 'ok' ? 'text-green-600 text-xs font-medium' :
+                stepStatuses[index] === 'sent' ? 'text-primary text-xs font-medium' :
+                'text-muted-foreground text-xs'
               }>
-                {getStatusLabel(index)}
+                {stepStatuses[index] === 'ok' && <CheckCircle2 className="w-5 h-5" />}
+                {stepStatuses[index] === 'sent' && 'Sent'}
               </span>
             </div>
           ))}
-          
-          {/* Cursor */}
-          {!isComplete && (
-            <div className="flex items-center">
-              <span className="inline-block w-2 h-4 bg-primary animate-blink" />
-            </div>
-          )}
         </div>
 
-        {/* Status Box */}
+        {/* Completion Card */}
         {isComplete && (
-          <div className="w-full max-w-sm glass-card text-center animate-fade-in-up">
+          <div className="w-full clean-card text-center animate-fade-in-up">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <span className="text-2xl">👨‍🔧</span>
-              <p className="text-sm font-semibold text-foreground">
-                WAITING FOR TECH ACCEPTANCE
-              </p>
+              <span className="text-3xl">👨‍🔧</span>
             </div>
             
+            <h3 className="font-bold text-lg mb-2">Request Submitted</h3>
+            
             <p className="text-sm text-muted-foreground mb-4">
-              "Your request has been routed to the Priority Board. We have sent your diagnostic file. Expect a call within 10 minutes."
+              Your diagnostic file has been sent. Expect a call within 10 minutes.
             </p>
 
             {/* Asset Summary */}
-            <div className="bg-secondary/50 rounded-lg p-3 text-xs text-left mb-4">
-              <p className="text-muted-foreground mb-1">Transmitted Data:</p>
-              <p className="font-mono">• Asset: {demoAsset.brand} {demoAsset.specs.capacity}</p>
-              <p className="font-mono">• Issue: Pressure {demoVitals.pressure.current}psi (Limit: {demoVitals.pressure.limit})</p>
-              <p className="font-mono">• Location: {demoAsset.location}</p>
+            <div className="bg-muted rounded-xl p-4 text-sm text-left mb-4">
+              <p className="text-muted-foreground mb-2 text-xs font-medium uppercase">Transmitted Data</p>
+              <div className="space-y-1 text-foreground">
+                <p>• Asset: {demoAsset.brand} {demoAsset.specs.capacity}</p>
+                <p>• Issue: Pressure {demoVitals.pressure.current} PSI</p>
+                <p>• Location: {demoAsset.location}</p>
+              </div>
             </div>
 
             <Button
               onClick={onCancel}
               variant="ghost"
-              className="text-status-critical hover:text-status-critical hover:bg-status-critical/10"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <X className="w-4 h-4 mr-2" />
-              CANCEL REQUEST
+              Cancel Request
             </Button>
           </div>
         )}
