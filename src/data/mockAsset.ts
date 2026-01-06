@@ -360,52 +360,164 @@ export const demoForensicInputs: ForensicInputs = initialScenario.inputs;
 // Demo Health Score - Reference values (actual values come from algorithm)
 // export const demoHealthScore: HealthScore = { ... }
 
-// Demo Audit Findings
-export const demoAuditFindings: AuditFinding[] = [
-  {
-    id: "pressure",
-    name: "Static Pressure",
-    value: "75 PSI",
-    passed: true,
-    details: "Below 80 PSI warranty threshold. Pressure is elevated but within acceptable range.",
-    photoUrl: "/placeholder.svg",
-  },
-  {
-    id: "expansion",
-    name: "Thermal Expansion Tank",
-    value: "INSTALLED",
-    passed: true,
-    details: "Thermal expansion protection present and functional. Prevents pressure spikes during heating cycles.",
-  },
-  {
-    id: "anode",
-    name: "Anode Rod",
-    value: "DEPLETED",
-    passed: false,
-    details: "Water softener accelerated anode consumption (2.4x decay rate). Tank has been unprotected for ~4.5 years. Replacement critical.",
-  },
-  {
-    id: "softener",
-    name: "Water Softener",
-    value: "ACTIVE",
-    passed: false,
-    details: "Softener increases water conductivity, accelerating galvanic corrosion. Anode life reduced from 6 years to 2.5 years.",
-  },
-  {
-    id: "venting",
-    name: "Gas Venting",
-    value: "COMPLIANT",
-    passed: true,
-    details: "Power vent system operating within normal parameters. CO levels undetectable.",
-  },
-  {
-    id: "drainage",
-    name: "T&P Drain Line",
-    value: "COMPLIANT",
-    passed: true,
-    details: "Temperature and Pressure relief valve drain line properly routed to exterior.",
-  },
-];
+// Demo Audit Findings - DEPRECATED: Use generateAuditFindings() instead
+export const demoAuditFindings: AuditFinding[] = [];
+
+/**
+ * Generate dynamic audit findings based on current inputs and algorithm metrics.
+ * This ensures the Evidence Locker matches the dashboard diagnostics.
+ */
+export function generateAuditFindings(
+  inputs: ForensicInputs,
+  metrics: {
+    sedimentLbs: number;
+    shieldLife: number;
+    bioAge: number;
+    stressFactors: { pressure: number; temp: number; circ: number; loop: number; total: number };
+  }
+): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+
+  // Pressure check
+  const pressurePassed = inputs.psi <= 80;
+  findings.push({
+    id: 'pressure',
+    name: 'Static Pressure',
+    value: `${inputs.psi} PSI`,
+    passed: pressurePassed,
+    details: pressurePassed
+      ? inputs.psi >= 70 
+        ? 'Elevated but within warranty threshold. Consider PRV to reduce strain by ~50%.'
+        : 'Within safe operating range. No action required.'
+      : `Exceeds 80 PSI warranty threshold. High pressure accelerates tank wear by ${((metrics.stressFactors.pressure - 1) * 100).toFixed(0)}%.`,
+    photoUrl: '/placeholder.svg',
+  });
+
+  // PRV check
+  if (inputs.psi >= 70) {
+    findings.push({
+      id: 'prv',
+      name: 'Pressure Reducing Valve',
+      value: inputs.hasPrv ? (inputs.psi <= 75 ? 'FUNCTIONAL' : 'FAILED') : 'NOT INSTALLED',
+      passed: inputs.hasPrv && inputs.psi <= 75,
+      details: inputs.hasPrv
+        ? inputs.psi <= 75
+          ? 'PRV is actively regulating inlet pressure to ~60 PSI.'
+          : 'PRV installed but not regulating pressure effectively. Replacement recommended.'
+        : 'No PRV installed. Installing one would reduce system pressure to ~60 PSI, cutting plumbing strain by approximately 50%.',
+    });
+  }
+
+  // Expansion tank check (only relevant for closed loop)
+  const isClosedLoop = inputs.isClosedLoop || inputs.hasPrv;
+  if (isClosedLoop) {
+    findings.push({
+      id: 'expansion',
+      name: 'Thermal Expansion Tank',
+      value: inputs.hasExpTank ? 'INSTALLED' : 'MISSING',
+      passed: inputs.hasExpTank,
+      details: inputs.hasExpTank
+        ? 'Thermal expansion protection present. Prevents pressure spikes during heating cycles.'
+        : 'Required for closed loop system. Missing tank causes pressure spikes that stress tank welds.',
+    });
+  }
+
+  // Anode rod check
+  const anodePassed = metrics.shieldLife > 1;
+  findings.push({
+    id: 'anode',
+    name: 'Anode Rod (Shield Life)',
+    value: metrics.shieldLife > 1 ? `${metrics.shieldLife.toFixed(1)} YRS REMAINING` : 'DEPLETED',
+    passed: anodePassed,
+    details: anodePassed
+      ? `Sacrificial anode providing active protection. Estimated ${metrics.shieldLife.toFixed(1)} years of corrosion protection remaining.`
+      : inputs.hasSoftener
+        ? `Water softener accelerated anode consumption (2.4x decay rate). Tank has been unprotected. ${inputs.calendarAge < 8 ? 'Replacement recommended.' : 'Tank too old for cost-effective anode replacement.'}`
+        : `Anode rod depleted based on age and water conditions. Tank interior is now corroding directly.`,
+  });
+
+  // Water softener impact
+  if (inputs.hasSoftener) {
+    findings.push({
+      id: 'softener',
+      name: 'Water Softener',
+      value: 'ACTIVE',
+      passed: false,
+      details: 'Softener increases water conductivity, accelerating galvanic corrosion. Anode life reduced from ~6 years to ~2.5 years. More frequent anode inspection recommended.',
+    });
+  }
+
+  // Sediment check
+  const sedimentPassed = metrics.sedimentLbs <= 5;
+  findings.push({
+    id: 'sediment',
+    name: 'Sediment Accumulation',
+    value: `${metrics.sedimentLbs.toFixed(1)} LBS`,
+    passed: sedimentPassed,
+    details: sedimentPassed
+      ? 'Sediment levels within acceptable range. Annual flush recommended for maintenance.'
+      : `Heavy sediment buildup detected. Reduces efficiency and insulates heating element from water. Professional flush recommended.`,
+  });
+
+  // Temperature setting check
+  const tempPassed = inputs.tempSetting !== 'HOT';
+  findings.push({
+    id: 'temp',
+    name: 'Temperature Setting',
+    value: inputs.tempSetting === 'HOT' ? 'HOT (140°F+)' : inputs.tempSetting === 'LOW' ? 'LOW' : 'NORMAL (120°F)',
+    passed: tempPassed,
+    details: tempPassed
+      ? 'Temperature at recommended setting. Balances comfort with efficiency and safety.'
+      : 'High temperature setting accelerates tank wear by 20% and increases scald risk.',
+  });
+
+  // Circulation pump check (if present)
+  if (inputs.hasCircPump) {
+    findings.push({
+      id: 'circpump',
+      name: 'Recirculation Pump',
+      value: 'ACTIVE',
+      passed: false,
+      details: 'Circulation pump increases thermal cycling stress. Tank experiences 15% additional wear from constant temperature fluctuations.',
+    });
+  }
+
+  // Location risk check
+  const locationMap: Record<string, string> = {
+    'ATTIC': 'Attic',
+    'GARAGE': 'Garage',
+    'BASEMENT': 'Basement',
+    'MAIN_LIVING': 'Main Living Area',
+    'CRAWLSPACE': 'Crawlspace',
+  };
+  const locationName = locationMap[inputs.location] || inputs.location;
+  const isHighRiskLocation = inputs.location === 'ATTIC' || (inputs.location === 'MAIN_LIVING' && inputs.isFinishedArea);
+  findings.push({
+    id: 'location',
+    name: 'Installation Location',
+    value: `${locationName}${inputs.isFinishedArea ? ' (Finished)' : ''}`,
+    passed: !isHighRiskLocation,
+    details: isHighRiskLocation
+      ? inputs.location === 'ATTIC'
+        ? 'Attic installation has highest damage potential. Water flows down through multiple floors. Leak detection and pan drain strongly recommended.'
+        : 'Finished living area installation. Water damage costs significantly higher than garage/basement locations.'
+      : 'Location has acceptable damage potential in case of leak.',
+  });
+
+  // Visual rust check
+  if (inputs.visualRust) {
+    findings.push({
+      id: 'rust',
+      name: 'Visual Corrosion',
+      value: 'DETECTED',
+      passed: false,
+      details: 'Visible rust or corrosion detected on tank exterior. This indicates internal corrosion has progressed significantly. Replacement recommended.',
+      photoUrl: '/placeholder.svg',
+    });
+  }
+
+  return findings;
+}
 
 // Helper function to get status color class
 export function getStatusClass(status: 'critical' | 'warning' | 'optimal'): string {
