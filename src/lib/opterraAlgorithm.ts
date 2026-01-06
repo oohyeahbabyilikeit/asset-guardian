@@ -41,6 +41,30 @@ const CONSTANTS = {
 };
 
 // ============================================================================
+// HEALTH SCORE TRANSFORMATION
+// ============================================================================
+/**
+ * Converts failure probability to a 0-100 health score using a non-linear transformation.
+ * 
+ * The naive approach (100 - failProb) is misleading: 23% failure → 77 score feels "safe".
+ * 
+ * This function uses an exponential decay so that:
+ * - 0% failure → 100 score (perfect)
+ * - 5% failure → ~85 score (good)
+ * - 10% failure → ~70 score (concerning)
+ * - 20% failure → ~45 score (warning)
+ * - 30% failure → ~25 score (critical)
+ * - 50%+ failure → <10 score (severe)
+ * 
+ * Formula: score = 100 * e^(-k * failProb) where k ≈ 0.04 for desired curve
+ */
+export function failProbToHealthScore(failProb: number): number {
+  const k = 0.04; // Decay constant - tuned for desired risk perception
+  const score = 100 * Math.exp(-k * failProb);
+  return Math.round(Math.max(0, Math.min(100, score)));
+}
+
+// ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 export type FuelType = 'GAS' | 'ELECTRIC';

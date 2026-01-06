@@ -5,7 +5,7 @@ import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { RiskComparisonChart } from '@/components/RiskComparisonChart';
 import { demoAsset, demoForensicInputs, type VitalsData, type HealthScore } from '@/data/mockAsset';
-import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
   onPanicMode: () => void;
@@ -59,7 +59,7 @@ export function CommandCenter({
 
   // Derive dynamic health score from algorithm output
   const dynamicHealthScore: HealthScore = {
-    score: Math.round(100 - failProb),
+    score: failProbToHealthScore(failProb),
     status: getStatusFromValue(failProb, 10, 20),
     failureProbability: Math.round(failProb * 10) / 10,
     recommendation: recommendation.action,
