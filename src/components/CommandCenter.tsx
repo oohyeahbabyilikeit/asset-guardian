@@ -40,7 +40,7 @@ export function CommandCenter({
 }: CommandCenterProps) {
   // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
-  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor } = opterraResult.metrics;
+  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor, sedimentRate, monthsToFlush, monthsToLockout, flushStatus } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
@@ -131,6 +131,10 @@ export function CommandCenter({
             hasSoftener={currentInputs.hasSoftener}
             tankCapacityGallons={parseInt(currentAsset.specs.capacity) || 50}
             failProb={failProb}
+            sedimentRate={sedimentRate}
+            monthsToFlush={monthsToFlush}
+            monthsToLockout={monthsToLockout}
+            flushStatus={flushStatus}
           />
         </div>
 

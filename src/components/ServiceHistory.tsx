@@ -19,6 +19,11 @@ interface ServiceHistoryProps {
   hasSoftener: boolean;
   tankCapacityGallons: number;
   failProb: number;  // Required for safe flush logic
+  // Sediment projection metrics
+  sedimentRate: number;
+  monthsToFlush: number | null;
+  monthsToLockout: number | null;
+  flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout';
   serviceHistory?: ServiceEvent[];
 }
 
@@ -607,6 +612,10 @@ export function ServiceHistory({
   hasSoftener,
   tankCapacityGallons,
   failProb,
+  sedimentRate,
+  monthsToFlush,
+  monthsToLockout,
+  flushStatus,
   serviceHistory = [] 
 }: ServiceHistoryProps) {
   const [isOpen, setIsOpen] = useState(true);
@@ -695,6 +704,55 @@ export function ServiceHistory({
                   </div>
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Sediment</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Sediment Projection Card */}
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold">Sediment Forecast</span>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex justify-between">
+                  <span>Current:</span>
+                  <span className="font-mono font-medium text-foreground">{sedimentLbs.toFixed(1)} lbs</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Rate:</span>
+                  <span className="font-mono text-foreground">+{sedimentRate.toFixed(2)} lbs/yr</span>
+                </div>
+                {flushStatus === 'optimal' && monthsToFlush !== null && (
+                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                    <span>Schedule flush in:</span>
+                    <span className={cn(
+                      "font-mono font-medium",
+                      monthsToFlush <= 6 ? "text-amber-400" : "text-green-400"
+                    )}>
+                      {monthsToFlush >= 12 
+                        ? `${(monthsToFlush / 12).toFixed(1)} yrs` 
+                        : `${monthsToFlush} mo`}
+                    </span>
+                  </div>
+                )}
+                {flushStatus === 'schedule' && monthsToFlush !== null && (
+                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                    <span className="text-amber-400">⚠ Flush recommended in:</span>
+                    <span className="font-mono font-medium text-amber-400">{monthsToFlush} mo</span>
+                  </div>
+                )}
+                {flushStatus === 'due' && (
+                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                    <span className="text-amber-400 font-medium">🔧 Flush now</span>
+                    <span className="font-mono text-amber-400">5-15 lb zone</span>
+                  </div>
+                )}
+                {flushStatus === 'lockout' && (
+                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                    <span className="text-red-400 font-medium">🚫 Flush unsafe</span>
+                    <span className="font-mono text-red-400">&gt;15 lbs hardened</span>
+                  </div>
+                )}
               </div>
             </div>
 

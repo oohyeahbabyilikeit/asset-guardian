@@ -51,6 +51,12 @@ export interface OpterraMetrics {
   };
   riskLevel: RiskLevel;
   
+  // Sediment Projection metrics
+  sedimentRate: number;        // lbs per year accumulation rate
+  monthsToFlush: number | null; // Months until sediment hits 5 lbs (null if already past)
+  monthsToLockout: number | null; // Months until sediment hits 15 lbs (null if already past)
+  flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout'; // Current flush recommendation status
+  
   // Aging Speedometer metrics
   agingRate: number;           // Current stress multiplier (e.g., 3.1x)
   optimizedRate: number;       // Rate after PRV + expansion tank fixes
@@ -208,6 +214,27 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     ? CONSTANTS.SEDIMENT_FACTOR_ELEC 
     : CONSTANTS.SEDIMENT_FACTOR_GAS;
   const sedimentLbs = data.calendarAge * data.hardnessGPG * sedFactor;
+  
+  // Sediment rate (lbs per year based on water hardness)
+  const sedimentRate = data.hardnessGPG * sedFactor;
+  
+  // Calculate months until flush threshold (5 lbs) and lockout threshold (15 lbs)
+  const lbsToFlush = CONSTANTS.LIMIT_SEDIMENT_FLUSH - sedimentLbs;
+  const lbsToLockout = CONSTANTS.LIMIT_SEDIMENT_LOCKOUT - sedimentLbs;
+  const monthsToFlush = lbsToFlush > 0 ? Math.ceil((lbsToFlush / sedimentRate) * 12) : null;
+  const monthsToLockout = lbsToLockout > 0 ? Math.ceil((lbsToLockout / sedimentRate) * 12) : null;
+  
+  // Determine flush status
+  let flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout';
+  if (sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_LOCKOUT) {
+    flushStatus = 'lockout'; // Too late, sediment hardened
+  } else if (sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH) {
+    flushStatus = 'due'; // In the sweet spot, flush now
+  } else if (monthsToFlush !== null && monthsToFlush <= 12) {
+    flushStatus = 'schedule'; // Coming up within a year
+  } else {
+    flushStatus = 'optimal'; // Clean, no action needed
+  }
 
   // 3. STRESS FACTORS (Split into FATIGUE vs. CORROSION)
 
@@ -327,6 +354,12 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
       sediment: parseFloat(sedimentStress.toFixed(2))
     },
     riskLevel: getLocationRisk(data.location, data.isFinishedArea),
+    
+    // Sediment Projection metrics
+    sedimentRate: parseFloat(sedimentRate.toFixed(2)),
+    monthsToFlush,
+    monthsToLockout,
+    flushStatus,
     
     // Aging Speedometer metrics
     agingRate: parseFloat(currentAgingRate.toFixed(2)),
