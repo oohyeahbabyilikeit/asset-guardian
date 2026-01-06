@@ -86,6 +86,7 @@ export interface Recommendation {
 
 export interface OpterraMetrics {
   bioAge: number;
+  bioAgeCapped: boolean;
   failProb: number;
   sedimentLbs: number;
   estDamage: number;
@@ -167,7 +168,9 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   const timeNaked = Math.max(0, data.calendarAge - shieldLife);
   
   // Final Biological Age (capped at MAX_BIO_AGE to prevent unrealistic values)
-  const bioAge = Math.min(timeProtected + (timeNaked * stress), CONSTANTS.MAX_BIO_AGE);
+  const rawBioAge = timeProtected + (timeNaked * stress);
+  const bioAge = Math.min(rawBioAge, CONSTANTS.MAX_BIO_AGE);
+  const bioAgeCapped = rawBioAge > CONSTANTS.MAX_BIO_AGE;
 
   // --- 4. WEIBULL PROBABILITY (NEXT 12 MO) ---
   // Calculates conditional probability of failure in the next year
@@ -209,6 +212,7 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   return {
     metrics: {
       bioAge: Math.round(bioAge * 10) / 10,
+      bioAgeCapped,
       failProb: Math.round(failProb * 10) / 10,
       sedimentLbs: Math.round(sedimentLbs * 10) / 10,
       estDamage,
