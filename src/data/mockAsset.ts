@@ -39,7 +39,7 @@ export interface VitalsData {
     status: 'critical' | 'warning' | 'optimal';
   };
   biologicalAge: {
-    real: number;
+    real: number | string;  // Can be "20+" when capped
     paper: number;
     status: 'critical' | 'warning' | 'optimal';
   };
@@ -76,7 +76,7 @@ export interface ContractorData {
 export interface HealthScore {
   score: number; // 0-100
   status: 'critical' | 'warning' | 'optimal';
-  failureProbability: number; // Percentage
+  failureProbability: number | 'FAIL';  // Percentage or "FAIL" for breach scenarios
   recommendation: string;
 }
 

@@ -91,7 +91,7 @@ const CONSTANTS = {
   SEDIMENT_FACTOR_ELEC: 0.08,
   
   // Critical Thresholds
-  MAX_BIO_AGE: 25,         // Cap for age calculation
+  MAX_BIO_AGE: 20,         // Cap for age calculation (display as "20+")
   STATISTICAL_CAP: 85.0,   // Max probability based on math alone
   VISUAL_CAP: 99.9,        // Max probability if rust is seen
   
