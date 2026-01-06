@@ -144,10 +144,11 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     {
       status: vitals.biologicalAge.status,
       icon: <Clock className="w-5 h-5" />,
-      title: vitals.biologicalAge.status === 'optimal' ? 'Age Normal' : 'Accelerated Aging',
-      subtitle: vitals.biologicalAge.status === 'optimal'
-        ? 'Within expected range'
-        : `Bio Age: ${vitals.biologicalAge.real} yrs (Actual: ${vitals.biologicalAge.paper})`,
+      title: vitals.biologicalAge.agingRate > 1.5 ? 'Accelerated Wear' : 'Aging Rate',
+      subtitle: `${vitals.biologicalAge.agingRate.toFixed(1)}x Normal Speed`,
+      tooltip: vitals.biologicalAge.agingRate > 1.2 
+        ? `${vitals.biologicalAge.primaryStressor} is causing accelerated wear.${vitals.biologicalAge.lifeExtension > 0.5 ? ` Fix to gain ~${vitals.biologicalAge.lifeExtension.toFixed(1)} years.` : ''}`
+        : 'Your tank is aging at a healthy rate.',
     },
     {
       status: vitals.liabilityStatus.status,
