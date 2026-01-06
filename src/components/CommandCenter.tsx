@@ -49,8 +49,8 @@ export function CommandCenter({
   const expansionTankRequired = isActuallyClosed;
   const expansionTankMissing = expansionTankRequired && !currentInputs.hasExpTank;
   
-  // PRV status calculation
-  const prvRequired = currentInputs.psi >= 65; // Recommended for pressures 65+
+  // PRV status calculation - recommend at 70+ PSI (cuts strain ~50% when reduced to 60)
+  const prvRequired = currentInputs.psi >= 70;
   const prvFunctional = currentInputs.hasPrv && currentInputs.psi <= 75; // Working if pressure is controlled
   const prvStatus: 'critical' | 'warning' | 'optimal' = 
     !prvRequired && !currentInputs.hasPrv ? 'optimal' : // Not needed, not installed

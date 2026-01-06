@@ -139,8 +139,8 @@ export function getAvailableRepairs(
   // Determine closed loop status
   const isActuallyClosed = inputs.isClosedLoop || inputs.hasPrv;
 
-  // PRV needed if high pressure and no PRV installed
-  if (!inputs.hasPrv && inputs.psi >= 65) {
+  // PRV recommended at 70+ PSI - reduces strain by ~50% when cut to 60 PSI
+  if (!inputs.hasPrv && inputs.psi >= 70) {
     const prv = repairOptions.find(r => r.id === 'prv');
     if (prv) options.push(prv);
   }
