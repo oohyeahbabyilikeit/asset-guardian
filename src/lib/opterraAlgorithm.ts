@@ -43,7 +43,7 @@ const CONSTANTS = {
 
   // Limits
   MAX_BIO_AGE: 25,        // Cap for sanity
-  CRITICAL_PROB: 95.0,    // Cap for visual display
+  CRITICAL_PROB: 85.0,    // Cap for visual display (85% max)
   FATIGUE_AGE: 10,        // Zombie tank threshold
 
   // Financial Risk Levels (Severity Index 1-4) - v5.2
