@@ -102,7 +102,7 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
         <div>
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 ml-1 flex items-center gap-2 font-data">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_2px_rgba(239,68,68,0.5)]"></span>
-            Required Actions ({issues.length})
+            Insights ({issues.length})
           </h3>
           <div className="space-y-3">
             {issues.map((item, idx) => (
