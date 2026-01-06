@@ -132,9 +132,9 @@ export function HealthGauge({ healthScore, location }: HealthGaugeProps) {
                 Failure Risk
               </span>
             </div>
-            <div className="text-2xl font-black text-red-400 font-data">
-              {failureProbability}%
-            </div>
+              <div className="text-2xl font-black text-red-400 font-data">
+                {typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%
+              </div>
             <div className="text-[10px] text-muted-foreground mt-1">
               Annual probability
             </div>
