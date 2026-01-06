@@ -252,10 +252,15 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const sedFactor = data.fuelType === 'ELECTRIC' 
     ? CONSTANTS.SEDIMENT_FACTOR_ELEC 
     : CONSTANTS.SEDIMENT_FACTOR_GAS;
-  const sedimentLbs = data.calendarAge * data.hardnessGPG * sedFactor;
   
-  // Sediment rate (lbs per year based on water hardness)
-  const sedimentRate = data.hardnessGPG * sedFactor;
+  // If softener is present, use near-zero hardness (anode sludge only)
+  // Softened water removes 95%+ of minerals; remaining sediment is primarily anode byproduct
+  const effectiveHardness = data.hasSoftener ? 0.5 : data.hardnessGPG;
+  
+  const sedimentLbs = data.calendarAge * effectiveHardness * sedFactor;
+  
+  // Sediment rate (lbs per year based on EFFECTIVE water hardness)
+  const sedimentRate = effectiveHardness * sedFactor;
   
   // Calculate months until flush threshold (5 lbs) and lockout threshold (15 lbs)
   const lbsToFlush = CONSTANTS.LIMIT_SEDIMENT_FLUSH - sedimentLbs;
