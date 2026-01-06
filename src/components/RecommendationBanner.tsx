@@ -1,4 +1,4 @@
-import { AlertTriangle, Shield, Wrench, Eye, Droplets, Clock, AlertOctagon } from 'lucide-react';
+import { AlertTriangle, Shield, Wrench, Eye, Droplets, Clock, AlertOctagon, Gauge } from 'lucide-react';
 import { Recommendation, RecommendationAction } from '@/lib/opterraAlgorithm';
 
 interface RecommendationBannerProps {
@@ -13,7 +13,9 @@ const actionIcons: Record<RecommendationAction, typeof AlertTriangle> = {
   REPLACE_EXPIRED: Clock,
   REPLACE_LIABILITY: Shield,
   REPLACE_RISK: AlertTriangle,
+  REPLACE_FATIGUE: Gauge,
   INSTALL_PRV: Wrench,
+  INSTALL_EXP_TANK: Wrench,
   MONITOR: Eye,
 };
 
@@ -24,7 +26,9 @@ const actionStyles: Record<RecommendationAction, string> = {
   REPLACE_EXPIRED: 'bg-destructive/10 border-destructive/30 text-destructive',
   REPLACE_LIABILITY: 'bg-destructive/10 border-destructive/30 text-destructive',
   REPLACE_RISK: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+  REPLACE_FATIGUE: 'bg-destructive/10 border-destructive/30 text-destructive',
   INSTALL_PRV: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+  INSTALL_EXP_TANK: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
   MONITOR: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
 };
 
