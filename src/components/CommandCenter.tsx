@@ -44,6 +44,9 @@ export function CommandCenter({
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
+  const expansionTankRequired = currentInputs.isClosedLoop;
+  const expansionTankMissing = expansionTankRequired && !currentInputs.hasExpTank;
+  
   const dynamicVitals: VitalsData = {
     pressure: {
       current: currentInputs.psi,
@@ -65,6 +68,11 @@ export function CommandCenter({
       real: Math.round(bioAge * 10) / 10,
       paper: currentInputs.calendarAge,
       status: getStatusFromValue(bioAge, 8, 12),
+    },
+    expansionTank: {
+      present: currentInputs.hasExpTank,
+      required: expansionTankRequired,
+      status: expansionTankMissing ? 'critical' : 'optimal',
     },
   };
 
