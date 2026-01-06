@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { RiskComparisonChart } from '@/components/RiskComparisonChart';
+import { QuickSimulator } from '@/components/QuickSimulator';
 import { demoAsset, demoForensicInputs, type VitalsData, type HealthScore } from '@/data/mockAsset';
-import { calculateOpterraRisk, failProbToHealthScore } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
   onPanicMode: () => void;
@@ -27,17 +29,19 @@ export function CommandCenter({
   onViewReport,
   onTestHarness 
 }: CommandCenterProps) {
-  // Calculate all metrics using v4.0 algorithm
-  const opterraResult = calculateOpterraRisk(demoForensicInputs);
+  const [inputs, setInputs] = useState<ForensicInputs>(demoForensicInputs);
+
+  // Calculate all metrics using v5.0 algorithm
+  const opterraResult = calculateOpterraRisk(inputs);
   const { bioAge, failProb, sedimentLbs, estDamage } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
   const dynamicVitals: VitalsData = {
     pressure: {
-      current: demoForensicInputs.psi,
+      current: inputs.psi,
       limit: 80,
-      status: getStatusFromValue(demoForensicInputs.psi, 70, 80),
+      status: getStatusFromValue(inputs.psi, 70, 80),
     },
     sedimentLoad: {
       pounds: sedimentLbs,
@@ -52,7 +56,7 @@ export function CommandCenter({
     },
     biologicalAge: {
       real: Math.round(bioAge * 10) / 10,
-      paper: demoForensicInputs.calendarAge,
+      paper: inputs.calendarAge,
       status: getStatusFromValue(bioAge, 8, 12),
     },
   };
@@ -81,6 +85,11 @@ export function CommandCenter({
           <HealthGauge healthScore={dynamicHealthScore} location={demoAsset.location} />
         </div>
 
+        {/* Quick Simulator */}
+        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.05s' }}>
+          <QuickSimulator inputs={inputs} onInputsChange={setInputs} />
+        </div>
+
         {/* Recommendation Banner */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
           <RecommendationBanner recommendation={recommendation} />
@@ -88,7 +97,7 @@ export function CommandCenter({
 
         {/* Age Comparison Chart */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.15s' }}>
-          <RiskComparisonChart biologicalAge={bioAge} calendarAge={demoForensicInputs.calendarAge} />
+          <RiskComparisonChart biologicalAge={bioAge} calendarAge={inputs.calendarAge} />
         </div>
 
         {/* Vitals Grid / Action List */}
