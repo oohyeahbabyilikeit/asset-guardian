@@ -15,19 +15,28 @@ export function ActionDock({
   onViewReport,
   recommendation
 }: ActionDockProps) {
-  // Dynamic button label based on recommendation
+  // Dynamic button label based on v4.0 recommendation actions
   const getButtonLabel = () => {
     if (!recommendation) return 'Resolve Issues';
-    if (!recommendation.canRepair && recommendation.action === 'REPLACE') {
-      return 'Get Replacement Quote';
+    
+    switch (recommendation.action) {
+      case 'REPLACE_URGENT':
+        return '🆘 Stop Flood';
+      case 'REPLACE_UNSERVICEABLE':
+        return 'Replace (Flush Denied)';
+      case 'REPLACE_EXPIRED':
+        return 'Quote Replacement';
+      case 'REPLACE_LIABILITY':
+        return 'Fix Liability Risk';
+      case 'REPLACE_RISK':
+        return 'View Options';
+      case 'INSTALL_PRV':
+        return 'Install Protection Valve';
+      case 'MONITOR':
+        return 'Schedule Maintenance';
+      default:
+        return 'Resolve Issues';
     }
-    if (recommendation.action === 'REPLACE') {
-      return 'View Options';
-    }
-    if (recommendation.action === 'MONITOR') {
-      return 'Schedule Maintenance';
-    }
-    return 'Resolve Issues';
   };
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"

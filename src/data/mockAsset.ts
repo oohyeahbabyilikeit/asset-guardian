@@ -1,6 +1,8 @@
 // Mock Asset Data for Opterra Home Asset Vault MVP
 // All data is configurable here for demo flexibility
 
+import type { ForensicInputs, FuelType, TempSetting, LocationType } from '@/lib/opterraAlgorithm';
+
 export interface AssetData {
   id: string;
   type: string;
@@ -66,18 +68,6 @@ export interface HealthScore {
   recommendation: string;
 }
 
-export interface ForensicInputs {
-  pressure: number;
-  baselinePressure: number;
-  hasSoftener: boolean;
-  hasExpansionTank: boolean;
-  anodeCondition: 'good' | 'depleted' | 'missing';
-  visualRust?: boolean;
-  sedimentLoad?: number;
-  estimatedDamage?: number;
-  locationRiskLevel?: 'attic' | 'main_floor' | 'basement' | 'garage';
-}
-
 export interface BurstCostScenario {
   min: number;
   max: number;
@@ -138,7 +128,6 @@ export const demoContractor: ContractorData = {
 };
 
 // Demo Water Heater Asset - "The Softener Accelerator" Scenario
-// Recalibrated: 6 years paper age -> 13 years biological age (not 27.8)
 export const demoAsset: AssetData = {
   id: "RH-9942-X",
   type: "Water Heater",
@@ -147,7 +136,7 @@ export const demoAsset: AssetData = {
   serialNumber: "RH-2018-9942-X",
   installDate: "2018-03-15",
   paperAge: 6.0,
-  biologicalAge: 13.0, // Recalibrated: 2.5 protected + (3.5 × 3.0 naked) = 13
+  biologicalAge: 13.0, // Calculated by v4.0 algorithm
   location: "Attic",
   specs: {
     capacity: "50-Gal",
@@ -157,21 +146,24 @@ export const demoAsset: AssetData = {
   },
 };
 
-// Demo Forensic Inputs - "The Softener Accelerator" scenario
-// Attic location with $45K-$80K potential damage (exceeds deductible)
+// Demo Forensic Inputs - v4.0 Algorithm Specification
+// "The Softener Accelerator" scenario - Attic location with high damage potential
 export const demoForensicInputs: ForensicInputs = {
-  pressure: 75,
-  baselinePressure: 60,
-  hasSoftener: true,
-  hasExpansionTank: true,
-  anodeCondition: 'depleted',
-  visualRust: false,
-  sedimentLoad: 10.5, // Below 15 lb threshold
-  estimatedDamage: 45000, // Attic worst-case scenario
-  locationRiskLevel: 'attic',
+  calendarAge: 6,                    // 6 years since install
+  psi: 75,                           // Below 80 PSI threshold
+  warrantyYears: 6,                  // Standard 6-year warranty (proxy for anode mass)
+  fuelType: 'GAS' as FuelType,       // Natural gas unit
+  hardnessGPG: 15,                   // Moderate water hardness
+  hasSoftener: true,                 // Has softener (anode killer!)
+  isClosedLoop: false,               // No check valve
+  hasExpTank: true,                  // Has expansion tank
+  location: 'ATTIC' as LocationType, // High-risk location
+  isFinishedArea: false,             // N/A for attic
+  visualRust: false,                 // No visible corrosion
+  tempSetting: 'NORMAL' as TempSetting, // Normal temp setting
 };
 
-// Demo Vitals - Recalibrated for believable scenario
+// Demo Vitals - Calibrated for v4.0 algorithm output
 export const demoVitals: VitalsData = {
   pressure: {
     current: 75,
@@ -179,7 +171,7 @@ export const demoVitals: VitalsData = {
     status: 'warning',
   },
   sedimentLoad: {
-    pounds: 10.5,
+    pounds: 10.5, // Below 15 lb threshold
     gasLossEstimate: 48,
     status: 'critical',
   },
@@ -189,13 +181,13 @@ export const demoVitals: VitalsData = {
     status: 'critical',
   },
   biologicalAge: {
-    real: 13.0, // Recalibrated biological age
+    real: 13.0, // v4.0 biological age
     paper: 6.0,
     status: 'critical',
   },
 };
 
-// Demo Health Score - Recalibrated with safety cap
+// Demo Health Score - Calibrated with v4.0 safety cap
 export const demoHealthScore: HealthScore = {
   score: 28, // ~28% risk maps to low score
   status: 'critical',
@@ -208,24 +200,31 @@ export const demoAuditFindings: AuditFinding[] = [
   {
     id: "pressure",
     name: "Static Pressure",
-    value: "96 PSI",
-    passed: false,
-    details: "Limit: 80psi. Warranty Voided. High pressure accelerates wear on all water-using appliances and increases risk of catastrophic failure.",
+    value: "75 PSI",
+    passed: true,
+    details: "Below 80 PSI warranty threshold. Pressure is elevated but within acceptable range.",
     photoUrl: "/placeholder.svg",
   },
   {
     id: "expansion",
     name: "Thermal Expansion Tank",
-    value: "MISSING",
-    passed: false,
-    details: "No thermal expansion protection detected. This causes pressure spikes during heating cycles, significantly reducing tank lifespan.",
+    value: "INSTALLED",
+    passed: true,
+    details: "Thermal expansion protection present and functional. Prevents pressure spikes during heating cycles.",
   },
   {
     id: "anode",
     name: "Anode Rod",
     value: "DEPLETED",
     passed: false,
-    details: "Sacrificial anode is more than 80% consumed. Tank corrosion is now accelerated. Replacement critical within 30 days.",
+    details: "Water softener accelerated anode consumption (2.4x decay rate). Tank has been unprotected for ~3.5 years. Replacement critical.",
+  },
+  {
+    id: "softener",
+    name: "Water Softener",
+    value: "ACTIVE",
+    passed: false,
+    details: "Softener increases water conductivity, accelerating galvanic corrosion. Anode life reduced from 6 years to 2.5 years.",
   },
   {
     id: "venting",
@@ -272,3 +271,6 @@ export function getAgingFactor(paperAge: number, biologicalAge: number): string 
   const factor = biologicalAge / paperAge;
   return factor.toFixed(1) + "x";
 }
+
+// Re-export ForensicInputs type for backwards compatibility
+export type { ForensicInputs } from '@/lib/opterraAlgorithm';

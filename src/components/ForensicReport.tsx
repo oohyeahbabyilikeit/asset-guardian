@@ -19,16 +19,16 @@ interface ForensicReportProps {
   onBack: () => void;
 }
 
-// Calculate risk dilation using Opterra v3.0 algorithm
+// Calculate risk dilation using Opterra v4.0 algorithm
 const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
 
-// Get recommendation using Insurance Logic engine
+// Get recommendation using v4.0 Insurance Logic engine
 const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
 const recommendation = getRecommendation(
   riskDilation.forensicRisk,
   riskDilation.biologicalAge,
   demoVitals.sedimentLoad.pounds,
-  demoForensicInputs.estimatedDamage || 0,
+  45000, // Attic estimated damage
   locationRiskLevel
 );
 

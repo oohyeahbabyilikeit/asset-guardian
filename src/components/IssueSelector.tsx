@@ -10,19 +10,20 @@ interface IssueSelectorProps {
   onSimulate: (selectedRepairs: RepairOption[]) => void;
 }
 
-// Get recommendation from the algorithm
+// Get recommendation from the v4.0 algorithm
 const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
 const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
 const recommendation = getRecommendation(
   riskDilation.forensicRisk,
   riskDilation.biologicalAge,
   demoVitals.sedimentLoad.pounds,
-  demoForensicInputs.estimatedDamage || 0,
+  45000, // Attic estimated damage
   locationRiskLevel
 );
 
-// Check if replacement is required (repairs locked)
-const replacementRequired = recommendation.action === 'REPLACE' && !recommendation.canRepair;
+// Check if replacement is required (repairs locked) - v4.0 uses REPLACE_* prefixes
+const isReplaceAction = recommendation.action.startsWith('REPLACE_');
+const replacementRequired = isReplaceAction && !recommendation.canRepair;
 
 export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
