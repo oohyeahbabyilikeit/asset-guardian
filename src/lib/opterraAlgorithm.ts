@@ -259,9 +259,36 @@ function getRecommendationFromMetrics(
     };
   }
   
-  // Rule 4: Liability Risk (High Cost Location)
-  // Attic/Main Floor -> Trigger at 15% Risk
+  // Rule 4: Liability Risk (Location-Adjusted Thresholds)
+  // Higher damage potential = lower risk tolerance
+  if (estDamage > 40000 && failProb > 8.0) {
+    // Attic - extreme damage scenario
+    return {
+      action: 'REPLACE_LIABILITY',
+      badge: 'LIABILITY_RISK',
+      badgeLabel: '🛡️ LIABILITY RISK',
+      badgeColor: 'red',
+      triggerRule: 'Rule #4: Extreme Location Risk',
+      script: `Failure probability is ${failProb.toFixed(1)}%, above the 8% threshold for extreme-risk locations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
+      canRepair: false,
+      isPriorityLead: true,
+    };
+  }
+  if (estDamage > 15000 && failProb > 12.0) {
+    // Utility Closet / Finished Basement - high damage
+    return {
+      action: 'REPLACE_LIABILITY',
+      badge: 'LIABILITY_RISK',
+      badgeLabel: '🛡️ LIABILITY RISK',
+      badgeColor: 'red',
+      triggerRule: 'Rule #4: High Location Risk',
+      script: `Failure probability is ${failProb.toFixed(1)}%, above the 12% threshold for high-risk locations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
+      canRepair: false,
+      isPriorityLead: true,
+    };
+  }
   if (estDamage > 5000 && failProb > 15.0) {
+    // Other high-value locations
     return {
       action: 'REPLACE_LIABILITY',
       badge: 'LIABILITY_RISK',
