@@ -182,6 +182,22 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   const rNext = Math.exp(-Math.pow((weibullAge + 1) / ETA, BETA));
   let failProb = (1 - (rNext / rNow)) * 100;
   
+  // DEBUG: Log calculation details
+  console.log('[OPTERRA DEBUG]', {
+    calendarAge: data.calendarAge,
+    psi: data.psi,
+    shieldLife,
+    timeProtected,
+    timeNaked,
+    stress,
+    rawBioAge,
+    weibullAge,
+    rNow,
+    rNext,
+    failProbBeforeCap: failProb,
+    rawBioAgeOver40: rawBioAge > 40,
+  });
+  
   // If rawBioAge exceeds Weibull calculation cap, force to max probability
   if (rawBioAge > 40) failProb = 45.0;
 
