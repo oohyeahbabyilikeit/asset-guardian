@@ -257,13 +257,18 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
 }
 
 // --- RECOMMENDATION ENGINE ---
+// Strict Tiered Decision Tree v7.0
+// Priority: Safety → Economic → Service → Pass
+// Units that pass Tiers 1 & 2 are SAVEABLE
 
 export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
   
   // ============================================
   // TIER 1: SAFETY & PHYSICAL LOCKOUT (Must Replace)
+  // Only these conditions warrant immediate replacement
   // ============================================
   
+  // 1A. Containment Breach: Visual rust OR active leak
   if (data.visualRust || data.isLeaking) {
     return {
       action: 'REPLACE',
@@ -275,7 +280,7 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     };
   }
 
-  // KILLER FLUSH: Sediment has hardened into limestone (>15 lbs)
+  // 1B. Sediment Lockout: Hardite buildup (>15 lbs)
   if (metrics.sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_LOCKOUT) {
     return {
       action: 'REPLACE',
@@ -287,7 +292,7 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     };
   }
 
-  // Structural Fatigue: Old tank + Critical Pressure = Bomb
+  // 1C. Structural Fatigue: Critical pressure (>100 PSI) + Old tank (>10 yrs)
   if (data.psi > CONSTANTS.LIMIT_PSI_CRITICAL && data.calendarAge > 10) {
     return {
       action: 'REPLACE',
@@ -301,122 +306,123 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
 
   // ============================================
   // TIER 2: ECONOMIC REPLACEMENT (Risk > Value)
+  // Only if failProb exceeds strict thresholds
   // ============================================
   
-  // Liability Check: High Risk Location + High Failure Prob
-  if (metrics.riskLevel >= CONSTANTS.RISK_HIGH && metrics.failProb > 40) {
-    return {
-      action: 'REPLACE',
-      title: 'Liability Hazard',
-      reason: 'Unit is in a high-damage zone with elevated failure probability. Risk outweighs value.',
-      urgent: false,
-      badgeColor: 'orange',
-      badge: 'REPLACE'
-    };
-  }
-
-  // Statistical Death
+  // 2A. Statistical End-of-Life: failProb > 60%
   if (metrics.failProb > 60) {
     return {
       action: 'REPLACE',
       title: 'Statistical End-of-Life',
       reason: `Failure probability is ${metrics.failProb.toFixed(0)}%. Repair costs are not justifiable.`,
       urgent: false,
-      badgeColor: 'orange',
+      badgeColor: 'red',
+      badge: 'REPLACE'
+    };
+  }
+
+  // 2B. Liability Hazard: High/Extreme risk location + failProb > 40%
+  if (metrics.riskLevel >= CONSTANTS.RISK_HIGH && metrics.failProb > 40) {
+    return {
+      action: 'REPLACE',
+      title: 'Liability Hazard',
+      reason: 'Unit is in a high-damage zone with elevated failure probability. Risk outweighs value.',
+      urgent: false,
+      badgeColor: 'red',
       badge: 'REPLACE'
     };
   }
 
   // ============================================
-  // TIER 3: THE SERVICE ZONE (Billable Work)
+  // TIER 3: SERVICE ZONE (Unit is SAVEABLE)
+  // If we reach here, the unit passed safety & economic checks
   // ============================================
   
-  // 1. Failed PRV (Has one, but PSI is still high)
-  if (data.hasPrv && data.psi > CONSTANTS.LIMIT_PSI_PRV_FAIL) {
-    return {
-      action: 'REPAIR',
-      title: 'Failed PRV Detected',
-      reason: `System pressure is ${data.psi} PSI despite having a PRV. The valve has failed.`,
-      urgent: true,
-      badgeColor: 'yellow',
-      badge: 'SERVICE'
-    };
-  }
-
-  // 2. Dangerous Pressure (No PRV, unsafe PSI)
-  if (!data.hasPrv && data.psi > CONSTANTS.LIMIT_PSI_SAFE) {
-    return {
-      action: 'REPAIR',
-      title: 'Critical Pressure Violation',
-      reason: `Water pressure is ${data.psi} PSI (Code Max: 80). Install PRV and Expansion Tank.`,
-      urgent: true,
-      badgeColor: 'yellow',
-      badge: 'SERVICE'
-    };
-  }
-
-  // 3. Missing Expansion Tank (Closed Loop Trap)
+  // Determine if system is closed-loop (backflow preventer OR PRV creates closed loop)
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
+
+  // 3A. Missing Thermal Expansion (Closed Loop without Expansion Tank) - URGENT
   if (isActuallyClosed && !data.hasExpTank) {
     return {
       action: 'REPAIR',
       title: 'Missing Thermal Expansion',
-      reason: 'Closed-loop system detected without an expansion tank. Voids manufacturer warranty.',
+      reason: 'Closed-loop system detected without an expansion tank. This voids manufacturer warranty and causes premature tank failure.',
       urgent: true,
-      badgeColor: 'yellow',
+      badgeColor: 'orange',
       badge: 'SERVICE'
     };
   }
 
-  // 4. Failed Expansion Tank (Has one, but PSI high)
-  if (data.hasExpTank && data.psi > CONSTANTS.LIMIT_PSI_SAFE) {
+  // 3B. Critical Pressure Violation (PSI > 80) - URGENT
+  if (data.psi > CONSTANTS.LIMIT_PSI_SAFE) {
+    // Determine root cause
+    if (data.hasPrv) {
+      return {
+        action: 'REPAIR',
+        title: 'Failed PRV Detected',
+        reason: `System pressure is ${data.psi} PSI despite having a PRV. The valve has failed and needs replacement.`,
+        urgent: true,
+        badgeColor: 'orange',
+        badge: 'SERVICE'
+      };
+    }
+    
+    if (data.hasExpTank) {
+      return {
+        action: 'REPAIR',
+        title: 'Expansion Tank Failure',
+        reason: 'High pressure detected despite expansion tank presence. Bladder likely ruptured.',
+        urgent: true,
+        badgeColor: 'orange',
+        badge: 'SERVICE'
+      };
+    }
+    
     return {
       action: 'REPAIR',
-      title: 'Expansion Tank Failure',
-      reason: 'High pressure detected despite expansion tank presence. Bladder likely ruptured.',
+      title: 'Critical Pressure Violation',
+      reason: `Water pressure is ${data.psi} PSI (Code Max: 80). Install PRV and Expansion Tank immediately.`,
       urgent: true,
-      badgeColor: 'yellow',
+      badgeColor: 'orange',
       badge: 'SERVICE'
     };
   }
 
-  // 5. Pressure Optimization (The "Prolong Life" Sell)
-  if (!data.hasPrv && data.psi >= CONSTANTS.LIMIT_PSI_OPTIMIZE && data.calendarAge < 8) {
+  // 3C. Pressure Optimization (65-80 PSI on young tanks) - NOT URGENT
+  if (!data.hasPrv && data.psi >= CONSTANTS.LIMIT_PSI_OPTIMIZE && data.psi <= CONSTANTS.LIMIT_PSI_SAFE && data.calendarAge < 8) {
     const improvement = Math.round((metrics.stressFactors.pressure - 1) * 100);
     return {
       action: 'UPGRADE',
       title: 'Pressure Optimization',
       reason: `Pressure is ${data.psi} PSI. Installing a PRV will reduce tank stress by ~${improvement}% and extend life.`,
       urgent: false,
-      badgeColor: 'blue',
+      badgeColor: 'yellow',
       badge: 'SERVICE'
     };
   }
 
   // ============================================
-  // SAFE FLUSH DECISION TREE
-  // Filters "Killer Flushes" (too old) and "Useless Flushes" (too clean)
+  // TIER 3B: MAINTENANCE ZONE (Flush Decision Tree)
   // ============================================
   
   const isFragile = metrics.failProb > CONSTANTS.LIMIT_FAILPROB_FRAGILE 
                  || data.calendarAge > CONSTANTS.LIMIT_AGE_FRAGILE;
-  const isClean = metrics.sedimentLbs < CONSTANTS.LIMIT_SEDIMENT_FLUSH;
   const isServiceable = metrics.sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH 
                      && metrics.sedimentLbs <= CONSTANTS.LIMIT_SEDIMENT_LOCKOUT;
   
-  // THE TRAP: Tank has sediment but is too old/fragile to touch safely
+  // Fragile tank with sediment - don't touch
   if (isFragile && isServiceable) {
     return {
       action: 'PASS',
       title: 'Maintenance Risk',
-      reason: `Sediment present (${metrics.sedimentLbs.toFixed(1)} lbs), but unit age (${data.calendarAge} yrs) makes flushing risky. We do not recommend servicing this unit—disturbance may cause leaks.`,
+      reason: `Sediment present (${metrics.sedimentLbs.toFixed(1)} lbs), but unit age (${data.calendarAge} yrs) makes flushing risky. Disturbance may cause leaks.`,
       urgent: false,
-      badgeColor: 'orange',
+      badgeColor: 'yellow',
       badge: 'MONITOR'
     };
   }
 
-  // THE SWEET SPOT: Safe to flush, beneficial to customer
+  // Safe to flush
   if (!isFragile && isServiceable) {
     return {
       action: 'MAINTAIN',
@@ -427,10 +433,8 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
       badge: 'SERVICE'
     };
   }
-  
-  // CLEAN PASS: Falls through to anode check or healthy system
 
-  // 7. Anode Refresh (Only on young tanks to avoid seized threads)
+  // Anode refresh on young tanks
   if (metrics.shieldLife < 1 && data.calendarAge < 6) {
     return {
       action: 'MAINTAIN',
