@@ -4,14 +4,13 @@ import { CommandCenter } from '@/components/CommandCenter';
 import { ForensicReport } from '@/components/ForensicReport';
 import { PanicMode } from '@/components/PanicMode';
 import { ServiceRequest } from '@/components/ServiceRequest';
-import { IssueSelector } from '@/components/IssueSelector';
-import { ScoreSimulator } from '@/components/ScoreSimulator';
+import { RepairPlanner } from '@/components/RepairPlanner';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs } from '@/lib/opterraAlgorithm';
 
-type Screen = 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'select-repairs' | 'simulate' | 'test-harness';
+type Screen = 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'test-harness';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -42,7 +41,7 @@ const Index = () => {
         return (
           <CommandCenter
             onPanicMode={() => setCurrentScreen('panic')}
-            onServiceRequest={() => setCurrentScreen('select-repairs')}
+            onServiceRequest={() => setCurrentScreen('repair-planner')}
             onViewReport={() => setCurrentScreen('report')}
             onTestHarness={() => setCurrentScreen('test-harness')}
             currentAsset={currentAsset}
@@ -53,24 +52,14 @@ const Index = () => {
           />
         );
       
-      case 'select-repairs':
+      case 'repair-planner':
         return (
-          <IssueSelector
+          <RepairPlanner
             onBack={() => setCurrentScreen('dashboard')}
-            onSimulate={(repairs) => {
+            onSchedule={(repairs) => {
               setSelectedRepairs(repairs);
-              setCurrentScreen('simulate');
+              setCurrentScreen('service');
             }}
-            currentInputs={currentInputs}
-          />
-        );
-      
-      case 'simulate':
-        return (
-          <ScoreSimulator
-            selectedRepairs={selectedRepairs}
-            onBack={() => setCurrentScreen('select-repairs')}
-            onSchedule={() => setCurrentScreen('service')}
             currentInputs={currentInputs}
           />
         );
@@ -90,7 +79,7 @@ const Index = () => {
       case 'service':
         return (
           <ServiceRequest 
-            onBack={() => setCurrentScreen('simulate')}
+            onBack={() => setCurrentScreen('repair-planner')}
             onCancel={() => setCurrentScreen('dashboard')}
             selectedRepairs={selectedRepairs}
           />
