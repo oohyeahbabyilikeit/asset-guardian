@@ -6,9 +6,10 @@ import { PanicMode } from '@/components/PanicMode';
 import { ServiceRequest } from '@/components/ServiceRequest';
 import { IssueSelector } from '@/components/IssueSelector';
 import { ScoreSimulator } from '@/components/ScoreSimulator';
+import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
 
-type Screen = 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'select-repairs' | 'simulate';
+type Screen = 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'select-repairs' | 'simulate' | 'test-harness';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -29,6 +30,7 @@ const Index = () => {
             onPanicMode={() => setCurrentScreen('panic')}
             onServiceRequest={() => setCurrentScreen('select-repairs')}
             onViewReport={() => setCurrentScreen('report')}
+            onTestHarness={() => setCurrentScreen('test-harness')}
           />
         );
       
@@ -66,6 +68,9 @@ const Index = () => {
             selectedRepairs={selectedRepairs}
           />
         );
+      
+      case 'test-harness':
+        return <AlgorithmTestHarness onBack={() => setCurrentScreen('dashboard')} />;
       
       default:
         return <HandshakeLoading onComplete={handleLoadingComplete} />;
