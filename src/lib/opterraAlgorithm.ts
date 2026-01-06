@@ -175,12 +175,20 @@ export function getRiskLevelInfo(level: RiskLevel): RiskLevelInfo {
 
 export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   
-  // 1. ANODE SHIELD LIFE
-  let anodeDecay = 1.0;
-  if (data.hasSoftener) anodeDecay += 1.4;
-  if (data.hasCircPump) anodeDecay += 0.5;
-  const expansionBenefit = data.hasExpTank ? 1.1 : 1.0;
-  const shieldLife = (data.warrantyYears * expansionBenefit) / anodeDecay;
+  // 1. ANODE SHIELD LIFE (Remaining years of cathodic protection)
+  // Standard anode lasts ~6 years in normal conditions
+  const BASE_ANODE_LIFE = 6;
+  
+  // Decay rate multiplier (higher = faster anode consumption)
+  let decayRate = 1.0;
+  if (data.hasSoftener) decayRate += 1.4;  // Softened water eats anodes fast
+  if (data.hasCircPump) decayRate += 0.5;  // Circulation accelerates corrosion
+  
+  // Effective age of the anode (how many "anode years" have passed)
+  const effectiveAnodeAge = data.calendarAge * decayRate;
+  
+  // Remaining shield life (can't go below 0)
+  const shieldLife = Math.max(0, BASE_ANODE_LIFE - effectiveAnodeAge);
 
   // 2. STRESS FACTORS (Physics Multipliers)
   
