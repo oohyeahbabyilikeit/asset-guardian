@@ -183,9 +183,19 @@ export function IssueSelector({ onBack, onSimulate, currentInputs }: IssueSelect
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">{fullReplacement.description}</p>
-                <div className="flex items-center gap-1.5 mt-2 text-xs text-green-400">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Resets all risk to zero</span>
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs text-green-400">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Eliminates all current failure risk</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="w-3.5 h-3.5 flex items-center justify-center text-green-400">↓</span>
+                    <span>Lower utility bills with modern efficiency</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="w-3.5 h-3.5 flex items-center justify-center text-green-400">+</span>
+                    <span>More hot water, faster recovery</span>
+                  </div>
                 </div>
               </div>
             </div>
