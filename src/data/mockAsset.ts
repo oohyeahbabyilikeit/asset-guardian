@@ -43,6 +43,11 @@ export interface VitalsData {
     paper: number;
     status: 'critical' | 'warning' | 'optimal';
   };
+  expansionTank: {
+    present: boolean;
+    required: boolean; // true if closed loop system
+    status: 'critical' | 'warning' | 'optimal';
+  };
 }
 
 export interface AuditFinding {

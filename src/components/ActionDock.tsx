@@ -30,8 +30,12 @@ export function ActionDock({
         return 'Fix Liability Risk';
       case 'REPLACE_RISK':
         return 'View Options';
+      case 'REPLACE_FATIGUE':
+        return 'Quote Replacement';
       case 'INSTALL_PRV':
-        return 'Install Protection Valve';
+        return 'Install PRV';
+      case 'INSTALL_EXP_TANK':
+        return 'Install Expansion Tank';
       case 'MONITOR':
         return 'Schedule Maintenance';
       default:

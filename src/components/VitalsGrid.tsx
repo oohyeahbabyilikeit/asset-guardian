@@ -1,4 +1,4 @@
-import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge } from 'lucide-react';
+import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge, Container } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type VitalsData } from '@/data/mockAsset';
 import { getRiskLevelInfo, type RiskLevel } from '@/lib/opterraAlgorithm';
@@ -46,6 +46,7 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     vitals.biologicalAge.status !== 'optimal',
     vitals.sedimentLoad.status !== 'optimal',
     vitals.liabilityStatus.status !== 'optimal',
+    vitals.expansionTank.status !== 'optimal',
   ].filter(Boolean).length;
 
   const getStatusIcon = (status: 'critical' | 'warning' | 'optimal') => {
@@ -72,6 +73,19 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     return `${info.label} RISK`;
   };
 
+  // Get expansion tank display info
+  const getExpansionTankInfo = () => {
+    if (!vitals.expansionTank.required) {
+      return { title: 'Expansion Tank', subtitle: 'Not required (open loop)' };
+    }
+    if (vitals.expansionTank.present) {
+      return { title: 'Expansion Tank', subtitle: 'Present & verified' };
+    }
+    return { title: 'Missing Expansion Tank', subtitle: 'Required for closed loop system' };
+  };
+
+  const expTankInfo = getExpansionTankInfo();
+
   const items = [
     {
       status: vitals.pressure.status,
@@ -80,6 +94,12 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
       subtitle: vitals.pressure.status === 'optimal' 
         ? 'Within safe range' 
         : `${vitals.pressure.current} PSI (Limit: ${vitals.pressure.limit})`,
+    },
+    {
+      status: vitals.expansionTank.status,
+      icon: <Container className="w-5 h-5" />,
+      title: expTankInfo.title,
+      subtitle: expTankInfo.subtitle,
     },
     {
       status: vitals.biologicalAge.status,
