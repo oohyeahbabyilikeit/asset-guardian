@@ -1,7 +1,8 @@
-import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge, Container } from 'lucide-react';
+import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge, Container, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type VitalsData } from '@/data/mockAsset';
 import { getRiskLevelInfo, type RiskLevel } from '@/lib/opterraAlgorithm';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface VitalsGridProps {
   vitals: VitalsData;
@@ -15,9 +16,10 @@ interface ActionItemProps {
   subtitleClass: string;
   isPassed?: boolean;
   status?: 'critical' | 'warning' | 'optimal';
+  tooltip?: string | null;
 }
 
-function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPassed, status }: ActionItemProps) {
+function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPassed, status, tooltip }: ActionItemProps) {
   return (
     <div 
       className={cn(
@@ -32,7 +34,21 @@ function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPasse
           {icon}
         </div>
         <div className="text-left">
-          <div className="font-bold text-foreground">{title}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-foreground">{title}</span>
+            {tooltip && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-help flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[220px] text-xs">
+                    {tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <div className={cn("text-xs font-bold font-data", subtitleClass)}>{subtitle}</div>
         </div>
       </div>
@@ -68,18 +84,22 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
   // Get PRV display info - context-aware
   const getPrvInfo = () => {
     if (!vitals.prv.required && !vitals.prv.present) {
-      return { title: 'PRV Not Needed', subtitle: 'Pressure within safe range' };
+      return { title: 'PRV Not Needed', subtitle: 'Pressure within safe range', tooltip: null };
     }
     if (!vitals.prv.required && vitals.prv.present) {
-      return { title: 'PRV Installed', subtitle: 'Extra protection (optional)' };
+      return { title: 'PRV Installed', subtitle: 'Extra protection (optional)', tooltip: null };
     }
     if (vitals.prv.present && vitals.prv.functional) {
-      return { title: 'PRV Active', subtitle: 'Pressure regulated' };
+      return { title: 'PRV Active', subtitle: 'Pressure regulated to ~60 PSI', tooltip: 'Reducing inlet pressure to 60 PSI cuts plumbing strain by ~50%' };
     }
     if (vitals.prv.present && !vitals.prv.functional) {
-      return { title: 'PRV Failed', subtitle: 'High pressure despite PRV' };
+      return { title: 'PRV Failed', subtitle: 'High pressure despite PRV', tooltip: 'PRV not regulating — system under full strain' };
     }
-    return { title: 'PRV Recommended', subtitle: 'Install pressure reducing valve' };
+    return { 
+      title: 'PRV Recommended', 
+      subtitle: 'Cuts strain by ~50%', 
+      tooltip: 'Installing a PRV reduces inlet pressure to 60 PSI, cutting plumbing strain by approximately 50%' 
+    };
   };
 
   // Get expansion tank display info - context-aware
@@ -113,6 +133,7 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
       icon: <Gauge className="w-5 h-5" />,
       title: prvInfo.title,
       subtitle: prvInfo.subtitle,
+      tooltip: prvInfo.tooltip,
     },
     {
       status: vitals.expansionTank.status,
@@ -162,6 +183,7 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
                 subtitle={item.subtitle}
                 subtitleClass={getSubtitleClass(item.status)}
                 status={item.status}
+                tooltip={item.tooltip}
               />
             ))}
           </div>
@@ -184,6 +206,7 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
                 subtitle={item.subtitle}
                 subtitleClass="text-green-400"
                 isPassed
+                tooltip={item.tooltip}
               />
             ))}
           </div>
