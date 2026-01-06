@@ -297,32 +297,6 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
           </>
         )}
 
-        {/* Failure Probability */}
-        <div className="clean-card mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-foreground">Failure Probability</span>
-            <span className="text-xs text-green-400 font-medium flex items-center gap-1">
-              <TrendingDown className="w-3.5 h-3.5" />
-              {failureImprovement}% reduction
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="font-data text-red-400">{dynamicHealthScore.failureProbability}%</span>
-                <span className="text-muted-foreground">→</span>
-                <span className="font-data text-green-400">{animatedFailureProb.toFixed(1)}%</span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-1000"
-                  style={{ width: `${100 - result.newFailureProb}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Do Nothing Projection - Only show for repairs, not replacement */}
         {!isFullReplacement && (
