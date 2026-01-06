@@ -21,161 +21,20 @@ interface AlgorithmTestHarnessProps {
   onBack: () => void;
 }
 
-// Preset test scenarios
-const PRESETS: Record<string, { label: string; inputs: ForensicInputs }> = {
-  healthy: {
-    label: '✅ Healthy Tank',
-    inputs: {
-      calendarAge: 5,
-      psi: 60,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 8,
-      hasSoftener: false,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'GARAGE',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
-  dangerousPressure: {
-    label: '🛑 Dangerous Pressure (140 PSI)',
-    inputs: {
-      calendarAge: 3,
-      psi: 140,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 8,
-      hasSoftener: false,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'GARAGE',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
-  extremePressure: {
-    label: '💣 12yr + 140 PSI (Extreme)',
-    inputs: {
-      calendarAge: 12,
-      psi: 140,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 10,
-      hasSoftener: false,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'GARAGE',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
-  zombieTank: {
-    label: '🧟 Zombie Tank (12yr + 95 PSI)',
-    inputs: {
-      calendarAge: 12,
-      psi: 95,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 10,
-      hasSoftener: false,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'GARAGE',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
-  missingExpTank: {
-    label: '⚠️ Missing Expansion Tank',
-    inputs: {
-      calendarAge: 4,
-      psi: 65,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 8,
-      hasSoftener: false,
-      isClosedLoop: true,
-      hasExpTank: false,
-      location: 'BASEMENT',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
-  atticRisk: {
-    label: '🏠 Attic High Risk',
-    inputs: {
-      calendarAge: 9,
-      psi: 75,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 12,
-      hasSoftener: true,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'ATTIC',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
-  activeLeak: {
-    label: '🆘 Active Leak',
-    inputs: {
-      calendarAge: 8,
-      psi: 70,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 10,
-      hasSoftener: false,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'BASEMENT',
-      isFinishedArea: false,
-      visualRust: true,
-      tempSetting: 'NORMAL',
-    },
-  },
-  sedimentLockout: {
-    label: '🪨 Sediment Lockout',
-    inputs: {
-      calendarAge: 15,
-      psi: 60,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 25,
-      hasSoftener: false,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'GARAGE',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
-  youngHighPressure: {
-    label: '🔧 Young Tank + PRV Needed',
-    inputs: {
-      calendarAge: 3,
-      psi: 95,
-      warrantyYears: 6,
-      fuelType: 'GAS',
-      hardnessGPG: 8,
-      hasSoftener: false,
-      isClosedLoop: false,
-      hasExpTank: true,
-      location: 'GARAGE',
-      isFinishedArea: false,
-      visualRust: false,
-      tempSetting: 'NORMAL',
-    },
-  },
+// Default inputs for a healthy tank
+const DEFAULT_INPUTS: ForensicInputs = {
+  calendarAge: 5,
+  psi: 60,
+  warrantyYears: 6,
+  fuelType: 'GAS',
+  hardnessGPG: 8,
+  hasSoftener: false,
+  isClosedLoop: false,
+  hasExpTank: true,
+  location: 'GARAGE',
+  isFinishedArea: false,
+  visualRust: false,
+  tempSetting: 'NORMAL',
 };
 
 // Generate Basquin curve data points
@@ -195,9 +54,8 @@ function generateBasquinCurve() {
 const BASQUIN_DATA = generateBasquinCurve();
 
 export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
-  const [inputs, setInputs] = useState<ForensicInputs>(PRESETS.healthy.inputs);
+  const [inputs, setInputs] = useState<ForensicInputs>(DEFAULT_INPUTS);
   const [result, setResult] = useState<OpterraResult | null>(null);
-  const [selectedPreset, setSelectedPreset] = useState<string>('healthy');
 
   const currentPsiStress = useMemo(() => {
     const effectivePsi = Math.max(inputs.psi, DESIGN_PSI);
@@ -209,15 +67,13 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
     setResult(calcResult);
   };
 
-  const loadPreset = (presetKey: string) => {
-    setSelectedPreset(presetKey);
-    setInputs(PRESETS[presetKey].inputs);
+  const resetInputs = () => {
+    setInputs(DEFAULT_INPUTS);
     setResult(null);
   };
 
   const updateInput = <K extends keyof ForensicInputs>(key: K, value: ForensicInputs[K]) => {
     setInputs(prev => ({ ...prev, [key]: value }));
-    setSelectedPreset('');
   };
 
   return (
@@ -236,26 +92,6 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Preset Selector */}
-        <Card className="p-4">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">
-            Load Preset Scenario
-          </Label>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(PRESETS).map(([key, preset]) => (
-              <Button
-                key={key}
-                variant={selectedPreset === key ? 'default' : 'outline'}
-                size="sm"
-                className="justify-start text-xs h-auto py-2"
-                onClick={() => loadPreset(key)}
-              >
-                {preset.label}
-              </Button>
-            ))}
-          </div>
-        </Card>
-
         {/* Input Controls */}
         <Card className="p-4 space-y-4">
           <h2 className="font-semibold text-sm uppercase tracking-wider">Forensic Inputs</h2>
@@ -442,7 +278,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             <Play className="w-4 h-4 mr-2" />
             Run Calculation
           </Button>
-          <Button variant="outline" onClick={() => loadPreset('healthy')}>
+          <Button variant="outline" onClick={resetInputs}>
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
