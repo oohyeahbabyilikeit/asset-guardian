@@ -594,30 +594,6 @@ function WaterHeaterDiagram({
         </text>
       </g>
 
-      {/* Rating Plate / Brand Badge */}
-      <g>
-        <rect 
-          x={tankX + 15} 
-          y={tankY + 55} 
-          width={tankWidth - 30} 
-          height="18" 
-          rx="2" 
-          fill="rgba(251, 191, 36, 0.15)"
-          stroke="#fbbf24"
-          strokeWidth="0.5"
-        />
-        <text 
-          x={tankX + tankWidth / 2} 
-          y={tankY + 66} 
-          fill="#fbbf24" 
-          fontSize="7" 
-          fontWeight="bold"
-          textAnchor="middle"
-          opacity="0.8"
-        >
-          OPTERRA
-        </text>
-      </g>
     </svg>
   );
 }
