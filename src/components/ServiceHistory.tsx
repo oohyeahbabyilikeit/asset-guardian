@@ -18,6 +18,7 @@ interface ServiceHistoryProps {
   shieldLife: number;
   hasSoftener: boolean;
   tankCapacityGallons: number;
+  failProb: number;  // Required for safe flush logic
   serviceHistory?: ServiceEvent[];
 }
 
@@ -605,6 +606,7 @@ export function ServiceHistory({
   shieldLife, 
   hasSoftener,
   tankCapacityGallons,
+  failProb,
   serviceHistory = [] 
 }: ServiceHistoryProps) {
   const [isOpen, setIsOpen] = useState(true);
@@ -627,8 +629,13 @@ export function ServiceHistory({
   const anodeStatus = anodeDepleted ? 'critical' : anodeDepletionPercent > 70 ? 'warning' : 'good';
   const sedimentStatus = sedimentPercent > 50 ? 'critical' : sedimentHigh ? 'warning' : 'good';
 
-  // Determine next service recommendations
-  const needsFlush = sedimentLbs > 5;
+  // SAFE FLUSH LOGIC GATES
+  // Prevents: "Killer Flush" (locked out), "Ghost Flush" (fragile tank)
+  const isFragile = failProb > 60 || calendarAge > 12;
+  const isLockedOut = sedimentLbs > 15;
+  const isServiceable = sedimentLbs >= 5 && sedimentLbs <= 15;
+  const needsFlush = !isFragile && !isLockedOut && isServiceable;
+  
   const needsAnode = shieldLife < 1 && calendarAge < 8;
 
   return (

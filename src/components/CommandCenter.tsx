@@ -127,6 +127,7 @@ export function CommandCenter({
             shieldLife={shieldLife}
             hasSoftener={currentInputs.hasSoftener}
             tankCapacityGallons={parseInt(currentAsset.specs.capacity) || 50}
+            failProb={failProb}
           />
         </div>
 
