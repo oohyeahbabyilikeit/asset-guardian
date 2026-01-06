@@ -54,9 +54,9 @@ export function RecommendationBadge({ recommendation, className }: Recommendatio
         )}
       </div>
 
-      {/* Script */}
-      <p className="text-sm text-muted-foreground leading-relaxed italic">
-        "{recommendation.script}"
+      {/* Details */}
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {recommendation.script}
       </p>
 
       {/* Rule trigger */}
