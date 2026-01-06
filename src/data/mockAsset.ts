@@ -45,7 +45,13 @@ export interface VitalsData {
   };
   expansionTank: {
     present: boolean;
-    required: boolean; // true if closed loop system
+    required: boolean; // true if closed loop system (isClosedLoop OR hasPrv)
+    status: 'critical' | 'warning' | 'optimal';
+  };
+  prv: {
+    present: boolean;
+    required: boolean; // true if psi >= 65
+    functional: boolean; // false if present but psi > 75
     status: 'critical' | 'warning' | 'optimal';
   };
 }

@@ -44,8 +44,19 @@ export function CommandCenter({
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
-  const expansionTankRequired = currentInputs.isClosedLoop;
+  // PRV implies closed loop (backpressure), so expansion tank is required if either condition is true
+  const isActuallyClosed = currentInputs.isClosedLoop || currentInputs.hasPrv;
+  const expansionTankRequired = isActuallyClosed;
   const expansionTankMissing = expansionTankRequired && !currentInputs.hasExpTank;
+  
+  // PRV status calculation
+  const prvRequired = currentInputs.psi >= 65; // Recommended for pressures 65+
+  const prvFunctional = currentInputs.hasPrv && currentInputs.psi <= 75; // Working if pressure is controlled
+  const prvStatus: 'critical' | 'warning' | 'optimal' = 
+    !prvRequired && !currentInputs.hasPrv ? 'optimal' : // Not needed, not installed
+    currentInputs.hasPrv && prvFunctional ? 'optimal' : // Installed and working
+    currentInputs.hasPrv && !prvFunctional ? 'warning' : // Installed but failed (high pressure)
+    'critical'; // Needed but not installed
   
   const dynamicVitals: VitalsData = {
     pressure: {
@@ -73,6 +84,12 @@ export function CommandCenter({
       present: currentInputs.hasExpTank,
       required: expansionTankRequired,
       status: expansionTankMissing ? 'critical' : 'optimal',
+    },
+    prv: {
+      present: currentInputs.hasPrv,
+      required: prvRequired,
+      functional: prvFunctional,
+      status: prvStatus,
     },
   };
 
