@@ -1,16 +1,34 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, repairOptions } from '@/data/repairOptions';
-import { formatCurrency, demoHealthScore } from '@/data/mockAsset';
+import { demoHealthScore, demoForensicInputs, demoVitals, demoAsset } from '@/data/mockAsset';
+import { calculateRiskDilation, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
 
 interface IssueSelectorProps {
   onBack: () => void;
   onSimulate: (selectedRepairs: RepairOption[]) => void;
 }
 
+// Get recommendation from the algorithm
+const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
+const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
+const recommendation = getRecommendation(
+  riskDilation.forensicRisk,
+  riskDilation.biologicalAge,
+  demoVitals.sedimentLoad.pounds,
+  demoForensicInputs.estimatedDamage || 0,
+  locationRiskLevel
+);
+
+// Check if replacement is required (repairs locked)
+const replacementRequired = recommendation.action === 'REPLACE' && !recommendation.canRepair;
+
 export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    // Auto-select replacement if required
+    replacementRequired ? new Set(['replace']) : new Set()
+  );
 
   const fullReplacement = repairOptions.find(r => r.isFullReplacement);
   const individualRepairs = repairOptions.filter(r => !r.isFullReplacement);
@@ -72,8 +90,28 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
       </header>
 
       <div className="relative p-6 max-w-md mx-auto pb-32">
+        {/* Replacement Required Banner */}
+        {replacementRequired && (
+          <div className="mb-6 p-4 rounded-xl border-2 border-red-500/50 bg-red-500/10">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-red-400 text-sm mb-1">
+                  Replacement Required
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {recommendation.script} Individual repairs are not available for this unit.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <p className="text-muted-foreground text-sm mb-6">
-          What would you like to address?
+          {replacementRequired 
+            ? 'Full replacement is the only available option.'
+            : 'What would you like to address?'
+          }
         </p>
 
         {/* Full Replacement Option */}
@@ -118,50 +156,54 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
           </button>
         )}
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted-foreground font-medium">OR FIX INDIVIDUAL ISSUES</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
+        {/* Divider - only show if repairs are available */}
+        {!replacementRequired && (
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground font-medium">OR FIX INDIVIDUAL ISSUES</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+        )}
 
-        {/* Individual Repairs */}
-        <div className="space-y-3">
-          {individualRepairs.map((repair) => {
-            const isSelected = selectedIds.has(repair.id);
-            return (
-              <button
-                key={repair.id}
-                onClick={() => toggleRepair(repair.id)}
-                disabled={isReplacementSelected}
-                className={`w-full text-left p-4 rounded-xl border transition-all ${
-                  isReplacementSelected
-                    ? 'opacity-40 cursor-not-allowed border-border bg-card/50'
-                    : isSelected
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border bg-card/50 hover:border-muted-foreground/50'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    isSelected
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-muted-foreground/30'
-                  }`}>
-                    {isSelected && <Check className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Wrench className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-semibold text-foreground">{repair.name}</span>
+        {/* Individual Repairs - hidden if replacement required */}
+        {!replacementRequired && (
+          <div className="space-y-3">
+            {individualRepairs.map((repair) => {
+              const isSelected = selectedIds.has(repair.id);
+              return (
+                <button
+                  key={repair.id}
+                  onClick={() => toggleRepair(repair.id)}
+                  disabled={isReplacementSelected}
+                  className={`w-full text-left p-4 rounded-xl border transition-all ${
+                    isReplacementSelected
+                      ? 'opacity-40 cursor-not-allowed border-border bg-card/50'
+                      : isSelected
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border bg-card/50 hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                      isSelected
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-muted-foreground/30'
+                    }`}>
+                      {isSelected && <Check className="w-4 h-4" />}
                     </div>
-                    <p className="text-sm text-muted-foreground">{repair.description}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Wrench className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-semibold text-foreground">{repair.name}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{repair.description}</p>
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Fixed Bottom Action */}
