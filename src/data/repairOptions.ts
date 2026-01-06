@@ -1,5 +1,7 @@
 // Repair options and simulation logic for the "Simulate Your Fix" feature
 
+import { ForensicInputs, OpterraMetrics, Recommendation } from '@/lib/opterraAlgorithm';
+
 export interface RepairOption {
   id: string;
   name: string;
@@ -23,6 +25,7 @@ export interface SimulatedResult {
   totalCostMax: number;
 }
 
+// All possible repair options (static definitions)
 export const repairOptions: RepairOption[] = [
   {
     id: 'replace',
@@ -38,15 +41,51 @@ export const repairOptions: RepairOption[] = [
     isFullReplacement: true,
   },
   {
-    id: 'pressure',
-    name: 'Fix High Pressure',
-    description: 'Install PRV + Expansion Tank',
-    costMin: 450,
-    costMax: 650,
+    id: 'prv',
+    name: 'Install PRV',
+    description: 'Pressure reducing valve to control inlet pressure',
+    costMin: 350,
+    costMax: 550,
     impact: {
-      healthScoreBoost: 25,
-      agingFactorReduction: 30,
-      failureProbReduction: 40,
+      healthScoreBoost: 20,
+      agingFactorReduction: 25,
+      failureProbReduction: 30,
+    },
+  },
+  {
+    id: 'exp_tank',
+    name: 'Install Expansion Tank',
+    description: 'Absorbs thermal expansion in closed loop system',
+    costMin: 250,
+    costMax: 400,
+    impact: {
+      healthScoreBoost: 15,
+      agingFactorReduction: 20,
+      failureProbReduction: 25,
+    },
+  },
+  {
+    id: 'replace_prv',
+    name: 'Replace Failed PRV',
+    description: 'Replace malfunctioning pressure reducing valve',
+    costMin: 350,
+    costMax: 550,
+    impact: {
+      healthScoreBoost: 22,
+      agingFactorReduction: 28,
+      failureProbReduction: 35,
+    },
+  },
+  {
+    id: 'replace_exp',
+    name: 'Replace Expansion Tank',
+    description: 'Replace failed or waterlogged expansion tank',
+    costMin: 250,
+    costMax: 400,
+    impact: {
+      healthScoreBoost: 18,
+      agingFactorReduction: 22,
+      failureProbReduction: 28,
     },
   },
   {
@@ -74,6 +113,70 @@ export const repairOptions: RepairOption[] = [
     },
   },
 ];
+
+/**
+ * Get dynamically available repairs based on current system state.
+ * Only returns repairs that are actually needed for this specific unit.
+ */
+export function getAvailableRepairs(
+  inputs: ForensicInputs,
+  metrics: OpterraMetrics,
+  recommendation: Recommendation
+): RepairOption[] {
+  const options: RepairOption[] = [];
+
+  // Full replacement is always an option for REPLACE or REPAIR recommendations
+  if (recommendation.action === 'REPLACE' || recommendation.action === 'REPAIR') {
+    const replacement = repairOptions.find(r => r.id === 'replace');
+    if (replacement) options.push(replacement);
+  }
+
+  // If replacement is REQUIRED (physical failure), no other options available
+  if (recommendation.action === 'REPLACE') {
+    return options;
+  }
+
+  // Determine closed loop status
+  const isActuallyClosed = inputs.isClosedLoop || inputs.hasPrv;
+
+  // PRV needed if high pressure and no PRV installed
+  if (!inputs.hasPrv && inputs.psi >= 65) {
+    const prv = repairOptions.find(r => r.id === 'prv');
+    if (prv) options.push(prv);
+  }
+
+  // PRV replacement if PRV exists but pressure still high (failed PRV)
+  if (inputs.hasPrv && inputs.psi > 75) {
+    const replacePrv = repairOptions.find(r => r.id === 'replace_prv');
+    if (replacePrv) options.push(replacePrv);
+  }
+
+  // Expansion tank needed if closed loop and no tank
+  if (isActuallyClosed && !inputs.hasExpTank) {
+    const expTank = repairOptions.find(r => r.id === 'exp_tank');
+    if (expTank) options.push(expTank);
+  }
+
+  // Expansion tank replacement if tank exists but pressure still very high
+  if (inputs.hasExpTank && inputs.psi > 80) {
+    const replaceExp = repairOptions.find(r => r.id === 'replace_exp');
+    if (replaceExp) options.push(replaceExp);
+  }
+
+  // Flush needed if sediment is above threshold
+  if (metrics.sedimentLbs > 5) {
+    const flush = repairOptions.find(r => r.id === 'flush');
+    if (flush) options.push(flush);
+  }
+
+  // Anode replacement if shield life is depleted AND tank is young enough to be worth it
+  if (metrics.shieldLife < 1 && inputs.calendarAge < 8) {
+    const anode = repairOptions.find(r => r.id === 'anode');
+    if (anode) options.push(anode);
+  }
+
+  return options;
+}
 
 export function simulateRepairs(
   currentScore: number,

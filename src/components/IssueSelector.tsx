@@ -1,34 +1,37 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RepairOption, repairOptions } from '@/data/repairOptions';
-import { demoForensicInputs, demoAsset } from '@/data/mockAsset';
-import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { RepairOption, repairOptions, getAvailableRepairs } from '@/data/repairOptions';
+import { calculateOpterraRisk, ForensicInputs } from '@/lib/opterraAlgorithm';
 
 interface IssueSelectorProps {
   onBack: () => void;
   onSimulate: (selectedRepairs: RepairOption[]) => void;
+  currentInputs: ForensicInputs;
 }
 
-// Calculate all metrics using v6.0 algorithm
-const opterraResult = calculateOpterraRisk(demoForensicInputs);
-const { failProb } = opterraResult.metrics;
-const recommendation = opterraResult.verdict;
+export function IssueSelector({ onBack, onSimulate, currentInputs }: IssueSelectorProps) {
+  // Calculate metrics using CURRENT inputs (not static demo data)
+  const opterraResult = calculateOpterraRisk(currentInputs);
+  const { failProb } = opterraResult.metrics;
+  const recommendation = opterraResult.verdict;
 
-// Derive health status from failProb
-const healthStatus = failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal';
+  // Derive health status from failProb
+  const healthStatus = failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal';
 
-// Check if replacement is required (repairs locked) - v6.0 uses REPLACE action
-const replacementRequired = recommendation.action === 'REPLACE';
+  // Physical-only replacement: only require replacement for visible failures
+  const replacementRequired = recommendation.action === 'REPLACE';
 
-export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
+  // Get dynamically available repairs based on current system state
+  const availableRepairs = getAvailableRepairs(currentInputs, opterraResult.metrics, recommendation);
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     // Auto-select replacement if required
     replacementRequired ? new Set(['replace']) : new Set()
   );
 
-  const fullReplacement = repairOptions.find(r => r.isFullReplacement);
-  const individualRepairs = repairOptions.filter(r => !r.isFullReplacement);
+  const fullReplacement = availableRepairs.find(r => r.isFullReplacement);
+  const individualRepairs = availableRepairs.filter(r => !r.isFullReplacement);
 
   const isReplacementSelected = selectedIds.has('replace');
 
@@ -58,13 +61,47 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
     });
   };
 
-  const selectedRepairs = repairOptions.filter(r => selectedIds.has(r.id));
+  const selectedRepairs = availableRepairs.filter(r => selectedIds.has(r.id));
 
   const handleContinue = () => {
     if (selectedRepairs.length > 0) {
       onSimulate(selectedRepairs);
     }
   };
+
+  // Handle "No Repairs Needed" state
+  if (recommendation.action === 'PASS' && availableRepairs.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
+        <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
+
+        <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-4 px-4">
+          <div className="flex items-center justify-between max-w-md mx-auto">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="font-bold text-foreground">System Status</h1>
+            <div className="w-10" />
+          </div>
+        </header>
+
+        <div className="relative p-6 max-w-md mx-auto text-center py-16">
+          <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-6" />
+          <h2 className="text-xl font-bold text-foreground mb-3">No Repairs Needed</h2>
+          <p className="text-muted-foreground mb-8">
+            Your water heater is operating within safe parameters. Continue regular maintenance to keep it healthy.
+          </p>
+          <Button onClick={onBack} variant="outline" className="w-full max-w-xs">
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,7 +144,9 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
         <p className="text-muted-foreground text-sm mb-6">
           {replacementRequired 
             ? 'Full replacement is the only available option.'
-            : 'What would you like to address?'
+            : availableRepairs.length > 0 
+              ? 'What would you like to address?'
+              : 'No repairs currently recommended.'
           }
         </p>
 
@@ -137,7 +176,7 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-foreground">{fullReplacement.name}</span>
-                  {healthStatus === 'critical' && (
+                  {(healthStatus === 'critical' || replacementRequired) && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
                       RECOMMENDED
                     </span>
@@ -153,8 +192,8 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
           </button>
         )}
 
-        {/* Divider - only show if repairs are available */}
-        {!replacementRequired && (
+        {/* Divider - only show if individual repairs are available */}
+        {!replacementRequired && individualRepairs.length > 0 && fullReplacement && (
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 h-px bg-border" />
             <span className="text-xs text-muted-foreground font-medium">OR FIX INDIVIDUAL ISSUES</span>
@@ -163,7 +202,7 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
         )}
 
         {/* Individual Repairs - hidden if replacement required */}
-        {!replacementRequired && (
+        {!replacementRequired && individualRepairs.length > 0 && (
           <div className="space-y-3">
             {individualRepairs.map((repair) => {
               const isSelected = selectedIds.has(repair.id);

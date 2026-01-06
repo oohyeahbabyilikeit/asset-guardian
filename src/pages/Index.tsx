@@ -61,6 +61,7 @@ const Index = () => {
               setSelectedRepairs(repairs);
               setCurrentScreen('simulate');
             }}
+            currentInputs={currentInputs}
           />
         );
       
@@ -70,6 +71,7 @@ const Index = () => {
             selectedRepairs={selectedRepairs}
             onBack={() => setCurrentScreen('select-repairs')}
             onSchedule={() => setCurrentScreen('service')}
+            currentInputs={currentInputs}
           />
         );
       

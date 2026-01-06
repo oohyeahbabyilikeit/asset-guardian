@@ -2,22 +2,14 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingDown, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, simulateRepairs, SimulatedResult } from '@/data/repairOptions';
-import { demoAsset, demoForensicInputs, formatCurrency } from '@/data/mockAsset';
-import { calculateOpterraRisk, failProbToHealthScore } from '@/lib/opterraAlgorithm';
-
-// Calculate health score dynamically from algorithm
-const opterraResult = calculateOpterraRisk(demoForensicInputs);
-const { bioAge, failProb } = opterraResult.metrics;
-const dynamicHealthScore = {
-  score: failProbToHealthScore(failProb),
-  status: (failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
-  failureProbability: Math.round(failProb * 10) / 10,
-};
+import { formatCurrency } from '@/data/mockAsset';
+import { calculateOpterraRisk, failProbToHealthScore, ForensicInputs } from '@/lib/opterraAlgorithm';
 
 interface ScoreSimulatorProps {
   selectedRepairs: RepairOption[];
   onBack: () => void;
   onSchedule: () => void;
+  currentInputs: ForensicInputs;
 }
 
 function useAnimatedNumber(target: number, duration: number = 1500, startFrom: number = 0) {
@@ -84,8 +76,18 @@ function useDelayedAnimatedNumber(target: number, startFrom: number, delay: numb
   return current;
 }
 
-export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSimulatorProps) {
-  const currentAgingFactor = bioAge / demoForensicInputs.calendarAge;
+export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInputs }: ScoreSimulatorProps) {
+  // Calculate health score dynamically from CURRENT inputs
+  const opterraResult = calculateOpterraRisk(currentInputs);
+  const { bioAge, failProb } = opterraResult.metrics;
+  
+  const dynamicHealthScore = {
+    score: failProbToHealthScore(failProb),
+    status: (failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
+    failureProbability: Math.round(failProb * 10) / 10,
+  };
+
+  const currentAgingFactor = bioAge / currentInputs.calendarAge;
   
   const result: SimulatedResult = simulateRepairs(
     dynamicHealthScore.score,
@@ -354,7 +356,7 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-200/80">
-              These repairs extend life but don't reset the {demoAsset.paperAge}-year paper age.
+              These repairs extend life but don't reset the {currentInputs.calendarAge}-year paper age.
             </p>
           </div>
         )}
