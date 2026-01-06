@@ -1,5 +1,9 @@
 /**
- * OPTERRA v5.0: Physics-Based Risk Calculation Engine
+ * OPTERRA v5.1: Physics-Based Risk Calculation Engine
+ * 
+ * v5.1 Changes:
+ * - Added Circulation Pump stress factor (Duty Cycle Fatigue)
+ * - Fuel-type specific sediment thresholds (Electric: 10 lbs, Gas: 20 lbs)
  * 
  * Integrates Basquin's Law (pressure fatigue), Arrhenius Equation (thermal acceleration),
  * and Galvanic Conductivity (softener impact) for scientifically defensible risk assessment.
@@ -18,14 +22,19 @@ const CONSTANTS = {
   FATIGUE_EXP: 4.0,       // Basquin's exponent for corrosion-fatigue
   DANGEROUS_PSI: 110,     // Vessel rupture threshold
 
-  // Sediment
-  CRITICAL_SEDIMENT: 15,
-  SEDIMENT_GAS: 0.044,    // lbs/year for gas heaters
-  SEDIMENT_ELEC: 0.08,    // lbs/year for electric heaters
+  // Sediment (Fuel-type specific thresholds)
+  CRITICAL_SEDIMENT_GAS: 20,   // Gas can tolerate more sediment
+  CRITICAL_SEDIMENT_ELEC: 10,  // Electric elements are sensitive
+  SEDIMENT_GAS: 0.044,         // lbs/year for gas heaters
+  SEDIMENT_ELEC: 0.08,         // lbs/year for electric heaters
 
   // Galvanic Conductivity
   SOFTENER_DECAY: 2.4,    // Anode consumption multiplier (sodium conductivity)
   EXPANSION_BENEFIT: 1.1, // Anode life extension from expansion tank
+
+  // Circulation Pump (v5.1)
+  CIRC_PUMP_DECAY: 0.5,   // Amperage load/erosion on anode
+  CIRC_PUMP_STRESS: 1.4,  // Duty cycle fatigue multiplier
 
   // Limits
   MAX_BIO_AGE: 25,        // Cap for sanity
@@ -78,6 +87,7 @@ export interface ForensicInputs {
   fuelType: FuelType;
   hardnessGPG: number;
   hasSoftener: boolean;
+  hasCircPump: boolean;  // v5.1: Circulation pump
   isClosedLoop: boolean;
   hasExpTank: boolean;
   location: LocationType;
@@ -129,9 +139,10 @@ export interface OpterraMetrics {
   estDamage: number;
   shieldLife: number;
   stress: number;
-  // v5.0: Physics breakdown
+  // v5.1: Physics breakdown
   pressureStress: number;
   tempStress: number;
+  circStress: number;   // v5.1: Duty Cycle Fatigue
   loopPenalty: number;
 }
 
@@ -184,8 +195,11 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   const hardnessGPG = Number(data.hardnessGPG);
 
   // --- 1. SHIELD CALCULATION (ANODE LIFE) ---
-  // Softened water has higher conductivity, draining the anode faster (galvanic decay)
-  const anodeDecayRate = data.hasSoftener ? CONSTANTS.SOFTENER_DECAY : 1.0;
+  // Base decay is 1.0. Softener adds +1.4 (Conductivity). Circ Pump adds +0.5 (Amperage load/Erosion).
+  let anodeDecayRate = 1.0;
+  if (data.hasSoftener) anodeDecayRate += 1.4;  // = 2.4
+  if (data.hasCircPump) anodeDecayRate += CONSTANTS.CIRC_PUMP_DECAY;  // = 1.5 (or 2.9 if both)
+  
   // Expansion tank reduces pressure spikes, preserving anode coating
   const expansionFactor = data.hasExpTank ? CONSTANTS.EXPANSION_BENEFIT : 1.0;
   const shieldLife = (warrantyYears * expansionFactor) / anodeDecayRate;
@@ -201,12 +215,15 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   // HOT (140F+) doubles corrosion rate vs NORMAL (120F)
   const tempStress = data.tempSetting === 'HOT' ? 2.0 : 1.0;
 
-  // C. Environmental Stress (Closed Loop)
-  // Thermal hammer effect without expansion tank = 50% stress increase
+  // C. Circulation Stress (Duty Cycle Fatigue) - v5.1
+  // Continuous movement prevents polarization and triples firing cycles
+  const circStress = data.hasCircPump ? CONSTANTS.CIRC_PUMP_STRESS : 1.0;
+
+  // D. Loop Penalty (Hammer Effect)
   const loopPenalty = (data.isClosedLoop && !data.hasExpTank) ? 1.5 : 1.0;
 
   // Total Combined Stress (Multiplicative, not additive)
-  const totalStress = pressureStress * tempStress * loopPenalty;
+  const totalStress = pressureStress * tempStress * circStress * loopPenalty;
 
   // --- 3. BIOLOGICAL AGE (TWO-PHASE CLOCK) ---
   
@@ -248,6 +265,9 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   // --- 5. SEDIMENT LOAD ---
   const k = data.fuelType === 'GAS' ? CONSTANTS.SEDIMENT_GAS : CONSTANTS.SEDIMENT_ELEC;
   const sedimentLbs = calendarAge * hardnessGPG * k;
+  const criticalSediment = data.fuelType === 'ELECTRIC' 
+    ? CONSTANTS.CRITICAL_SEDIMENT_ELEC 
+    : CONSTANTS.CRITICAL_SEDIMENT_GAS;
 
   // --- 6. DAMAGE ESTIMATION ---
   let estDamage = 3500; // Default
@@ -262,6 +282,7 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   const verdict = getRecommendationFromMetrics(
     data.visualRust,
     sedimentLbs,
+    criticalSediment,
     bioAge,
     estDamage,
     failProb,
@@ -283,6 +304,7 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
       stress: Math.round(totalStress * 100) / 100,
       pressureStress: Math.round(pressureStress * 100) / 100,
       tempStress,
+      circStress,
       loopPenalty,
     },
     verdict,
@@ -295,6 +317,7 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
 function getRecommendationFromMetrics(
   visualRust: boolean,
   sedimentLbs: number,
+  criticalSediment: number,
   bioAge: number,
   estDamage: number,
   failProb: number,
@@ -331,15 +354,15 @@ function getRecommendationFromMetrics(
     };
   }
   
-  // Rule 3: Unserviceable (Too much sediment)
-  if (sedimentLbs > CONSTANTS.CRITICAL_SEDIMENT) {
+  // Rule 3: Unserviceable (Too much sediment - fuel-type specific threshold)
+  if (sedimentLbs > criticalSediment) {
     return {
       action: 'REPLACE_UNSERVICEABLE',
       badge: 'SEDIMENT_LOCKOUT',
       badgeLabel: '🛑 SEDIMENT LOCKOUT',
       badgeColor: 'red',
       triggerRule: 'Rule #3: Sediment Threshold Exceeded',
-      script: `Sediment load: ${sedimentLbs.toFixed(1)} lbs. Exceeds 15 lb serviceability limit. Flushing or repairs may cause immediate failure.`,
+      script: `Sediment load: ${sedimentLbs.toFixed(1)} lbs. Exceeds ${criticalSediment} lb serviceability limit. Flushing or repairs may cause immediate failure.`,
       canRepair: false,
       isPriorityLead: true,
     };
@@ -501,6 +524,7 @@ export function calculateRiskDilation(
     fuelType: forensics.fuelType ?? 'GAS',
     hardnessGPG: forensics.hardnessGPG ?? 10,
     hasSoftener: forensics.hasSoftener,
+    hasCircPump: false,  // v5.1: Default to false for legacy compatibility
     isClosedLoop: forensics.isClosedLoop ?? false,
     hasExpTank: forensics.hasExpTank ?? forensics.hasExpansionTank ?? true,
     location: forensics.location ?? mapLocationRiskLevel(forensics.locationRiskLevel),
@@ -553,6 +577,7 @@ export function getRecommendation(
   return getRecommendationFromMetrics(
     false,
     sedimentLoad,
+    20,  // v5.1: Default to gas threshold for legacy compatibility
     biologicalAge,
     estimatedDamage,
     forensicRisk,

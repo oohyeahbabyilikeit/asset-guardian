@@ -156,6 +156,7 @@ export const demoForensicInputs: ForensicInputs = {
   fuelType: 'GAS' as FuelType,       // Natural gas unit
   hardnessGPG: 15,                   // Moderate water hardness
   hasSoftener: true,                 // Has softener (anode killer!)
+  hasCircPump: false,                // No circulation pump (v5.1)
   isClosedLoop: false,               // No check valve
   hasExpTank: true,                  // Has expansion tank
   location: 'ATTIC' as LocationType, // High-risk location

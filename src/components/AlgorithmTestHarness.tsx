@@ -29,6 +29,7 @@ const DEFAULT_INPUTS: ForensicInputs = {
   fuelType: 'GAS',
   hardnessGPG: 8,
   hasSoftener: false,
+  hasCircPump: false,  // v5.1
   isClosedLoop: false,
   hasExpTank: true,
   location: 'GARAGE',
@@ -86,7 +87,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
           </Button>
           <div>
             <h1 className="text-lg font-bold">Algorithm Test Harness</h1>
-            <p className="text-xs text-muted-foreground">Opterra v5.0 Physics Engine</p>
+            <p className="text-xs text-muted-foreground">Opterra v5.1 Physics Engine</p>
           </div>
         </div>
       </div>
@@ -254,6 +255,10 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               <Switch checked={inputs.hasSoftener} onCheckedChange={(v) => updateInput('hasSoftener', v)} />
             </div>
             <div className="flex items-center justify-between">
+              <Label className="text-xs">Has Circulation Pump</Label>
+              <Switch checked={inputs.hasCircPump} onCheckedChange={(v) => updateInput('hasCircPump', v)} />
+            </div>
+            <div className="flex items-center justify-between">
               <Label className="text-xs">Closed Loop System</Label>
               <Switch checked={inputs.isClosedLoop} onCheckedChange={(v) => updateInput('isClosedLoop', v)} />
             </div>
@@ -325,9 +330,9 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             {/* Physics Breakdown */}
             <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
               <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                Physics Breakdown (Stress = P × T × L)
+                Physics Breakdown (Stress = P × T × C × L)
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Pressure</div>
                   <div className="font-mono font-bold text-sm">{result.metrics.pressureStress.toFixed(2)}x</div>
@@ -337,6 +342,11 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   <div className="text-xs text-muted-foreground">Thermal</div>
                   <div className="font-mono font-bold text-sm">{result.metrics.tempStress.toFixed(1)}x</div>
                   <div className="text-[10px] text-muted-foreground">Arrhenius</div>
+                </div>
+                <div className="p-2 bg-background rounded border">
+                  <div className="text-xs text-muted-foreground">Circ</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.circStress.toFixed(1)}x</div>
+                  <div className="text-[10px] text-muted-foreground">Duty Cycle</div>
                 </div>
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Loop</div>

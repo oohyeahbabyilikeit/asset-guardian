@@ -120,6 +120,13 @@ export function QuickSimulator({ inputs, onInputsChange }: QuickSimulatorProps) 
                 />
               </div>
               <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <Label className="text-xs">Circ Pump</Label>
+                <Switch 
+                  checked={inputs.hasCircPump} 
+                  onCheckedChange={(v) => updateInput('hasCircPump', v)} 
+                />
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                 <Label className="text-xs">Closed Loop</Label>
                 <Switch 
                   checked={inputs.isClosedLoop} 
