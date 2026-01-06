@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
@@ -6,7 +6,7 @@ import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { RiskComparisonChart } from '@/components/RiskComparisonChart';
 import { QuickSimulator } from '@/components/QuickSimulator';
-import { demoAsset, demoForensicInputs, type VitalsData, type HealthScore } from '@/data/mockAsset';
+import { demoAsset, getRandomScenario, type VitalsData, type HealthScore, type DemoScenario } from '@/data/mockAsset';
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
@@ -29,7 +29,18 @@ export function CommandCenter({
   onViewReport,
   onTestHarness 
 }: CommandCenterProps) {
-  const [inputs, setInputs] = useState<ForensicInputs>(demoForensicInputs);
+  const [scenario, setScenario] = useState<DemoScenario | null>(null);
+  const [inputs, setInputs] = useState<ForensicInputs>(scenario?.inputs || getRandomScenario().inputs);
+  const [currentAsset, setCurrentAsset] = useState(scenario?.asset || demoAsset);
+  const [scenarioName, setScenarioName] = useState<string>('');
+
+  const handleRandomize = useCallback(() => {
+    const newScenario = getRandomScenario();
+    setScenario(newScenario);
+    setInputs(newScenario.inputs);
+    setCurrentAsset(newScenario.asset);
+    setScenarioName(newScenario.name);
+  }, []);
 
   // Calculate all metrics using v5.0 algorithm
   const opterraResult = calculateOpterraRisk(inputs);
@@ -78,11 +89,11 @@ export function CommandCenter({
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
       
       <div className="relative">
-        <DashboardHeader onTestHarness={onTestHarness} />
+        <DashboardHeader onTestHarness={onTestHarness} onRandomize={handleRandomize} scenarioName={scenarioName} />
 
         {/* Hero Health Gauge */}
         <div className="animate-fade-in-up">
-          <HealthGauge healthScore={dynamicHealthScore} location={demoAsset.location} riskLevel={riskLevel} />
+          <HealthGauge healthScore={dynamicHealthScore} location={currentAsset.location} riskLevel={riskLevel} />
         </div>
 
         {/* Quick Simulator */}

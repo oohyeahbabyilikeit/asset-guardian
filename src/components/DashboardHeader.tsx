@@ -1,12 +1,14 @@
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, RefreshCw } from 'lucide-react';
 import { demoContractor } from '@/data/mockAsset';
 import { Button } from '@/components/ui/button';
 
 interface DashboardHeaderProps {
   onTestHarness?: () => void;
+  onRandomize?: () => void;
+  scenarioName?: string;
 }
 
-export function DashboardHeader({ onTestHarness }: DashboardHeaderProps) {
+export function DashboardHeader({ onTestHarness, onRandomize, scenarioName }: DashboardHeaderProps) {
   return (
     <header className="bg-card/80 backdrop-blur-xl border-b border-border px-6 py-4 flex justify-between items-center sticky top-0 z-50">
       {/* Subtle gradient overlay */}
@@ -25,7 +27,7 @@ export function DashboardHeader({ onTestHarness }: DashboardHeaderProps) {
         </div>
         <div>
           <div className="text-[10px] uppercase text-muted-foreground font-semibold tracking-widest">
-            Powered by
+            {scenarioName || 'Powered by'}
           </div>
           <div className="font-bold text-foreground leading-none">
             {demoContractor.name}
@@ -35,6 +37,12 @@ export function DashboardHeader({ onTestHarness }: DashboardHeaderProps) {
       
       {/* Status indicator */}
       <div className="relative flex items-center gap-3">
+        {onRandomize && (
+          <Button variant="ghost" size="icon" onClick={onRandomize} className="text-muted-foreground hover:text-foreground" title="Random scenario">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+        )}
+        
         {onTestHarness && (
           <Button variant="ghost" size="icon" onClick={onTestHarness} className="text-muted-foreground hover:text-foreground">
             <FlaskConical className="w-4 h-4" />

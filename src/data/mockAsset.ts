@@ -128,43 +128,151 @@ export const demoContractor: ContractorData = {
   emergencyPhone: "(555) 911-PIPE",
 };
 
-// Demo Water Heater Asset - "The Basement Time Bomb" Scenario
-// 12-year-old unit with circulation pump stress and high pressure
-export const demoAsset: AssetData = {
-  id: "AO-4471-K",
-  type: "Water Heater",
-  brand: "A.O. Smith",
-  model: "ProLine XE",
-  serialNumber: "AO-2014-4471-K",
-  installDate: "2014-06-22",
-  paperAge: 11.5,
-  biologicalAge: 14.8, // Calculated by v5.2 algorithm
-  location: "Basement",
-  specs: {
-    capacity: "40-Gal",
-    fuelType: "Electric",
-    ventType: "N/A",
-    piping: "3/4\" PEX",
-  },
-};
+// Demo Scenarios for testing various risk profiles
+export interface DemoScenario {
+  name: string;
+  asset: AssetData;
+  inputs: ForensicInputs;
+}
 
-// Demo Forensic Inputs - v5.2 Algorithm Specification
-// "The Basement Time Bomb" scenario - Older unit with circ pump stress
-export const demoForensicInputs: ForensicInputs = {
-  calendarAge: 11,                   // 11 years since install
-  psi: 82,                           // Above 80 PSI threshold!
-  warrantyYears: 6,                  // Standard 6-year warranty
-  fuelType: 'ELECTRIC' as FuelType,  // Electric unit
-  hardnessGPG: 22,                   // Hard water
-  hasSoftener: false,                // No softener
-  hasCircPump: true,                 // Circulation pump installed (v5.1)
-  isClosedLoop: true,                // Has check valve - closed loop!
-  hasExpTank: false,                 // Missing expansion tank!
-  location: 'BASEMENT' as LocationType, // Finished basement
-  isFinishedArea: true,              // Finished = higher risk
-  visualRust: true,                  // Visible corrosion present
-  tempSetting: 'HIGH' as TempSetting, // Running hot
-};
+const scenarios: DemoScenario[] = [
+  {
+    name: "The Basement Time Bomb",
+    asset: {
+      id: "AO-4471-K",
+      type: "Water Heater",
+      brand: "A.O. Smith",
+      model: "ProLine XE",
+      serialNumber: "AO-2014-4471-K",
+      installDate: "2014-06-22",
+      paperAge: 11.5,
+      biologicalAge: 14.8,
+      location: "Basement",
+      specs: { capacity: "40-Gal", fuelType: "Electric", ventType: "N/A", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 11, psi: 82, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
+      hardnessGPG: 22, hasSoftener: false, hasCircPump: true, isClosedLoop: true,
+      hasExpTank: false, location: 'BASEMENT' as LocationType, isFinishedArea: true,
+      visualRust: true, tempSetting: 'HIGH' as TempSetting,
+    },
+  },
+  {
+    name: "The Softener Accelerator",
+    asset: {
+      id: "RH-9942-X",
+      type: "Water Heater",
+      brand: "Rheem",
+      model: "Professional Classic Plus",
+      serialNumber: "RH-2017-9942-X",
+      installDate: "2017-03-15",
+      paperAge: 7.0,
+      biologicalAge: 11.3,
+      location: "Attic",
+      specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Power Vent (PVC)", piping: "3/4\" Copper" },
+    },
+    inputs: {
+      calendarAge: 7, psi: 75, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      hardnessGPG: 15, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: true, location: 'ATTIC' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+    },
+  },
+  {
+    name: "The Perfect Install",
+    asset: {
+      id: "BR-1122-A",
+      type: "Water Heater",
+      brand: "Bradford White",
+      model: "Defender Safety System",
+      serialNumber: "BW-2022-1122-A",
+      installDate: "2022-09-10",
+      paperAge: 2.3,
+      biologicalAge: 2.1,
+      location: "Garage",
+      specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Direct Vent", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 2, psi: 55, warrantyYears: 12, fuelType: 'GAS' as FuelType,
+      hardnessGPG: 8, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+    },
+  },
+  {
+    name: "The Pressure Cooker",
+    asset: {
+      id: "RH-5567-P",
+      type: "Water Heater",
+      brand: "Rheem",
+      model: "Performance Platinum",
+      serialNumber: "RH-2019-5567-P",
+      installDate: "2019-11-20",
+      paperAge: 5.1,
+      biologicalAge: 8.2,
+      location: "Utility Closet",
+      specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Atmospheric", piping: "3/4\" Copper" },
+    },
+    inputs: {
+      calendarAge: 5, psi: 95, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: true,
+      hasExpTank: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
+      visualRust: false, tempSetting: 'HIGH' as TempSetting,
+    },
+  },
+  {
+    name: "The Double Whammy",
+    asset: {
+      id: "KE-8834-D",
+      type: "Water Heater",
+      brand: "Kenmore",
+      model: "Power Miser 9",
+      serialNumber: "KE-2016-8834-D",
+      installDate: "2016-04-12",
+      paperAge: 8.7,
+      biologicalAge: 16.4,
+      location: "Attic",
+      specs: { capacity: "40-Gal", fuelType: "Electric", ventType: "N/A", piping: "3/4\" CPVC" },
+    },
+    inputs: {
+      calendarAge: 9, psi: 78, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
+      hardnessGPG: 25, hasSoftener: true, hasCircPump: true, isClosedLoop: true,
+      hasExpTank: false, location: 'ATTIC' as LocationType, isFinishedArea: false,
+      visualRust: true, tempSetting: 'HIGH' as TempSetting,
+    },
+  },
+  {
+    name: "The Garage Sleeper",
+    asset: {
+      id: "WH-2201-G",
+      type: "Water Heater",
+      brand: "Whirlpool",
+      model: "Energy Smart",
+      serialNumber: "WH-2020-2201-G",
+      installDate: "2020-02-28",
+      paperAge: 4.8,
+      biologicalAge: 4.5,
+      location: "Garage",
+      specs: { capacity: "50-Gal", fuelType: "Electric", ventType: "N/A", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 4, psi: 62, warrantyYears: 9, fuelType: 'ELECTRIC' as FuelType,
+      hardnessGPG: 12, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+    },
+  },
+];
+
+// Get a random scenario
+export function getRandomScenario(): DemoScenario {
+  return scenarios[Math.floor(Math.random() * scenarios.length)];
+}
+
+// Current demo data (starts with first scenario)
+const initialScenario = scenarios[0];
+export const demoAsset: AssetData = initialScenario.asset;
+export const demoForensicInputs: ForensicInputs = initialScenario.inputs;
 
 // DEPRECATED: These are now calculated dynamically in CommandCenter.tsx
 // Kept for reference only - do not use in production code
