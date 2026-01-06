@@ -30,9 +30,10 @@ const DEFAULT_INPUTS: ForensicInputs = {
   fuelType: 'GAS',
   hardnessGPG: 8,
   hasSoftener: false,
-  hasCircPump: false,  // v5.1
+  hasCircPump: false,
   isClosedLoop: false,
   hasExpTank: true,
+  hasPrv: true,
   location: 'GARAGE',
   isFinishedArea: false,
   visualRust: false,
@@ -88,7 +89,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
           </Button>
           <div>
             <h1 className="text-lg font-bold">Algorithm Test Harness</h1>
-            <p className="text-xs text-muted-foreground">Opterra v5.2 Physics Engine</p>
+            <p className="text-xs text-muted-foreground">Opterra v6.0 Physics Engine</p>
           </div>
         </div>
       </div>
@@ -228,9 +229,12 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ATTIC">Attic</SelectItem>
+                  <SelectItem value="UPPER_FLOOR">Upper Floor</SelectItem>
                   <SelectItem value="MAIN_LIVING">Main Floor</SelectItem>
                   <SelectItem value="BASEMENT">Basement</SelectItem>
                   <SelectItem value="GARAGE">Garage</SelectItem>
+                  <SelectItem value="CRAWLSPACE">Crawlspace</SelectItem>
+                  <SelectItem value="EXTERIOR">Exterior</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -241,6 +245,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="LOW">Low (&lt;120°F)</SelectItem>
                   <SelectItem value="NORMAL">Normal (&lt;130°F)</SelectItem>
                   <SelectItem value="HOT">Hot (&gt;130°F)</SelectItem>
                 </SelectContent>
@@ -266,6 +271,10 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             <div className="flex items-center justify-between">
               <Label className="text-xs">Has Expansion Tank</Label>
               <Switch checked={inputs.hasExpTank} onCheckedChange={(v) => updateInput('hasExpTank', v)} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Has PRV (Pressure Reducing Valve)</Label>
+              <Switch checked={inputs.hasPrv} onCheckedChange={(v) => updateInput('hasPrv', v)} />
             </div>
             <div className="flex items-center justify-between">
               <Label className="text-xs">Finished Area</Label>
@@ -301,31 +310,34 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             <div className={`p-3 rounded-lg border ${
               result.verdict.badgeColor === 'red' ? 'bg-destructive/10 border-destructive/30' :
               result.verdict.badgeColor === 'orange' ? 'bg-amber-500/10 border-amber-500/30' :
+              result.verdict.badgeColor === 'yellow' ? 'bg-yellow-500/10 border-yellow-500/30' :
+              result.verdict.badgeColor === 'blue' ? 'bg-blue-500/10 border-blue-500/30' :
               'bg-emerald-500/10 border-emerald-500/30'
             }`}>
-              <div className="text-lg font-bold">{result.verdict.badgeLabel}</div>
+              <div className="text-lg font-bold">{result.verdict.title}</div>
               <div className="text-sm font-mono mt-1">{result.verdict.action}</div>
-              <div className="text-xs text-muted-foreground mt-2">{result.verdict.script}</div>
+              <div className="text-xs text-muted-foreground mt-2">{result.verdict.reason}</div>
             </div>
 
-            {/* Trigger Rule */}
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Triggered By</div>
-              <div className="font-mono text-sm">{result.verdict.triggerRule}</div>
-            </div>
+            {/* Urgency Indicator */}
+            {result.verdict.urgent && (
+              <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+                <div className="text-xs uppercase tracking-wider text-destructive font-bold">⚠️ Urgent Action Required</div>
+              </div>
+            )}
 
             {/* Core Metrics Grid */}
             <div className="grid grid-cols-2 gap-3">
               <MetricCard 
                 label="Biological Age" 
-                value={result.metrics.bioAgeCapped ? `25+ yrs (raw: ${result.metrics.rawBioAge.toFixed(1)})` : `${result.metrics.bioAge.toFixed(1)} yrs`} 
+                value={`${result.metrics.bioAge.toFixed(1)} yrs`} 
                 highlight={result.metrics.bioAge > 12} 
               />
               <MetricCard label="Failure Prob" value={`${result.metrics.failProb.toFixed(1)}%`} highlight={result.metrics.failProb > 20} />
               <MetricCard label="Sediment Load" value={`${result.metrics.sedimentLbs.toFixed(1)} lbs`} highlight={result.metrics.sedimentLbs > 15} />
               <MetricCard label="Location Risk" value={getRiskLevelInfo(result.metrics.riskLevel).label} highlight={result.metrics.riskLevel >= 3} />
               <MetricCard label="Shield Life" value={`${result.metrics.shieldLife.toFixed(1)} yrs`} />
-              <MetricCard label="Total Stress" value={`${result.metrics.stress.toFixed(2)}x`} highlight={result.metrics.stress >= 5} />
+              <MetricCard label="Total Stress" value={`${result.metrics.stressFactors.total.toFixed(2)}x`} highlight={result.metrics.stressFactors.total >= 5} />
             </div>
 
             {/* Physics Breakdown */}
@@ -336,31 +348,31 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Pressure</div>
-                  <div className="font-mono font-bold text-sm">{result.metrics.pressureStress.toFixed(2)}x</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.stressFactors.pressure.toFixed(2)}x</div>
                   <div className="text-[10px] text-muted-foreground">Basquin's Law</div>
                 </div>
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Thermal</div>
-                  <div className="font-mono font-bold text-sm">{result.metrics.tempStress.toFixed(1)}x</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.stressFactors.temp.toFixed(1)}x</div>
                   <div className="text-[10px] text-muted-foreground">Arrhenius</div>
                 </div>
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Circ</div>
-                  <div className="font-mono font-bold text-sm">{result.metrics.circStress.toFixed(1)}x</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.stressFactors.circ.toFixed(1)}x</div>
                   <div className="text-[10px] text-muted-foreground">Duty Cycle</div>
                 </div>
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Loop</div>
-                  <div className="font-mono font-bold text-sm">{result.metrics.loopPenalty.toFixed(1)}x</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.stressFactors.loop.toFixed(1)}x</div>
                   <div className="text-[10px] text-muted-foreground">Hammer Effect</div>
                 </div>
               </div>
             </div>
 
-            {/* Flags */}
+            {/* Action Flags */}
             <div className="flex flex-wrap gap-2 text-xs">
-              <Flag label="Can Repair" value={result.verdict.canRepair} />
-              <Flag label="Priority Lead" value={result.verdict.isPriorityLead} />
+              <Flag label="Replacement Required" value={result.verdict.action === 'REPLACE'} />
+              <Flag label="Urgent" value={result.verdict.urgent} />
             </div>
           </Card>
         )}
