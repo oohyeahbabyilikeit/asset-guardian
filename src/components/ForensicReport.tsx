@@ -3,7 +3,7 @@ import { ArrowLeft, ChevronDown, ChevronRight, X, Check, Download, Camera } from
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
-  demoAuditFindings,
+  generateAuditFindings,
   type AuditFinding,
   type AssetData
 } from '@/data/mockAsset';
@@ -77,7 +77,7 @@ function EvidenceItem({ finding }: { finding: AuditFinding }) {
   );
 }
 
-function EvidenceLockerSection() {
+function EvidenceLockerSection({ findings }: { findings: AuditFinding[] }) {
   return (
     <section className="clean-card mx-4 mb-4">
       <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
@@ -88,7 +88,7 @@ function EvidenceLockerSection() {
       </p>
 
       <div className="rounded-2xl border border-border overflow-hidden bg-card">
-        {demoAuditFindings.map((finding) => (
+        {findings.map((finding) => (
           <EvidenceItem key={finding.id} finding={finding} />
         ))}
       </div>
@@ -137,6 +137,9 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
   const opterraResult = calculateOpterraRisk(inputs);
   const { failProb, bioAge, sedimentLbs, shieldLife, stressFactors } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
+
+  // Generate dynamic audit findings based on current inputs
+  const auditFindings = generateAuditFindings(inputs, { sedimentLbs, shieldLife, bioAge, stressFactors });
 
   const handleDownloadPDF = () => {
     generatePDF();
@@ -191,7 +194,7 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
           </div>
         </section>
         
-        <EvidenceLockerSection />
+        <EvidenceLockerSection findings={auditFindings} />
         <VerdictSection failProb={failProb} recommendation={recommendation} onDownloadPDF={handleDownloadPDF} />
       </div>
     </div>
