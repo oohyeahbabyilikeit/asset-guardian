@@ -25,6 +25,9 @@ const CONSTANTS = {
   DAMAGE_BASEMENT: 3500,
   DAMAGE_GARAGE_FIN: 3000,
   DAMAGE_GARAGE_RAW: 500,
+  
+  // BIO AGE CAP
+  MAX_BIO_AGE: 20,
 };
 
 // ============= TYPE DEFINITIONS =============
@@ -163,8 +166,8 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   // Phase 2: Naked Years (Age > ShieldLife). Aging = StressFactor.
   const timeNaked = Math.max(0, data.calendarAge - shieldLife);
   
-  // Final Biological Age
-  const bioAge = timeProtected + (timeNaked * stress);
+  // Final Biological Age (capped at MAX_BIO_AGE to prevent unrealistic values)
+  const bioAge = Math.min(timeProtected + (timeNaked * stress), CONSTANTS.MAX_BIO_AGE);
 
   // --- 4. WEIBULL PROBABILITY (NEXT 12 MO) ---
   // Calculates conditional probability of failure in the next year
