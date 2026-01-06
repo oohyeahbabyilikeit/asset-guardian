@@ -41,14 +41,6 @@ function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPasse
 }
 
 export function VitalsGrid({ vitals }: VitalsGridProps) {
-  const issueCount = [
-    vitals.pressure.status !== 'optimal',
-    vitals.biologicalAge.status !== 'optimal',
-    vitals.sedimentLoad.status !== 'optimal',
-    vitals.liabilityStatus.status !== 'optimal',
-    vitals.expansionTank.status !== 'optimal',
-  ].filter(Boolean).length;
-
   const getStatusIcon = (status: 'critical' | 'warning' | 'optimal') => {
     if (status === 'critical') return <Activity className="w-5 h-5" />;
     if (status === 'warning') return <ShieldAlert className="w-5 h-5" />;
@@ -73,17 +65,38 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     return `${info.label} RISK`;
   };
 
-  // Get expansion tank display info
+  // Get PRV display info - context-aware
+  const getPrvInfo = () => {
+    if (!vitals.prv.required && !vitals.prv.present) {
+      return { title: 'PRV Not Needed', subtitle: 'Pressure within safe range' };
+    }
+    if (!vitals.prv.required && vitals.prv.present) {
+      return { title: 'PRV Installed', subtitle: 'Extra protection (optional)' };
+    }
+    if (vitals.prv.present && vitals.prv.functional) {
+      return { title: 'PRV Active', subtitle: 'Pressure regulated' };
+    }
+    if (vitals.prv.present && !vitals.prv.functional) {
+      return { title: 'PRV Failed', subtitle: 'High pressure despite PRV' };
+    }
+    return { title: 'PRV Recommended', subtitle: 'Install pressure reducing valve' };
+  };
+
+  // Get expansion tank display info - context-aware
   const getExpansionTankInfo = () => {
     if (!vitals.expansionTank.required) {
+      if (vitals.expansionTank.present) {
+        return { title: 'Expansion Tank', subtitle: 'Installed (optional)' };
+      }
       return { title: 'Expansion Tank', subtitle: 'Not required (open loop)' };
     }
     if (vitals.expansionTank.present) {
       return { title: 'Expansion Tank', subtitle: 'Present & verified' };
     }
-    return { title: 'Missing Expansion Tank', subtitle: 'Required for closed loop system' };
+    return { title: 'Missing Expansion Tank', subtitle: 'Required for closed loop' };
   };
 
+  const prvInfo = getPrvInfo();
   const expTankInfo = getExpansionTankInfo();
 
   const items = [
@@ -94,6 +107,12 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
       subtitle: vitals.pressure.status === 'optimal' 
         ? 'Within safe range' 
         : `${vitals.pressure.current} PSI (Limit: ${vitals.pressure.limit})`,
+    },
+    {
+      status: vitals.prv.status,
+      icon: <Gauge className="w-5 h-5" />,
+      title: prvInfo.title,
+      subtitle: prvInfo.subtitle,
     },
     {
       status: vitals.expansionTank.status,
