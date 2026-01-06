@@ -1,5 +1,10 @@
 /**
- * OPTERRA v5.1: Physics-Based Risk Calculation Engine
+ * OPTERRA v5.2: Physics-Based Risk Calculation Engine
+ * 
+ * v5.2 Changes:
+ * - Replaced dollar-based damage estimates with Financial Risk Scale (1-4)
+ * - Location risk is now qualitative: LOW/MODERATE/HIGH/EXTREME
+ * - Eliminates liability from speculative damage claims
  * 
  * v5.1 Changes:
  * - Added Circulation Pump stress factor (Duty Cycle Fatigue)
@@ -41,12 +46,11 @@ const CONSTANTS = {
   CRITICAL_PROB: 95.0,    // Cap for visual display
   FATIGUE_AGE: 10,        // Zombie tank threshold
 
-  // Financials (estimated damage by location)
-  DAMAGE_ATTIC: 45000,
-  DAMAGE_MAIN: 15000,
-  DAMAGE_BASEMENT: 3500,
-  DAMAGE_GARAGE_FIN: 3000,
-  DAMAGE_GARAGE_RAW: 500,
+  // Financial Risk Levels (Severity Index 1-4) - v5.2
+  RISK_LOW: 1 as const,      // "Nuisance" - Wet concrete, easy cleanup
+  RISK_MED: 2 as const,      // "Repairable" - Drywall patch, minor flooring
+  RISK_HIGH: 3 as const,     // "Disruptive" - Flooring replacement, cabinetry
+  RISK_EXTREME: 4 as const,  // "Catastrophic" - Ceiling collapse, mold, displacement
 };
 
 // ============================================================================
@@ -79,6 +83,50 @@ export function failProbToHealthScore(failProb: number): number {
 export type FuelType = 'GAS' | 'ELECTRIC';
 export type TempSetting = 'NORMAL' | 'HOT';
 export type LocationType = 'ATTIC' | 'MAIN_LIVING' | 'BASEMENT' | 'GARAGE';
+
+// v5.2: Financial Risk Scale
+export type RiskLevel = 1 | 2 | 3 | 4;
+
+export interface RiskLevelInfo {
+  level: RiskLevel;
+  label: 'LOW' | 'MODERATE' | 'HIGH' | 'EXTREME';
+  description: string;
+  badgeColor: 'green' | 'orange' | 'red';
+}
+
+export function getRiskLevelInfo(level: RiskLevel): RiskLevelInfo {
+  switch (level) {
+    case 1:
+      return { level: 1, label: 'LOW', description: 'Water can be safely drained; minor impact.', badgeColor: 'green' };
+    case 2:
+      return { level: 2, label: 'MODERATE', description: 'Property damage possible; cleanup required.', badgeColor: 'orange' };
+    case 3:
+      return { level: 3, label: 'HIGH', description: 'Flooring and drywall replacement likely.', badgeColor: 'red' };
+    case 4:
+      return { level: 4, label: 'EXTREME', description: 'Ceiling collapse or major structural damage likely.', badgeColor: 'red' };
+  }
+}
+
+function calculateLocationRiskLevel(locationType: LocationType, isFinishedArea: boolean): RiskLevel {
+  switch (locationType) {
+    case 'ATTIC':
+      return CONSTANTS.RISK_EXTREME; // Gravity always wins
+
+    case 'MAIN_LIVING':
+      return CONSTANTS.RISK_HIGH; // Always high on main floor
+
+    case 'BASEMENT':
+      // Finished = HIGH (carpet/drywall), Unfinished = MODERATE (drain available)
+      return isFinishedArea ? CONSTANTS.RISK_HIGH : CONSTANTS.RISK_MED;
+
+    case 'GARAGE':
+      // Finished = MODERATE, Raw concrete = LOW
+      return isFinishedArea ? CONSTANTS.RISK_MED : CONSTANTS.RISK_LOW;
+
+    default:
+      return CONSTANTS.RISK_MED;
+  }
+}
 
 export interface ForensicInputs {
   calendarAge: number;
@@ -136,7 +184,7 @@ export interface OpterraMetrics {
   bioAgeCapped: boolean;
   failProb: number;
   sedimentLbs: number;
-  estDamage: number;
+  riskLevel: RiskLevel;  // v5.2: Replaced estDamage with qualitative risk
   shieldLife: number;
   stress: number;
   // v5.1: Physics breakdown
@@ -269,14 +317,8 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
     ? CONSTANTS.CRITICAL_SEDIMENT_ELEC 
     : CONSTANTS.CRITICAL_SEDIMENT_GAS;
 
-  // --- 6. DAMAGE ESTIMATION ---
-  let estDamage = 3500; // Default
-  if (data.location === 'ATTIC') estDamage = CONSTANTS.DAMAGE_ATTIC;
-  if (data.location === 'MAIN_LIVING') estDamage = CONSTANTS.DAMAGE_MAIN;
-  if (data.location === 'BASEMENT') estDamage = CONSTANTS.DAMAGE_BASEMENT;
-  if (data.location === 'GARAGE') {
-    estDamage = data.isFinishedArea ? CONSTANTS.DAMAGE_GARAGE_FIN : CONSTANTS.DAMAGE_GARAGE_RAW;
-  }
+  // --- 6. LOCATION RISK LEVEL (v5.2) ---
+  const riskLevel = calculateLocationRiskLevel(data.location, data.isFinishedArea);
 
   // --- 7. RECOMMENDATION ENGINE (BUSINESS RULES) ---
   const verdict = getRecommendationFromMetrics(
@@ -284,7 +326,7 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
     sedimentLbs,
     criticalSediment,
     bioAge,
-    estDamage,
+    riskLevel,
     failProb,
     psi,
     calendarAge,
@@ -299,7 +341,7 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
       bioAgeCapped,
       failProb: Math.round(failProb * 10) / 10,
       sedimentLbs: Math.round(sedimentLbs * 10) / 10,
-      estDamage,
+      riskLevel,
       shieldLife: Math.round(shieldLife * 10) / 10,
       stress: Math.round(totalStress * 100) / 100,
       pressureStress: Math.round(pressureStress * 100) / 100,
@@ -319,7 +361,7 @@ function getRecommendationFromMetrics(
   sedimentLbs: number,
   criticalSediment: number,
   bioAge: number,
-  estDamage: number,
+  riskLevel: RiskLevel,
   failProb: number,
   psi: number,
   calendarAge: number,
@@ -382,39 +424,43 @@ function getRecommendationFromMetrics(
     };
   }
   
-  // Rule 5: Liability Risk (Location-Adjusted Thresholds)
-  if (estDamage > 40000 && failProb > 12.0) {
+  // Rule 5: Liability Risk (Location-Based Thresholds) - v5.2
+  // Now triggered by risk level, not speculative dollars
+  if (riskLevel >= CONSTANTS.RISK_EXTREME && failProb > 12.0) {
+    const riskInfo = getRiskLevelInfo(riskLevel);
     return {
       action: 'REPLACE_LIABILITY',
       badge: 'LIABILITY_RISK',
       badgeLabel: '🛡️ LIABILITY RISK',
       badgeColor: 'red',
       triggerRule: 'Rule #5: Extreme Location Risk',
-      script: `Failure probability is ${failProb.toFixed(1)}%, above the 12% threshold for extreme-risk locations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
+      script: `Failure probability is ${failProb.toFixed(1)}% in an ${riskInfo.label} risk location. ${riskInfo.description}`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
-  if (estDamage > 15000 && failProb > 12.0) {
+  if (riskLevel >= CONSTANTS.RISK_HIGH && failProb > 15.0) {
+    const riskInfo = getRiskLevelInfo(riskLevel);
     return {
       action: 'REPLACE_LIABILITY',
       badge: 'LIABILITY_RISK',
       badgeLabel: '🛡️ LIABILITY RISK',
       badgeColor: 'red',
       triggerRule: 'Rule #5: High Location Risk',
-      script: `Failure probability is ${failProb.toFixed(1)}%, above the 12% threshold for high-risk locations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
+      script: `Failure probability is ${failProb.toFixed(1)}% in a ${riskInfo.label} risk location. ${riskInfo.description}`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
-  if (estDamage > 5000 && failProb > 15.0) {
+  if (riskLevel >= CONSTANTS.RISK_MED && failProb > 20.0) {
+    const riskInfo = getRiskLevelInfo(riskLevel);
     return {
       action: 'REPLACE_LIABILITY',
       badge: 'LIABILITY_RISK',
       badgeLabel: '🛡️ LIABILITY RISK',
       badgeColor: 'red',
       triggerRule: 'Rule #5: Location Risk Threshold',
-      script: `Failure probability is ${failProb.toFixed(1)}%, above the 15% threshold for high-value installations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
+      script: `Failure probability is ${failProb.toFixed(1)}% in a ${riskInfo.label} risk zone. ${riskInfo.description}`,
       canRepair: false,
       isPriorityLead: true,
     };
@@ -571,7 +617,7 @@ export function getRecommendation(
   forensicRisk: number,
   biologicalAge: number,
   sedimentLoad: number = 0,
-  estimatedDamage: number = 0,
+  riskLevel: RiskLevel = 2,
   locationRiskLevel: string = 'garage'
 ): Recommendation {
   return getRecommendationFromMetrics(
@@ -579,7 +625,7 @@ export function getRecommendation(
     sedimentLoad,
     20,  // v5.1: Default to gas threshold for legacy compatibility
     biologicalAge,
-    estimatedDamage,
+    riskLevel,
     forensicRisk,
     60,
     biologicalAge,

@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, ReferenceDot } from 'recharts';
 import { 
   calculateOpterraRisk, 
+  getRiskLevelInfo,
   type ForensicInputs, 
   type OpterraResult,
   type FuelType,
@@ -87,7 +88,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
           </Button>
           <div>
             <h1 className="text-lg font-bold">Algorithm Test Harness</h1>
-            <p className="text-xs text-muted-foreground">Opterra v5.1 Physics Engine</p>
+            <p className="text-xs text-muted-foreground">Opterra v5.2 Physics Engine</p>
           </div>
         </div>
       </div>
@@ -322,7 +323,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               />
               <MetricCard label="Failure Prob" value={`${result.metrics.failProb.toFixed(1)}%`} highlight={result.metrics.failProb > 20} />
               <MetricCard label="Sediment Load" value={`${result.metrics.sedimentLbs.toFixed(1)} lbs`} highlight={result.metrics.sedimentLbs > 15} />
-              <MetricCard label="Est. Damage" value={`$${(result.metrics.estDamage / 1000).toFixed(0)}K`} />
+              <MetricCard label="Location Risk" value={getRiskLevelInfo(result.metrics.riskLevel).label} highlight={result.metrics.riskLevel >= 3} />
               <MetricCard label="Shield Life" value={`${result.metrics.shieldLife.toFixed(1)} yrs`} />
               <MetricCard label="Total Stress" value={`${result.metrics.stress.toFixed(2)}x`} highlight={result.metrics.stress >= 5} />
             </div>

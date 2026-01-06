@@ -17,9 +17,9 @@ interface ForensicReportProps {
   onBack: () => void;
 }
 
-// Calculate all metrics using v4.0 algorithm
+// Calculate all metrics using v5.2 algorithm
 const opterraResult = calculateOpterraRisk(demoForensicInputs);
-const { sedimentLbs, estDamage, failProb } = opterraResult.metrics;
+const { sedimentLbs, riskLevel, failProb } = opterraResult.metrics;
 
 // Calculate risk dilation using Opterra v4.0 algorithm
 const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
@@ -30,7 +30,7 @@ const recommendation = getRecommendation(
   riskDilation.forensicRisk,
   riskDilation.biologicalAge,
   sedimentLbs,
-  estDamage,
+  riskLevel,
   locationRiskLevel
 );
 
