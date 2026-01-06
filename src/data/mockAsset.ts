@@ -233,7 +233,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 5, psi: 95, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
-      hasExpTank: true, hasPrv: true, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
+      hasExpTank: true, hasPrv: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
@@ -273,7 +273,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Power Vent (PVC)", piping: "3/4\" Copper" },
     },
     inputs: {
-      calendarAge: 7, psi: 75, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      calendarAge: 7, psi: 58, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 15, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: true, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
