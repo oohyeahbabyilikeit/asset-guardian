@@ -18,25 +18,25 @@ export const locationThresholds: Record<LocationRiskLevel, LocationThreshold> = 
     location: 'attic',
     label: 'Attic / 2nd Floor',
     triggerProbability: 15, // 1-in-7 chance
-    rationale: 'Zero Tolerance. You are betting the ceiling.',
+    rationale: 'High damage potential due to gravity flow to lower levels.',
   },
   main_floor: {
     location: 'main_floor',
     label: 'Finished Main Floor',
     triggerProbability: 25, // 1-in-4 chance
-    rationale: 'Deductible Risk. Likelihood of claim is high.',
+    rationale: 'Damage likely to exceed insurance deductible.',
   },
   basement: {
     location: 'basement',
     label: 'Unfinished Basement',
     triggerProbability: 35, // 1-in-3 chance
-    rationale: 'Cleanup Risk. Nuisance, but manageable.',
+    rationale: 'Contained damage with lower remediation costs.',
   },
   garage: {
     location: 'garage',
     label: 'Garage / Exterior',
     triggerProbability: 40, // Statistical end
-    rationale: 'Run to Failure. Only replace if essentially dead.',
+    rationale: 'Minimal interior damage risk.',
   },
 };
 
@@ -296,7 +296,7 @@ function generateInsight(
   const yearsAgo = Math.round(exposureYears * 10) / 10;
   
   if (exposureYears <= 0) {
-    return `your tank is ${paperAge} years old and still has active corrosion protection. Standard risk applies.`;
+    return `Tank age: ${paperAge} years. Corrosion protection active. Standard risk applies.`;
   }
   
   const baselineRisk = getBaselineRisk(paperAge).failureProb;
@@ -304,7 +304,7 @@ function generateInsight(
   const cappedRisk = applySafetyCap(currentRisk, forensics.visualRust);
   const riskRatio = Math.round(cappedRisk / baselineRisk);
   
-  return `a normal ${paperAge}-year-old tank has a ${baselineRisk.toFixed(1)}% risk. Yours has a ${cappedRisk.toFixed(1)}% risk. You are ${riskRatio}x more likely to have a flood this year than your neighbor because your protection rod died ${yearsAgo} years ago.`;
+  return `Standard ${paperAge}-year risk: ${baselineRisk.toFixed(1)}%. Adjusted risk: ${cappedRisk.toFixed(1)}% (${riskRatio}x baseline). Protection depleted ${yearsAgo} years ago.`;
 }
 
 // ============= RECOMMENDATION ENGINE =============
@@ -329,7 +329,7 @@ function checkLocationRule(
       badgeLabel: '🔴 LIABILITY RISK',
       badgeColor: 'red',
       triggerRule: 'Rule #1: Location Risk',
-      script: `Normally a ${threshold.triggerProbability}% risk is acceptable. But because this tank is in your ${threshold.label.toLowerCase()}, you are betting a $${Math.round(estimatedDamage / 1000)}K repair on a roll of the dice. The math says that is a bad bet.`,
+      script: `Failure probability is ${forensicRisk.toFixed(1)}%, above the ${threshold.triggerProbability}% threshold for ${threshold.label.toLowerCase()} installations. Estimated damage: $${Math.round(estimatedDamage / 1000)}K.`,
       canRepair: false,
     };
   }
@@ -342,7 +342,7 @@ function checkLocationRule(
       badgeLabel: '🟠 FINANCIAL RISK',
       badgeColor: 'orange',
       triggerRule: 'Rule #1: Financial Threshold',
-      script: `With a ${forensicRisk.toFixed(1)}% failure probability and $${Math.round(estimatedDamage / 1000)}K potential damage, the expected loss exceeds your deductible. Replacement is financially justified.`,
+      script: `Failure probability: ${forensicRisk.toFixed(1)}%. Estimated damage: $${Math.round(estimatedDamage / 1000)}K. Exceeds standard deductible threshold.`,
       canRepair: true,
     };
   }
@@ -362,7 +362,7 @@ function checkActuarialWall(biologicalAge: number): Recommendation | null {
       badgeLabel: '🔴 ACTUARIAL EXPIRY',
       badgeColor: 'red',
       triggerRule: 'Rule #2: Biological Age Limit',
-      script: `Legally I can repair this, but mathematically it is ${biologicalAge.toFixed(1)} years old. Investing money into a tank with 0% remaining life is throwing good money after bad. My software prevents me from quoting repairs on expired assets.`,
+      script: `Biological age: ${biologicalAge.toFixed(1)} years. Exceeds 12-year actuarial limit. Repairs not recommended on expired assets.`,
       canRepair: false, // Lockout repairs
     };
   }
@@ -381,7 +381,7 @@ function checkServiceabilityLock(sedimentLoad: number): Recommendation | null {
       badgeLabel: '🛑 UNSERVICEABLE',
       badgeColor: 'red',
       triggerRule: 'Rule #3: Sediment Threshold',
-      script: `Our scan indicates ${sedimentLoad} lbs of rock inside the tank. That sediment is currently plugging the rust holes. If I try to flush it or fix the valve, the vibration will cause a massive leak. It is too fragile to service.`,
+      script: `Sediment load: ${sedimentLoad} lbs. Exceeds 15 lb serviceability limit. Flushing or repairs may cause immediate failure.`,
       canRepair: false, // DO NOT FLUSH / DO NOT REPAIR
     };
   }
@@ -418,7 +418,7 @@ export function getRecommendation(
     badgeLabel: '🟢 MONITOR',
     badgeColor: 'green',
     triggerRule: 'No triggers met',
-    script: 'Your tank is within acceptable risk parameters. Continue annual inspections.',
+    script: 'All parameters within acceptable range. Continue annual inspections.',
     canRepair: true,
   };
 }
