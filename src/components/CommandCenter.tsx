@@ -76,7 +76,7 @@ export function CommandCenter({
       status: riskLevel >= 3 ? 'critical' : riskLevel === 2 ? 'warning' : 'optimal',
     },
     biologicalAge: {
-      real: Math.round(bioAge * 10) / 10,
+      real: bioAge >= 20 ? '20+' : Math.round(bioAge * 10) / 10,
       paper: currentInputs.calendarAge,
       status: getStatusFromValue(bioAge, 8, 12),
     },
@@ -94,10 +94,12 @@ export function CommandCenter({
   };
 
   // Derive dynamic health score from algorithm output
+  // Show "FAIL" for active leaks/breaches, otherwise cap at 85%
+  const isBreach = currentInputs.isLeaking || currentInputs.visualRust;
   const dynamicHealthScore: HealthScore = {
     score: failProbToHealthScore(failProb),
     status: getStatusFromValue(failProb, 10, 20),
-    failureProbability: Math.round(failProb * 10) / 10,
+    failureProbability: isBreach ? 'FAIL' : Math.min(85, Math.round(failProb * 10) / 10),
     recommendation: recommendation.action,
   };
 

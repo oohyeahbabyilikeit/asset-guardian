@@ -103,10 +103,12 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
               </span>
             </div>
               <div className="text-2xl font-black text-red-400 font-data">
-                {typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%
+                {failureProbability === 'FAIL' 
+                  ? 'FAIL' 
+                  : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
               </div>
             <div className="text-[10px] text-muted-foreground mt-1">
-              Annual probability
+              {failureProbability === 'FAIL' ? 'Breach detected' : 'Annual probability'}
             </div>
           </div>
 
