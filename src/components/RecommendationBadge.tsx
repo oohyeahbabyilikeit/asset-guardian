@@ -10,22 +10,28 @@ interface RecommendationBadgeProps {
 // v4.0 badge icons mapped to new badge types
 const badgeIcons: Record<BadgeType, React.ReactNode> = {
   CONTAINMENT_BREACH: <AlertOctagon className="w-4 h-4" />,
+  SAFETY_HAZARD: <AlertOctagon className="w-4 h-4" />,
+  STRUCTURAL_FATIGUE: <AlertTriangle className="w-4 h-4" />,
   SEDIMENT_LOCKOUT: <Droplets className="w-4 h-4" />,
   ACTUARIAL_EXPIRY: <Clock className="w-4 h-4" />,
   LIABILITY_RISK: <AlertTriangle className="w-4 h-4" />,
   STATISTICAL_FAILURE: <AlertTriangle className="w-4 h-4" />,
   WARRANTY_VOID: <Wrench className="w-4 h-4" />,
+  CODE_VIOLATION: <Wrench className="w-4 h-4" />,
   PASS: <CheckCircle2 className="w-4 h-4" />,
 };
 
 // v4.0 badge styles mapped to new badge types
 const badgeStyles: Record<BadgeType, string> = {
   CONTAINMENT_BREACH: 'bg-red-500/20 border-red-500/50 text-red-400',
+  SAFETY_HAZARD: 'bg-red-500/20 border-red-500/50 text-red-400',
+  STRUCTURAL_FATIGUE: 'bg-red-500/20 border-red-500/50 text-red-400',
   SEDIMENT_LOCKOUT: 'bg-red-500/20 border-red-500/50 text-red-400',
   ACTUARIAL_EXPIRY: 'bg-red-500/20 border-red-500/50 text-red-400',
   LIABILITY_RISK: 'bg-red-500/20 border-red-500/50 text-red-400',
   STATISTICAL_FAILURE: 'bg-amber-500/20 border-amber-500/50 text-amber-400',
   WARRANTY_VOID: 'bg-amber-500/20 border-amber-500/50 text-amber-400',
+  CODE_VIOLATION: 'bg-amber-500/20 border-amber-500/50 text-amber-400',
   PASS: 'bg-green-500/20 border-green-500/50 text-green-400',
 };
 
@@ -37,7 +43,7 @@ const isReplaceAction = (action: RecommendationAction): boolean => {
 // Get action style based on v4.0 action types
 const getActionStyle = (action: RecommendationAction): string => {
   if (action === 'MONITOR') return 'bg-green-500 text-white';
-  if (action === 'INSTALL_PRV') return 'bg-amber-500 text-black';
+  if (action === 'INSTALL_PRV' || action === 'INSTALL_EXP_TANK') return 'bg-amber-500 text-black';
   if (isReplaceAction(action)) return 'bg-red-500 text-white';
   return 'bg-muted text-foreground';
 };
@@ -45,6 +51,7 @@ const getActionStyle = (action: RecommendationAction): string => {
 // Format action for display
 const formatAction = (action: RecommendationAction): string => {
   if (action === 'INSTALL_PRV') return 'INSTALL PRV';
+  if (action === 'INSTALL_EXP_TANK') return 'INSTALL EXP TANK';
   if (action === 'MONITOR') return 'MONITOR';
   // Convert REPLACE_URGENT -> REPLACE, etc.
   if (action.startsWith('REPLACE_')) return 'REPLACE';

@@ -10,7 +10,9 @@ const CONSTANTS = {
   
   // LIMITS
   SAFE_PSI: 80,          // Warranty Void Threshold (A.O. Smith)
+  DANGEROUS_PSI: 110,    // Vessel rupture threshold - immediate replacement
   CRITICAL_SEDIMENT: 15, // Lbs (Unserviceable Limit)
+  FATIGUE_AGE: 10,       // Years of high-pressure exposure that compromises vessel
   
   // COEFFICIENTS
   SEDIMENT_GAS: 0.044,   // Lbs/Year/GPG (Battelle Study)
@@ -51,16 +53,21 @@ export type RecommendationAction =
   | 'REPLACE_EXPIRED'
   | 'REPLACE_LIABILITY'
   | 'REPLACE_RISK'
+  | 'REPLACE_FATIGUE'
   | 'INSTALL_PRV'
+  | 'INSTALL_EXP_TANK'
   | 'MONITOR';
 
 export type RecommendationBadge =
   | 'CONTAINMENT_BREACH'
+  | 'SAFETY_HAZARD'
+  | 'STRUCTURAL_FATIGUE'
   | 'SEDIMENT_LOCKOUT'
   | 'ACTUARIAL_EXPIRY'
   | 'LIABILITY_RISK'
   | 'STATISTICAL_FAILURE'
   | 'WARRANTY_VOID'
+  | 'CODE_VIOLATION'
   | 'PASS';
 
 export interface Recommendation {
@@ -191,7 +198,9 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
     estDamage,
     failProb,
     data.psi,
-    data.calendarAge
+    data.calendarAge,
+    data.isClosedLoop,
+    data.hasExpTank
   );
 
   return {
@@ -215,7 +224,9 @@ function getRecommendationFromMetrics(
   estDamage: number,
   failProb: number,
   psi: number,
-  calendarAge: number
+  calendarAge: number,
+  isClosedLoop: boolean,
+  hasExpTank: boolean
 ): Recommendation {
   // Rule 1: Active Leak (Highest Priority)
   if (visualRust) {
@@ -230,38 +241,53 @@ function getRecommendationFromMetrics(
       isPriorityLead: true,
     };
   }
+
+  // Rule 2: Safety Hazard (The "Bomb" Rule) [PATCHED]
+  // Pressure >110 PSI is dangerous regardless of age/warranty
+  if (psi > CONSTANTS.DANGEROUS_PSI) {
+    return {
+      action: 'REPLACE_URGENT',
+      badge: 'SAFETY_HAZARD',
+      badgeLabel: '🛑 DANGEROUS PRESSURE',
+      badgeColor: 'red',
+      triggerRule: 'Rule #2: Extreme Pressure Hazard',
+      script: `Pressure is ${psi} PSI (Safe limit: 80). Vessel rupture risk is immediate. Do NOT attempt PRV install.`,
+      canRepair: false,
+      isPriorityLead: true,
+    };
+  }
   
-  // Rule 2: Unserviceable (Too much rock to flush)
+  // Rule 3: Unserviceable (Too much rock to flush)
   if (sedimentLbs > CONSTANTS.CRITICAL_SEDIMENT) {
     return {
       action: 'REPLACE_UNSERVICEABLE',
       badge: 'SEDIMENT_LOCKOUT',
       badgeLabel: '🛑 SEDIMENT LOCKOUT',
       badgeColor: 'red',
-      triggerRule: 'Rule #2: Sediment Threshold Exceeded',
+      triggerRule: 'Rule #3: Sediment Threshold Exceeded',
       script: `Sediment load: ${sedimentLbs.toFixed(1)} lbs. Exceeds 15 lb serviceability limit. Flushing or repairs may cause immediate failure.`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
   
-  // Rule 3: Actuarial Expiry (Old Age)
+  // Rule 4: Actuarial Expiry (Old Age)
   if (bioAge > 12.0) {
     return {
       action: 'REPLACE_EXPIRED',
       badge: 'ACTUARIAL_EXPIRY',
       badgeLabel: '🔴 ACTUARIAL EXPIRY',
       badgeColor: 'red',
-      triggerRule: 'Rule #3: Biological Age Limit',
+      triggerRule: 'Rule #4: Biological Age Limit',
       script: `Biological age: ${bioAge.toFixed(1)} years. Exceeds 12-year actuarial limit. Terminal metal fatigue expected.`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
   
-  // Rule 4: Liability Risk (Location-Adjusted Thresholds)
-  // Higher damage potential = lower risk tolerance
-  if (estDamage > 40000 && failProb > 8.0) {
+  // Rule 5: Liability Risk (Location-Adjusted Thresholds)
+  // [PATCHED] Bumped Attic threshold to 12% to avoid flagging healthy 7yr old tanks
+  if (estDamage > 40000 && failProb > 12.0) {
     // Attic - extreme damage scenario
     return {
       action: 'REPLACE_LIABILITY',
@@ -316,15 +342,45 @@ function getRecommendationFromMetrics(
     };
   }
   
-  // Rule 6: Warranty Rescue (Young tank, bad pressure)
+  // Rule 7: Warranty Rescue / Zombie Tank (Fork)
   if (psi > CONSTANTS.SAFE_PSI) {
+    // SUB-RULE: The "Zombie Tank" Patch [PATCHED]
+    // If it's old AND high pressure, kill it. Don't rescue it.
+    if (calendarAge > CONSTANTS.FATIGUE_AGE) {
+      return {
+        action: 'REPLACE_FATIGUE',
+        badge: 'STRUCTURAL_FATIGUE',
+        badgeLabel: '🔴 STRUCTURAL FATIGUE',
+        badgeColor: 'red',
+        triggerRule: 'Rule #7a: Metal Fatigue (Zombie Tank)',
+        script: `Tank has endured ${calendarAge} years at elevated pressure. Metal fatigue has compromised vessel integrity. PRV cannot reverse existing damage.`,
+        canRepair: false,
+        isPriorityLead: true,
+      };
+    }
+    
+    // Otherwise: Rescue Mission (Young Tank)
     return {
       action: 'INSTALL_PRV',
       badge: 'WARRANTY_VOID',
       badgeLabel: '🔧 WARRANTY VOID',
       badgeColor: 'orange',
-      triggerRule: 'Rule #6: Pressure Warranty Violation',
+      triggerRule: 'Rule #7b: Pressure Warranty Violation',
       script: `Static pressure: ${psi} PSI. Exceeds 80 PSI manufacturer limit. Warranty voided. PRV installation recommended.`,
+      canRepair: true,
+      isPriorityLead: true,
+    };
+  }
+
+  // Rule 8: Code Violation (Expansion Tank Upsell) [PATCHED]
+  if (isClosedLoop && !hasExpTank) {
+    return {
+      action: 'INSTALL_EXP_TANK',
+      badge: 'CODE_VIOLATION',
+      badgeLabel: '⚠️ MISSING EXP TANK',
+      badgeColor: 'orange',
+      triggerRule: 'Rule #8: Code Violation',
+      script: 'Closed loop system detected without thermal expansion control. Required by plumbing code. Easy $450 fix.',
       canRepair: true,
       isPriorityLead: true,
     };
@@ -438,7 +494,9 @@ export function getRecommendation(
     estimatedDamage,
     forensicRisk,
     60, // default PSI - would need actual value
-    biologicalAge // using as proxy for calendar age
+    biologicalAge, // using as proxy for calendar age
+    false, // isClosedLoop - default
+    true   // hasExpTank - default (assume compliant)
   );
 }
 
