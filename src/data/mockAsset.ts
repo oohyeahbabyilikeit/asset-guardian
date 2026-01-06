@@ -128,41 +128,42 @@ export const demoContractor: ContractorData = {
   emergencyPhone: "(555) 911-PIPE",
 };
 
-// Demo Water Heater Asset - "The Softener Accelerator" Scenario
+// Demo Water Heater Asset - "The Basement Time Bomb" Scenario
+// 12-year-old unit with circulation pump stress and high pressure
 export const demoAsset: AssetData = {
-  id: "RH-9942-X",
+  id: "AO-4471-K",
   type: "Water Heater",
-  brand: "Rheem",
-  model: "Professional Classic Plus",
-  serialNumber: "RH-2017-9942-X",
-  installDate: "2017-03-15",
-  paperAge: 7.0,
-  biologicalAge: 11.3, // Calculated by v4.0 algorithm
-  location: "Attic",
+  brand: "A.O. Smith",
+  model: "ProLine XE",
+  serialNumber: "AO-2014-4471-K",
+  installDate: "2014-06-22",
+  paperAge: 11.5,
+  biologicalAge: 14.8, // Calculated by v5.2 algorithm
+  location: "Basement",
   specs: {
-    capacity: "50-Gal",
-    fuelType: "Natural Gas",
-    ventType: "Power Vent (PVC)",
-    piping: "3/4\" Copper",
+    capacity: "40-Gal",
+    fuelType: "Electric",
+    ventType: "N/A",
+    piping: "3/4\" PEX",
   },
 };
 
-// Demo Forensic Inputs - v4.0 Algorithm Specification
-// "The Softener Accelerator" scenario - Attic location with high damage potential
+// Demo Forensic Inputs - v5.2 Algorithm Specification
+// "The Basement Time Bomb" scenario - Older unit with circ pump stress
 export const demoForensicInputs: ForensicInputs = {
-  calendarAge: 7,                    // 7 years since install
-  psi: 75,                           // Below 80 PSI threshold
-  warrantyYears: 6,                  // Standard 6-year warranty (proxy for anode mass)
-  fuelType: 'GAS' as FuelType,       // Natural gas unit
-  hardnessGPG: 15,                   // Moderate water hardness
-  hasSoftener: true,                 // Has softener (anode killer!)
-  hasCircPump: false,                // No circulation pump (v5.1)
-  isClosedLoop: false,               // No check valve
-  hasExpTank: true,                  // Has expansion tank
-  location: 'ATTIC' as LocationType, // High-risk location
-  isFinishedArea: false,             // N/A for attic
-  visualRust: false,                 // No visible corrosion
-  tempSetting: 'NORMAL' as TempSetting, // Normal temp setting
+  calendarAge: 11,                   // 11 years since install
+  psi: 82,                           // Above 80 PSI threshold!
+  warrantyYears: 6,                  // Standard 6-year warranty
+  fuelType: 'ELECTRIC' as FuelType,  // Electric unit
+  hardnessGPG: 22,                   // Hard water
+  hasSoftener: false,                // No softener
+  hasCircPump: true,                 // Circulation pump installed (v5.1)
+  isClosedLoop: true,                // Has check valve - closed loop!
+  hasExpTank: false,                 // Missing expansion tank!
+  location: 'BASEMENT' as LocationType, // Finished basement
+  isFinishedArea: true,              // Finished = higher risk
+  visualRust: true,                  // Visible corrosion present
+  tempSetting: 'HIGH' as TempSetting, // Running hot
 };
 
 // DEPRECATED: These are now calculated dynamically in CommandCenter.tsx
