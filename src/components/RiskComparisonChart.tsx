@@ -15,6 +15,7 @@ export function RiskComparisonChart({ calculatedRisk, biologicalAge }: RiskCompa
   const baseline = getBaselineForAge(biologicalAge);
   const difference = calculatedRisk - baseline.failureProb;
   const percentDiff = ((difference / baseline.failureProb) * 100).toFixed(0);
+  const displayAge = Math.round(biologicalAge * 10) / 10; // Consistent rounding
   
   const isLower = difference < -0.5;
   const isHigher = difference > 0.5;
@@ -39,7 +40,7 @@ export function RiskComparisonChart({ calculatedRisk, biologicalAge }: RiskCompa
                 Risk vs Industry Baseline
               </span>
             </div>
-            <span className="text-xs text-muted-foreground font-data">{baseline.ageRange}</span>
+            <span className="text-xs text-muted-foreground font-data">Bio Age: {displayAge} yrs</span>
           </div>
 
           {/* Comparison Bars */}
