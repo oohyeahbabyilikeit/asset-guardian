@@ -1,6 +1,69 @@
 // Opterra v3.0 Physics-Based Risk Calculation Engine
-// Recalibrated with "Shield vs. Body" Logic
+// Recalibrated with "Shield vs. Body" Logic + Insurance Logic Recommendation Engine
 // Based on DOE (LBNL) & InterNACHI Actuarial Tables
+
+// ============= LOCATION RISK THRESHOLDS =============
+// Rule #1: "Vegas Odds" - Lower threshold for expensive locations
+export type LocationRiskLevel = 'attic' | 'main_floor' | 'basement' | 'garage';
+
+export interface LocationThreshold {
+  location: LocationRiskLevel;
+  label: string;
+  triggerProbability: number; // Replacement trigger %
+  rationale: string;
+}
+
+export const locationThresholds: Record<LocationRiskLevel, LocationThreshold> = {
+  attic: {
+    location: 'attic',
+    label: 'Attic / 2nd Floor',
+    triggerProbability: 15, // 1-in-7 chance
+    rationale: 'Zero Tolerance. You are betting the ceiling.',
+  },
+  main_floor: {
+    location: 'main_floor',
+    label: 'Finished Main Floor',
+    triggerProbability: 25, // 1-in-4 chance
+    rationale: 'Deductible Risk. Likelihood of claim is high.',
+  },
+  basement: {
+    location: 'basement',
+    label: 'Unfinished Basement',
+    triggerProbability: 35, // 1-in-3 chance
+    rationale: 'Cleanup Risk. Nuisance, but manageable.',
+  },
+  garage: {
+    location: 'garage',
+    label: 'Garage / Exterior',
+    triggerProbability: 40, // Statistical end
+    rationale: 'Run to Failure. Only replace if essentially dead.',
+  },
+};
+
+// ============= RECOMMENDATION TYPES =============
+export type RecommendationAction = 'REPLACE' | 'MONITOR' | 'REPAIR';
+export type RecommendationBadge = 
+  | 'LIABILITY_RISK' 
+  | 'FINANCIAL_RISK' 
+  | 'ACTUARIAL_EXPIRY' 
+  | 'UNSERVICEABLE' 
+  | 'MONITOR';
+
+export interface Recommendation {
+  action: RecommendationAction;
+  badge: RecommendationBadge;
+  badgeLabel: string;
+  badgeColor: 'red' | 'orange' | 'yellow' | 'green';
+  triggerRule: string;
+  script: string;
+  canRepair: boolean;
+}
+
+// ============= CONSTANTS =============
+const INSURANCE_DEDUCTIBLE = 2500; // $2,500 threshold for liability
+const FINANCIAL_DAMAGE_THRESHOLD = 1000; // $1,000 for financial risk
+const ACTUARIAL_WALL = 12.0; // Rule #2: Biological age hard stop
+const SEDIMENT_LOCK = 15; // Rule #3: Serviceability lock (lbs)
 
 export interface BaselineRisk {
   ageRange: string;
@@ -17,6 +80,9 @@ export interface ForensicInputs {
   hasExpansionTank: boolean;
   anodeCondition: 'good' | 'depleted' | 'missing';
   visualRust?: boolean; // Override for visible rust/leak
+  sedimentLoad?: number; // Pounds of sediment (for serviceability check)
+  estimatedDamage?: number; // Estimated burst damage in dollars
+  locationRiskLevel?: LocationRiskLevel; // Location for threshold lookup
 }
 
 export interface RiskDilationResult {
@@ -239,4 +305,138 @@ function generateInsight(
   const riskRatio = Math.round(cappedRisk / baselineRisk);
   
   return `a normal ${paperAge}-year-old tank has a ${baselineRisk.toFixed(1)}% risk. Yours has a ${cappedRisk.toFixed(1)}% risk. You are ${riskRatio}x more likely to have a flood this year than your neighbor because your protection rod died ${yearsAgo} years ago.`;
+}
+
+// ============= RECOMMENDATION ENGINE =============
+// Insurance Logic: 3 Business Rules
+
+/**
+ * Rule #1: Vegas Odds - Location vs. Probability
+ * Lower the failure threshold based on how expensive the location is
+ */
+function checkLocationRule(
+  forensicRisk: number,
+  estimatedDamage: number,
+  locationRiskLevel: LocationRiskLevel
+): Recommendation | null {
+  const threshold = locationThresholds[locationRiskLevel];
+  
+  // LIABILITY RISK: High probability + exceeds deductible
+  if (forensicRisk > threshold.triggerProbability && estimatedDamage > INSURANCE_DEDUCTIBLE) {
+    return {
+      action: 'REPLACE',
+      badge: 'LIABILITY_RISK',
+      badgeLabel: '🔴 LIABILITY RISK',
+      badgeColor: 'red',
+      triggerRule: 'Rule #1: Location Risk',
+      script: `Normally a ${threshold.triggerProbability}% risk is acceptable. But because this tank is in your ${threshold.label.toLowerCase()}, you are betting a $${Math.round(estimatedDamage / 1000)}K repair on a roll of the dice. The math says that is a bad bet.`,
+      canRepair: false,
+    };
+  }
+  
+  // FINANCIAL RISK: High probability + exceeds $1,000
+  if (forensicRisk > 25 && estimatedDamage > FINANCIAL_DAMAGE_THRESHOLD) {
+    return {
+      action: 'REPLACE',
+      badge: 'FINANCIAL_RISK',
+      badgeLabel: '🟠 FINANCIAL RISK',
+      badgeColor: 'orange',
+      triggerRule: 'Rule #1: Financial Threshold',
+      script: `With a ${forensicRisk.toFixed(1)}% failure probability and $${Math.round(estimatedDamage / 1000)}K potential damage, the expected loss exceeds your deductible. Replacement is financially justified.`,
+      canRepair: true,
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Rule #2: Actuarial Wall - The Hard Stop
+ * Biological age > 12 years = terminal metal fatigue
+ */
+function checkActuarialWall(biologicalAge: number): Recommendation | null {
+  if (biologicalAge > ACTUARIAL_WALL) {
+    return {
+      action: 'REPLACE',
+      badge: 'ACTUARIAL_EXPIRY',
+      badgeLabel: '🔴 ACTUARIAL EXPIRY',
+      badgeColor: 'red',
+      triggerRule: 'Rule #2: Biological Age Limit',
+      script: `Legally I can repair this, but mathematically it is ${biologicalAge.toFixed(1)} years old. Investing money into a tank with 0% remaining life is throwing good money after bad. My software prevents me from quoting repairs on expired assets.`,
+      canRepair: false, // Lockout repairs
+    };
+  }
+  return null;
+}
+
+/**
+ * Rule #3: Serviceability Lock - Sediment Load
+ * Sediment > 15 lbs = DO NOT TOUCH
+ */
+function checkServiceabilityLock(sedimentLoad: number): Recommendation | null {
+  if (sedimentLoad > SEDIMENT_LOCK) {
+    return {
+      action: 'REPLACE',
+      badge: 'UNSERVICEABLE',
+      badgeLabel: '🛑 UNSERVICEABLE',
+      badgeColor: 'red',
+      triggerRule: 'Rule #3: Sediment Threshold',
+      script: `Our scan indicates ${sedimentLoad} lbs of rock inside the tank. That sediment is currently plugging the rust holes. If I try to flush it or fix the valve, the vibration will cause a massive leak. It is too fragile to service.`,
+      canRepair: false, // DO NOT FLUSH / DO NOT REPAIR
+    };
+  }
+  return null;
+}
+
+/**
+ * Master Recommendation Engine
+ * Evaluates all 3 rules in priority order and returns the appropriate recommendation
+ */
+export function getRecommendation(
+  forensicRisk: number,
+  biologicalAge: number,
+  sedimentLoad: number = 0,
+  estimatedDamage: number = 0,
+  locationRiskLevel: LocationRiskLevel = 'garage'
+): Recommendation {
+  // Priority 1: Serviceability Lock (most critical - safety issue)
+  const sedimentRule = checkServiceabilityLock(sedimentLoad);
+  if (sedimentRule) return sedimentRule;
+  
+  // Priority 2: Actuarial Wall (terminal condition)
+  const actuarialRule = checkActuarialWall(biologicalAge);
+  if (actuarialRule) return actuarialRule;
+  
+  // Priority 3: Location/Liability Risk
+  const locationRule = checkLocationRule(forensicRisk, estimatedDamage, locationRiskLevel);
+  if (locationRule) return locationRule;
+  
+  // Default: MONITOR (safe to wait)
+  return {
+    action: 'MONITOR',
+    badge: 'MONITOR',
+    badgeLabel: '🟢 MONITOR',
+    badgeColor: 'green',
+    triggerRule: 'No triggers met',
+    script: 'Your tank is within acceptable risk parameters. Continue annual inspections.',
+    canRepair: true,
+  };
+}
+
+/**
+ * Get location risk level from location string
+ */
+export function getLocationRiskLevel(location: string): LocationRiskLevel {
+  const normalized = location.toLowerCase();
+  if (normalized.includes('attic') || normalized.includes('2nd') || normalized.includes('second')) {
+    return 'attic';
+  }
+  if (normalized.includes('basement') && !normalized.includes('finished')) {
+    return 'basement';
+  }
+  if (normalized.includes('garage') || normalized.includes('exterior')) {
+    return 'garage';
+  }
+  // Default to main_floor for utility closets, finished basements, etc.
+  return 'main_floor';
 }
