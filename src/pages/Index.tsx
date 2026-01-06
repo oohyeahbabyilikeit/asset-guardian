@@ -8,7 +8,7 @@ import { IssueSelector } from '@/components/IssueSelector';
 import { ScoreSimulator } from '@/components/ScoreSimulator';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
-import { getRandomScenario, demoAsset, type DemoScenario, type AssetData } from '@/data/mockAsset';
+import { demoAsset, demoForensicInputs, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs } from '@/lib/opterraAlgorithm';
 
 type Screen = 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'select-repairs' | 'simulate' | 'test-harness';
@@ -17,10 +17,10 @@ const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [selectedRepairs, setSelectedRepairs] = useState<RepairOption[]>([]);
   
-  // Shared scenario state
+  // Shared scenario state - use stable default values
   const [scenarioName, setScenarioName] = useState<string>('');
   const [currentAsset, setCurrentAsset] = useState<AssetData>(demoAsset);
-  const [currentInputs, setCurrentInputs] = useState<ForensicInputs>(getRandomScenario().inputs);
+  const [currentInputs, setCurrentInputs] = useState<ForensicInputs>(demoForensicInputs);
 
   const handleRandomize = useCallback(() => {
     const newScenario = getRandomScenario();
