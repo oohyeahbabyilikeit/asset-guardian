@@ -84,9 +84,9 @@ export function CommandCenter({
           <RecommendationBanner recommendation={recommendation} />
         </div>
 
-        {/* Risk Comparison Chart */}
+        {/* Age Comparison Chart */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.15s' }}>
-          <RiskComparisonChart calculatedRisk={failProb} biologicalAge={bioAge} />
+          <RiskComparisonChart biologicalAge={bioAge} calendarAge={demoForensicInputs.calendarAge} />
         </div>
 
         {/* Vitals Grid / Action List */}
