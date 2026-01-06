@@ -33,7 +33,7 @@ export function CommandCenter({
 
   // Calculate all metrics using v5.0 algorithm
   const opterraResult = calculateOpterraRisk(inputs);
-  const { bioAge, failProb, sedimentLbs, estDamage } = opterraResult.metrics;
+  const { bioAge, failProb, sedimentLbs, riskLevel } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
@@ -51,8 +51,8 @@ export function CommandCenter({
     liabilityStatus: {
       insured: false,
       location: demoAsset.location,
-      estDamage: estDamage,
-      status: demoAsset.location === 'Attic' || demoAsset.location === 'Utility Closet' ? 'critical' : 'warning',
+      riskLevel: riskLevel,
+      status: riskLevel >= 3 ? 'critical' : riskLevel === 2 ? 'warning' : 'optimal',
     },
     biologicalAge: {
       real: Math.round(bioAge * 10) / 10,
@@ -82,7 +82,7 @@ export function CommandCenter({
 
         {/* Hero Health Gauge */}
         <div className="animate-fade-in-up">
-          <HealthGauge healthScore={dynamicHealthScore} location={demoAsset.location} />
+          <HealthGauge healthScore={dynamicHealthScore} location={demoAsset.location} riskLevel={riskLevel} />
         </div>
 
         {/* Quick Simulator */}

@@ -1,7 +1,7 @@
 // Mock Asset Data for Opterra Home Asset Vault MVP
 // All data is configurable here for demo flexibility
 
-import type { ForensicInputs, FuelType, TempSetting, LocationType } from '@/lib/opterraAlgorithm';
+import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel } from '@/lib/opterraAlgorithm';
 
 export interface AssetData {
   id: string;
@@ -35,7 +35,7 @@ export interface VitalsData {
   liabilityStatus: {
     insured: boolean;
     location: string;
-    estDamage?: number;
+    riskLevel: RiskLevel;  // v5.2: Replaced estDamage with qualitative risk
     status: 'critical' | 'warning' | 'optimal';
   };
   biologicalAge: {

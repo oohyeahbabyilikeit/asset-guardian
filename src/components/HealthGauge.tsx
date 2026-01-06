@@ -1,19 +1,17 @@
 import { AlertCircle, CheckCircle2, TrendingUp, MapPin, AlertTriangle, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { 
-  type HealthScore as HealthScoreType, 
-  getBurstCostByLocation, 
-  formatCurrency 
-} from '@/data/mockAsset';
+import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
+import { getRiskLevelInfo, type RiskLevel } from '@/lib/opterraAlgorithm';
 
 interface HealthGaugeProps {
   healthScore: HealthScoreType;
   location: string;
+  riskLevel: RiskLevel;
 }
 
-export function HealthGauge({ healthScore, location }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugeProps) {
   const { score, status, failureProbability } = healthScore;
-  const burstCost = getBurstCostByLocation(location);
+  const riskInfo = getRiskLevelInfo(riskLevel);
   
   // Calculate stroke dash offset for the ring
   const circumference = 351;
@@ -140,19 +138,25 @@ export function HealthGauge({ healthScore, location }: HealthGaugeProps) {
             </div>
           </div>
 
-          {/* Worst Case Cost */}
-          <div className="data-box data-box-warning">
+          {/* Location Risk Level */}
+          <div className={cn(
+            "data-box",
+            riskLevel >= 3 ? "data-box-critical" : "data-box-warning"
+          )}>
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <AlertTriangle className={cn("w-4 h-4", riskLevel >= 3 ? "text-red-400" : "text-amber-400")} />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Burst Cost
+                Location Risk
               </span>
             </div>
-            <div className="text-xl font-black text-amber-400 font-data">
-              {formatCurrency(burstCost.scenarioB.max)}
+            <div className={cn(
+              "text-xl font-black font-data",
+              riskLevel >= 3 ? "text-red-400" : "text-amber-400"
+            )}>
+              {riskInfo.label}
             </div>
             <div className="text-[10px] text-muted-foreground mt-1">
-              Worst case estimate
+              Damage severity
             </div>
           </div>
         </div>
@@ -160,13 +164,19 @@ export function HealthGauge({ healthScore, location }: HealthGaugeProps) {
         {/* Location & Context */}
         <div className="w-full mt-4 p-3 rounded-lg bg-secondary/30 border border-border">
           <div className="flex items-start gap-2 text-left">
-            <MapPin className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+            <MapPin className={cn(
+              "w-4 h-4 mt-0.5 shrink-0",
+              riskLevel >= 3 ? "text-red-400" : "text-amber-400"
+            )} />
             <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 font-data">
-                {burstCost.label}
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-wider font-data",
+                riskLevel >= 3 ? "text-red-400" : "text-amber-400"
+              )}>
+                {location} Installation
               </span>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {burstCost.whyCostJumps}
+                {riskInfo.description}
               </p>
             </div>
           </div>

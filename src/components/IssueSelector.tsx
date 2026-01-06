@@ -10,9 +10,9 @@ interface IssueSelectorProps {
   onSimulate: (selectedRepairs: RepairOption[]) => void;
 }
 
-// Calculate all metrics using v4.0 algorithm
+// Calculate all metrics using v5.2 algorithm
 const opterraResult = calculateOpterraRisk(demoForensicInputs);
-const { sedimentLbs, estDamage, failProb } = opterraResult.metrics;
+const { sedimentLbs, riskLevel, failProb } = opterraResult.metrics;
 
 // Derive health status from failProb
 const healthStatus = failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal';
@@ -24,7 +24,7 @@ const recommendation = getRecommendation(
   riskDilation.forensicRisk,
   riskDilation.biologicalAge,
   sedimentLbs,
-  estDamage,
+  riskLevel,
   locationRiskLevel
 );
 

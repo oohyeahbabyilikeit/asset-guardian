@@ -1,6 +1,7 @@
 import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type VitalsData } from '@/data/mockAsset';
+import { getRiskLevelInfo, type RiskLevel } from '@/lib/opterraAlgorithm';
 
 interface VitalsGridProps {
   vitals: VitalsData;
@@ -65,10 +66,10 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     return 'text-green-400';
   };
 
-  // Format damage estimate for display
-  const formatDamage = (amount?: number) => {
-    if (!amount) return 'High damage potential';
-    return amount >= 1000 ? `$${Math.round(amount / 1000)}K damage potential` : `$${amount} damage potential`;
+  // Format risk level for display (v5.2)
+  const formatRiskLevel = (level: RiskLevel) => {
+    const info = getRiskLevelInfo(level);
+    return `${info.label} RISK`;
   };
 
   const items = [
@@ -93,10 +94,10 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
       icon: <ShieldAlert className="w-5 h-5" />,
       title: vitals.liabilityStatus.status === 'optimal' 
         ? 'Coverage Verified' 
-        : `${vitals.liabilityStatus.location} Installation Risk`,
+        : `${vitals.liabilityStatus.location} Installation`,
       subtitle: vitals.liabilityStatus.status === 'optimal'
         ? 'Liability insured'
-        : formatDamage(vitals.liabilityStatus.estDamage),
+        : formatRiskLevel(vitals.liabilityStatus.riskLevel),
     },
   ];
 
