@@ -214,6 +214,28 @@ const scenarios: DemoScenario[] = [
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
+  {
+    name: "The Sediment Builder",
+    asset: {
+      id: "RH-4421-S",
+      type: "Water Heater",
+      brand: "Rheem",
+      model: "Performance Plus",
+      serialNumber: "RH-2019-4421-S",
+      installDate: "2019-05-15",
+      paperAge: 5.6,
+      biologicalAge: 6.8,
+      location: "Garage",
+      specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Atmospheric", piping: "3/4\" Copper" },
+    },
+    inputs: {
+      // Sediment calc: 6 × 20 × 0.044 = 5.28 lbs (in flush zone 5-15)
+      calendarAge: 6, psi: 62, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      hardnessGPG: 20, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: false, hasPrv: false, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+    },
+  },
 
   // === MAINTENANCE / REPAIR SCENARIOS ===
   {
