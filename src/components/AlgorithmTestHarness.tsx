@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ArrowLeft, Play, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, ReferenceDot } from 'recharts';
 import { 
   calculateOpterraRisk, 
   type ForensicInputs, 
@@ -177,10 +178,31 @@ const PRESETS: Record<string, { label: string; inputs: ForensicInputs }> = {
   },
 };
 
+// Generate Basquin curve data points
+const DESIGN_PSI = 60;
+const FATIGUE_EXP = 4.0;
+
+function generateBasquinCurve() {
+  const points = [];
+  for (let psi = 40; psi <= 150; psi += 5) {
+    const effectivePsi = Math.max(psi, DESIGN_PSI);
+    const stress = Math.pow(effectivePsi / DESIGN_PSI, FATIGUE_EXP);
+    points.push({ psi, stress: Math.round(stress * 100) / 100 });
+  }
+  return points;
+}
+
+const BASQUIN_DATA = generateBasquinCurve();
+
 export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
   const [inputs, setInputs] = useState<ForensicInputs>(PRESETS.healthy.inputs);
   const [result, setResult] = useState<OpterraResult | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<string>('healthy');
+
+  const currentPsiStress = useMemo(() => {
+    const effectivePsi = Math.max(inputs.psi, DESIGN_PSI);
+    return Math.pow(effectivePsi / DESIGN_PSI, FATIGUE_EXP);
+  }, [inputs.psi]);
 
   const runCalculation = () => {
     const calcResult = calculateOpterraRisk(inputs);
@@ -298,7 +320,65 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               onChange={(e) => updateInput('hardnessGPG', Number(e.target.value))}
               className="mt-1"
             />
-          </div>
+            </div>
+
+            {/* Basquin Curve Visualization */}
+            <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                Basquin's Law: Pressure Stress = (PSI / 60)⁴
+              </div>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={BASQUIN_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                    <XAxis 
+                      dataKey="psi" 
+                      tick={{ fontSize: 10 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      label={{ value: 'PSI', position: 'bottom', fontSize: 10, offset: -5 }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 10 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      label={{ value: 'Stress ×', angle: -90, position: 'insideLeft', fontSize: 10, offset: 15 }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }}
+                      formatter={(value: number) => [`${value}×`, 'Stress']}
+                      labelFormatter={(label) => `${label} PSI`}
+                    />
+                    <ReferenceLine x={60} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: 'Design', fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+                    <ReferenceLine x={80} stroke="hsl(var(--warning))" strokeDasharray="3 3" label={{ value: 'High', fontSize: 9, fill: 'hsl(var(--warning))' }} />
+                    <ReferenceLine x={110} stroke="hsl(var(--destructive))" strokeDasharray="3 3" label={{ value: 'Critical', fontSize: 9, fill: 'hsl(var(--destructive))' }} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="stress" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <ReferenceDot 
+                      x={inputs.psi} 
+                      y={Math.round(currentPsiStress * 100) / 100} 
+                      r={6} 
+                      fill="hsl(var(--primary))" 
+                      stroke="hsl(var(--background))"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="text-center text-xs text-muted-foreground mt-2">
+                Current: <span className="font-mono font-bold text-foreground">{inputs.psi} PSI</span> → <span className="font-mono font-bold text-primary">{currentPsiStress.toFixed(2)}× stress</span>
+              </div>
+            </div>
 
           {/* Location */}
           <div className="grid grid-cols-2 gap-4">
