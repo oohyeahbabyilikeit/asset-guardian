@@ -46,6 +46,7 @@ export interface OpterraMetrics {
     temp: number;
     circ: number;
     loop: number;
+    sediment: number;
   };
   riskLevel: RiskLevel;
 }
@@ -90,8 +91,11 @@ const CONSTANTS = {
   SEDIMENT_FACTOR_GAS: 0.044, 
   SEDIMENT_FACTOR_ELEC: 0.08,
   
+  // Stress Saturation (Diffusion-Limited Corrosion)
+  MAX_STRESS_CAP: 12.0,    // Max multiplier: 1 year = 12 years wear. Higher = immediate failure (Tier 1)
+  
   // Critical Thresholds
-  MAX_BIO_AGE: 20,         // Cap for age calculation (display as "20+")
+  MAX_BIO_AGE: 25,         // Cap for age calculation (extended from 20)
   STATISTICAL_CAP: 85.0,   // Max probability based on math alone
   VISUAL_CAP: 99.9,        // Max probability if rust is seen
   
@@ -175,29 +179,37 @@ export function getRiskLevelInfo(level: RiskLevel): RiskLevelInfo {
 
 export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   
-  // 1. ANODE SHIELD LIFE (Remaining years of cathodic protection)
-  // Standard anode lasts ~6 years in normal conditions
-  const BASE_ANODE_LIFE = 6;
+  // 1. ANODE SHIELD LIFE (Quality Credit - use warranty as baseline)
+  // A 12-year warranty tank has ~2x the sacrificial metal mass of a 6-year tank
+  const baseAnodeLife = data.warrantyYears > 0 ? data.warrantyYears : 6;
   
   // Decay rate multiplier (higher = faster anode consumption)
-  let decayRate = 1.0;
-  if (data.hasSoftener) decayRate += 1.4;  // Softened water eats anodes fast
-  if (data.hasCircPump) decayRate += 0.5;  // Circulation accelerates corrosion
+  let anodeDecayRate = 1.0;
+  if (data.hasSoftener) anodeDecayRate += 1.4;  // Conductivity accelerates consumption
+  if (data.hasCircPump) anodeDecayRate += 0.5;  // Erosion/amperage
   
-  // Effective age of the anode (how many "anode years" have passed)
-  const effectiveAnodeAge = data.calendarAge * decayRate;
+  // Effective shield duration (how long the anode protects the steel)
+  const effectiveShieldDuration = baseAnodeLife / anodeDecayRate;
   
   // Remaining shield life (can't go below 0)
-  const shieldLife = Math.max(0, BASE_ANODE_LIFE - effectiveAnodeAge);
+  const shieldLife = Math.max(0, effectiveShieldDuration - data.calendarAge);
 
-  // 2. STRESS FACTORS (Physics Multipliers)
+  // 2. SEDIMENT CALCULATION (Needed for stress factor)
+  const sedFactor = data.fuelType === 'ELECTRIC' 
+    ? CONSTANTS.SEDIMENT_FACTOR_ELEC 
+    : CONSTANTS.SEDIMENT_FACTOR_GAS;
+  const sedimentLbs = data.calendarAge * data.hardnessGPG * sedFactor;
+
+  // 3. STRESS FACTORS (Physics Multipliers)
   
   // A. Pressure (Basquin's Power Law)
   const effectivePsi = Math.max(data.psi, CONSTANTS.DESIGN_PSI);
   const pressureStress = Math.pow(effectivePsi / CONSTANTS.DESIGN_PSI, CONSTANTS.FATIGUE_EXP);
 
-  // B. Temperature (Arrhenius Rate)
-  const tempStress = data.tempSetting === 'HOT' ? 2.0 : 1.0;
+  // B. Temperature (Arrhenius with eco reward)
+  let tempStress = 1.0;  // NORMAL baseline (120°F)
+  if (data.tempSetting === 'HOT') tempStress = 2.0;   // 140°F+ accelerates corrosion
+  if (data.tempSetting === 'LOW') tempStress = 0.8;   // 110°F eco mode life extension
 
   // C. Circulation (Erosion-Corrosion & Duty Cycle)
   const circStress = data.hasCircPump ? 1.4 : 1.0;
@@ -206,19 +218,35 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
   const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.5 : 1.0;
 
-  const totalStress = pressureStress * tempStress * circStress * loopPenalty;
+  // E. Sediment Stress (Under-deposit corrosion / thermal fatigue)
+  // 0 lbs = 1.0x, 10 lbs = 1.5x, 20 lbs = 2.0x
+  const sedimentStress = 1.0 + (sedimentLbs * 0.05);
 
-  // 3. BIOLOGICAL AGE
+  // Combine all stress factors
+  const rawStress = pressureStress * tempStress * circStress * loopPenalty * sedimentStress;
+  
+  // SATURATION CAP: Clamp at max multiplier (diffusion-limited corrosion)
+  // 12x means 1 year = 12 years of wear. Higher implies immediate failure (Tier 1)
+  const totalStress = Math.min(rawStress, CONSTANTS.MAX_STRESS_CAP);
+
+  // 4. BIOLOGICAL AGE
   const age = data.calendarAge;
-  const timeProtected = Math.min(age, shieldLife);
-  const timeNaked = Math.max(0, age - shieldLife);
+  
+  // Time with anode protection vs exposed steel
+  const timeProtected = Math.min(age, effectiveShieldDuration);
+  const timeNaked = Math.max(0, age - effectiveShieldDuration);
 
-  const protectedAging = timeProtected * (1 + (totalStress * 0.2));
+  // Phase 1: Protected (steel is shielded, slower aging)
+  const protectedAging = timeProtected * (1 + (totalStress * 0.1));  // Lower weight
+  
+  // Phase 2: Naked (steel is attacked directly)
   const nakedAging = timeNaked * totalStress;
+  
+  // Final biological age (capped for extreme cases)
   const rawBioAge = protectedAging + nakedAging;
   const bioAge = Math.min(rawBioAge, CONSTANTS.MAX_BIO_AGE);
 
-  // 4. WEIBULL FAILURE PROBABILITY
+  // 5. WEIBULL FAILURE PROBABILITY
   const t = bioAge;
   const eta = CONSTANTS.ETA;
   const beta = CONSTANTS.BETA;
@@ -235,10 +263,6 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     failProb = Math.min(failProb, CONSTANTS.STATISTICAL_CAP);
   }
 
-  // 5. SEDIMENT CALCULATION
-  const sedFactor = data.fuelType === 'ELECTRIC' ? CONSTANTS.SEDIMENT_FACTOR_ELEC : CONSTANTS.SEDIMENT_FACTOR_GAS;
-  const sedimentLbs = data.calendarAge * data.hardnessGPG * sedFactor;
-
   return {
     bioAge: parseFloat(bioAge.toFixed(1)),
     failProb: parseFloat(failProb.toFixed(1)),
@@ -250,7 +274,8 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
       pressure: parseFloat(pressureStress.toFixed(2)),
       temp: tempStress,
       circ: circStress,
-      loop: loopPenalty
+      loop: loopPenalty,
+      sediment: parseFloat(sedimentStress.toFixed(2))
     },
     riskLevel: getLocationRisk(data.location, data.isFinishedArea)
   };
