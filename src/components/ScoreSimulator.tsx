@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, TrendingDown, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, TrendingDown, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, simulateRepairs, SimulatedResult } from '@/data/repairOptions';
 import { demoHealthScore, demoAsset, formatCurrency } from '@/data/mockAsset';
@@ -73,6 +73,13 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
   const scoreImprovement = result.newScore - demoHealthScore.score;
   const agingImprovement = Math.round((1 - result.newAgingFactor / currentAgingFactor) * 100);
   const failureImprovement = Math.round((1 - result.newFailureProb / demoHealthScore.failureProbability) * 100);
+
+  // "Do Nothing" projection - score declines over time
+  const doNothingProjections = [
+    { months: 6, score: Math.max(0, demoHealthScore.score - 8), failureProb: Math.min(95, demoHealthScore.failureProbability + 12) },
+    { months: 12, score: Math.max(0, demoHealthScore.score - 18), failureProb: Math.min(95, demoHealthScore.failureProbability + 28) },
+    { months: 24, score: Math.max(0, demoHealthScore.score - 35), failureProb: Math.min(95, demoHealthScore.failureProbability + 45) },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,6 +203,46 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Do Nothing Projection */}
+        <div className="clean-card mb-4 border-red-500/30 bg-red-500/5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <span className="text-sm font-medium text-foreground">If You Do Nothing</span>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            Without repairs, your water heater will continue to degrade:
+          </p>
+          <div className="space-y-3">
+            {doNothingProjections.map((projection) => (
+              <div key={projection.months} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">In {projection.months} months</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <span className={`text-sm font-bold font-data ${projection.score >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                      {projection.score}
+                    </span>
+                    <span className="text-xs text-muted-foreground"> score</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-bold font-data text-red-400">
+                      {projection.failureProb}%
+                    </span>
+                    <span className="text-xs text-muted-foreground"> risk</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-3 border-t border-red-500/20">
+            <p className="text-xs text-red-400">
+              ⚠️ At current trajectory, failure becomes likely within 18-24 months
+            </p>
           </div>
         </div>
 
