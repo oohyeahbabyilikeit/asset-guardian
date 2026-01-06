@@ -1,53 +1,65 @@
-// Opterra v4.0 Physics-Based Risk Calculation Engine
-// Master Algorithm Specification - Full Implementation
-// Integrates Forensic Physics, Actuarial Math, and Business Rules
+/**
+ * OPTERRA v5.0: Physics-Based Risk Calculation Engine
+ * 
+ * Integrates Basquin's Law (pressure fatigue), Arrhenius Equation (thermal acceleration),
+ * and Galvanic Conductivity (softener impact) for scientifically defensible risk assessment.
+ */
 
-// ============= CONSTANTS (DO NOT CHANGE WITHOUT ENGINEERING REVIEW) =============
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 const CONSTANTS = {
-  // WEIBULL STATS (LBNL Data)
-  ETA: 11.5,             // Characteristic Life (Years)
-  BETA: 1.5,             // Slope (Models random mid-life failure)
-  
-  // LIMITS
-  SAFE_PSI: 80,          // Warranty Void Threshold (A.O. Smith)
-  DANGEROUS_PSI: 110,    // Vessel rupture threshold - immediate replacement
-  CRITICAL_SEDIMENT: 15, // Lbs (Unserviceable Limit)
-  FATIGUE_AGE: 10,       // Years of high-pressure exposure that compromises vessel
-  
-  // COEFFICIENTS
-  SEDIMENT_GAS: 0.044,   // Lbs/Year/GPG (Battelle Study)
-  SEDIMENT_ELEC: 0.08,   // Lbs/Year/GPG
-  SOFTENER_DECAY: 2.4,   // Conductivity Divisor (NACE Std)
-  
-  // FINANCIALS (2024 Insurance Avg)
+  // Weibull Parameters (Calibrated for Corrosion Wear-Out)
+  ETA: 11.5,              // Characteristic Life (63.2% failure point)
+  BETA: 2.2,              // Shape >2.0 = wear-out curve (steeper at end-of-life)
+
+  // Physics Baselines (Basquin's Law)
+  DESIGN_PSI: 60,         // Safe working pressure baseline
+  FATIGUE_EXP: 4.0,       // Basquin's exponent for corrosion-fatigue
+  DANGEROUS_PSI: 110,     // Vessel rupture threshold
+
+  // Sediment
+  CRITICAL_SEDIMENT: 15,
+  SEDIMENT_GAS: 0.044,    // lbs/year for gas heaters
+  SEDIMENT_ELEC: 0.08,    // lbs/year for electric heaters
+
+  // Galvanic Conductivity
+  SOFTENER_DECAY: 2.4,    // Anode consumption multiplier (sodium conductivity)
+  EXPANSION_BENEFIT: 1.1, // Anode life extension from expansion tank
+
+  // Limits
+  MAX_BIO_AGE: 25,        // Cap for sanity
+  CRITICAL_PROB: 95.0,    // Cap for visual display
+  FATIGUE_AGE: 10,        // Zombie tank threshold
+
+  // Financials (estimated damage by location)
   DAMAGE_ATTIC: 45000,
   DAMAGE_MAIN: 15000,
   DAMAGE_BASEMENT: 3500,
   DAMAGE_GARAGE_FIN: 3000,
   DAMAGE_GARAGE_RAW: 500,
-  
-  // BIO AGE CAP
-  MAX_BIO_AGE: 20,
 };
 
-// ============= TYPE DEFINITIONS =============
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
 export type FuelType = 'GAS' | 'ELECTRIC';
 export type TempSetting = 'NORMAL' | 'HOT';
 export type LocationType = 'ATTIC' | 'MAIN_LIVING' | 'BASEMENT' | 'GARAGE';
 
 export interface ForensicInputs {
-  calendarAge: number;           // Years since manufacture
-  psi: number;                   // Static water pressure
-  warrantyYears: number;         // 6, 9, or 12 - Proxy for Anode Mass
-  fuelType: FuelType;            // GAS or ELECTRIC
-  hardnessGPG: number;           // Grains Per Gallon (Sediment Fuel)
-  hasSoftener: boolean;          // Increases conductivity (Anode Killer)
-  isClosedLoop: boolean;         // Check Valve/PRV present?
-  hasExpTank: boolean;           // Thermal Expansion Tank present?
-  location: LocationType;        // ATTIC, MAIN_LIVING, BASEMENT, GARAGE
-  isFinishedArea: boolean;       // Is the garage/basement finished?
-  visualRust: boolean;           // Immediate Kill Switch
-  tempSetting: TempSetting;      // NORMAL or HOT (>130°F)
+  calendarAge: number;
+  psi: number;
+  warrantyYears: number;
+  fuelType: FuelType;
+  hardnessGPG: number;
+  hasSoftener: boolean;
+  isClosedLoop: boolean;
+  hasExpTank: boolean;
+  location: LocationType;
+  isFinishedArea: boolean;
+  visualRust: boolean;
+  tempSetting: TempSetting;
 }
 
 export type RecommendationAction = 
@@ -93,6 +105,10 @@ export interface OpterraMetrics {
   estDamage: number;
   shieldLife: number;
   stress: number;
+  // v5.0: Physics breakdown
+  pressureStress: number;
+  tempStress: number;
+  loopPenalty: number;
 }
 
 export interface OpterraResult {
@@ -125,90 +141,89 @@ export interface BaselineRisk {
   status: 'safe' | 'moderate' | 'warning' | 'critical';
 }
 
-// Industry standard baseline - Calculated using same Weibull formula for consistency
-// rNow = exp(-(age/11.5)^1.5), rNext = exp(-((age+1)/11.5)^1.5), failProb = (1 - rNext/rNow) * 100
+// Recalculated with BETA=2.2 Weibull distribution
 export const industryBaseline: BaselineRisk[] = [
-  { ageRange: '0-6 Years', minAge: 0, maxAge: 6, failureProb: 3.8, status: 'safe' },       // Weibull @ age 3
-  { ageRange: '7-9 Years', minAge: 7, maxAge: 9, failureProb: 9.5, status: 'moderate' },   // Weibull @ age 8
-  { ageRange: '10-12 Years', minAge: 10, maxAge: 12, failureProb: 14.2, status: 'warning' }, // Weibull @ age 11
-  { ageRange: '13+ Years', minAge: 13, maxAge: 99, failureProb: 23.5, status: 'critical' }, // Weibull @ age 14
+  { ageRange: '0-6 Years', minAge: 0, maxAge: 6, failureProb: 2.8, status: 'safe' },
+  { ageRange: '7-9 Years', minAge: 7, maxAge: 9, failureProb: 11.2, status: 'moderate' },
+  { ageRange: '10-12 Years', minAge: 10, maxAge: 12, failureProb: 18.5, status: 'warning' },
+  { ageRange: '13+ Years', minAge: 13, maxAge: 99, failureProb: 32.0, status: 'critical' },
 ];
 
-// ============= MASTER CALCULATION FUNCTION =============
+// ============================================================================
+// MASTER CALCULATION FUNCTION
+// ============================================================================
 export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
-  const { ETA, BETA, SOFTENER_DECAY, SAFE_PSI } = CONSTANTS;
+  // Ensure numeric types (defense against string coercion)
+  const calendarAge = Number(data.calendarAge);
+  const psi = Number(data.psi);
+  const warrantyYears = Number(data.warrantyYears);
+  const hardnessGPG = Number(data.hardnessGPG);
 
   // --- 1. SHIELD CALCULATION (ANODE LIFE) ---
-  // How long did the anode last?
-  // Soft water increases conductivity, eating anodes 2.4x faster.
-  const decayRate = data.hasSoftener ? SOFTENER_DECAY : 1.0;
-  const shieldLife = data.warrantyYears / decayRate;
+  // Softened water has higher conductivity, draining the anode faster (galvanic decay)
+  const anodeDecayRate = data.hasSoftener ? CONSTANTS.SOFTENER_DECAY : 1.0;
+  // Expansion tank reduces pressure spikes, preserving anode coating
+  const expansionFactor = data.hasExpTank ? CONSTANTS.EXPANSION_BENEFIT : 1.0;
+  const shieldLife = (warrantyYears * expansionFactor) / anodeDecayRate;
 
-  // --- 2. STRESS CALCULATION (THE ATTACK) ---
-  // How fast does the tank rot once the shield is down?
-  let stress = 1.0;
+  // --- 2. STRESS FACTORS (Physics Multipliers) ---
   
-  // The Glass Cliff: Hard Stop at 80 PSI
-  if (data.psi > SAFE_PSI) {
-    stress = 10.0; // Terminal Glass Fracture (10x Aging)
-  } else {
-    // Basquin's Law (Cubic Curve). Floor at 50 PSI to prevent logic errors.
-    const effectivePsi = Math.max(data.psi, 50);
-    stress = Math.pow(effectivePsi / 60, 3);
-  }
+  // A. Pressure Stress (Basquin's Power Law)
+  // Continuous curve: 60 PSI = 1.0x, 80 PSI = 3.16x, 100 PSI = 7.72x, 140 PSI = 29.6x
+  const effectivePsi = Math.max(psi, CONSTANTS.DESIGN_PSI);
+  const pressureStress = Math.pow(effectivePsi / CONSTANTS.DESIGN_PSI, CONSTANTS.FATIGUE_EXP);
 
-  // Environmental Penalties
-  if (data.isClosedLoop && !data.hasExpTank) stress += 0.5; // Thermal Hammer
-  if (data.tempSetting === 'HOT') stress += 0.5; // Arrhenius (Heat)
+  // B. Thermal Stress (Arrhenius Approximation)
+  // HOT (140F+) doubles corrosion rate vs NORMAL (120F)
+  const tempStress = data.tempSetting === 'HOT' ? 2.0 : 1.0;
+
+  // C. Environmental Stress (Closed Loop)
+  // Thermal hammer effect without expansion tank = 50% stress increase
+  const loopPenalty = (data.isClosedLoop && !data.hasExpTank) ? 1.5 : 1.0;
+
+  // Total Combined Stress (Multiplicative, not additive)
+  const totalStress = pressureStress * tempStress * loopPenalty;
 
   // --- 3. BIOLOGICAL AGE (TWO-PHASE CLOCK) ---
-  // Phase 1: Protected Years (Age ≤ ShieldLife). Aging = 1.0x.
-  const timeProtected = Math.min(data.calendarAge, shieldLife);
   
-  // Phase 2: Naked Years (Age > ShieldLife). Aging = StressFactor.
-  const timeNaked = Math.max(0, data.calendarAge - shieldLife);
-  
-  // Final Biological Age (capped at MAX_BIO_AGE to prevent unrealistic values)
-  const rawBioAge = timeProtected + (timeNaked * stress);
+  // Phase 1: Protected Time (Anode working)
+  // Steel largely spared, but stress causes some fatigue to welds/glass lining (weighted at 0.2)
+  const timeProtected = Math.min(calendarAge, shieldLife);
+  const protectedAging = timeProtected * (1 + (totalStress * 0.2));
+
+  // Phase 2: Naked Time (Anode Depleted)
+  // Steel takes full force of stress
+  const timeNaked = Math.max(0, calendarAge - shieldLife);
+  const nakedAging = timeNaked * totalStress;
+
+  const rawBioAge = protectedAging + nakedAging;
   const bioAge = Math.min(rawBioAge, CONSTANTS.MAX_BIO_AGE);
   const bioAgeCapped = rawBioAge > CONSTANTS.MAX_BIO_AGE;
 
-  // --- 4. WEIBULL PROBABILITY (NEXT 12 MO) ---
-  // Calculates conditional probability of failure in the next year
-  // Use rawBioAge (uncapped) so extreme scenarios still show high failure rates
-  // Cap calculation at 40 years to prevent numerical underflow (exp(-huge) → 0)
-  const weibullAge = Math.min(rawBioAge, 40);
-  const rNow = Math.exp(-Math.pow(weibullAge / ETA, BETA));
-  const rNext = Math.exp(-Math.pow((weibullAge + 1) / ETA, BETA));
-  let failProb = (1 - (rNext / rNow)) * 100;
+  // --- 4. WEIBULL HAZARD FUNCTION ---
+  // Calculate probability of failure in the NEXT 12 months (Conditional Reliability)
+  // P(Failure) = 1 - (Reliability_Next_Year / Reliability_Now)
   
-  // DEBUG: Log calculation details
-  console.log('[OPTERRA DEBUG]', {
-    calendarAge: data.calendarAge,
-    psi: data.psi,
-    shieldLife,
-    timeProtected,
-    timeNaked,
-    stress,
-    rawBioAge,
-    weibullAge,
-    rNow,
-    rNext,
-    failProbBeforeCap: failProb,
-    rawBioAgeOver40: rawBioAge > 40,
-  });
-  
-  // If rawBioAge exceeds Weibull calculation cap, force to max probability
-  if (rawBioAge > 40) failProb = 45.0;
+  const t = bioAge;
+  const eta = CONSTANTS.ETA;
+  const beta = CONSTANTS.BETA;
 
-  // Sanity Cap: Don't scare people with 99% unless leaking.
-  // Cap at 45% (Russian Roulette odds) to maintain credibility.
-  if (!data.visualRust) failProb = Math.min(failProb, 45.0);
-  if (data.visualRust) failProb = 99.9;
+  // Weibull Reliability Function: R(t) = e^(-(t/eta)^beta)
+  const rNow = Math.exp(-Math.pow(t / eta, beta));
+  const rNext = Math.exp(-Math.pow((t + 1) / eta, beta));
+  let failProb = (1 - (rNext / rNow)) * 100;
+
+  // Visual evidence trumps math
+  if (data.visualRust) {
+    failProb = 99.9;
+  }
+
+  // Cap to avoid unrealistic percentages
+  failProb = Math.min(failProb, CONSTANTS.CRITICAL_PROB);
 
   // --- 5. SEDIMENT LOAD ---
   const k = data.fuelType === 'GAS' ? CONSTANTS.SEDIMENT_GAS : CONSTANTS.SEDIMENT_ELEC;
-  const sedimentLbs = data.calendarAge * data.hardnessGPG * k;
+  const sedimentLbs = calendarAge * hardnessGPG * k;
 
   // --- 6. DAMAGE ESTIMATION ---
   let estDamage = 3500; // Default
@@ -226,8 +241,8 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
     bioAge,
     estDamage,
     failProb,
-    data.psi,
-    data.calendarAge,
+    psi,
+    calendarAge,
     data.isClosedLoop,
     data.hasExpTank
   );
@@ -241,13 +256,18 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
       sedimentLbs: Math.round(sedimentLbs * 10) / 10,
       estDamage,
       shieldLife: Math.round(shieldLife * 10) / 10,
-      stress: Math.round(stress * 100) / 100,
+      stress: Math.round(totalStress * 100) / 100,
+      pressureStress: Math.round(pressureStress * 100) / 100,
+      tempStress,
+      loopPenalty,
     },
     verdict,
   };
 }
 
-// ============= RECOMMENDATION ENGINE =============
+// ============================================================================
+// RECOMMENDATION ENGINE
+// ============================================================================
 function getRecommendationFromMetrics(
   visualRust: boolean,
   sedimentLbs: number,
@@ -273,9 +293,8 @@ function getRecommendationFromMetrics(
     };
   }
 
-  // Rule 2: Safety Hazard (The "Bomb" Rule) [PATCHED]
-  // Pressure >110 PSI is dangerous regardless of age/warranty
-  if (psi > CONSTANTS.DANGEROUS_PSI) {
+  // Rule 2: Safety Hazard (Dangerous Pressure)
+  if (psi >= CONSTANTS.DANGEROUS_PSI) {
     return {
       action: 'REPLACE_URGENT',
       badge: 'SAFETY_HAZARD',
@@ -288,7 +307,7 @@ function getRecommendationFromMetrics(
     };
   }
   
-  // Rule 3: Unserviceable (Too much rock to flush)
+  // Rule 3: Unserviceable (Too much sediment)
   if (sedimentLbs > CONSTANTS.CRITICAL_SEDIMENT) {
     return {
       action: 'REPLACE_UNSERVICEABLE',
@@ -302,115 +321,108 @@ function getRecommendationFromMetrics(
     };
   }
   
-  // Rule 4: Actuarial Expiry (Old Age)
-  if (bioAge > 12.0) {
+  // Rule 4: Biological Age Limit (Actuarial Expiry)
+  if (bioAge >= CONSTANTS.MAX_BIO_AGE) {
     return {
       action: 'REPLACE_EXPIRED',
       badge: 'ACTUARIAL_EXPIRY',
       badgeLabel: '🔴 ACTUARIAL EXPIRY',
       badgeColor: 'red',
       triggerRule: 'Rule #4: Biological Age Limit',
-      script: `Biological age: ${bioAge.toFixed(1)} years. Exceeds 12-year actuarial limit. Terminal metal fatigue expected.`,
+      script: `Biological age: ${bioAge.toFixed(1)} years. Exceeds ${CONSTANTS.MAX_BIO_AGE}-year actuarial limit. Terminal metal fatigue expected.`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
   
   // Rule 5: Liability Risk (Location-Adjusted Thresholds)
-  // [PATCHED] Bumped Attic threshold to 12% to avoid flagging healthy 7yr old tanks
   if (estDamage > 40000 && failProb > 12.0) {
-    // Attic - extreme damage scenario
     return {
       action: 'REPLACE_LIABILITY',
       badge: 'LIABILITY_RISK',
       badgeLabel: '🛡️ LIABILITY RISK',
       badgeColor: 'red',
-      triggerRule: 'Rule #4: Extreme Location Risk',
-      script: `Failure probability is ${failProb.toFixed(1)}%, above the 8% threshold for extreme-risk locations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
+      triggerRule: 'Rule #5: Extreme Location Risk',
+      script: `Failure probability is ${failProb.toFixed(1)}%, above the 12% threshold for extreme-risk locations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
   if (estDamage > 15000 && failProb > 12.0) {
-    // Utility Closet / Finished Basement - high damage
     return {
       action: 'REPLACE_LIABILITY',
       badge: 'LIABILITY_RISK',
       badgeLabel: '🛡️ LIABILITY RISK',
       badgeColor: 'red',
-      triggerRule: 'Rule #4: High Location Risk',
+      triggerRule: 'Rule #5: High Location Risk',
       script: `Failure probability is ${failProb.toFixed(1)}%, above the 12% threshold for high-risk locations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
   if (estDamage > 5000 && failProb > 15.0) {
-    // Other high-value locations
     return {
       action: 'REPLACE_LIABILITY',
       badge: 'LIABILITY_RISK',
       badgeLabel: '🛡️ LIABILITY RISK',
       badgeColor: 'red',
-      triggerRule: 'Rule #4: Location Risk Threshold',
+      triggerRule: 'Rule #5: Location Risk Threshold',
       script: `Failure probability is ${failProb.toFixed(1)}%, above the 15% threshold for high-value installations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
       canRepair: false,
       isPriorityLead: true,
     };
   }
   
-  // Rule 5: Financial Risk (Low Cost Location)
-  // Basement/Garage -> Trigger at 35% Risk
-  if (failProb > 35.0) {
+  // Rule 6: High Failure Probability
+  if (failProb > 40.0) {
     return {
       action: 'REPLACE_RISK',
       badge: 'STATISTICAL_FAILURE',
       badgeLabel: '🔴 STATISTICAL FAILURE',
-      badgeColor: 'orange',
-      triggerRule: 'Rule #5: Statistical Risk Threshold',
-      script: `Failure probability: ${failProb.toFixed(1)}%. Exceeds 35% actuarial threshold for replacement recommendation.`,
-      canRepair: true,
+      badgeColor: 'red',
+      triggerRule: 'Rule #6: Statistical Risk Threshold',
+      script: `Failure probability: ${failProb.toFixed(1)}%. Exceeds 40% actuarial threshold for replacement recommendation.`,
+      canRepair: false,
       isPriorityLead: true,
     };
   }
   
-  // Rule 7: Warranty Rescue / Zombie Tank (Fork)
-  if (psi > CONSTANTS.SAFE_PSI) {
-    // SUB-RULE: The "Zombie Tank" Patch [PATCHED]
-    // If it's old AND high pressure, kill it. Don't rescue it.
-    if (calendarAge > CONSTANTS.FATIGUE_AGE) {
-      return {
-        action: 'REPLACE_FATIGUE',
-        badge: 'STRUCTURAL_FATIGUE',
-        badgeLabel: '🔴 STRUCTURAL FATIGUE',
-        badgeColor: 'red',
-        triggerRule: 'Rule #7a: Metal Fatigue (Zombie Tank)',
-        script: `Tank has endured ${calendarAge} years at elevated pressure. Metal fatigue has compromised vessel integrity. PRV cannot reverse existing damage.`,
-        canRepair: false,
-        isPriorityLead: true,
-      };
-    }
-    
-    // Otherwise: Rescue Mission (Young Tank)
+  // Rule 7: Zombie Tank (Old + High Pressure)
+  if (psi > 80 && calendarAge >= CONSTANTS.FATIGUE_AGE) {
+    return {
+      action: 'REPLACE_FATIGUE',
+      badge: 'STRUCTURAL_FATIGUE',
+      badgeLabel: '🔴 STRUCTURAL FATIGUE',
+      badgeColor: 'red',
+      triggerRule: 'Rule #7: Metal Fatigue (Zombie Tank)',
+      script: `Tank has endured ${calendarAge} years at elevated pressure. Metal fatigue has compromised vessel integrity. PRV cannot reverse existing damage.`,
+      canRepair: false,
+      isPriorityLead: true,
+    };
+  }
+  
+  // Rule 8: High Pressure (Young Tank - Rescuable)
+  if (psi > 80) {
     return {
       action: 'INSTALL_PRV',
       badge: 'WARRANTY_VOID',
       badgeLabel: '🔧 WARRANTY VOID',
       badgeColor: 'orange',
-      triggerRule: 'Rule #7b: Pressure Warranty Violation',
+      triggerRule: 'Rule #8: Pressure Warranty Violation',
       script: `Static pressure: ${psi} PSI. Exceeds 80 PSI manufacturer limit. Warranty voided. PRV installation recommended.`,
       canRepair: true,
       isPriorityLead: true,
     };
   }
 
-  // Rule 8: Code Violation (Expansion Tank Upsell) [PATCHED]
+  // Rule 9: Code Violation (Expansion Tank)
   if (isClosedLoop && !hasExpTank) {
     return {
       action: 'INSTALL_EXP_TANK',
       badge: 'CODE_VIOLATION',
       badgeLabel: '⚠️ MISSING EXP TANK',
       badgeColor: 'orange',
-      triggerRule: 'Rule #8: Code Violation',
+      triggerRule: 'Rule #9: Code Violation',
       script: 'Closed loop system detected without thermal expansion control. Required by plumbing code. Easy $450 fix.',
       canRepair: true,
       isPriorityLead: true,
@@ -430,8 +442,9 @@ function getRecommendationFromMetrics(
   };
 }
 
-// ============= LEGACY COMPATIBILITY FUNCTIONS =============
-// These maintain backwards compatibility with existing UI components
+// ============================================================================
+// LEGACY COMPATIBILITY FUNCTIONS
+// ============================================================================
 
 export function calculateRiskDilation(
   paperAge: number,
@@ -447,7 +460,6 @@ export function calculateRiskDilation(
     sedimentLoad?: number;
     estimatedDamage?: number;
     locationRiskLevel?: string;
-    // v4.0 fields
     calendarAge?: number;
     warrantyYears?: number;
     fuelType?: FuelType;
@@ -458,8 +470,7 @@ export function calculateRiskDilation(
     isFinishedArea?: boolean;
   }
 ): RiskDilationResult {
-  // Convert legacy inputs to v4.0 format
-  const v4Input: ForensicInputs = {
+  const v5Input: ForensicInputs = {
     calendarAge: forensics.calendarAge ?? paperAge,
     psi: forensics.psi ?? forensics.pressure ?? 60,
     warrantyYears: forensics.warrantyYears ?? 6,
@@ -474,13 +485,11 @@ export function calculateRiskDilation(
     tempSetting: forensics.tempSetting ?? 'NORMAL',
   };
 
-  const result = calculateOpterraRisk(v4Input);
+  const result = calculateOpterraRisk(v5Input);
   
-  // Get baseline for comparison
   const baselineData = getBaselineRisk(paperAge);
   const accelerationFactor = result.metrics.failProb / Math.max(baselineData.failureProb, 0.1);
   
-  // Calculate legacy fields
   const exposureYears = Math.max(0, paperAge - result.metrics.shieldLife);
   const protectedYears = Math.min(paperAge, result.metrics.shieldLife);
   
@@ -491,13 +500,13 @@ export function calculateRiskDilation(
     forensicRisk: result.metrics.failProb,
     accelerationFactor: Math.round(accelerationFactor * 10) / 10,
     stressFactor: result.metrics.stress,
-    defenseFactor: v4Input.hasSoftener ? 0.42 : 1.0,
+    defenseFactor: v5Input.hasSoftener ? 0.42 : 1.0,
     anodeLifespan: result.metrics.shieldLife,
     exposureYears: Math.round(exposureYears * 10) / 10,
     protectedYears: Math.round(protectedYears * 10) / 10,
     nakedAgingRate: result.metrics.stress,
     status: getStatusFromRisk(result.metrics.failProb),
-    insight: generateInsight(paperAge, result.metrics.bioAge, exposureYears, v4Input),
+    insight: generateInsight(paperAge, result.metrics.bioAge, exposureYears, v5Input),
   };
 }
 
@@ -517,17 +526,16 @@ export function getRecommendation(
   estimatedDamage: number = 0,
   locationRiskLevel: string = 'garage'
 ): Recommendation {
-  // Use the new recommendation engine with computed values
   return getRecommendationFromMetrics(
-    false, // visualRust - would need to be passed separately
+    false,
     sedimentLoad,
     biologicalAge,
     estimatedDamage,
     forensicRisk,
-    60, // default PSI - would need actual value
-    biologicalAge, // using as proxy for calendar age
-    false, // isClosedLoop - default
-    true   // hasExpTank - default (assume compliant)
+    60,
+    biologicalAge,
+    false,
+    true
   );
 }
 
@@ -553,8 +561,8 @@ export function getBaselineRisk(paperAge: number): BaselineRisk {
 
 export function getStatusFromRisk(risk: number): 'safe' | 'moderate' | 'warning' | 'critical' {
   if (risk < 10) return 'safe';
-  if (risk < 25) return 'moderate';
-  if (risk < 45) return 'warning';
+  if (risk < 20) return 'moderate';
+  if (risk < 40) return 'warning';
   return 'critical';
 }
 
