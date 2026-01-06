@@ -165,7 +165,7 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
 
       <div className="relative flex flex-col items-center text-center">
         {/* Header */}
-        <div className="flex items-center gap-2 mb-6 self-start">
+        <div className="flex items-center gap-2 mb-4 self-start">
           <Activity className="w-4 h-4 text-muted-foreground" />
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground font-data">
             System Diagnostics
@@ -173,34 +173,34 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
         </div>
 
         {/* Score Ring + Aging Speedometer */}
-        <div className="flex items-center justify-center gap-6 w-full mb-4">
+        <div className="flex items-center justify-center gap-10 w-full mb-5">
           {/* Score Ring */}
           <div className={cn("relative rounded-full", getGlowClass())}>
-            <div className="w-36 h-36 rounded-full border-[8px] border-secondary flex items-center justify-center bg-card">
+            <div className="w-32 h-32 rounded-full border-[6px] border-secondary flex items-center justify-center bg-card">
               <div className="text-center">
-                <span className="block text-4xl font-black text-foreground tracking-tight font-data">
+                <span className="block text-3xl font-black text-foreground tracking-tight font-data">
                   {score}
                 </span>
-                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">/ 100</span>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">/ 100</span>
               </div>
             </div>
             
             {/* Colored Progress Ring */}
             <svg 
-              className="absolute top-0 left-0 w-36 h-36 -rotate-90"
+              className="absolute top-0 left-0 w-32 h-32 -rotate-90"
               style={{
-                filter: `drop-shadow(0 0 12px ${getRingColor()})`,
+                filter: `drop-shadow(0 0 10px ${getRingColor()})`,
               }}
             >
               <circle 
-                cx="72" 
-                cy="72" 
-                r="56" 
+                cx="64" 
+                cy="64" 
+                r="51" 
                 fill="none" 
                 stroke={getRingColor()} 
-                strokeWidth="8" 
-                strokeDasharray={circumference} 
-                strokeDashoffset={strokeDashoffset} 
+                strokeWidth="6" 
+                strokeDasharray={320} 
+                strokeDashoffset={320 - (score / 100) * 320} 
                 strokeLinecap="round"
                 className="transition-all duration-1000 ease-out"
               />
@@ -209,7 +209,7 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
 
           {/* Aging Speedometer */}
           <div className="flex flex-col items-center">
-            <div className="flex items-center gap-1 mb-2">
+            <div className="flex items-center gap-1 mb-1">
               <Gauge className="w-3 h-3 text-muted-foreground" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Aging Rate
