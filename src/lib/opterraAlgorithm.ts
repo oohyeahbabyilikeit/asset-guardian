@@ -166,6 +166,45 @@ export function failProbToHealthScore(failProb: number): number {
 }
 
 /**
+ * Calculate failure probability from biological age using Weibull distribution.
+ * Used for "Do Nothing" projections.
+ */
+export function bioAgeToFailProb(bioAge: number): number {
+  const eta = 11.5;  // Characteristic Life
+  const beta = 2.2;  // Shape parameter
+  const maxBioAge = 25;
+  const statisticalCap = 85.0;
+  
+  const t = Math.min(bioAge, maxBioAge);
+  const rNow = Math.exp(-Math.pow(t / eta, beta));
+  const rNext = Math.exp(-Math.pow((t + 1) / eta, beta));
+  
+  const failProb = (1 - (rNext / rNow)) * 100;
+  return Math.min(failProb, statisticalCap);
+}
+
+/**
+ * Project future health metrics based on current state and aging rate.
+ * Returns projected bioAge, failProb, and healthScore for a given number of months.
+ */
+export function projectFutureHealth(
+  currentBioAge: number,
+  agingRate: number,
+  monthsAhead: number
+): { bioAge: number; failProb: number; healthScore: number } {
+  const yearsAhead = monthsAhead / 12;
+  const futureBioAge = currentBioAge + (yearsAhead * agingRate);
+  const failProb = bioAgeToFailProb(futureBioAge);
+  const healthScore = failProbToHealthScore(failProb);
+  
+  return {
+    bioAge: parseFloat(futureBioAge.toFixed(1)),
+    failProb: parseFloat(failProb.toFixed(1)),
+    healthScore
+  };
+}
+
+/**
  * Risk Level Info for UI display
  */
 export interface RiskLevelInfo {

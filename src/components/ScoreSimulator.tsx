@@ -3,7 +3,7 @@ import { ArrowLeft, TrendingDown, AlertTriangle, Calendar, Sparkles } from 'luci
 import { Button } from '@/components/ui/button';
 import { RepairOption, simulateRepairs, SimulatedResult } from '@/data/repairOptions';
 import { formatCurrency } from '@/data/mockAsset';
-import { calculateOpterraRisk, failProbToHealthScore, ForensicInputs } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs } from '@/lib/opterraAlgorithm';
 
 interface ScoreSimulatorProps {
   selectedRepairs: RepairOption[];
@@ -122,11 +122,18 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
   const agingImprovement = Math.round((1 - result.newAgingFactor / currentAgingFactor) * 100);
   const failureImprovement = Math.round((1 - result.newFailureProb / dynamicHealthScore.failureProbability) * 100);
 
-  // "Do Nothing" projection - score declines over time
+  // "Do Nothing" projection - use actual algorithm
+  const agingRate = opterraResult.metrics.agingRate;
+  const currentBioAge = opterraResult.metrics.bioAge;
+  
+  const projection6 = projectFutureHealth(currentBioAge, agingRate, 6);
+  const projection12 = projectFutureHealth(currentBioAge, agingRate, 12);
+  const projection24 = projectFutureHealth(currentBioAge, agingRate, 24);
+  
   const doNothingTargets = [
-    { months: 6, score: Math.max(0, dynamicHealthScore.score - 8), failureProb: Math.min(95, dynamicHealthScore.failureProbability + 12) },
-    { months: 12, score: Math.max(0, dynamicHealthScore.score - 18), failureProb: Math.min(95, dynamicHealthScore.failureProbability + 28) },
-    { months: 24, score: Math.max(0, dynamicHealthScore.score - 35), failureProb: Math.min(95, dynamicHealthScore.failureProbability + 45) },
+    { months: 6, score: projection6.healthScore, failureProb: projection6.failProb },
+    { months: 12, score: projection12.healthScore, failureProb: projection12.failProb },
+    { months: 24, score: projection24.healthScore, failureProb: projection24.failProb },
   ];
 
   // Animated "Do Nothing" values with staggered delays
@@ -334,7 +341,12 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
             </div>
             <div className="mt-4 pt-3 border-t border-red-500/20">
               <p className="text-xs text-red-400">
-                At current trajectory, failure becomes likely within 18-24 months
+                {projection24.failProb >= 50 
+                  ? `At ${agingRate.toFixed(1)}x aging rate, failure becomes statistically likely within 24 months`
+                  : projection12.failProb >= 30
+                    ? `At ${agingRate.toFixed(1)}x aging rate, significant risk develops within 12-24 months`
+                    : `Monitor closely - aging at ${agingRate.toFixed(1)}x normal rate`
+                }
               </p>
             </div>
           </div>
