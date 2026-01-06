@@ -41,6 +41,9 @@ export interface VitalsData {
   biologicalAge: {
     real: number | string;  // Can be "20+" when capped
     paper: number;
+    agingRate: number;         // Stress multiplier (e.g., 3.1x)
+    lifeExtension: number;     // Years gained by fixing issues
+    primaryStressor: string;   // Main cause of accelerated aging
     status: 'critical' | 'warning' | 'optimal';
   };
   expansionTank: {

@@ -49,6 +49,14 @@ export interface OpterraMetrics {
     sediment: number;
   };
   riskLevel: RiskLevel;
+  
+  // Aging Speedometer metrics
+  agingRate: number;           // Current stress multiplier (e.g., 3.1x)
+  optimizedRate: number;       // Rate after PRV + expansion tank fixes
+  yearsLeftCurrent: number;    // Remaining life on current path
+  yearsLeftOptimized: number;  // Remaining life if optimized
+  lifeExtension: number;       // Years gained by fixing (ROI)
+  primaryStressor: string;     // Main contributor to accelerated aging
 }
 
 export type ActionType = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
@@ -263,6 +271,33 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     failProb = Math.min(failProb, CONSTANTS.STATISTICAL_CAP);
   }
 
+  // AGING SPEEDOMETER CALCULATIONS
+  const currentAgingRate = totalStress;
+
+  // Calculate OPTIMIZED stress (what if we fix pressure + expansion tank?)
+  const optimizedPressureStress = 1.0;  // Fixed to 60 PSI
+  const optimizedLoopPenalty = 1.0;     // Expansion tank installed
+  const optimizedStress = Math.min(
+    optimizedPressureStress * tempStress * circStress * optimizedLoopPenalty * sedimentStress,
+    CONSTANTS.MAX_STRESS_CAP
+  );
+
+  // Calculate remaining capacity and life projection
+  const remainingCapacity = Math.max(0, CONSTANTS.MAX_BIO_AGE - bioAge);
+  const yearsLeftCurrent = remainingCapacity > 0 ? remainingCapacity / currentAgingRate : 0;
+  const yearsLeftOptimized = remainingCapacity > 0 ? remainingCapacity / optimizedStress : 0;
+  const lifeExtension = Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
+
+  // Identify primary stressor for UX messaging
+  const stressorFactors = [
+    { name: 'High Pressure', value: pressureStress },
+    { name: 'High Temperature', value: tempStress },
+    { name: 'Sediment Buildup', value: sedimentStress },
+    { name: 'Thermal Expansion', value: loopPenalty },
+    { name: 'Circulation Pump', value: circStress }
+  ];
+  const primaryStressor = stressorFactors.reduce((max, f) => f.value > max.value ? f : max, stressorFactors[0]).name;
+
   return {
     bioAge: parseFloat(bioAge.toFixed(1)),
     failProb: parseFloat(failProb.toFixed(1)),
@@ -277,7 +312,15 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
       loop: loopPenalty,
       sediment: parseFloat(sedimentStress.toFixed(2))
     },
-    riskLevel: getLocationRisk(data.location, data.isFinishedArea)
+    riskLevel: getLocationRisk(data.location, data.isFinishedArea),
+    
+    // Aging Speedometer metrics
+    agingRate: parseFloat(currentAgingRate.toFixed(2)),
+    optimizedRate: parseFloat(optimizedStress.toFixed(2)),
+    yearsLeftCurrent: parseFloat(yearsLeftCurrent.toFixed(1)),
+    yearsLeftOptimized: parseFloat(yearsLeftOptimized.toFixed(1)),
+    lifeExtension: parseFloat(lifeExtension.toFixed(1)),
+    primaryStressor
   };
 }
 

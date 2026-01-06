@@ -40,7 +40,7 @@ export function CommandCenter({
 }: CommandCenterProps) {
   // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
-  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel } = opterraResult.metrics;
+  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
@@ -78,6 +78,9 @@ export function CommandCenter({
     biologicalAge: {
       real: bioAge >= 20 ? '20+' : Math.round(bioAge * 10) / 10,
       paper: currentInputs.calendarAge,
+      agingRate: agingRate,
+      lifeExtension: lifeExtension,
+      primaryStressor: primaryStressor,
       status: getStatusFromValue(bioAge, 8, 12),
     },
     expansionTank: {
@@ -133,7 +136,12 @@ export function CommandCenter({
 
         {/* Recommendation Banner */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
-          <RecommendationBanner recommendation={recommendation} />
+          <RecommendationBanner 
+            recommendation={recommendation} 
+            agingRate={agingRate}
+            lifeExtension={lifeExtension}
+            primaryStressor={primaryStressor}
+          />
         </div>
 
         {/* Age Comparison Chart */}
