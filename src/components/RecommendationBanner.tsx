@@ -1,26 +1,41 @@
-import { AlertTriangle, Shield, Wrench, Eye } from 'lucide-react';
-import { Recommendation } from '@/lib/opterraAlgorithm';
+import { AlertTriangle, Shield, Wrench, Eye, Droplets, Clock, AlertOctagon } from 'lucide-react';
+import { Recommendation, RecommendationAction } from '@/lib/opterraAlgorithm';
 
 interface RecommendationBannerProps {
   recommendation: Recommendation;
   className?: string;
 }
 
-const actionIcons = {
-  REPLACE: AlertTriangle,
-  REPAIR: Wrench,
+// Map v4.0 action types to icons
+const actionIcons: Record<RecommendationAction, typeof AlertTriangle> = {
+  REPLACE_URGENT: AlertOctagon,
+  REPLACE_UNSERVICEABLE: Droplets,
+  REPLACE_EXPIRED: Clock,
+  REPLACE_LIABILITY: Shield,
+  REPLACE_RISK: AlertTriangle,
+  INSTALL_PRV: Wrench,
   MONITOR: Eye,
 };
 
-const actionStyles = {
-  REPLACE: 'bg-destructive/10 border-destructive/30 text-destructive',
-  REPAIR: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+// Map v4.0 action types to styles
+const actionStyles: Record<RecommendationAction, string> = {
+  REPLACE_URGENT: 'bg-destructive/10 border-destructive/30 text-destructive',
+  REPLACE_UNSERVICEABLE: 'bg-destructive/10 border-destructive/30 text-destructive',
+  REPLACE_EXPIRED: 'bg-destructive/10 border-destructive/30 text-destructive',
+  REPLACE_LIABILITY: 'bg-destructive/10 border-destructive/30 text-destructive',
+  REPLACE_RISK: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+  INSTALL_PRV: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
   MONITOR: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
 };
 
+// Helper to check if action requires replacement
+const isReplaceAction = (action: RecommendationAction): boolean => {
+  return action.startsWith('REPLACE_');
+};
+
 export function RecommendationBanner({ recommendation, className = '' }: RecommendationBannerProps) {
-  const Icon = actionIcons[recommendation.action];
-  const style = actionStyles[recommendation.action];
+  const Icon = actionIcons[recommendation.action] || AlertTriangle;
+  const style = actionStyles[recommendation.action] || actionStyles.MONITOR;
 
   return (
     <div className={`mx-4 p-4 rounded-xl border ${style} ${className}`}>
@@ -33,7 +48,7 @@ export function RecommendationBanner({ recommendation, className = '' }: Recomme
             <span className="font-semibold text-sm uppercase tracking-wide">
               {recommendation.badgeLabel}
             </span>
-            {!recommendation.canRepair && recommendation.action === 'REPLACE' && (
+            {!recommendation.canRepair && isReplaceAction(recommendation.action) && (
               <span className="text-xs px-2 py-0.5 rounded bg-destructive/20 text-destructive">
                 Required
               </span>

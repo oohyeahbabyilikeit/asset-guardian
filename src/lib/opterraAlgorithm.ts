@@ -1,53 +1,67 @@
-// Opterra v3.0 Physics-Based Risk Calculation Engine
-// Recalibrated with "Shield vs. Body" Logic + Insurance Logic Recommendation Engine
-// Based on DOE (LBNL) & InterNACHI Actuarial Tables
+// Opterra v4.0 Physics-Based Risk Calculation Engine
+// Master Algorithm Specification - Full Implementation
+// Integrates Forensic Physics, Actuarial Math, and Business Rules
 
-// ============= LOCATION RISK THRESHOLDS =============
-// Rule #1: "Vegas Odds" - Lower threshold for expensive locations
-export type LocationRiskLevel = 'attic' | 'main_floor' | 'basement' | 'garage';
-
-export interface LocationThreshold {
-  location: LocationRiskLevel;
-  label: string;
-  triggerProbability: number; // Replacement trigger %
-  rationale: string;
-}
-
-export const locationThresholds: Record<LocationRiskLevel, LocationThreshold> = {
-  attic: {
-    location: 'attic',
-    label: 'Attic / 2nd Floor',
-    triggerProbability: 15, // 1-in-7 chance
-    rationale: 'High damage potential due to gravity flow to lower levels.',
-  },
-  main_floor: {
-    location: 'main_floor',
-    label: 'Finished Main Floor',
-    triggerProbability: 25, // 1-in-4 chance
-    rationale: 'Damage likely to exceed insurance deductible.',
-  },
-  basement: {
-    location: 'basement',
-    label: 'Unfinished Basement',
-    triggerProbability: 35, // 1-in-3 chance
-    rationale: 'Contained damage with lower remediation costs.',
-  },
-  garage: {
-    location: 'garage',
-    label: 'Garage / Exterior',
-    triggerProbability: 40, // Statistical end
-    rationale: 'Minimal interior damage risk.',
-  },
+// ============= CONSTANTS (DO NOT CHANGE WITHOUT ENGINEERING REVIEW) =============
+const CONSTANTS = {
+  // WEIBULL STATS (LBNL Data)
+  ETA: 11.5,             // Characteristic Life (Years)
+  BETA: 1.5,             // Slope (Models random mid-life failure)
+  
+  // LIMITS
+  SAFE_PSI: 80,          // Warranty Void Threshold (A.O. Smith)
+  CRITICAL_SEDIMENT: 15, // Lbs (Unserviceable Limit)
+  
+  // COEFFICIENTS
+  SEDIMENT_GAS: 0.044,   // Lbs/Year/GPG (Battelle Study)
+  SEDIMENT_ELEC: 0.08,   // Lbs/Year/GPG
+  SOFTENER_DECAY: 2.4,   // Conductivity Divisor (NACE Std)
+  
+  // FINANCIALS (2024 Insurance Avg)
+  DAMAGE_ATTIC: 45000,
+  DAMAGE_MAIN: 15000,
+  DAMAGE_BASEMENT: 3500,
+  DAMAGE_GARAGE_FIN: 3000,
+  DAMAGE_GARAGE_RAW: 500,
 };
 
-// ============= RECOMMENDATION TYPES =============
-export type RecommendationAction = 'REPLACE' | 'MONITOR' | 'REPAIR';
-export type RecommendationBadge = 
-  | 'LIABILITY_RISK' 
-  | 'FINANCIAL_RISK' 
-  | 'ACTUARIAL_EXPIRY' 
-  | 'UNSERVICEABLE' 
+// ============= TYPE DEFINITIONS =============
+export type FuelType = 'GAS' | 'ELECTRIC';
+export type TempSetting = 'NORMAL' | 'HOT';
+export type LocationType = 'ATTIC' | 'MAIN_LIVING' | 'BASEMENT' | 'GARAGE';
+
+export interface ForensicInputs {
+  calendarAge: number;           // Years since manufacture
+  psi: number;                   // Static water pressure
+  warrantyYears: number;         // 6, 9, or 12 - Proxy for Anode Mass
+  fuelType: FuelType;            // GAS or ELECTRIC
+  hardnessGPG: number;           // Grains Per Gallon (Sediment Fuel)
+  hasSoftener: boolean;          // Increases conductivity (Anode Killer)
+  isClosedLoop: boolean;         // Check Valve/PRV present?
+  hasExpTank: boolean;           // Thermal Expansion Tank present?
+  location: LocationType;        // ATTIC, MAIN_LIVING, BASEMENT, GARAGE
+  isFinishedArea: boolean;       // Is the garage/basement finished?
+  visualRust: boolean;           // Immediate Kill Switch
+  tempSetting: TempSetting;      // NORMAL or HOT (>130°F)
+}
+
+export type RecommendationAction = 
+  | 'REPLACE_URGENT'
+  | 'REPLACE_UNSERVICEABLE'
+  | 'REPLACE_EXPIRED'
+  | 'REPLACE_LIABILITY'
+  | 'REPLACE_RISK'
+  | 'INSTALL_PRV'
   | 'MONITOR';
+
+export type RecommendationBadge =
+  | 'CONTAINMENT_BREACH'
+  | 'SEDIMENT_LOCKOUT'
+  | 'ACTUARIAL_EXPIRY'
+  | 'LIABILITY_RISK'
+  | 'STATISTICAL_FAILURE'
+  | 'WARRANTY_VOID'
+  | 'PASS';
 
 export interface Recommendation {
   action: RecommendationAction;
@@ -57,34 +71,24 @@ export interface Recommendation {
   triggerRule: string;
   script: string;
   canRepair: boolean;
+  isPriorityLead: boolean;
 }
 
-// ============= CONSTANTS =============
-const INSURANCE_DEDUCTIBLE = 2500; // $2,500 threshold for liability
-const FINANCIAL_DAMAGE_THRESHOLD = 1000; // $1,000 for financial risk
-const ACTUARIAL_WALL = 12.0; // Rule #2: Biological age hard stop
-const SEDIMENT_LOCK = 15; // Rule #3: Serviceability lock (lbs)
-
-export interface BaselineRisk {
-  ageRange: string;
-  minAge: number;
-  maxAge: number;
-  failureProb: number;
-  status: 'safe' | 'moderate' | 'warning' | 'critical';
+export interface OpterraMetrics {
+  bioAge: number;
+  failProb: number;
+  sedimentLbs: number;
+  estDamage: number;
+  shieldLife: number;
+  stress: number;
 }
 
-export interface ForensicInputs {
-  pressure: number;
-  baselinePressure: number;
-  hasSoftener: boolean;
-  hasExpansionTank: boolean;
-  anodeCondition: 'good' | 'depleted' | 'missing';
-  visualRust?: boolean; // Override for visible rust/leak
-  sedimentLoad?: number; // Pounds of sediment (for serviceability check)
-  estimatedDamage?: number; // Estimated burst damage in dollars
-  locationRiskLevel?: LocationRiskLevel; // Location for threshold lookup
+export interface OpterraResult {
+  metrics: OpterraMetrics;
+  verdict: Recommendation;
 }
 
+// Legacy compatibility types
 export interface RiskDilationResult {
   paperAge: number;
   biologicalAge: number;
@@ -101,6 +105,14 @@ export interface RiskDilationResult {
   insight: string;
 }
 
+export interface BaselineRisk {
+  ageRange: string;
+  minAge: number;
+  maxAge: number;
+  failureProb: number;
+  status: 'safe' | 'moderate' | 'warning' | 'critical';
+}
+
 // Industry standard baseline from DOE/LBNL data
 export const industryBaseline: BaselineRisk[] = [
   { ageRange: '0-6 Years', minAge: 0, maxAge: 6, failureProb: 2.5, status: 'safe' },
@@ -109,324 +121,300 @@ export const industryBaseline: BaselineRisk[] = [
   { ageRange: '13+ Years', minAge: 13, maxAge: 99, failureProb: 60, status: 'critical' },
 ];
 
-// Standard anode rod lifespan in years
-const STANDARD_ANODE_LIFE = 6;
+// ============= MASTER CALCULATION FUNCTION =============
+export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
+  const { ETA, BETA, SOFTENER_DECAY, SAFE_PSI } = CONSTANTS;
 
-// Softener penalty factor (kills anode 2.4x faster)
-const SOFTENER_PENALTY = 2.4;
+  // --- 1. SHIELD CALCULATION (ANODE LIFE) ---
+  // How long did the anode last?
+  // Soft water increases conductivity, eating anodes 2.4x faster.
+  const decayRate = data.hasSoftener ? SOFTENER_DECAY : 1.0;
+  const shieldLife = data.warrantyYears / decayRate;
 
-// Maximum credible risk cap (unless visual rust detected)
-const MAX_CREDIBLE_RISK = 45.0;
-
-// Naked steel aging rate multiplier (base rate when anode is dead)
-const BASE_NAKED_RATE = 2.0;
-
-/**
- * Step A: Calculate when the anode "shield" died
- * Softener accelerates anode depletion, not tank aging directly
- */
-export function calculateAnodeLifespan(hasSoftener: boolean): number {
-  if (hasSoftener) {
-    return STANDARD_ANODE_LIFE / SOFTENER_PENALTY; // ~2.5 years
+  // --- 2. STRESS CALCULATION (THE ATTACK) ---
+  // How fast does the tank rot once the shield is down?
+  let stress = 1.0;
+  
+  // The Glass Cliff: Hard Stop at 80 PSI
+  if (data.psi > SAFE_PSI) {
+    stress = 10.0; // Terminal Glass Fracture (10x Aging)
+  } else {
+    // Basquin's Law (Cubic Curve). Floor at 50 PSI to prevent logic errors.
+    const effectivePsi = Math.max(data.psi, 50);
+    stress = Math.pow(effectivePsi / 60, 3);
   }
-  return STANDARD_ANODE_LIFE;
-}
 
-/**
- * Step B: Calculate exposure (naked) years
- * Time the tank has been unprotected
- */
-export function calculateExposureYears(paperAge: number, anodeLifespan: number): number {
-  return Math.max(0, paperAge - anodeLifespan);
-}
+  // Environmental Penalties
+  if (data.isClosedLoop && !data.hasExpTank) stress += 0.5; // Thermal Hammer
+  if (data.tempSetting === 'HOT') stress += 0.5; // Arrhenius (Heat)
 
-/**
- * Step C: Calculate Stress Factor using pressure
- * Higher pressure = faster rust on exposed steel
- */
-export function calculateStressFactor(currentPSI: number, baselinePSI: number = 60): number {
-  return Math.pow(currentPSI / baselinePSI, 2); // Squared for pressure impact on naked steel
-}
-
-/**
- * Step D: Calculate "Naked Steel" aging rate
- * Once anode is dead: Pressure + Salt = accelerated rust
- */
-export function calculateNakedAgingRate(stressFactor: number): number {
-  return BASE_NAKED_RATE * stressFactor; // Base 2x + pressure multiplier
-}
-
-/**
- * Step E: Calculate Biological Age using Shield vs Body logic
- * Protected years age normally (1x)
- * Naked years age at accelerated rate
- */
-export function calculateBiologicalAge(
-  paperAge: number,
-  anodeLifespan: number,
-  nakedAgingRate: number
-): number {
-  const protectedYears = Math.min(paperAge, anodeLifespan);
-  const exposureYears = Math.max(0, paperAge - anodeLifespan);
+  // --- 3. BIOLOGICAL AGE (TWO-PHASE CLOCK) ---
+  // Phase 1: Protected Years (Age ≤ ShieldLife). Aging = 1.0x.
+  const timeProtected = Math.min(data.calendarAge, shieldLife);
   
-  // Protected phase: normal aging (1x)
-  // Naked phase: accelerated aging
-  const protectedAging = protectedYears * 1.0;
-  const nakedAging = exposureYears * nakedAgingRate;
+  // Phase 2: Naked Years (Age > ShieldLife). Aging = StressFactor.
+  const timeNaked = Math.max(0, data.calendarAge - shieldLife);
   
-  return protectedAging + nakedAging;
-}
+  // Final Biological Age
+  const bioAge = timeProtected + (timeNaked * stress);
 
-/**
- * Step F: Calculate Failure Probability using Weibull Distribution
- * Standard life expectancy for water heaters is 11.5 years
- */
-export function calculateWeibullProbability(
-  biologicalAge: number, 
-  lifeExpectancy: number = 11.5,
-  shape: number = 2.5
-): number {
-  const probability = 1 - Math.exp(-Math.pow(biologicalAge / lifeExpectancy, shape));
-  return probability * 100;
-}
+  // --- 4. WEIBULL PROBABILITY (NEXT 12 MO) ---
+  // Calculates conditional probability of failure in the next year
+  const rNow = Math.exp(-Math.pow(bioAge / ETA, BETA));
+  const rNext = Math.exp(-Math.pow((bioAge + 1) / ETA, BETA));
+  let failProb = (1 - (rNext / rNow)) * 100;
 
-/**
- * Apply safety cap to maintain credibility
- * No working tank has >45% chance of bursting unless visible rust
- */
-export function applySafetyCap(calculatedRisk: number, visualRust: boolean = false): number {
-  if (visualRust) {
-    return 99.0; // Override if we physically see a leak
+  // Sanity Cap: Don't scare people with 99% unless leaking.
+  // Cap at 45% (Russian Roulette odds) to maintain credibility.
+  if (!data.visualRust) failProb = Math.min(failProb, 45.0);
+  if (data.visualRust) failProb = 99.9;
+
+  // --- 5. SEDIMENT LOAD ---
+  const k = data.fuelType === 'GAS' ? CONSTANTS.SEDIMENT_GAS : CONSTANTS.SEDIMENT_ELEC;
+  const sedimentLbs = data.calendarAge * data.hardnessGPG * k;
+
+  // --- 6. DAMAGE ESTIMATION ---
+  let estDamage = 3500; // Default
+  if (data.location === 'ATTIC') estDamage = CONSTANTS.DAMAGE_ATTIC;
+  if (data.location === 'MAIN_LIVING') estDamage = CONSTANTS.DAMAGE_MAIN;
+  if (data.location === 'BASEMENT') estDamage = CONSTANTS.DAMAGE_BASEMENT;
+  if (data.location === 'GARAGE') {
+    estDamage = data.isFinishedArea ? CONSTANTS.DAMAGE_GARAGE_FIN : CONSTANTS.DAMAGE_GARAGE_RAW;
   }
-  return Math.min(calculatedRisk, MAX_CREDIBLE_RISK);
-}
 
-/**
- * Get baseline risk for a given calendar age
- */
-export function getBaselineRisk(paperAge: number): BaselineRisk {
-  return industryBaseline.find(
-    b => paperAge >= b.minAge && paperAge <= b.maxAge
-  ) || industryBaseline[3];
-}
+  // --- 7. RECOMMENDATION ENGINE (BUSINESS RULES) ---
+  const verdict = getRecommendationFromMetrics(
+    data.visualRust,
+    sedimentLbs,
+    bioAge,
+    estDamage,
+    failProb,
+    data.psi,
+    data.calendarAge
+  );
 
-/**
- * Determine status based on forensic risk percentage
- */
-export function getStatusFromRisk(risk: number): 'safe' | 'moderate' | 'warning' | 'critical' {
-  if (risk < 10) return 'safe';
-  if (risk < 25) return 'moderate';
-  if (risk < 45) return 'warning';
-  return 'critical';
-}
-
-/**
- * Master function: Calculate complete risk dilation analysis
- * Uses "Shield vs. Body" logic for realistic aging
- */
-export function calculateRiskDilation(
-  paperAge: number,
-  forensics: ForensicInputs
-): RiskDilationResult {
-  // Step A: When did the shield die?
-  const anodeLifespan = calculateAnodeLifespan(forensics.hasSoftener);
-  
-  // Step B: Calculate exposure years
-  const exposureYears = calculateExposureYears(paperAge, anodeLifespan);
-  const protectedYears = Math.min(paperAge, anodeLifespan);
-  
-  // Step C: Calculate stress from pressure
-  const stressFactor = calculateStressFactor(forensics.pressure, forensics.baselinePressure);
-  
-  // Step D: Calculate naked aging rate
-  const nakedAgingRate = calculateNakedAgingRate(stressFactor);
-  
-  // Step E: Calculate biological age
-  const biologicalAge = calculateBiologicalAge(paperAge, anodeLifespan, nakedAgingRate);
-  
-  // Step F: Calculate raw forensic risk using Weibull
-  const rawForensicRisk = calculateWeibullProbability(biologicalAge);
-  
-  // Apply safety cap for credibility
-  const forensicRisk = applySafetyCap(rawForensicRisk, forensics.visualRust);
-  
-  // Get baseline risk for comparison
-  const baselineData = getBaselineRisk(paperAge);
-  const baselineRisk = baselineData.failureProb;
-  
-  // Calculate acceleration factor (how much faster than baseline)
-  const accelerationFactor = forensicRisk / Math.max(baselineRisk, 0.1);
-  
-  // Defense factor for display (lower = less protection)
-  const defenseFactor = forensics.hasSoftener ? 0.42 : 1.0;
-  
-  // Determine status
-  const status = getStatusFromRisk(forensicRisk);
-  
-  // Generate insight text
-  const insight = generateInsight(paperAge, biologicalAge, exposureYears, forensics);
-  
   return {
-    paperAge,
-    biologicalAge: Math.round(biologicalAge * 10) / 10,
-    baselineRisk,
-    forensicRisk: Math.round(forensicRisk * 10) / 10,
-    accelerationFactor: Math.round(accelerationFactor * 10) / 10,
-    stressFactor: Math.round(stressFactor * 100) / 100,
-    defenseFactor: Math.round(defenseFactor * 100) / 100,
-    anodeLifespan: Math.round(anodeLifespan * 10) / 10,
-    exposureYears: Math.round(exposureYears * 10) / 10,
-    protectedYears: Math.round(protectedYears * 10) / 10,
-    nakedAgingRate: Math.round(nakedAgingRate * 10) / 10,
-    status,
-    insight,
+    metrics: {
+      bioAge: Math.round(bioAge * 10) / 10,
+      failProb: Math.round(failProb * 10) / 10,
+      sedimentLbs: Math.round(sedimentLbs * 10) / 10,
+      estDamage,
+      shieldLife: Math.round(shieldLife * 10) / 10,
+      stress: Math.round(stress * 100) / 100,
+    },
+    verdict,
   };
 }
 
-/**
- * Generate human-readable insight explaining the risk dilation
- */
-function generateInsight(
-  paperAge: number,
-  biologicalAge: number,
-  exposureYears: number,
-  forensics: ForensicInputs
-): string {
-  const riskMultiple = Math.round((biologicalAge / paperAge) * 10) / 10;
-  const yearsAgo = Math.round(exposureYears * 10) / 10;
-  
-  if (exposureYears <= 0) {
-    return `Tank age: ${paperAge} years. Corrosion protection active. Standard risk applies.`;
-  }
-  
-  const baselineRisk = getBaselineRisk(paperAge).failureProb;
-  const currentRisk = calculateWeibullProbability(biologicalAge);
-  const cappedRisk = applySafetyCap(currentRisk, forensics.visualRust);
-  const riskRatio = Math.round(cappedRisk / baselineRisk);
-  
-  return `Standard ${paperAge}-year risk: ${baselineRisk.toFixed(1)}%. Adjusted risk: ${cappedRisk.toFixed(1)}% (${riskRatio}x baseline). Protection depleted ${yearsAgo} years ago.`;
-}
-
 // ============= RECOMMENDATION ENGINE =============
-// Insurance Logic: 3 Business Rules
-
-/**
- * Rule #1: Vegas Odds - Location vs. Probability
- * Lower the failure threshold based on how expensive the location is
- */
-function checkLocationRule(
-  forensicRisk: number,
-  estimatedDamage: number,
-  locationRiskLevel: LocationRiskLevel
-): Recommendation | null {
-  const threshold = locationThresholds[locationRiskLevel];
-  
-  // LIABILITY RISK: High probability + exceeds deductible
-  if (forensicRisk > threshold.triggerProbability && estimatedDamage > INSURANCE_DEDUCTIBLE) {
+function getRecommendationFromMetrics(
+  visualRust: boolean,
+  sedimentLbs: number,
+  bioAge: number,
+  estDamage: number,
+  failProb: number,
+  psi: number,
+  calendarAge: number
+): Recommendation {
+  // Rule 1: Active Leak (Highest Priority)
+  if (visualRust) {
     return {
-      action: 'REPLACE',
-      badge: 'LIABILITY_RISK',
-      badgeLabel: '🔴 LIABILITY RISK',
+      action: 'REPLACE_URGENT',
+      badge: 'CONTAINMENT_BREACH',
+      badgeLabel: '🆘 CONTAINMENT BREACH',
       badgeColor: 'red',
-      triggerRule: 'Rule #1: Location Risk',
-      script: `Failure probability is ${forensicRisk.toFixed(1)}%, above the ${threshold.triggerProbability}% threshold for ${threshold.label.toLowerCase()} installations. Estimated damage: $${Math.round(estimatedDamage / 1000)}K.`,
+      triggerRule: 'Rule #1: Active Leak Detected',
+      script: 'Visible corrosion or leak detected. Immediate containment required to prevent water damage.',
       canRepair: false,
+      isPriorityLead: true,
     };
   }
   
-  // FINANCIAL RISK: High probability + exceeds $1,000
-  if (forensicRisk > 25 && estimatedDamage > FINANCIAL_DAMAGE_THRESHOLD) {
+  // Rule 2: Unserviceable (Too much rock to flush)
+  if (sedimentLbs > CONSTANTS.CRITICAL_SEDIMENT) {
     return {
-      action: 'REPLACE',
-      badge: 'FINANCIAL_RISK',
-      badgeLabel: '🟠 FINANCIAL RISK',
-      badgeColor: 'orange',
-      triggerRule: 'Rule #1: Financial Threshold',
-      script: `Failure probability: ${forensicRisk.toFixed(1)}%. Estimated damage: $${Math.round(estimatedDamage / 1000)}K. Exceeds standard deductible threshold.`,
-      canRepair: true,
+      action: 'REPLACE_UNSERVICEABLE',
+      badge: 'SEDIMENT_LOCKOUT',
+      badgeLabel: '🛑 SEDIMENT LOCKOUT',
+      badgeColor: 'red',
+      triggerRule: 'Rule #2: Sediment Threshold Exceeded',
+      script: `Sediment load: ${sedimentLbs.toFixed(1)} lbs. Exceeds 15 lb serviceability limit. Flushing or repairs may cause immediate failure.`,
+      canRepair: false,
+      isPriorityLead: true,
     };
   }
   
-  return null;
-}
-
-/**
- * Rule #2: Actuarial Wall - The Hard Stop
- * Biological age > 12 years = terminal metal fatigue
- */
-function checkActuarialWall(biologicalAge: number): Recommendation | null {
-  if (biologicalAge > ACTUARIAL_WALL) {
+  // Rule 3: Actuarial Expiry (Old Age)
+  if (bioAge > 12.0) {
     return {
-      action: 'REPLACE',
+      action: 'REPLACE_EXPIRED',
       badge: 'ACTUARIAL_EXPIRY',
       badgeLabel: '🔴 ACTUARIAL EXPIRY',
       badgeColor: 'red',
-      triggerRule: 'Rule #2: Biological Age Limit',
-      script: `Biological age: ${biologicalAge.toFixed(1)} years. Exceeds 12-year actuarial limit. Repairs not recommended on expired assets.`,
-      canRepair: false, // Lockout repairs
+      triggerRule: 'Rule #3: Biological Age Limit',
+      script: `Biological age: ${bioAge.toFixed(1)} years. Exceeds 12-year actuarial limit. Terminal metal fatigue expected.`,
+      canRepair: false,
+      isPriorityLead: true,
     };
   }
-  return null;
-}
-
-/**
- * Rule #3: Serviceability Lock - Sediment Load
- * Sediment > 15 lbs = DO NOT TOUCH
- */
-function checkServiceabilityLock(sedimentLoad: number): Recommendation | null {
-  if (sedimentLoad > SEDIMENT_LOCK) {
+  
+  // Rule 4: Liability Risk (High Cost Location)
+  // Attic/Main Floor -> Trigger at 15% Risk
+  if (estDamage > 5000 && failProb > 15.0) {
     return {
-      action: 'REPLACE',
-      badge: 'UNSERVICEABLE',
-      badgeLabel: '🛑 UNSERVICEABLE',
+      action: 'REPLACE_LIABILITY',
+      badge: 'LIABILITY_RISK',
+      badgeLabel: '🛡️ LIABILITY RISK',
       badgeColor: 'red',
-      triggerRule: 'Rule #3: Sediment Threshold',
-      script: `Sediment load: ${sedimentLoad} lbs. Exceeds 15 lb serviceability limit. Flushing or repairs may cause immediate failure.`,
-      canRepair: false, // DO NOT FLUSH / DO NOT REPAIR
+      triggerRule: 'Rule #4: Location Risk Threshold',
+      script: `Failure probability is ${failProb.toFixed(1)}%, above the 15% threshold for high-value installations. Estimated damage: $${Math.round(estDamage / 1000)}K.`,
+      canRepair: false,
+      isPriorityLead: true,
     };
   }
-  return null;
+  
+  // Rule 5: Financial Risk (Low Cost Location)
+  // Basement/Garage -> Trigger at 35% Risk
+  if (failProb > 35.0) {
+    return {
+      action: 'REPLACE_RISK',
+      badge: 'STATISTICAL_FAILURE',
+      badgeLabel: '🔴 STATISTICAL FAILURE',
+      badgeColor: 'orange',
+      triggerRule: 'Rule #5: Statistical Risk Threshold',
+      script: `Failure probability: ${failProb.toFixed(1)}%. Exceeds 35% actuarial threshold for replacement recommendation.`,
+      canRepair: true,
+      isPriorityLead: true,
+    };
+  }
+  
+  // Rule 6: Warranty Rescue (Young tank, bad pressure)
+  if (psi > CONSTANTS.SAFE_PSI) {
+    return {
+      action: 'INSTALL_PRV',
+      badge: 'WARRANTY_VOID',
+      badgeLabel: '🔧 WARRANTY VOID',
+      badgeColor: 'orange',
+      triggerRule: 'Rule #6: Pressure Warranty Violation',
+      script: `Static pressure: ${psi} PSI. Exceeds 80 PSI manufacturer limit. Warranty voided. PRV installation recommended.`,
+      canRepair: true,
+      isPriorityLead: true,
+    };
+  }
+
+  // Default: MONITOR (safe to wait)
+  return {
+    action: 'MONITOR',
+    badge: 'PASS',
+    badgeLabel: '✅ SYSTEM HEALTHY',
+    badgeColor: 'green',
+    triggerRule: 'No triggers met',
+    script: 'All parameters within acceptable range. Continue annual inspections.',
+    canRepair: true,
+    isPriorityLead: false,
+  };
 }
 
-/**
- * Master Recommendation Engine
- * Evaluates all 3 rules in priority order and returns the appropriate recommendation
- */
+// ============= LEGACY COMPATIBILITY FUNCTIONS =============
+// These maintain backwards compatibility with existing UI components
+
+export function calculateRiskDilation(
+  paperAge: number,
+  forensics: {
+    pressure?: number;
+    psi?: number;
+    baselinePressure?: number;
+    hasSoftener: boolean;
+    hasExpansionTank?: boolean;
+    hasExpTank?: boolean;
+    anodeCondition?: 'good' | 'depleted' | 'missing';
+    visualRust?: boolean;
+    sedimentLoad?: number;
+    estimatedDamage?: number;
+    locationRiskLevel?: string;
+    // v4.0 fields
+    calendarAge?: number;
+    warrantyYears?: number;
+    fuelType?: FuelType;
+    hardnessGPG?: number;
+    isClosedLoop?: boolean;
+    tempSetting?: TempSetting;
+    location?: LocationType;
+    isFinishedArea?: boolean;
+  }
+): RiskDilationResult {
+  // Convert legacy inputs to v4.0 format
+  const v4Input: ForensicInputs = {
+    calendarAge: forensics.calendarAge ?? paperAge,
+    psi: forensics.psi ?? forensics.pressure ?? 60,
+    warrantyYears: forensics.warrantyYears ?? 6,
+    fuelType: forensics.fuelType ?? 'GAS',
+    hardnessGPG: forensics.hardnessGPG ?? 10,
+    hasSoftener: forensics.hasSoftener,
+    isClosedLoop: forensics.isClosedLoop ?? false,
+    hasExpTank: forensics.hasExpTank ?? forensics.hasExpansionTank ?? true,
+    location: forensics.location ?? mapLocationRiskLevel(forensics.locationRiskLevel),
+    isFinishedArea: forensics.isFinishedArea ?? false,
+    visualRust: forensics.visualRust ?? false,
+    tempSetting: forensics.tempSetting ?? 'NORMAL',
+  };
+
+  const result = calculateOpterraRisk(v4Input);
+  
+  // Get baseline for comparison
+  const baselineData = getBaselineRisk(paperAge);
+  const accelerationFactor = result.metrics.failProb / Math.max(baselineData.failureProb, 0.1);
+  
+  // Calculate legacy fields
+  const exposureYears = Math.max(0, paperAge - result.metrics.shieldLife);
+  const protectedYears = Math.min(paperAge, result.metrics.shieldLife);
+  
+  return {
+    paperAge,
+    biologicalAge: result.metrics.bioAge,
+    baselineRisk: baselineData.failureProb,
+    forensicRisk: result.metrics.failProb,
+    accelerationFactor: Math.round(accelerationFactor * 10) / 10,
+    stressFactor: result.metrics.stress,
+    defenseFactor: v4Input.hasSoftener ? 0.42 : 1.0,
+    anodeLifespan: result.metrics.shieldLife,
+    exposureYears: Math.round(exposureYears * 10) / 10,
+    protectedYears: Math.round(protectedYears * 10) / 10,
+    nakedAgingRate: result.metrics.stress,
+    status: getStatusFromRisk(result.metrics.failProb),
+    insight: generateInsight(paperAge, result.metrics.bioAge, exposureYears, v4Input),
+  };
+}
+
+function mapLocationRiskLevel(level?: string): LocationType {
+  if (!level) return 'GARAGE';
+  const normalized = level.toLowerCase();
+  if (normalized.includes('attic')) return 'ATTIC';
+  if (normalized.includes('main')) return 'MAIN_LIVING';
+  if (normalized.includes('basement')) return 'BASEMENT';
+  return 'GARAGE';
+}
+
 export function getRecommendation(
   forensicRisk: number,
   biologicalAge: number,
   sedimentLoad: number = 0,
   estimatedDamage: number = 0,
-  locationRiskLevel: LocationRiskLevel = 'garage'
+  locationRiskLevel: string = 'garage'
 ): Recommendation {
-  // Priority 1: Serviceability Lock (most critical - safety issue)
-  const sedimentRule = checkServiceabilityLock(sedimentLoad);
-  if (sedimentRule) return sedimentRule;
-  
-  // Priority 2: Actuarial Wall (terminal condition)
-  const actuarialRule = checkActuarialWall(biologicalAge);
-  if (actuarialRule) return actuarialRule;
-  
-  // Priority 3: Location/Liability Risk
-  const locationRule = checkLocationRule(forensicRisk, estimatedDamage, locationRiskLevel);
-  if (locationRule) return locationRule;
-  
-  // Default: MONITOR (safe to wait)
-  return {
-    action: 'MONITOR',
-    badge: 'MONITOR',
-    badgeLabel: '🟢 MONITOR',
-    badgeColor: 'green',
-    triggerRule: 'No triggers met',
-    script: 'All parameters within acceptable range. Continue annual inspections.',
-    canRepair: true,
-  };
+  // Use the new recommendation engine with computed values
+  return getRecommendationFromMetrics(
+    false, // visualRust - would need to be passed separately
+    sedimentLoad,
+    biologicalAge,
+    estimatedDamage,
+    forensicRisk,
+    60, // default PSI - would need actual value
+    biologicalAge // using as proxy for calendar age
+  );
 }
 
-/**
- * Get location risk level from location string
- */
-export function getLocationRiskLevel(location: string): LocationRiskLevel {
+export function getLocationRiskLevel(location: string): string {
   const normalized = location.toLowerCase();
   if (normalized.includes('attic') || normalized.includes('2nd') || normalized.includes('second')) {
     return 'attic';
@@ -437,6 +425,35 @@ export function getLocationRiskLevel(location: string): LocationRiskLevel {
   if (normalized.includes('garage') || normalized.includes('exterior')) {
     return 'garage';
   }
-  // Default to main_floor for utility closets, finished basements, etc.
   return 'main_floor';
+}
+
+export function getBaselineRisk(paperAge: number): BaselineRisk {
+  return industryBaseline.find(
+    b => paperAge >= b.minAge && paperAge <= b.maxAge
+  ) || industryBaseline[3];
+}
+
+export function getStatusFromRisk(risk: number): 'safe' | 'moderate' | 'warning' | 'critical' {
+  if (risk < 10) return 'safe';
+  if (risk < 25) return 'moderate';
+  if (risk < 45) return 'warning';
+  return 'critical';
+}
+
+function generateInsight(
+  paperAge: number,
+  biologicalAge: number,
+  exposureYears: number,
+  forensics: ForensicInputs
+): string {
+  if (exposureYears <= 0) {
+    return `Tank age: ${paperAge} years. Corrosion protection active. Standard risk applies.`;
+  }
+  
+  const baselineRisk = getBaselineRisk(paperAge).failureProb;
+  const result = calculateOpterraRisk(forensics);
+  const riskRatio = Math.round(result.metrics.failProb / baselineRisk);
+  
+  return `Standard ${paperAge}-year risk: ${baselineRisk.toFixed(1)}%. Adjusted risk: ${result.metrics.failProb.toFixed(1)}% (${riskRatio}x baseline). Protection depleted ${exposureYears.toFixed(1)} years ago.`;
 }

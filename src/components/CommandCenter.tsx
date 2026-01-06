@@ -4,8 +4,7 @@ import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { demoVitals, demoHealthScore, demoAsset, demoForensicInputs } from '@/data/mockAsset';
-import { getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
-import { calculateRiskDilation } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
   onPanicMode: () => void;
@@ -18,15 +17,9 @@ export function CommandCenter({
   onServiceRequest, 
   onViewReport 
 }: CommandCenterProps) {
-  // Calculate recommendation using the algorithm
-  const riskResult = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
-  const recommendation = getRecommendation(
-    riskResult.forensicRisk,
-    riskResult.biologicalAge,
-    demoForensicInputs.sedimentLoad,
-    demoForensicInputs.estimatedDamage,
-    demoForensicInputs.locationRiskLevel
-  );
+  // Calculate recommendation using v4.0 algorithm
+  const opterraResult = calculateOpterraRisk(demoForensicInputs);
+  const recommendation = opterraResult.verdict;
 
   return (
     <div className="min-h-screen bg-background pb-40 relative">
