@@ -100,9 +100,10 @@ const CONSTANTS = {
   LIMIT_PSI_PRV_FAIL: 75,  // If PRV exists but PSI > this, PRV failed
   LIMIT_PSI_OPTIMIZE: 65,  // Threshold for recommending PRV optimization
   
-  LIMIT_SEDIMENT_GAS: 20,  // lbs (Burner failure)
-  LIMIT_SEDIMENT_ELEC: 10, // lbs (Element burnout)
-  LIMIT_SEDIMENT_FLUSH: 5, // lbs (Maintenance threshold)
+  LIMIT_SEDIMENT_LOCKOUT: 15,  // lbs - hardened "limestone" threshold (Killer Flush)
+  LIMIT_SEDIMENT_FLUSH: 5,     // lbs - maintenance threshold (Sweet Spot lower bound)
+  LIMIT_AGE_FRAGILE: 12,       // years - tank too old to safely disturb
+  LIMIT_FAILPROB_FRAGILE: 60,  // % - statistical death threshold
   
   // Risk Levels (Severity Index)
   RISK_LOW: 1 as RiskLevel,      // Concrete/Exterior
@@ -266,12 +267,12 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     };
   }
 
-  const sedLimit = data.fuelType === 'ELECTRIC' ? CONSTANTS.LIMIT_SEDIMENT_ELEC : CONSTANTS.LIMIT_SEDIMENT_GAS;
-  if (metrics.sedimentLbs > sedLimit) {
+  // KILLER FLUSH: Sediment has hardened into limestone (>15 lbs)
+  if (metrics.sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_LOCKOUT) {
     return {
       action: 'REPLACE',
       title: 'Sediment Lockout',
-      reason: `Estimated ${metrics.sedimentLbs.toFixed(1)} lbs of calcification. Unit is unserviceable.`,
+      reason: `Extreme buildup (${metrics.sedimentLbs.toFixed(1)} lbs) detected. Flushing is no longer possible without risking drain valve failure.`,
       urgent: false,
       badgeColor: 'red',
       badge: 'REPLACE'
@@ -384,17 +385,42 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     };
   }
 
-  // 6. Maintenance (Flush)
-  if (metrics.sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_FLUSH) {
+  // ============================================
+  // SAFE FLUSH DECISION TREE
+  // Filters "Killer Flushes" (too old) and "Useless Flushes" (too clean)
+  // ============================================
+  
+  const isFragile = metrics.failProb > CONSTANTS.LIMIT_FAILPROB_FRAGILE 
+                 || data.calendarAge > CONSTANTS.LIMIT_AGE_FRAGILE;
+  const isClean = metrics.sedimentLbs < CONSTANTS.LIMIT_SEDIMENT_FLUSH;
+  const isServiceable = metrics.sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH 
+                     && metrics.sedimentLbs <= CONSTANTS.LIMIT_SEDIMENT_LOCKOUT;
+  
+  // THE TRAP: Tank has sediment but is too old/fragile to touch safely
+  if (isFragile && isServiceable) {
     return {
-      action: 'MAINTAIN',
-      title: 'Performance Flush',
-      reason: `Estimated ${metrics.sedimentLbs.toFixed(1)} lbs of sediment is reducing efficiency.`,
+      action: 'PASS',
+      title: 'Maintenance Risk',
+      reason: `Sediment present (${metrics.sedimentLbs.toFixed(1)} lbs), but unit age (${data.calendarAge} yrs) makes flushing risky. We do not recommend servicing this unit—disturbance may cause leaks.`,
       urgent: false,
-      badgeColor: 'green',
+      badgeColor: 'orange',
       badge: 'MONITOR'
     };
   }
+
+  // THE SWEET SPOT: Safe to flush, beneficial to customer
+  if (!isFragile && isServiceable) {
+    return {
+      action: 'MAINTAIN',
+      title: 'Performance Flush',
+      reason: `Estimated ${metrics.sedimentLbs.toFixed(1)} lbs of sediment. Flushing now will restore efficiency and prevent element burnout.`,
+      urgent: false,
+      badgeColor: 'green',
+      badge: 'SERVICE'
+    };
+  }
+  
+  // CLEAN PASS: Falls through to anode check or healthy system
 
   // 7. Anode Refresh (Only on young tanks to avoid seized threads)
   if (metrics.shieldLife < 1 && data.calendarAge < 6) {
