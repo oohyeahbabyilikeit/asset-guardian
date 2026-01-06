@@ -125,15 +125,17 @@ export function getAvailableRepairs(
 ): RepairOption[] {
   const options: RepairOption[] = [];
 
-  // Full replacement is always an option for REPLACE or REPAIR recommendations
-  if (recommendation.action === 'REPLACE' || recommendation.action === 'REPAIR') {
+  // If replacement is REQUIRED (physical failure), only that option
+  if (recommendation.action === 'REPLACE') {
     const replacement = repairOptions.find(r => r.id === 'replace');
     if (replacement) options.push(replacement);
+    return options;
   }
 
-  // If replacement is REQUIRED (physical failure), no other options available
-  if (recommendation.action === 'REPLACE') {
-    return options;
+  // Full replacement is an option for REPAIR recommendations
+  if (recommendation.action === 'REPAIR') {
+    const replacement = repairOptions.find(r => r.id === 'replace');
+    if (replacement) options.push(replacement);
   }
 
   // Determine closed loop status
