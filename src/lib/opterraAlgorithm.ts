@@ -466,19 +466,8 @@ function getRecommendationFromMetrics(
     };
   }
   
-  // Rule 6: High Failure Probability
-  if (failProb > 40.0) {
-    return {
-      action: 'REPLACE_RISK',
-      badge: 'STATISTICAL_FAILURE',
-      badgeLabel: '🔴 STATISTICAL FAILURE',
-      badgeColor: 'red',
-      triggerRule: 'Rule #6: Statistical Risk Threshold',
-      script: `Failure probability: ${failProb.toFixed(1)}%. Exceeds 40% actuarial threshold for replacement recommendation.`,
-      canRepair: false,
-      isPriorityLead: true,
-    };
-  }
+  // Rule 6: REMOVED - Statistical probability alone should not trigger replacement
+  // Replacement should only be recommended for documented/observable problems
   
   // Rule 7: Zombie Tank (Old + High Pressure)
   if (psi > 80 && calendarAge >= CONSTANTS.FATIGUE_AGE) {
