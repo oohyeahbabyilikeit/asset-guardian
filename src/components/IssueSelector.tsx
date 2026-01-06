@@ -3,34 +3,23 @@ import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { RepairOption, repairOptions } from '@/data/repairOptions';
 import { demoForensicInputs, demoAsset } from '@/data/mockAsset';
-import { calculateRiskDilation, calculateOpterraRisk, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 
 interface IssueSelectorProps {
   onBack: () => void;
   onSimulate: (selectedRepairs: RepairOption[]) => void;
 }
 
-// Calculate all metrics using v5.2 algorithm
+// Calculate all metrics using v6.0 algorithm
 const opterraResult = calculateOpterraRisk(demoForensicInputs);
-const { sedimentLbs, riskLevel, failProb } = opterraResult.metrics;
+const { failProb } = opterraResult.metrics;
+const recommendation = opterraResult.verdict;
 
 // Derive health status from failProb
 const healthStatus = failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal';
 
-// Get recommendation from the v4.0 algorithm
-const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
-const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
-const recommendation = getRecommendation(
-  riskDilation.forensicRisk,
-  riskDilation.biologicalAge,
-  sedimentLbs,
-  riskLevel,
-  locationRiskLevel
-);
-
-// Check if replacement is required (repairs locked) - v4.0 uses REPLACE_* prefixes
-const isReplaceAction = recommendation.action.startsWith('REPLACE_');
-const replacementRequired = isReplaceAction && !recommendation.canRepair;
+// Check if replacement is required (repairs locked) - v6.0 uses REPLACE action
+const replacementRequired = recommendation.action === 'REPLACE';
 
 export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -108,7 +97,7 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
                   Replacement Required
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {recommendation.script} Individual repairs are not available for this unit.
+                  {recommendation.reason} Individual repairs are not available for this unit.
                 </p>
               </div>
             </div>

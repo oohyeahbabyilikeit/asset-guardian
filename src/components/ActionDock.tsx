@@ -1,6 +1,6 @@
 import { AlertTriangle, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Recommendation } from '@/lib/opterraAlgorithm';
+import { Recommendation, ActionType } from '@/lib/opterraAlgorithm';
 
 interface ActionDockProps {
   onPanicMode: () => void;
@@ -15,31 +15,25 @@ export function ActionDock({
   onViewReport,
   recommendation
 }: ActionDockProps) {
-  // Dynamic button label based on v4.0 recommendation actions
+  // Dynamic button label based on v6.0 recommendation actions
   const getButtonLabel = () => {
-    if (!recommendation) return 'Resolve Issues';
+    if (!recommendation) return 'View Options';
     
-    switch (recommendation.action) {
-      case 'REPLACE_URGENT':
-        return '🆘 Stop Flood';
-      case 'REPLACE_UNSERVICEABLE':
-        return 'Replace (Flush Denied)';
-      case 'REPLACE_EXPIRED':
-        return 'Quote Replacement';
-      case 'REPLACE_LIABILITY':
-        return 'Fix Liability Risk';
-      case 'REPLACE_RISK':
-        return 'View Options';
-      case 'REPLACE_FATIGUE':
-        return 'Quote Replacement';
-      case 'INSTALL_PRV':
-        return 'Install PRV';
-      case 'INSTALL_EXP_TANK':
-        return 'Install Expansion Tank';
-      case 'MONITOR':
+    switch (recommendation.action as ActionType) {
+      case 'REPLACE':
+        return recommendation.urgent ? '🆘 Stop Flood' : 'Quote Replacement';
+      case 'REPAIR':
+        return recommendation.title.includes('PRV') ? 'Install PRV' : 
+               recommendation.title.includes('Expansion') ? 'Install Expansion Tank' : 
+               'Schedule Repair';
+      case 'UPGRADE':
+        return 'Upgrade System';
+      case 'MAINTAIN':
         return 'Schedule Maintenance';
+      case 'PASS':
+        return 'System Healthy';
       default:
-        return 'Resolve Issues';
+        return 'View Options';
     }
   };
   return (

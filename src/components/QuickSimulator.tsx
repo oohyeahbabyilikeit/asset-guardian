@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Gauge, Thermometer, Calendar, Droplets } from 'lucide-react';
+import { ChevronDown, ChevronUp, Gauge, Thermometer, Calendar, Droplets, Shield } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -138,6 +138,16 @@ export function QuickSimulator({ inputs, onInputsChange }: QuickSimulatorProps) 
                 <Switch 
                   checked={inputs.hasExpTank} 
                   onCheckedChange={(v) => updateInput('hasExpTank', v)} 
+                />
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <Label className="text-xs">
+                  <Shield className="w-3.5 h-3.5 inline mr-1" />
+                  PRV
+                </Label>
+                <Switch 
+                  checked={inputs.hasPrv} 
+                  onCheckedChange={(v) => updateInput('hasPrv', v)} 
                 />
               </div>
             </div>

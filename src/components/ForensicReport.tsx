@@ -8,8 +8,7 @@ import {
   type AssetData
 } from '@/data/mockAsset';
 import { generatePDF } from '@/lib/pdfGenerator';
-import { calculateRiskDilation, calculateOpterraRisk, getRecommendation, getLocationRiskLevel, type ForensicInputs } from '@/lib/opterraAlgorithm';
-import { RiskDilationChart } from './RiskDilationChart';
+import { calculateOpterraRisk, type ForensicInputs } from '@/lib/opterraAlgorithm';
 import { RecommendationBadge } from './RecommendationBadge';
 
 interface ForensicReportProps {
@@ -99,7 +98,7 @@ function EvidenceLockerSection() {
 
 function VerdictSection({ failProb, recommendation, onDownloadPDF }: { 
   failProb: number; 
-  recommendation: ReturnType<typeof getRecommendation>;
+  recommendation: ReturnType<typeof calculateOpterraRisk>['verdict'];
   onDownloadPDF: () => void;
 }) {
   return (
@@ -113,7 +112,7 @@ function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
           Actuarial Failure Probability
         </p>
         <p className="text-5xl font-black text-red-600">
-          {failProb}%
+          {failProb.toFixed(0)}%
         </p>
         
         <div className="mt-6 pt-4 border-t border-border">
@@ -134,22 +133,10 @@ function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
 }
 
 export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
-  // Calculate all metrics using v5.2 algorithm
+  // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(inputs);
-  const { sedimentLbs, riskLevel, failProb } = opterraResult.metrics;
-
-  // Calculate risk dilation using Opterra v4.0 algorithm
-  const riskDilation = calculateRiskDilation(asset.paperAge, inputs);
-
-  // Get recommendation using v4.0 Insurance Logic engine
-  const locationRiskLevel = getLocationRiskLevel(asset.location);
-  const recommendation = getRecommendation(
-    riskDilation.forensicRisk,
-    riskDilation.biologicalAge,
-    sedimentLbs,
-    riskLevel,
-    locationRiskLevel
-  );
+  const { failProb, bioAge, sedimentLbs, shieldLife, stressFactors } = opterraResult.metrics;
+  const recommendation = opterraResult.verdict;
 
   const handleDownloadPDF = () => {
     generatePDF();
@@ -175,20 +162,35 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
 
       {/* Content */}
       <div className="pt-4 animate-fade-in-up">
-        <RiskDilationChart
-          calendarAge={riskDilation.paperAge}
-          biologicalAge={riskDilation.biologicalAge}
-          baselineRisk={riskDilation.baselineRisk}
-          forensicRisk={riskDilation.forensicRisk}
-          accelerationFactor={riskDilation.accelerationFactor}
-          stressFactor={riskDilation.stressFactor}
-          defenseFactor={riskDilation.defenseFactor}
-          hasSoftener={inputs.hasSoftener}
-          insight={riskDilation.insight}
-          anodeLifespan={riskDilation.anodeLifespan}
-          exposureYears={riskDilation.exposureYears}
-          nakedAgingRate={riskDilation.nakedAgingRate}
-        />
+        {/* Risk Analysis Summary */}
+        <section className="clean-card mx-4 mb-4">
+          <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+            Section 1: Risk Analysis
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <div className="text-xs text-muted-foreground">Biological Age</div>
+              <div className="text-lg font-bold font-mono">{bioAge.toFixed(1)} yrs</div>
+              <div className="text-[10px] text-muted-foreground">vs {inputs.calendarAge} calendar</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <div className="text-xs text-muted-foreground">Shield Life</div>
+              <div className="text-lg font-bold font-mono">{shieldLife.toFixed(1)} yrs</div>
+              <div className="text-[10px] text-muted-foreground">anode protection</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <div className="text-xs text-muted-foreground">Sediment Load</div>
+              <div className="text-lg font-bold font-mono">{sedimentLbs.toFixed(1)} lbs</div>
+              <div className="text-[10px] text-muted-foreground">estimated buildup</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <div className="text-xs text-muted-foreground">Stress Factor</div>
+              <div className="text-lg font-bold font-mono">{stressFactors.total.toFixed(2)}×</div>
+              <div className="text-[10px] text-muted-foreground">combined multiplier</div>
+            </div>
+          </div>
+        </section>
+        
         <EvidenceLockerSection />
         <VerdictSection failProb={failProb} recommendation={recommendation} onDownloadPDF={handleDownloadPDF} />
       </div>

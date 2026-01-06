@@ -159,7 +159,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 2, psi: 55, warrantyYears: 12, fuelType: 'GAS' as FuelType,
       hardnessGPG: 8, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
-      hasExpTank: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
@@ -180,7 +180,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 4, psi: 62, warrantyYears: 9, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 12, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
-      hasExpTank: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
@@ -201,7 +201,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 3, psi: 58, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 10, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
-      hasExpTank: false, location: 'BASEMENT' as LocationType, isFinishedArea: false,
+      hasExpTank: false, hasPrv: false, location: 'BASEMENT' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
@@ -224,7 +224,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 5, psi: 95, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
-      hasExpTank: true, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
+      hasExpTank: true, hasPrv: true, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
@@ -245,7 +245,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 4, psi: 68, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 14, hasSoftener: false, hasCircPump: false, isClosedLoop: true,
-      hasExpTank: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
+      hasExpTank: false, hasPrv: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
@@ -266,7 +266,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 7, psi: 75, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 15, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
-      hasExpTank: true, location: 'ATTIC' as LocationType, isFinishedArea: false,
+      hasExpTank: true, hasPrv: true, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
     },
   },
@@ -289,7 +289,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 11, psi: 82, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 22, hasSoftener: false, hasCircPump: true, isClosedLoop: true,
-      hasExpTank: false, location: 'BASEMENT' as LocationType, isFinishedArea: true,
+      hasExpTank: false, hasPrv: false, location: 'BASEMENT' as LocationType, isFinishedArea: true,
       visualRust: true, tempSetting: 'HIGH' as TempSetting,
     },
   },
@@ -310,7 +310,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 9, psi: 78, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 25, hasSoftener: true, hasCircPump: true, isClosedLoop: true,
-      hasExpTank: false, location: 'ATTIC' as LocationType, isFinishedArea: false,
+      hasExpTank: false, hasPrv: false, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: true, tempSetting: 'HIGH' as TempSetting,
     },
   },
@@ -331,7 +331,7 @@ const scenarios: DemoScenario[] = [
     inputs: {
       calendarAge: 12, psi: 88, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 20, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
-      hasExpTank: false, location: 'CRAWLSPACE' as LocationType, isFinishedArea: false,
+      hasExpTank: false, hasPrv: false, location: 'CRAWLSPACE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'HIGH' as TempSetting,
     },
   },
