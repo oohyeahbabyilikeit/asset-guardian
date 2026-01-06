@@ -403,14 +403,16 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     };
   }
 
-  // 2B. Liability Hazard: High/Extreme risk location + failProb > 40%
-  if (metrics.riskLevel >= CONSTANTS.RISK_HIGH && metrics.failProb > 40) {
+  // 2B. Liability Hazard: High/Extreme risk location + failProb > 30%
+  // Applies to: Attics, Upper Floors, Main Living Areas, Finished Basements
+  // Lower threshold for finished areas where water damage is catastrophic
+  if (metrics.riskLevel >= CONSTANTS.RISK_HIGH && metrics.failProb > 30) {
     return {
       action: 'REPLACE',
       title: 'Liability Hazard',
-      reason: 'Unit is in a high-damage zone with elevated failure probability. Risk outweighs value.',
+      reason: `Unit is in a high-damage zone. Statistical failure risk (${metrics.failProb.toFixed(0)}%) exceeds the safety threshold for finished areas.`,
       urgent: false,
-      badgeColor: 'red',
+      badgeColor: 'orange',
       badge: 'REPLACE'
     };
   }
