@@ -19,9 +19,13 @@ export function ActionDock({
   const getButtonLabel = () => {
     if (!recommendation) return 'View Options';
     
+    // "Protect Your Home" only for replacement recommendations
+    if (recommendation.action === 'REPLACE') {
+      return 'Protect Your Home';
+    }
+    
+    // All other actions get specific labels
     switch (recommendation.action as ActionType) {
-      case 'REPLACE':
-        return 'Protect Your Home';
       case 'REPAIR':
         return recommendation.title.includes('PRV') ? 'Install PRV' : 
                recommendation.title.includes('Expansion') ? 'Install Expansion Tank' : 
@@ -33,7 +37,6 @@ export function ActionDock({
         if (recommendation.title.includes('Anode')) return 'Replace Anode';
         return 'Schedule Service';
       case 'PASS':
-        if (recommendation.title === 'Maintenance Risk') return 'View Risk Report';
         return 'Stay Protected';
       default:
         return 'View Options';
