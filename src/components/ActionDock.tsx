@@ -15,32 +15,8 @@ export function ActionDock({
   onViewReport,
   recommendation
 }: ActionDockProps) {
-  // Dynamic button label based on v6.0 recommendation actions
   const getButtonLabel = () => {
-    if (!recommendation) return 'View Options';
-    
-    // "Protect Your Home" only for replacement recommendations
-    if (recommendation.action === 'REPLACE') {
-      return 'Protect Your Home';
-    }
-    
-    // All other actions get specific labels
-    switch (recommendation.action as ActionType) {
-      case 'REPAIR':
-        return recommendation.title.includes('PRV') ? 'Install PRV' : 
-               recommendation.title.includes('Expansion') ? 'Install Expansion Tank' : 
-               'Schedule Repair';
-      case 'UPGRADE':
-        return 'Upgrade System';
-      case 'MAINTAIN':
-        if (recommendation.title.includes('Flush')) return 'Schedule Flush';
-        if (recommendation.title.includes('Anode')) return 'Replace Anode';
-        return 'Schedule Service';
-      case 'PASS':
-        return 'Stay Protected';
-      default:
-        return 'View Options';
-    }
+    return recommendation ? 'Protect Your Home' : 'View Options';
   };
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"
