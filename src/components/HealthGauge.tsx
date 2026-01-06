@@ -17,30 +17,6 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
   const circumference = 351;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
-  const getStatusBadge = () => {
-    if (status === 'critical') {
-      return (
-        <div className="status-badge-critical px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-          <AlertCircle className="w-4 h-4" />
-          CRITICAL RISK DETECTED
-        </div>
-      );
-    }
-    if (status === 'warning') {
-      return (
-        <div className="status-badge-warning px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-          <AlertCircle className="w-4 h-4" />
-          ATTENTION REQUIRED
-        </div>
-      );
-    }
-    return (
-      <div className="status-badge-optimal px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-        <CheckCircle2 className="w-4 h-4" />
-        SYSTEM HEALTHY
-      </div>
-    );
-  };
 
   const getRingColor = () => {
     if (status === 'critical') return '#EF4444';
@@ -115,10 +91,6 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
           </svg>
         </div>
 
-        {/* Status Badge */}
-        <div className="mb-6">
-          {getStatusBadge()}
-        </div>
 
         {/* Risk Stats Grid */}
         <div className="w-full grid grid-cols-2 gap-3">
