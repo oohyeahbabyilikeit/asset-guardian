@@ -66,6 +66,14 @@ export interface HealthScore {
   recommendation: string;
 }
 
+export interface ForensicInputs {
+  pressure: number;
+  baselinePressure: number;
+  hasSoftener: boolean;
+  hasExpansionTank: boolean;
+  anodeCondition: 'good' | 'depleted' | 'missing';
+}
+
 export interface BurstCostScenario {
   min: number;
   max: number;
@@ -125,7 +133,7 @@ export const demoContractor: ContractorData = {
   emergencyPhone: "(555) 911-PIPE",
 };
 
-// Demo Water Heater Asset
+// Demo Water Heater Asset - "The Softener Accelerator" Scenario
 export const demoAsset: AssetData = {
   id: "RH-9942-X",
   type: "Water Heater",
@@ -134,7 +142,7 @@ export const demoAsset: AssetData = {
   serialNumber: "RH-2018-9942-X",
   installDate: "2018-03-15",
   paperAge: 6.0,
-  biologicalAge: 14.1,
+  biologicalAge: 27.8, // Calculated from forensic inputs
   location: "Attic",
   specs: {
     capacity: "50-Gal",
@@ -144,12 +152,21 @@ export const demoAsset: AssetData = {
   },
 };
 
-// Demo Vitals
+// Demo Forensic Inputs - "The Softener Accelerator" scenario
+export const demoForensicInputs: ForensicInputs = {
+  pressure: 75,
+  baselinePressure: 60,
+  hasSoftener: true,
+  hasExpansionTank: true,
+  anodeCondition: 'depleted',
+};
+
+// Demo Vitals - Updated for Softener Accelerator demo
 export const demoVitals: VitalsData = {
   pressure: {
-    current: 96,
+    current: 75,
     limit: 80,
-    status: 'critical',
+    status: 'warning',
   },
   sedimentLoad: {
     pounds: 10.5,
@@ -162,18 +179,18 @@ export const demoVitals: VitalsData = {
     status: 'critical',
   },
   biologicalAge: {
-    real: 14.1,
+    real: 27.8,
     paper: 6.0,
     status: 'critical',
   },
 };
 
-// Demo Health Score (Calculated from vitals)
+// Demo Health Score - Calculated from Opterra v3.0 algorithm
 export const demoHealthScore: HealthScore = {
-  score: 12,
+  score: 8,
   status: 'critical',
-  failureProbability: 38.4,
-  recommendation: "REPLACEMENT",
+  failureProbability: 99.0, // From Weibull calculation
+  recommendation: "IMMEDIATE REPLACEMENT",
 };
 
 // Demo Audit Findings

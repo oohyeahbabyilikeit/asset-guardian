@@ -6,65 +6,19 @@ import {
   demoAsset, 
   demoHealthScore, 
   demoAuditFindings,
-  getAgingFactor,
+  demoForensicInputs,
   type AuditFinding 
 } from '@/data/mockAsset';
 import { generatePDF } from '@/lib/pdfGenerator';
+import { calculateRiskDilation } from '@/lib/opterraAlgorithm';
+import { RiskDilationChart } from './RiskDilationChart';
 
 interface ForensicReportProps {
   onBack: () => void;
 }
 
-function AgeDilationSection() {
-  const { paperAge, biologicalAge } = demoAsset;
-  const factor = getAgingFactor(paperAge, biologicalAge);
-  const paperPercent = (paperAge / 15) * 100;
-  const bioPercent = (biologicalAge / 15) * 100;
-
-  return (
-    <section className="clean-card mx-4 mb-4">
-      <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
-        Section 1: Age Dilation
-      </h3>
-      
-      <p className="text-sm text-muted-foreground mb-4">
-        High pressure is aging your unit at <span className="text-red-600 font-bold">{factor}</span> speed.
-      </p>
-
-      <div className="space-y-4">
-        {/* Paper Age */}
-        <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Paper Age</span>
-            <span className="font-medium">{paperAge} Years</span>
-          </div>
-          <div className="h-3 bg-muted rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-muted-foreground/40 rounded-full transition-all duration-1000"
-              style={{ width: `${paperPercent}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Biological Age */}
-        <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Real Age</span>
-            <span className="font-medium text-red-600">
-              {biologicalAge} Years (Expired)
-            </span>
-          </div>
-          <div className="h-3 bg-muted rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-red-500 rounded-full transition-all duration-1000"
-              style={{ width: `${Math.min(bioPercent, 100)}%` }}
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+// Calculate risk dilation using Opterra v3.0 algorithm
+const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
 
 function EvidenceItem({ finding }: { finding: AuditFinding }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -209,7 +163,17 @@ export function ForensicReport({ onBack }: ForensicReportProps) {
 
       {/* Content */}
       <div className="pt-4 animate-fade-in-up">
-        <AgeDilationSection />
+        <RiskDilationChart
+          calendarAge={riskDilation.paperAge}
+          biologicalAge={riskDilation.biologicalAge}
+          baselineRisk={riskDilation.baselineRisk}
+          forensicRisk={riskDilation.forensicRisk}
+          accelerationFactor={riskDilation.accelerationFactor}
+          stressFactor={riskDilation.stressFactor}
+          defenseFactor={riskDilation.defenseFactor}
+          hasSoftener={demoForensicInputs.hasSoftener}
+          insight={riskDilation.insight}
+        />
         <EvidenceLockerSection />
         <VerdictSection onDownloadPDF={handleDownloadPDF} />
       </div>
