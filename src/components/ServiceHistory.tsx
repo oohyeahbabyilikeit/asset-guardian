@@ -20,7 +20,7 @@ interface ServiceHistoryProps {
   serviceHistory?: ServiceEvent[];
 }
 
-// Simplified Water Heater SVG Diagram Component
+// Enhanced Water Heater SVG Diagram Component
 function WaterHeaterDiagram({ 
   anodePercent, 
   sedimentPercent, 
@@ -35,12 +35,12 @@ function WaterHeaterDiagram({
   sedimentLbs: number;
 }) {
   // SVG dimensions
-  const width = 180;
-  const height = 300;
+  const width = 200;
+  const height = 320;
   const tankWidth = 100;
   const tankHeight = 200;
   const tankX = (width - tankWidth) / 2;
-  const tankY = 50;
+  const tankY = 60;
   
   // Calculated values
   const sedimentHeight = Math.max(8, (sedimentPercent / 100) * (tankHeight * 0.5));
@@ -51,22 +51,32 @@ function WaterHeaterDiagram({
   return (
     <svg 
       viewBox={`0 0 ${width} ${height}`} 
-      className="w-full h-auto max-h-[300px]"
+      className="w-full h-auto max-h-[320px]"
       style={{ filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }}
     >
       <defs>
         {/* Tank body gradient - metallic cylinder look */}
         <linearGradient id="tankGradient" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#2d3748" />
-          <stop offset="20%" stopColor="#4a5568" />
+          <stop offset="15%" stopColor="#3d4a5c" />
+          <stop offset="35%" stopColor="#5a6b7d" />
           <stop offset="50%" stopColor="#718096" />
-          <stop offset="80%" stopColor="#4a5568" />
+          <stop offset="65%" stopColor="#5a6b7d" />
+          <stop offset="85%" stopColor="#3d4a5c" />
           <stop offset="100%" stopColor="#2d3748" />
+        </linearGradient>
+        
+        {/* Outer jacket gradient */}
+        <linearGradient id="jacketGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#1a202c" />
+          <stop offset="50%" stopColor="#2d3748" />
+          <stop offset="100%" stopColor="#1a202c" />
         </linearGradient>
         
         {/* Tank top dome */}
         <radialGradient id="domeGradient" cx="50%" cy="80%" r="100%">
           <stop offset="0%" stopColor="#718096" />
+          <stop offset="60%" stopColor="#4a5568" />
           <stop offset="100%" stopColor="#2d3748" />
         </radialGradient>
         
@@ -97,6 +107,20 @@ function WaterHeaterDiagram({
           <stop offset="100%" stopColor="#dc2626" />
         </linearGradient>
         
+        {/* Copper pipe gradient */}
+        <linearGradient id="copperGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#b45309" />
+          <stop offset="50%" stopColor="#d97706" />
+          <stop offset="100%" stopColor="#b45309" />
+        </linearGradient>
+        
+        {/* Brass gradient for valve */}
+        <linearGradient id="brassGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#92400e" />
+          <stop offset="50%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#92400e" />
+        </linearGradient>
+        
         {/* Heat element glow */}
         <filter id="heatGlow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="2" result="blur" />
@@ -118,38 +142,77 @@ function WaterHeaterDiagram({
         </clipPath>
       </defs>
 
-      {/* Tank Base/Stand */}
+      {/* Shadow under tank */}
+      <ellipse 
+        cx={width / 2} 
+        cy={tankY + tankHeight + 22} 
+        rx="55" 
+        ry="8" 
+        fill="rgba(0,0,0,0.4)"
+      />
+
+      {/* Tank Base/Stand - Enhanced legs */}
       <rect 
         x={tankX + 5} 
         y={tankY + tankHeight} 
         width={tankWidth - 10} 
-        height="10" 
+        height="12" 
         fill="#1f2937"
         rx="2"
       />
+      {/* Left leg */}
       <rect 
-        x={tankX + 15} 
-        y={tankY + tankHeight + 10} 
-        width="16" 
-        height="6" 
+        x={tankX + 12} 
+        y={tankY + tankHeight + 12} 
+        width="14" 
+        height="10" 
         fill="#111827"
-        rx="1"
+        rx="2"
       />
       <rect 
-        x={tankX + tankWidth - 31} 
-        y={tankY + tankHeight + 10} 
-        width="16" 
+        x={tankX + 14} 
+        y={tankY + tankHeight + 14} 
+        width="10" 
         height="6" 
-        fill="#111827"
+        fill="#1f2937"
         rx="1"
+      />
+      {/* Right leg */}
+      <rect 
+        x={tankX + tankWidth - 26} 
+        y={tankY + tankHeight + 12} 
+        width="14" 
+        height="10" 
+        fill="#111827"
+        rx="2"
+      />
+      <rect 
+        x={tankX + tankWidth - 24} 
+        y={tankY + tankHeight + 14} 
+        width="10" 
+        height="6" 
+        fill="#1f2937"
+        rx="1"
+      />
+
+      {/* Outer Insulation Jacket */}
+      <rect 
+        x={tankX - 4} 
+        y={tankY - 2} 
+        width={tankWidth + 8} 
+        height={tankHeight + 6} 
+        fill="url(#jacketGradient)"
+        rx="6"
+        stroke="#111827"
+        strokeWidth="1"
       />
 
       {/* Tank Top Dome */}
       <ellipse 
         cx={tankX + tankWidth / 2} 
         cy={tankY} 
-        rx={tankWidth / 2} 
-        ry="15" 
+        rx={tankWidth / 2 + 4} 
+        ry="18" 
         fill="url(#domeGradient)"
         stroke="#1f2937"
         strokeWidth="2"
@@ -170,11 +233,49 @@ function WaterHeaterDiagram({
       <rect 
         x={tankX + 3} 
         y={tankY + 5} 
-        width="3" 
+        width="4" 
         height={tankHeight - 10} 
-        fill="rgba(255,255,255,0.08)"
-        rx="1"
+        fill="rgba(255,255,255,0.1)"
+        rx="2"
       />
+      
+      {/* Seam lines for realism */}
+      <line 
+        x1={tankX} 
+        y1={tankY + 40} 
+        x2={tankX + tankWidth} 
+        y2={tankY + 40} 
+        stroke="rgba(0,0,0,0.3)" 
+        strokeWidth="1"
+      />
+      <line 
+        x1={tankX} 
+        y1={tankY + tankHeight - 40} 
+        x2={tankX + tankWidth} 
+        y2={tankY + tankHeight - 40} 
+        stroke="rgba(0,0,0,0.3)" 
+        strokeWidth="1"
+      />
+      
+      {/* Rivets on seams */}
+      {[tankX + 15, tankX + 35, tankX + 55, tankX + 75, tankX + 90].map((x, i) => (
+        <g key={`rivet-${i}`}>
+          <circle cx={x} cy={tankY + 40} r="2.5" fill="#3d4a5c" />
+          <circle cx={x} cy={tankY + 40} r="1" fill="#718096" />
+          <circle cx={x} cy={tankY + tankHeight - 40} r="2.5" fill="#3d4a5c" />
+          <circle cx={x} cy={tankY + tankHeight - 40} r="1" fill="#718096" />
+        </g>
+      ))}
+
+      {/* Top connection nipples */}
+      <g>
+        {/* Left nipple (cold in) */}
+        <rect x={tankX + 18} y={tankY - 20} width="14" height="12" rx="2" fill="url(#copperGradient)" />
+        <ellipse cx={tankX + 25} cy={tankY - 20} rx="7" ry="3" fill="#d97706" />
+        {/* Right nipple (hot out) */}
+        <rect x={tankX + tankWidth - 32} y={tankY - 20} width="14" height="12" rx="2" fill="url(#copperGradient)" />
+        <ellipse cx={tankX + tankWidth - 25} cy={tankY - 20} rx="7" ry="3" fill="#d97706" />
+      </g>
 
       {/* Tank Interior (clipped) */}
       <g clipPath="url(#tankInterior)">
@@ -200,45 +301,99 @@ function WaterHeaterDiagram({
           {/* Sediment texture particles */}
           {sedimentPercent > 10 && (
             <>
-              <circle cx={tankX + 25} cy={tankY + tankHeight - sedimentHeight / 2 - 4} r="3" fill="#78350f" opacity="0.7" />
-              <circle cx={tankX + 45} cy={tankY + tankHeight - sedimentHeight / 3 - 4} r="2" fill="#78350f" opacity="0.6" />
-              <circle cx={tankX + 65} cy={tankY + tankHeight - sedimentHeight / 2 - 4} r="2.5" fill="#78350f" opacity="0.7" />
-              <circle cx={tankX + 80} cy={tankY + tankHeight - sedimentHeight / 4 - 4} r="2" fill="#78350f" opacity="0.6" />
+              <circle cx={tankX + 20} cy={tankY + tankHeight - sedimentHeight / 2 - 4} r="3" fill="#78350f" opacity="0.7" />
+              <circle cx={tankX + 35} cy={tankY + tankHeight - sedimentHeight / 3 - 4} r="2" fill="#78350f" opacity="0.6" />
+              <circle cx={tankX + 50} cy={tankY + tankHeight - sedimentHeight / 2 - 4} r="2.5" fill="#78350f" opacity="0.7" />
+              <circle cx={tankX + 65} cy={tankY + tankHeight - sedimentHeight / 4 - 4} r="2" fill="#78350f" opacity="0.6" />
+              <circle cx={tankX + 80} cy={tankY + tankHeight - sedimentHeight / 2 - 4} r="2.5" fill="#78350f" opacity="0.7" />
             </>
           )}
-        </g>
-
-        {/* Heating Elements */}
-        <g filter="url(#heatGlow)" className="animate-heat-glow">
+          {/* Sediment top edge highlight */}
           <line 
-            x1={tankX + 12} 
-            y1={tankY + tankHeight * 0.35} 
-            x2={tankX + tankWidth - 12} 
-            y2={tankY + tankHeight * 0.35}
-            stroke="#ef4444"
-            strokeWidth="2"
-            strokeLinecap="round"
+            x1={tankX + 4} 
+            y1={tankY + tankHeight - sedimentHeight - 4} 
+            x2={tankX + tankWidth - 4} 
+            y2={tankY + tankHeight - sedimentHeight - 4} 
+            stroke="#b45309" 
+            strokeWidth="1"
+            strokeDasharray="3 2"
             opacity="0.6"
           />
-          <line 
-            x1={tankX + 12} 
-            y1={tankY + tankHeight * 0.65} 
-            x2={tankX + tankWidth - 12} 
-            y2={tankY + tankHeight * 0.65}
+        </g>
+
+        {/* Dip Tube (cold water inlet) */}
+        <rect 
+          x={tankX + 20} 
+          y={tankY + 10} 
+          width="6" 
+          height={tankHeight * 0.75}
+          fill="#4a5568"
+          opacity="0.6"
+        />
+        <rect 
+          x={tankX + 21} 
+          y={tankY + 10} 
+          width="2" 
+          height={tankHeight * 0.75}
+          fill="#718096"
+          opacity="0.4"
+        />
+
+        {/* Heating Elements - Enhanced zigzag */}
+        <g filter="url(#heatGlow)" className="animate-heat-glow">
+          {/* Upper element */}
+          <path 
+            d={`M ${tankX + 12} ${tankY + tankHeight * 0.35} 
+                L ${tankX + 22} ${tankY + tankHeight * 0.32} 
+                L ${tankX + 32} ${tankY + tankHeight * 0.38} 
+                L ${tankX + 42} ${tankY + tankHeight * 0.32} 
+                L ${tankX + 52} ${tankY + tankHeight * 0.38} 
+                L ${tankX + 62} ${tankY + tankHeight * 0.32} 
+                L ${tankX + 72} ${tankY + tankHeight * 0.38} 
+                L ${tankX + 82} ${tankY + tankHeight * 0.32} 
+                L ${tankX + tankWidth - 12} ${tankY + tankHeight * 0.35}`}
             stroke="#ef4444"
-            strokeWidth="2"
+            strokeWidth="3"
             strokeLinecap="round"
-            opacity="0.6"
+            fill="none"
+            opacity="0.7"
+          />
+          {/* Lower element */}
+          <path 
+            d={`M ${tankX + 12} ${tankY + tankHeight * 0.65} 
+                L ${tankX + 22} ${tankY + tankHeight * 0.62} 
+                L ${tankX + 32} ${tankY + tankHeight * 0.68} 
+                L ${tankX + 42} ${tankY + tankHeight * 0.62} 
+                L ${tankX + 52} ${tankY + tankHeight * 0.68} 
+                L ${tankX + 62} ${tankY + tankHeight * 0.62} 
+                L ${tankX + 72} ${tankY + tankHeight * 0.68} 
+                L ${tankX + 82} ${tankY + tankHeight * 0.62} 
+                L ${tankX + tankWidth - 12} ${tankY + tankHeight * 0.65}`}
+            stroke="#f97316"
+            strokeWidth="3"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.7"
           />
         </g>
 
         {/* Anode Rod with Red Depletion */}
         <g>
+          {/* Anode mounting cap */}
+          <rect 
+            x={tankX + tankWidth / 2 - 7} 
+            y={tankY + 8} 
+            width="14" 
+            height="8"
+            fill="#6b7280"
+            rx="1"
+          />
+          
           {/* Depleted portion (top) - RED */}
           {anodePercent > 0 && (
             <rect 
               x={tankX + tankWidth / 2 - 5} 
-              y={tankY + 20} 
+              y={tankY + 18} 
               width="10" 
               height={anodeDepletedHeight}
               fill="url(#anodeDepletedGradient)"
@@ -251,40 +406,134 @@ function WaterHeaterDiagram({
           {anodeHealthyHeight > 0 && (
             <rect 
               x={tankX + tankWidth / 2 - 5} 
-              y={tankY + 20 + anodeDepletedHeight} 
+              y={tankY + 18 + anodeDepletedHeight} 
               width="10" 
               height={anodeHealthyHeight}
               fill="url(#anodeHealthyGradient)"
               rx="2"
             />
           )}
+          
+          {/* Corrosion pitting on depleted section */}
+          {anodePercent > 30 && (
+            <>
+              <circle cx={tankX + tankWidth / 2 - 2} cy={tankY + 28} r="1.5" fill="#991b1b" opacity="0.7" />
+              <circle cx={tankX + tankWidth / 2 + 2} cy={tankY + 38} r="1" fill="#991b1b" opacity="0.6" />
+              <circle cx={tankX + tankWidth / 2} cy={tankY + 50} r="1.5" fill="#991b1b" opacity="0.7" />
+            </>
+          )}
         </g>
 
         {/* Bubbles */}
         <circle cx={tankX + 25} cy={tankY + tankHeight * 0.5} r="2" fill="rgba(255,255,255,0.25)" className="animate-bubble-rise" style={{ animationDelay: '0s' }} />
         <circle cx={tankX + 70} cy={tankY + tankHeight * 0.55} r="1.5" fill="rgba(255,255,255,0.2)" className="animate-bubble-rise" style={{ animationDelay: '0.7s' }} />
+        <circle cx={tankX + 55} cy={tankY + tankHeight * 0.48} r="1" fill="rgba(255,255,255,0.15)" className="animate-bubble-rise" style={{ animationDelay: '1.2s' }} />
+      </g>
+
+      {/* Thermostat Control Box */}
+      <g>
+        <rect 
+          x={tankX + tankWidth + 2} 
+          y={tankY + tankHeight * 0.55} 
+          width="18" 
+          height="35" 
+          rx="2" 
+          fill="#1f2937"
+          stroke="#374151"
+          strokeWidth="1"
+        />
+        {/* Dial */}
+        <circle 
+          cx={tankX + tankWidth + 11} 
+          cy={tankY + tankHeight * 0.55 + 12} 
+          r="5" 
+          fill="#111827"
+          stroke="#4b5563"
+          strokeWidth="0.5"
+        />
+        <line 
+          x1={tankX + tankWidth + 11} 
+          y1={tankY + tankHeight * 0.55 + 9} 
+          x2={tankX + tankWidth + 11} 
+          y2={tankY + tankHeight * 0.55 + 12} 
+          stroke="#ef4444" 
+          strokeWidth="1"
+        />
+        {/* Status LED */}
+        <circle 
+          cx={tankX + tankWidth + 11} 
+          cy={tankY + tankHeight * 0.55 + 26} 
+          r="3" 
+          fill="#22c55e"
+          className="animate-pulse"
+        />
+      </g>
+
+      {/* Drain Valve at Bottom */}
+      <g>
+        <rect 
+          x={tankX + tankWidth / 2 - 6} 
+          y={tankY + tankHeight + 2} 
+          width="12" 
+          height="8" 
+          rx="1" 
+          fill="url(#brassGradient)"
+        />
+        <circle 
+          cx={tankX + tankWidth / 2} 
+          cy={tankY + tankHeight + 10} 
+          r="4" 
+          fill="#92400e"
+        />
+        <rect 
+          x={tankX + tankWidth / 2 - 1} 
+          y={tankY + tankHeight + 7} 
+          width="2" 
+          height="4" 
+          fill="#fbbf24"
+        />
+      </g>
+
+      {/* T&P Relief Valve on side */}
+      <g>
+        <rect 
+          x={tankX - 8} 
+          y={tankY + 50} 
+          width="10" 
+          height="6" 
+          rx="1" 
+          fill="url(#brassGradient)"
+        />
+        <rect 
+          x={tankX - 10} 
+          y={tankY + 56} 
+          width="6" 
+          height="20" 
+          rx="1" 
+          fill="url(#copperGradient)"
+        />
       </g>
 
       {/* ANODE Label with line */}
       <g>
         <line 
           x1={tankX + tankWidth / 2 + 8} 
-          y1={tankY + 20 + anodeFullHeight / 2} 
-          x2={tankX + tankWidth + 15} 
-          y2={tankY + 20 + anodeFullHeight / 2}
+          y1={tankY + 18 + anodeFullHeight / 2} 
+          x2={tankX + tankWidth + 28} 
+          y2={tankY + 18 + anodeFullHeight / 2}
           stroke="#6b7280"
           strokeWidth="1"
           strokeDasharray="2 2"
         />
         <circle 
-          cx={tankX + tankWidth + 15} 
-          cy={tankY + 20 + anodeFullHeight / 2} 
+          cx={tankX + tankWidth + 28} 
+          cy={tankY + 18 + anodeFullHeight / 2} 
           r="3" 
           fill={anodeStatus === 'critical' ? '#ef4444' : anodeStatus === 'warning' ? '#f59e0b' : '#22c55e'}
         />
         <text 
-          x={tankX + tankWidth + 22} 
-          y={tankY + 20 + anodeFullHeight / 2 - 6} 
+          x={tankX + tankWidth + 35} 
+          y={tankY + 18 + anodeFullHeight / 2 - 6} 
           fill="#9ca3af" 
           fontSize="9" 
           fontWeight="600"
@@ -293,8 +542,8 @@ function WaterHeaterDiagram({
           ANODE
         </text>
         <text 
-          x={tankX + tankWidth + 22} 
-          y={tankY + 20 + anodeFullHeight / 2 + 6} 
+          x={tankX + tankWidth + 35} 
+          y={tankY + 18 + anodeFullHeight / 2 + 6} 
           fill={anodeStatus === 'critical' ? '#ef4444' : anodeStatus === 'warning' ? '#f59e0b' : '#22c55e'} 
           fontSize="10" 
           fontWeight="bold"
@@ -308,22 +557,22 @@ function WaterHeaterDiagram({
       {/* SEDIMENT Label with line */}
       <g>
         <line 
-          x1={tankX - 5} 
+          x1={tankX - 8} 
           y1={tankY + tankHeight - sedimentHeight / 2 - 4} 
-          x2={tankX - 20} 
+          x2={tankX - 25} 
           y2={tankY + tankHeight - sedimentHeight / 2 - 4}
           stroke="#6b7280"
           strokeWidth="1"
           strokeDasharray="2 2"
         />
         <circle 
-          cx={tankX - 20} 
+          cx={tankX - 25} 
           cy={tankY + tankHeight - sedimentHeight / 2 - 4} 
           r="3" 
           fill={sedimentStatus === 'critical' ? '#ef4444' : sedimentStatus === 'warning' ? '#f59e0b' : '#22c55e'}
         />
         <text 
-          x={tankX - 25} 
+          x={tankX - 30} 
           y={tankY + tankHeight - sedimentHeight / 2 - 10} 
           fill="#9ca3af" 
           fontSize="9" 
@@ -333,7 +582,7 @@ function WaterHeaterDiagram({
           SEDIMENT
         </text>
         <text 
-          x={tankX - 25} 
+          x={tankX - 30} 
           y={tankY + tankHeight - sedimentHeight / 2 + 2} 
           fill={sedimentStatus === 'critical' ? '#ef4444' : sedimentStatus === 'warning' ? '#f59e0b' : '#22c55e'} 
           fontSize="10" 
@@ -342,6 +591,31 @@ function WaterHeaterDiagram({
           className="font-data"
         >
           {sedimentLbs.toFixed(1)} lbs
+        </text>
+      </g>
+
+      {/* Rating Plate / Brand Badge */}
+      <g>
+        <rect 
+          x={tankX + 15} 
+          y={tankY + 55} 
+          width={tankWidth - 30} 
+          height="18" 
+          rx="2" 
+          fill="rgba(251, 191, 36, 0.15)"
+          stroke="#fbbf24"
+          strokeWidth="0.5"
+        />
+        <text 
+          x={tankX + tankWidth / 2} 
+          y={tankY + 66} 
+          fill="#fbbf24" 
+          fontSize="7" 
+          fontWeight="bold"
+          textAnchor="middle"
+          opacity="0.8"
+        >
+          OPTERRA
         </text>
       </g>
     </svg>
