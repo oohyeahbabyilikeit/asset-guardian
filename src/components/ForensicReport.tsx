@@ -3,36 +3,20 @@ import { ArrowLeft, ChevronDown, ChevronRight, X, Check, Download, Camera } from
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
-  demoAsset, 
   demoAuditFindings,
-  demoForensicInputs,
-  type AuditFinding 
+  type AuditFinding,
+  type AssetData
 } from '@/data/mockAsset';
 import { generatePDF } from '@/lib/pdfGenerator';
-import { calculateRiskDilation, calculateOpterraRisk, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
+import { calculateRiskDilation, calculateOpterraRisk, getRecommendation, getLocationRiskLevel, type ForensicInputs } from '@/lib/opterraAlgorithm';
 import { RiskDilationChart } from './RiskDilationChart';
 import { RecommendationBadge } from './RecommendationBadge';
 
 interface ForensicReportProps {
   onBack: () => void;
+  asset: AssetData;
+  inputs: ForensicInputs;
 }
-
-// Calculate all metrics using v5.2 algorithm
-const opterraResult = calculateOpterraRisk(demoForensicInputs);
-const { sedimentLbs, riskLevel, failProb } = opterraResult.metrics;
-
-// Calculate risk dilation using Opterra v4.0 algorithm
-const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
-
-// Get recommendation using v4.0 Insurance Logic engine
-const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
-const recommendation = getRecommendation(
-  riskDilation.forensicRisk,
-  riskDilation.biologicalAge,
-  sedimentLbs,
-  riskLevel,
-  locationRiskLevel
-);
 
 function EvidenceItem({ finding }: { finding: AuditFinding }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -113,9 +97,11 @@ function EvidenceLockerSection() {
   );
 }
 
-function VerdictSection({ onDownloadPDF }: { onDownloadPDF: () => void }) {
-  const failureProbability = failProb;
-
+function VerdictSection({ failProb, recommendation, onDownloadPDF }: { 
+  failProb: number; 
+  recommendation: ReturnType<typeof getRecommendation>;
+  onDownloadPDF: () => void;
+}) {
   return (
     <section className="clean-card mx-4 mb-4">
       <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
@@ -127,7 +113,7 @@ function VerdictSection({ onDownloadPDF }: { onDownloadPDF: () => void }) {
           Actuarial Failure Probability
         </p>
         <p className="text-5xl font-black text-red-600">
-          {failureProbability}%
+          {failProb}%
         </p>
         
         <div className="mt-6 pt-4 border-t border-border">
@@ -147,7 +133,24 @@ function VerdictSection({ onDownloadPDF }: { onDownloadPDF: () => void }) {
   );
 }
 
-export function ForensicReport({ onBack }: ForensicReportProps) {
+export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
+  // Calculate all metrics using v5.2 algorithm
+  const opterraResult = calculateOpterraRisk(inputs);
+  const { sedimentLbs, riskLevel, failProb } = opterraResult.metrics;
+
+  // Calculate risk dilation using Opterra v4.0 algorithm
+  const riskDilation = calculateRiskDilation(asset.paperAge, inputs);
+
+  // Get recommendation using v4.0 Insurance Logic engine
+  const locationRiskLevel = getLocationRiskLevel(asset.location);
+  const recommendation = getRecommendation(
+    riskDilation.forensicRisk,
+    riskDilation.biologicalAge,
+    sedimentLbs,
+    riskLevel,
+    locationRiskLevel
+  );
+
   const handleDownloadPDF = () => {
     generatePDF();
   };
@@ -180,14 +183,14 @@ export function ForensicReport({ onBack }: ForensicReportProps) {
           accelerationFactor={riskDilation.accelerationFactor}
           stressFactor={riskDilation.stressFactor}
           defenseFactor={riskDilation.defenseFactor}
-          hasSoftener={demoForensicInputs.hasSoftener}
+          hasSoftener={inputs.hasSoftener}
           insight={riskDilation.insight}
           anodeLifespan={riskDilation.anodeLifespan}
           exposureYears={riskDilation.exposureYears}
           nakedAgingRate={riskDilation.nakedAgingRate}
         />
         <EvidenceLockerSection />
-        <VerdictSection onDownloadPDF={handleDownloadPDF} />
+        <VerdictSection failProb={failProb} recommendation={recommendation} onDownloadPDF={handleDownloadPDF} />
       </div>
     </div>
   );

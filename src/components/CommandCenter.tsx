@@ -1,4 +1,3 @@
-import { useState, useCallback } from 'react';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
@@ -6,7 +5,7 @@ import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { RiskComparisonChart } from '@/components/RiskComparisonChart';
 import { QuickSimulator } from '@/components/QuickSimulator';
-import { demoAsset, getRandomScenario, type VitalsData, type HealthScore, type DemoScenario } from '@/data/mockAsset';
+import { demoAsset, type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
@@ -14,6 +13,11 @@ interface CommandCenterProps {
   onServiceRequest: () => void;
   onViewReport: () => void;
   onTestHarness?: () => void;
+  currentAsset: AssetData;
+  currentInputs: ForensicInputs;
+  onInputsChange: (inputs: ForensicInputs) => void;
+  onRandomize: () => void;
+  scenarioName: string;
 }
 
 // Derive status from thresholds
@@ -27,32 +31,24 @@ export function CommandCenter({
   onPanicMode, 
   onServiceRequest, 
   onViewReport,
-  onTestHarness 
+  onTestHarness,
+  currentAsset,
+  currentInputs,
+  onInputsChange,
+  onRandomize,
+  scenarioName
 }: CommandCenterProps) {
-  const [scenario, setScenario] = useState<DemoScenario | null>(null);
-  const [inputs, setInputs] = useState<ForensicInputs>(scenario?.inputs || getRandomScenario().inputs);
-  const [currentAsset, setCurrentAsset] = useState(scenario?.asset || demoAsset);
-  const [scenarioName, setScenarioName] = useState<string>('');
-
-  const handleRandomize = useCallback(() => {
-    const newScenario = getRandomScenario();
-    setScenario(newScenario);
-    setInputs(newScenario.inputs);
-    setCurrentAsset(newScenario.asset);
-    setScenarioName(newScenario.name);
-  }, []);
-
   // Calculate all metrics using v5.0 algorithm
-  const opterraResult = calculateOpterraRisk(inputs);
+  const opterraResult = calculateOpterraRisk(currentInputs);
   const { bioAge, failProb, sedimentLbs, riskLevel } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
   const dynamicVitals: VitalsData = {
     pressure: {
-      current: inputs.psi,
+      current: currentInputs.psi,
       limit: 80,
-      status: getStatusFromValue(inputs.psi, 70, 80),
+      status: getStatusFromValue(currentInputs.psi, 70, 80),
     },
     sedimentLoad: {
       pounds: sedimentLbs,
@@ -61,13 +57,13 @@ export function CommandCenter({
     },
     liabilityStatus: {
       insured: false,
-      location: demoAsset.location,
+      location: currentAsset.location,
       riskLevel: riskLevel,
       status: riskLevel >= 3 ? 'critical' : riskLevel === 2 ? 'warning' : 'optimal',
     },
     biologicalAge: {
       real: Math.round(bioAge * 10) / 10,
-      paper: inputs.calendarAge,
+      paper: currentInputs.calendarAge,
       status: getStatusFromValue(bioAge, 8, 12),
     },
   };
@@ -89,7 +85,7 @@ export function CommandCenter({
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
       
       <div className="relative">
-        <DashboardHeader onTestHarness={onTestHarness} onRandomize={handleRandomize} scenarioName={scenarioName} />
+        <DashboardHeader onTestHarness={onTestHarness} onRandomize={onRandomize} scenarioName={scenarioName} />
 
         {/* Hero Health Gauge */}
         <div className="animate-fade-in-up">
@@ -98,7 +94,7 @@ export function CommandCenter({
 
         {/* Quick Simulator */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.05s' }}>
-          <QuickSimulator inputs={inputs} onInputsChange={setInputs} />
+          <QuickSimulator inputs={currentInputs} onInputsChange={onInputsChange} />
         </div>
 
         {/* Recommendation Banner */}
@@ -108,7 +104,7 @@ export function CommandCenter({
 
         {/* Age Comparison Chart */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.15s' }}>
-          <RiskComparisonChart biologicalAge={bioAge} calendarAge={inputs.calendarAge} />
+          <RiskComparisonChart biologicalAge={bioAge} calendarAge={currentInputs.calendarAge} />
         </div>
 
         {/* Vitals Grid / Action List */}
