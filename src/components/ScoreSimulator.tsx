@@ -178,24 +178,40 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
               </p>
             </div>
 
-            {/* Current Risks Being Eliminated */}
+            {/* Real-World Risks Being Eliminated */}
             <div className="clean-card mb-4 border-red-500/30 bg-red-500/5">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-red-400" />
                 <span className="text-sm font-medium text-foreground">Risks You're Eliminating</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Current failure probability</span>
-                  <span className="text-sm font-bold text-red-400 font-data line-through">{dynamicHealthScore.failureProbability}%</span>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-red-400 mt-0.5">✕</span>
+                  <div>
+                    <span className="text-sm text-foreground font-medium">Emergency Service Fees</span>
+                    <p className="text-xs text-muted-foreground">After-hours and weekend calls cost 2-3x normal rates</p>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Biological age</span>
-                  <span className="text-sm font-bold text-red-400 font-data line-through">{bioAge.toFixed(1)} yrs</span>
+                <div className="flex items-start gap-3">
+                  <span className="text-red-400 mt-0.5">✕</span>
+                  <div>
+                    <span className="text-sm text-foreground font-medium">Water Damage to Home</span>
+                    <p className="text-xs text-muted-foreground">Average tank failure causes $5,000-$15,000 in damage</p>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Aging factor</span>
-                  <span className="text-sm font-bold text-red-400 font-data line-through">{currentAgingFactor.toFixed(1)}x</span>
+                <div className="flex items-start gap-3">
+                  <span className="text-red-400 mt-0.5">✕</span>
+                  <div>
+                    <span className="text-sm text-foreground font-medium">Damaged Belongings</span>
+                    <p className="text-xs text-muted-foreground">Flooded storage, ruined furniture, personal items</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-red-400 mt-0.5">✕</span>
+                  <div>
+                    <span className="text-sm text-foreground font-medium">Days Without Hot Water</span>
+                    <p className="text-xs text-muted-foreground">Emergency replacements can take 3-5 days to schedule</p>
+                  </div>
                 </div>
               </div>
             </div>
