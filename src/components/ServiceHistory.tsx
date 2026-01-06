@@ -17,6 +17,7 @@ interface ServiceHistoryProps {
   sedimentLbs: number;
   shieldLife: number;
   hasSoftener: boolean;
+  tankCapacityGallons: number;
   serviceHistory?: ServiceEvent[];
 }
 
@@ -603,6 +604,7 @@ export function ServiceHistory({
   sedimentLbs, 
   shieldLife, 
   hasSoftener,
+  tankCapacityGallons,
   serviceHistory = [] 
 }: ServiceHistoryProps) {
   const [isOpen, setIsOpen] = useState(true);
@@ -613,10 +615,13 @@ export function ServiceHistory({
   const anodeDepletionPercent = Math.min(100, (anodeUsedYears / maxAnodeLife) * 100);
   const anodeDepleted = shieldLife < 1;
 
-  // Calculate sediment severity (0-100)
-  const maxSediment = 20; // lbs considered "full"
-  const sedimentPercent = Math.min(100, (sedimentLbs / maxSediment) * 100);
-  const sedimentHigh = sedimentLbs > 5;
+  // Calculate sediment as volume percentage based on tank capacity
+  // Sediment is denser than water (~2x), so we estimate max realistic sediment
+  // A 50-gal tank typically holds up to ~20 lbs of sediment before serious issues
+  // Scale proportionally: maxSediment = (tankCapacityGallons / 50) * 20
+  const maxSedimentForTank = (tankCapacityGallons / 50) * 20;
+  const sedimentPercent = Math.min(100, (sedimentLbs / maxSedimentForTank) * 100);
+  const sedimentHigh = sedimentLbs > (tankCapacityGallons / 50) * 5;
 
   // Determine status colors
   const anodeStatus = anodeDepleted ? 'critical' : anodeDepletionPercent > 70 ? 'warning' : 'good';
