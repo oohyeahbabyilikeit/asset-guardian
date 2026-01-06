@@ -29,9 +29,12 @@ export function ActionDock({
       case 'UPGRADE':
         return 'Upgrade System';
       case 'MAINTAIN':
-        return 'Schedule Maintenance';
+        if (recommendation.title.includes('Flush')) return 'Schedule Flush';
+        if (recommendation.title.includes('Anode')) return 'Replace Anode';
+        return 'Schedule Service';
       case 'PASS':
-        return 'System Healthy';
+        if (recommendation.title === 'Maintenance Risk') return 'View Risk Report';
+        return 'Keep Your System Healthy';
       default:
         return 'View Options';
     }
