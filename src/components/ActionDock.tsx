@@ -34,7 +34,7 @@ export function ActionDock({
         return 'Schedule Service';
       case 'PASS':
         if (recommendation.title === 'Maintenance Risk') return 'View Risk Report';
-        return 'Keep Your System Healthy';
+        return 'Stay Protected';
       default:
         return 'View Options';
     }
