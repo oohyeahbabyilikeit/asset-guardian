@@ -4,7 +4,7 @@ import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { RiskComparisonChart } from '@/components/RiskComparisonChart';
-import { QuickSimulator } from '@/components/QuickSimulator';
+import { ServiceHistory } from '@/components/ServiceHistory';
 import { demoAsset, type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
 
@@ -38,9 +38,9 @@ export function CommandCenter({
   onRandomize,
   scenarioName
 }: CommandCenterProps) {
-  // Calculate all metrics using v5.0 algorithm
+  // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
-  const { bioAge, failProb, sedimentLbs, riskLevel } = opterraResult.metrics;
+  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
@@ -117,9 +117,14 @@ export function CommandCenter({
           <HealthGauge healthScore={dynamicHealthScore} location={currentAsset.location} riskLevel={riskLevel} />
         </div>
 
-        {/* Quick Simulator */}
+        {/* Tank Health / Service History */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.05s' }}>
-          <QuickSimulator inputs={currentInputs} onInputsChange={onInputsChange} />
+          <ServiceHistory 
+            calendarAge={currentInputs.calendarAge}
+            sedimentLbs={sedimentLbs}
+            shieldLife={shieldLife}
+            hasSoftener={currentInputs.hasSoftener}
+          />
         </div>
 
         {/* Recommendation Banner */}
