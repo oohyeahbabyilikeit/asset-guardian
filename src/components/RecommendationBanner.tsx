@@ -58,6 +58,11 @@ export function RecommendationBanner({
   const showAcceleratedWear = agingRate > 1.5 && recommendation.action !== 'REPLACE';
   const hasLifeExtensionValue = lifeExtension > 0.5;
 
+  // Don't show banner for healthy/passing systems
+  if (recommendation.action === 'PASS') {
+    return null;
+  }
+
   return (
     <div className={`mx-4 space-y-3 ${className}`}>
       {/* Accelerated Wear Banner (when stress is high but tank is serviceable) */}
