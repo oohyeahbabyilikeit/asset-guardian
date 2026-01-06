@@ -124,6 +124,7 @@ export function CommandCenter({
             sedimentLbs={sedimentLbs}
             shieldLife={shieldLife}
             hasSoftener={currentInputs.hasSoftener}
+            tankCapacityGallons={parseInt(currentAsset.specs.capacity) || 50}
           />
         </div>
 
