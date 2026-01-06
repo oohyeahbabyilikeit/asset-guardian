@@ -2,10 +2,45 @@ import jsPDF from 'jspdf';
 import { 
   demoAsset, 
   demoContractor, 
-  demoHealthScore, 
-  demoVitals,
+  demoForensicInputs,
   demoAuditFindings 
 } from '@/data/mockAsset';
+import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+
+// Calculate all values dynamically from the algorithm
+const opterraResult = calculateOpterraRisk(demoForensicInputs);
+const { bioAge, failProb, sedimentLbs } = opterraResult.metrics;
+
+// Derive dynamic vitals and health score
+const demoHealthScore = {
+  score: Math.round(100 - failProb),
+  status: (failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
+  failureProbability: Math.round(failProb * 10) / 10,
+  recommendation: opterraResult.verdict.action,
+};
+
+const demoVitals = {
+  pressure: {
+    current: demoForensicInputs.psi,
+    limit: 80,
+    status: (demoForensicInputs.psi >= 80 ? 'critical' : demoForensicInputs.psi >= 70 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
+  },
+  sedimentLoad: {
+    pounds: sedimentLbs,
+    gasLossEstimate: Math.round(sedimentLbs * 4.5),
+    status: (sedimentLbs >= 15 ? 'critical' : sedimentLbs >= 10 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
+  },
+  liabilityStatus: {
+    insured: false,
+    location: demoAsset.location,
+    status: (demoAsset.location === 'Attic' || demoAsset.location === 'Utility Closet' ? 'critical' : 'warning') as 'critical' | 'warning' | 'optimal',
+  },
+  biologicalAge: {
+    real: Math.round(bioAge * 10) / 10,
+    paper: demoForensicInputs.calendarAge,
+    status: (bioAge >= 12 ? 'critical' : bioAge >= 8 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
+  },
+};
 
 export function generatePDF() {
   const doc = new jsPDF();

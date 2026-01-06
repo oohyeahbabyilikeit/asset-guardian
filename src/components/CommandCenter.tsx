@@ -26,7 +26,7 @@ export function CommandCenter({
 }: CommandCenterProps) {
   // Calculate all metrics using v4.0 algorithm
   const opterraResult = calculateOpterraRisk(demoForensicInputs);
-  const { bioAge, failProb, sedimentLbs } = opterraResult.metrics;
+  const { bioAge, failProb, sedimentLbs, estDamage } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
   // Derive dynamic vitals from algorithm output
@@ -44,6 +44,7 @@ export function CommandCenter({
     liabilityStatus: {
       insured: false,
       location: demoAsset.location,
+      estDamage: estDamage,
       status: demoAsset.location === 'Attic' || demoAsset.location === 'Utility Closet' ? 'critical' : 'warning',
     },
     biologicalAge: {

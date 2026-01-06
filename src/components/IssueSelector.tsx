@@ -2,13 +2,20 @@ import { useState } from 'react';
 import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, repairOptions } from '@/data/repairOptions';
-import { demoHealthScore, demoForensicInputs, demoVitals, demoAsset } from '@/data/mockAsset';
-import { calculateRiskDilation, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
+import { demoForensicInputs, demoAsset } from '@/data/mockAsset';
+import { calculateRiskDilation, calculateOpterraRisk, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
 
 interface IssueSelectorProps {
   onBack: () => void;
   onSimulate: (selectedRepairs: RepairOption[]) => void;
 }
+
+// Calculate all metrics using v4.0 algorithm
+const opterraResult = calculateOpterraRisk(demoForensicInputs);
+const { sedimentLbs, estDamage, failProb } = opterraResult.metrics;
+
+// Derive health status from failProb
+const healthStatus = failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal';
 
 // Get recommendation from the v4.0 algorithm
 const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
@@ -16,8 +23,8 @@ const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
 const recommendation = getRecommendation(
   riskDilation.forensicRisk,
   riskDilation.biologicalAge,
-  demoVitals.sedimentLoad.pounds,
-  45000, // Attic estimated damage
+  sedimentLbs,
+  estDamage,
   locationRiskLevel
 );
 
@@ -141,7 +148,7 @@ export function IssueSelector({ onBack, onSimulate }: IssueSelectorProps) {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-foreground">{fullReplacement.name}</span>
-                  {demoHealthScore.status === 'critical' && (
+                  {healthStatus === 'critical' && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
                       RECOMMENDED
                     </span>

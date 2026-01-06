@@ -65,6 +65,12 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     return 'text-green-400';
   };
 
+  // Format damage estimate for display
+  const formatDamage = (amount?: number) => {
+    if (!amount) return 'High damage potential';
+    return amount >= 1000 ? `$${Math.round(amount / 1000)}K damage potential` : `$${amount} damage potential`;
+  };
+
   const items = [
     {
       status: vitals.pressure.status,
@@ -85,10 +91,12 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     {
       status: vitals.liabilityStatus.status,
       icon: <ShieldAlert className="w-5 h-5" />,
-      title: vitals.liabilityStatus.status === 'optimal' ? 'Coverage Verified' : 'Missing Expansion Tank',
+      title: vitals.liabilityStatus.status === 'optimal' 
+        ? 'Coverage Verified' 
+        : `${vitals.liabilityStatus.location} Installation Risk`,
       subtitle: vitals.liabilityStatus.status === 'optimal'
         ? 'Liability insured'
-        : 'Code Violation',
+        : formatDamage(vitals.liabilityStatus.estDamage),
     },
   ];
 
