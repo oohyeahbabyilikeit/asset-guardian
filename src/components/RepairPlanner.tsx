@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
 import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface RepairPlannerProps {
   onBack: () => void;
@@ -309,6 +310,34 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                         <div className="flex items-center gap-2">
                           <Wrench className="w-4 h-4 text-muted-foreground" />
                           <span className="font-semibold text-foreground">{repair.name}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[220px] p-3">
+                              <p className="font-semibold text-foreground text-xs mb-2">Impact Breakdown</p>
+                              <div className="space-y-1.5 text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Health Score</span>
+                                  <span className="text-green-400">+{repair.impact.healthScoreBoost} pts</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Aging Slowdown</span>
+                                  <span className="text-green-400">-{repair.impact.agingFactorReduction}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Failure Risk</span>
+                                  <span className="text-green-400">-{repair.impact.failureProbReduction}%</span>
+                                </div>
+                                <div className="pt-1.5 border-t border-border mt-1.5">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Est. Lifespan Ext.</span>
+                                    <span className="text-primary font-medium">+{Math.round(repair.impact.agingFactorReduction / 10)}-{Math.round(repair.impact.agingFactorReduction / 6)} mo</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                         <span className="text-xs text-green-400/80">+{repair.impact.healthScoreBoost} pts</span>
                       </div>
