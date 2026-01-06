@@ -56,6 +56,23 @@ const PRESETS: Record<string, { label: string; inputs: ForensicInputs }> = {
       tempSetting: 'NORMAL',
     },
   },
+  extremePressure: {
+    label: '💣 12yr + 140 PSI (Extreme)',
+    inputs: {
+      calendarAge: 12,
+      psi: 140,
+      warrantyYears: 6,
+      fuelType: 'GAS',
+      hardnessGPG: 10,
+      hasSoftener: false,
+      isClosedLoop: false,
+      hasExpTank: true,
+      location: 'GARAGE',
+      isFinishedArea: false,
+      visualRust: false,
+      tempSetting: 'NORMAL',
+    },
+  },
   zombieTank: {
     label: '🧟 Zombie Tank (12yr + 95 PSI)',
     inputs: {
@@ -377,7 +394,11 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <MetricCard label="Biological Age" value={result.metrics.bioAgeCapped ? '20+ yrs' : `${result.metrics.bioAge} yrs`} highlight={result.metrics.bioAge > 12} />
+              <MetricCard 
+                label="Biological Age" 
+                value={result.metrics.bioAgeCapped ? `20+ yrs (raw: ${result.metrics.rawBioAge})` : `${result.metrics.bioAge} yrs`} 
+                highlight={result.metrics.bioAge > 12} 
+              />
               <MetricCard label="Failure Prob" value={`${result.metrics.failProb}%`} highlight={result.metrics.failProb > 20} />
               <MetricCard label="Sediment Load" value={`${result.metrics.sedimentLbs} lbs`} highlight={result.metrics.sedimentLbs > 15} />
               <MetricCard label="Est. Damage" value={`$${(result.metrics.estDamage / 1000).toFixed(0)}K`} />
