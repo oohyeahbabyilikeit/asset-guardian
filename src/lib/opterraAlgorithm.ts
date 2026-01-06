@@ -43,6 +43,7 @@ export interface OpterraMetrics {
   stressFactors: {
     total: number;
     pressure: number;
+    corrosion: number;  // Combined corrosion factors (temp * circ * loop * sediment)
     temp: number;
     circ: number;
     loop: number;
@@ -208,11 +209,17 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     : CONSTANTS.SEDIMENT_FACTOR_GAS;
   const sedimentLbs = data.calendarAge * data.hardnessGPG * sedFactor;
 
-  // 3. STRESS FACTORS (Physics Multipliers)
+  // 3. STRESS FACTORS (Split into FATIGUE vs. CORROSION)
+
+  // === FATIGUE STRESS (Mechanical - Anode CANNOT Prevent) ===
+  // Pressure cycling causes micro-cracks in glass lining from Day 1
   
   // A. Pressure (Basquin's Power Law)
   const effectivePsi = Math.max(data.psi, CONSTANTS.DESIGN_PSI);
   const pressureStress = Math.pow(effectivePsi / CONSTANTS.DESIGN_PSI, CONSTANTS.FATIGUE_EXP);
+
+  // === CORROSION STRESS (Chemical - Anode CAN Prevent) ===
+  // These accelerate electrochemical rust, which the anode fights
 
   // B. Temperature (Arrhenius with eco reward)
   let tempStress = 1.0;  // NORMAL baseline (120°F)
@@ -222,7 +229,7 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // C. Circulation (Erosion-Corrosion & Duty Cycle)
   const circStress = data.hasCircPump ? 1.4 : 1.0;
 
-  // D. Closed Loop Hammer
+  // D. Closed Loop Hammer (Thermal expansion stress)
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
   const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.5 : 1.0;
 
@@ -230,28 +237,34 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // 0 lbs = 1.0x, 10 lbs = 1.5x, 20 lbs = 2.0x
   const sedimentStress = 1.0 + (sedimentLbs * 0.05);
 
-  // Combine all stress factors
-  const rawStress = pressureStress * tempStress * circStress * loopPenalty * sedimentStress;
+  // Combine CORROSION factors (excluding pressure - that's fatigue)
+  const corrosionStress = tempStress * circStress * loopPenalty * sedimentStress;
   
-  // SATURATION CAP: Clamp at max multiplier (diffusion-limited corrosion)
-  // 12x means 1 year = 12 years of wear. Higher implies immediate failure (Tier 1)
+  // Combined stress for UI display (Aging Speedometer)
+  const rawStress = pressureStress * corrosionStress;
   const totalStress = Math.min(rawStress, CONSTANTS.MAX_STRESS_CAP);
 
-  // 4. BIOLOGICAL AGE
+  // 4. BIOLOGICAL AGE (Fatigue vs. Corrosion Split)
   const age = data.calendarAge;
   
   // Time with anode protection vs exposed steel
   const timeProtected = Math.min(age, effectiveShieldDuration);
   const timeNaked = Math.max(0, age - effectiveShieldDuration);
 
-  // Phase 1: Protected (steel is shielded, slower aging)
-  const protectedAging = timeProtected * (1 + (totalStress * 0.1));  // Lower weight
-  
-  // Phase 2: Naked (steel is attacked directly)
-  const nakedAging = timeNaked * totalStress;
-  
+  // === PHASE 1: PROTECTED (Anode Active) ===
+  // Fatigue: Applies 100% - anode cannot prevent mechanical stress from pressure
+  const protectedFatigue = timeProtected * pressureStress;
+  // Corrosion: Suppressed to 10% - anode is actively fighting rust
+  const protectedCorrosion = timeProtected * corrosionStress * 0.1;
+
+  // === PHASE 2: NAKED (Anode Depleted) ===
+  // Both fatigue and corrosion hit full force
+  // Multiplicative: high pressure OPENS cracks for corrosion to accelerate
+  const nakedStress = Math.min(pressureStress * corrosionStress, CONSTANTS.MAX_STRESS_CAP);
+  const nakedAging = timeNaked * nakedStress;
+
   // Final biological age (capped for extreme cases)
-  const rawBioAge = protectedAging + nakedAging;
+  const rawBioAge = protectedFatigue + protectedCorrosion + nakedAging;
   const bioAge = Math.min(rawBioAge, CONSTANTS.MAX_BIO_AGE);
 
   // 5. WEIBULL FAILURE PROBABILITY
@@ -307,6 +320,7 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     stressFactors: {
       total: parseFloat(totalStress.toFixed(2)),
       pressure: parseFloat(pressureStress.toFixed(2)),
+      corrosion: parseFloat(corrosionStress.toFixed(2)),
       temp: tempStress,
       circ: circStress,
       loop: loopPenalty,
