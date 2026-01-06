@@ -11,6 +11,7 @@ interface CommandCenterProps {
   onPanicMode: () => void;
   onServiceRequest: () => void;
   onViewReport: () => void;
+  onTestHarness?: () => void;
 }
 
 // Derive status from thresholds
@@ -23,7 +24,8 @@ function getStatusFromValue(value: number, warningThreshold: number, criticalThr
 export function CommandCenter({ 
   onPanicMode, 
   onServiceRequest, 
-  onViewReport 
+  onViewReport,
+  onTestHarness 
 }: CommandCenterProps) {
   // Calculate all metrics using v4.0 algorithm
   const opterraResult = calculateOpterraRisk(demoForensicInputs);
@@ -72,7 +74,7 @@ export function CommandCenter({
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
       
       <div className="relative">
-        <DashboardHeader />
+        <DashboardHeader onTestHarness={onTestHarness} />
 
         {/* Hero Health Gauge */}
         <div className="animate-fade-in-up">

@@ -1,6 +1,12 @@
+import { FlaskConical } from 'lucide-react';
 import { demoContractor } from '@/data/mockAsset';
+import { Button } from '@/components/ui/button';
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  onTestHarness?: () => void;
+}
+
+export function DashboardHeader({ onTestHarness }: DashboardHeaderProps) {
   return (
     <header className="bg-card/80 backdrop-blur-xl border-b border-border px-6 py-4 flex justify-between items-center sticky top-0 z-50">
       {/* Subtle gradient overlay */}
@@ -29,6 +35,12 @@ export function DashboardHeader() {
       
       {/* Status indicator */}
       <div className="relative flex items-center gap-3">
+        {onTestHarness && (
+          <Button variant="ghost" size="icon" onClick={onTestHarness} className="text-muted-foreground hover:text-foreground">
+            <FlaskConical className="w-4 h-4" />
+          </Button>
+        )}
+        
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-[10px] font-semibold text-red-400 uppercase tracking-wider">Live</span>
