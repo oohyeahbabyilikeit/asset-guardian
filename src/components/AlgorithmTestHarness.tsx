@@ -377,7 +377,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <MetricCard label="Biological Age" value={`${result.metrics.bioAge} yrs`} highlight={result.metrics.bioAge > 12} />
+              <MetricCard label="Biological Age" value={result.metrics.bioAgeCapped ? '20+ yrs' : `${result.metrics.bioAge} yrs`} highlight={result.metrics.bioAge > 12} />
               <MetricCard label="Failure Prob" value={`${result.metrics.failProb}%`} highlight={result.metrics.failProb > 20} />
               <MetricCard label="Sediment Load" value={`${result.metrics.sedimentLbs} lbs`} highlight={result.metrics.sedimentLbs > 15} />
               <MetricCard label="Est. Damage" value={`$${(result.metrics.estDamage / 1000).toFixed(0)}K`} />
