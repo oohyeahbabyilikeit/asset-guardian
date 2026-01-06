@@ -10,12 +10,11 @@ interface ScoreSimulatorProps {
   onSchedule: () => void;
 }
 
-function useAnimatedNumber(target: number, duration: number = 1500) {
-  const [current, setCurrent] = useState(0);
+function useAnimatedNumber(target: number, duration: number = 1500, startFrom: number = 0) {
+  const [current, setCurrent] = useState(startFrom);
 
   useEffect(() => {
     const startTime = Date.now();
-    const startValue = 0;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
@@ -23,7 +22,7 @@ function useAnimatedNumber(target: number, duration: number = 1500) {
       
       // Easing function for smooth animation
       const eased = 1 - Math.pow(1 - progress, 3);
-      const value = startValue + (target - startValue) * eased;
+      const value = startFrom + (target - startFrom) * eased;
       
       setCurrent(Math.round(value * 10) / 10);
 
@@ -33,7 +32,44 @@ function useAnimatedNumber(target: number, duration: number = 1500) {
     };
 
     requestAnimationFrame(animate);
-  }, [target, duration]);
+  }, [target, duration, startFrom]);
+
+  return current;
+}
+
+function useDelayedAnimatedNumber(target: number, startFrom: number, delay: number, duration: number = 800) {
+  const [current, setCurrent] = useState(startFrom);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setStarted(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  useEffect(() => {
+    if (!started) return;
+    
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Dramatic easing - slow start, fast middle, slow end
+      const eased = progress < 0.5 
+        ? 4 * progress * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      
+      const value = startFrom + (target - startFrom) * eased;
+      setCurrent(Math.round(value * 10) / 10);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [started, target, startFrom, duration]);
 
   return current;
 }
@@ -75,10 +111,24 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
   const failureImprovement = Math.round((1 - result.newFailureProb / demoHealthScore.failureProbability) * 100);
 
   // "Do Nothing" projection - score declines over time
-  const doNothingProjections = [
+  const doNothingTargets = [
     { months: 6, score: Math.max(0, demoHealthScore.score - 8), failureProb: Math.min(95, demoHealthScore.failureProbability + 12) },
     { months: 12, score: Math.max(0, demoHealthScore.score - 18), failureProb: Math.min(95, demoHealthScore.failureProbability + 28) },
     { months: 24, score: Math.max(0, demoHealthScore.score - 35), failureProb: Math.min(95, demoHealthScore.failureProbability + 45) },
+  ];
+
+  // Animated "Do Nothing" values with staggered delays
+  const doNothing6Score = useDelayedAnimatedNumber(doNothingTargets[0].score, demoHealthScore.score, 500, 600);
+  const doNothing6Risk = useDelayedAnimatedNumber(doNothingTargets[0].failureProb, demoHealthScore.failureProbability, 500, 600);
+  const doNothing12Score = useDelayedAnimatedNumber(doNothingTargets[1].score, demoHealthScore.score, 900, 700);
+  const doNothing12Risk = useDelayedAnimatedNumber(doNothingTargets[1].failureProb, demoHealthScore.failureProbability, 900, 700);
+  const doNothing24Score = useDelayedAnimatedNumber(doNothingTargets[2].score, demoHealthScore.score, 1300, 800);
+  const doNothing24Risk = useDelayedAnimatedNumber(doNothingTargets[2].failureProb, demoHealthScore.failureProbability, 1300, 800);
+
+  const animatedDoNothing = [
+    { months: 6, score: doNothing6Score, failureProb: doNothing6Risk },
+    { months: 12, score: doNothing12Score, failureProb: doNothing12Risk },
+    { months: 24, score: doNothing24Score, failureProb: doNothing24Risk },
   ];
 
   return (
@@ -216,7 +266,7 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
             Without repairs, your water heater will continue to degrade:
           </p>
           <div className="space-y-3">
-            {doNothingProjections.map((projection) => (
+            {animatedDoNothing.map((projection) => (
               <div key={projection.months} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
