@@ -165,12 +165,17 @@ export function getAvailableRepairs(
     if (replaceExp) options.push(replaceExp);
   }
 
-  // Flush needed if sediment is above threshold
-  if (metrics.sedimentLbs > 5) {
+  // SAFE FLUSH LOGIC GATES
+  // Prevents: "Killer Flush" (locked out), "Ghost Flush" (fragile tank)
+  const isFragile = metrics.failProb > 60 || inputs.calendarAge > 12;
+  const isLockedOut = metrics.sedimentLbs > 15;  // Sediment too hardite flush
+  const isServiceable = metrics.sedimentLbs >= 5 && metrics.sedimentLbs <= 15;
+
+  // Only offer flush if tank is safe to service AND dirty enough to need it
+  if (!isFragile && !isLockedOut && isServiceable) {
     const flush = repairOptions.find(r => r.id === 'flush');
     if (flush) options.push(flush);
   }
-
   // Anode replacement if shield life is depleted AND tank is young enough to be worth it
   if (metrics.shieldLife < 1 && inputs.calendarAge < 8) {
     const anode = repairOptions.find(r => r.id === 'anode');
