@@ -174,8 +174,9 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
 
   // --- 4. WEIBULL PROBABILITY (NEXT 12 MO) ---
   // Calculates conditional probability of failure in the next year
-  const rNow = Math.exp(-Math.pow(bioAge / ETA, BETA));
-  const rNext = Math.exp(-Math.pow((bioAge + 1) / ETA, BETA));
+  // Use rawBioAge (uncapped) so extreme scenarios still show high failure rates
+  const rNow = Math.exp(-Math.pow(rawBioAge / ETA, BETA));
+  const rNext = Math.exp(-Math.pow((rawBioAge + 1) / ETA, BETA));
   let failProb = (1 - (rNext / rNow)) * 100;
 
   // Sanity Cap: Don't scare people with 99% unless leaking.
