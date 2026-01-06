@@ -72,6 +72,10 @@ export interface ForensicInputs {
   hasSoftener: boolean;
   hasExpansionTank: boolean;
   anodeCondition: 'good' | 'depleted' | 'missing';
+  visualRust?: boolean;
+  sedimentLoad?: number;
+  estimatedDamage?: number;
+  locationRiskLevel?: 'attic' | 'main_floor' | 'basement' | 'garage';
 }
 
 export interface BurstCostScenario {
@@ -154,12 +158,17 @@ export const demoAsset: AssetData = {
 };
 
 // Demo Forensic Inputs - "The Softener Accelerator" scenario
+// Attic location with $45K-$80K potential damage (exceeds deductible)
 export const demoForensicInputs: ForensicInputs = {
   pressure: 75,
   baselinePressure: 60,
   hasSoftener: true,
   hasExpansionTank: true,
   anodeCondition: 'depleted',
+  visualRust: false,
+  sedimentLoad: 10.5, // Below 15 lb threshold
+  estimatedDamage: 45000, // Attic worst-case scenario
+  locationRiskLevel: 'attic',
 };
 
 // Demo Vitals - Recalibrated for believable scenario

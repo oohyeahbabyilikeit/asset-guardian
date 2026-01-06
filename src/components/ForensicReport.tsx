@@ -7,11 +7,13 @@ import {
   demoHealthScore, 
   demoAuditFindings,
   demoForensicInputs,
+  demoVitals,
   type AuditFinding 
 } from '@/data/mockAsset';
 import { generatePDF } from '@/lib/pdfGenerator';
-import { calculateRiskDilation } from '@/lib/opterraAlgorithm';
+import { calculateRiskDilation, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
 import { RiskDilationChart } from './RiskDilationChart';
+import { RecommendationBadge } from './RecommendationBadge';
 
 interface ForensicReportProps {
   onBack: () => void;
@@ -19,6 +21,16 @@ interface ForensicReportProps {
 
 // Calculate risk dilation using Opterra v3.0 algorithm
 const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
+
+// Get recommendation using Insurance Logic engine
+const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
+const recommendation = getRecommendation(
+  riskDilation.forensicRisk,
+  riskDilation.biologicalAge,
+  demoVitals.sedimentLoad.pounds,
+  demoForensicInputs.estimatedDamage || 0,
+  locationRiskLevel
+);
 
 function EvidenceItem({ finding }: { finding: AuditFinding }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -100,7 +112,7 @@ function EvidenceLockerSection() {
 }
 
 function VerdictSection({ onDownloadPDF }: { onDownloadPDF: () => void }) {
-  const { failureProbability, recommendation } = demoHealthScore;
+  const { failureProbability } = demoHealthScore;
 
   return (
     <section className="clean-card mx-4 mb-4">
@@ -117,12 +129,7 @@ function VerdictSection({ onDownloadPDF }: { onDownloadPDF: () => void }) {
         </p>
         
         <div className="mt-6 pt-4 border-t border-border">
-          <p className="text-xs text-muted-foreground mb-1">
-            Recommendation
-          </p>
-          <p className="font-bold text-xl text-red-600">
-            {recommendation}
-          </p>
+          <RecommendationBadge recommendation={recommendation} />
         </div>
       </div>
 
