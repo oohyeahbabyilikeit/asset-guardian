@@ -113,12 +113,13 @@ export interface BaselineRisk {
   status: 'safe' | 'moderate' | 'warning' | 'critical';
 }
 
-// Industry standard baseline from DOE/LBNL data
+// Industry standard baseline - Calculated using same Weibull formula for consistency
+// rNow = exp(-(age/11.5)^1.5), rNext = exp(-((age+1)/11.5)^1.5), failProb = (1 - rNext/rNow) * 100
 export const industryBaseline: BaselineRisk[] = [
-  { ageRange: '0-6 Years', minAge: 0, maxAge: 6, failureProb: 2.5, status: 'safe' },
-  { ageRange: '7-9 Years', minAge: 7, maxAge: 9, failureProb: 7.0, status: 'moderate' },
-  { ageRange: '10-12 Years', minAge: 10, maxAge: 12, failureProb: 26.5, status: 'warning' },
-  { ageRange: '13+ Years', minAge: 13, maxAge: 99, failureProb: 60, status: 'critical' },
+  { ageRange: '0-6 Years', minAge: 0, maxAge: 6, failureProb: 3.0, status: 'safe' },       // Weibull @ age 3
+  { ageRange: '7-9 Years', minAge: 7, maxAge: 9, failureProb: 9.5, status: 'moderate' },   // Weibull @ age 8
+  { ageRange: '10-12 Years', minAge: 10, maxAge: 12, failureProb: 19.0, status: 'warning' }, // Weibull @ age 11
+  { ageRange: '13+ Years', minAge: 13, maxAge: 99, failureProb: 32.0, status: 'critical' }, // Weibull @ age 14
 ];
 
 // ============= MASTER CALCULATION FUNCTION =============

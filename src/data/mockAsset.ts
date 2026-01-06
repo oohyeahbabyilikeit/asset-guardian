@@ -35,6 +35,7 @@ export interface VitalsData {
   liabilityStatus: {
     insured: boolean;
     location: string;
+    estDamage?: number;
     status: 'critical' | 'warning' | 'optimal';
   };
   biologicalAge: {
@@ -163,37 +164,12 @@ export const demoForensicInputs: ForensicInputs = {
   tempSetting: 'NORMAL' as TempSetting, // Normal temp setting
 };
 
-// Demo Vitals - Calibrated for v4.0 algorithm output
-export const demoVitals: VitalsData = {
-  pressure: {
-    current: 75,
-    limit: 80,
-    status: 'warning',
-  },
-  sedimentLoad: {
-    pounds: 10.5, // Below 15 lb threshold
-    gasLossEstimate: 48,
-    status: 'critical',
-  },
-  liabilityStatus: {
-    insured: false,
-    location: "Attic",
-    status: 'critical',
-  },
-  biologicalAge: {
-    real: 11.3, // v4.0 biological age (7yr calendar with softener)
-    paper: 7.0,
-    status: 'critical',
-  },
-};
-
-// Demo Health Score - Calibrated with v4.0 safety cap
-export const demoHealthScore: HealthScore = {
-  score: 77, // 100 - failureProbability
-  status: 'critical',
-  failureProbability: 22.8, // Calculated: 7yr calendar, softener, attic
-  recommendation: "FIX LIABILITY RISK",
-};
+// DEPRECATED: These are now calculated dynamically in CommandCenter.tsx
+// Kept for reference only - do not use in production code
+// Demo Vitals - Reference values (actual values come from algorithm)
+// export const demoVitals: VitalsData = { ... }
+// Demo Health Score - Reference values (actual values come from algorithm)
+// export const demoHealthScore: HealthScore = { ... }
 
 // Demo Audit Findings
 export const demoAuditFindings: AuditFinding[] = [

@@ -2,7 +2,17 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingDown, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, simulateRepairs, SimulatedResult } from '@/data/repairOptions';
-import { demoHealthScore, demoAsset, formatCurrency } from '@/data/mockAsset';
+import { demoAsset, demoForensicInputs, formatCurrency } from '@/data/mockAsset';
+import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+
+// Calculate health score dynamically from algorithm
+const opterraResult = calculateOpterraRisk(demoForensicInputs);
+const { bioAge, failProb } = opterraResult.metrics;
+const dynamicHealthScore = {
+  score: Math.round(100 - failProb),
+  status: (failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
+  failureProbability: Math.round(failProb * 10) / 10,
+};
 
 interface ScoreSimulatorProps {
   selectedRepairs: RepairOption[];
@@ -75,12 +85,12 @@ function useDelayedAnimatedNumber(target: number, startFrom: number, delay: numb
 }
 
 export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSimulatorProps) {
-  const currentAgingFactor = demoAsset.biologicalAge / demoAsset.paperAge;
+  const currentAgingFactor = bioAge / demoForensicInputs.calendarAge;
   
   const result: SimulatedResult = simulateRepairs(
-    demoHealthScore.score,
+    dynamicHealthScore.score,
     currentAgingFactor,
-    demoHealthScore.failureProbability,
+    dynamicHealthScore.failureProbability,
     selectedRepairs
   );
 
@@ -106,24 +116,24 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
     }
   };
 
-  const scoreImprovement = result.newScore - demoHealthScore.score;
+  const scoreImprovement = result.newScore - dynamicHealthScore.score;
   const agingImprovement = Math.round((1 - result.newAgingFactor / currentAgingFactor) * 100);
-  const failureImprovement = Math.round((1 - result.newFailureProb / demoHealthScore.failureProbability) * 100);
+  const failureImprovement = Math.round((1 - result.newFailureProb / dynamicHealthScore.failureProbability) * 100);
 
   // "Do Nothing" projection - score declines over time
   const doNothingTargets = [
-    { months: 6, score: Math.max(0, demoHealthScore.score - 8), failureProb: Math.min(95, demoHealthScore.failureProbability + 12) },
-    { months: 12, score: Math.max(0, demoHealthScore.score - 18), failureProb: Math.min(95, demoHealthScore.failureProbability + 28) },
-    { months: 24, score: Math.max(0, demoHealthScore.score - 35), failureProb: Math.min(95, demoHealthScore.failureProbability + 45) },
+    { months: 6, score: Math.max(0, dynamicHealthScore.score - 8), failureProb: Math.min(95, dynamicHealthScore.failureProbability + 12) },
+    { months: 12, score: Math.max(0, dynamicHealthScore.score - 18), failureProb: Math.min(95, dynamicHealthScore.failureProbability + 28) },
+    { months: 24, score: Math.max(0, dynamicHealthScore.score - 35), failureProb: Math.min(95, dynamicHealthScore.failureProbability + 45) },
   ];
 
   // Animated "Do Nothing" values with staggered delays
-  const doNothing6Score = useDelayedAnimatedNumber(doNothingTargets[0].score, demoHealthScore.score, 500, 600);
-  const doNothing6Risk = useDelayedAnimatedNumber(doNothingTargets[0].failureProb, demoHealthScore.failureProbability, 500, 600);
-  const doNothing12Score = useDelayedAnimatedNumber(doNothingTargets[1].score, demoHealthScore.score, 900, 700);
-  const doNothing12Risk = useDelayedAnimatedNumber(doNothingTargets[1].failureProb, demoHealthScore.failureProbability, 900, 700);
-  const doNothing24Score = useDelayedAnimatedNumber(doNothingTargets[2].score, demoHealthScore.score, 1300, 800);
-  const doNothing24Risk = useDelayedAnimatedNumber(doNothingTargets[2].failureProb, demoHealthScore.failureProbability, 1300, 800);
+  const doNothing6Score = useDelayedAnimatedNumber(doNothingTargets[0].score, dynamicHealthScore.score, 500, 600);
+  const doNothing6Risk = useDelayedAnimatedNumber(doNothingTargets[0].failureProb, dynamicHealthScore.failureProbability, 500, 600);
+  const doNothing12Score = useDelayedAnimatedNumber(doNothingTargets[1].score, dynamicHealthScore.score, 900, 700);
+  const doNothing12Risk = useDelayedAnimatedNumber(doNothingTargets[1].failureProb, dynamicHealthScore.failureProbability, 900, 700);
+  const doNothing24Score = useDelayedAnimatedNumber(doNothingTargets[2].score, dynamicHealthScore.score, 1300, 800);
+  const doNothing24Risk = useDelayedAnimatedNumber(doNothingTargets[2].failureProb, dynamicHealthScore.failureProbability, 1300, 800);
 
   const animatedDoNothing = [
     { months: 6, score: doNothing6Score, failureProb: doNothing6Risk },
@@ -159,13 +169,13 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
           <div className="flex items-center justify-center gap-6">
             {/* Current Score */}
             <div className="text-center">
-              <div className={`w-24 h-24 rounded-2xl border-2 ${getStatusBg(demoHealthScore.status)} flex flex-col items-center justify-center`}>
-                <span className={`text-3xl font-bold font-data ${getStatusColor(demoHealthScore.status)}`}>
-                  {demoHealthScore.score}
+              <div className={`w-24 h-24 rounded-2xl border-2 ${getStatusBg(dynamicHealthScore.status)} flex flex-col items-center justify-center`}>
+                <span className={`text-3xl font-bold font-data ${getStatusColor(dynamicHealthScore.status)}`}>
+                  {dynamicHealthScore.score}
                 </span>
                 <span className="text-xs text-muted-foreground">/100</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-2 uppercase">{demoHealthScore.status}</p>
+              <p className="text-xs text-muted-foreground mt-2 uppercase">{dynamicHealthScore.status}</p>
               <p className="text-[10px] text-muted-foreground">Now</p>
             </div>
 
@@ -242,7 +252,7 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className="flex items-center justify-between text-sm mb-1">
-                <span className="font-data text-red-400">{demoHealthScore.failureProbability}%</span>
+                <span className="font-data text-red-400">{dynamicHealthScore.failureProbability}%</span>
                 <span className="text-muted-foreground">→</span>
                 <span className="font-data text-green-400">{animatedFailureProb.toFixed(1)}%</span>
               </div>

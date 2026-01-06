@@ -4,20 +4,22 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
   demoAsset, 
-  demoHealthScore, 
   demoAuditFindings,
   demoForensicInputs,
-  demoVitals,
   type AuditFinding 
 } from '@/data/mockAsset';
 import { generatePDF } from '@/lib/pdfGenerator';
-import { calculateRiskDilation, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
+import { calculateRiskDilation, calculateOpterraRisk, getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
 import { RiskDilationChart } from './RiskDilationChart';
 import { RecommendationBadge } from './RecommendationBadge';
 
 interface ForensicReportProps {
   onBack: () => void;
 }
+
+// Calculate all metrics using v4.0 algorithm
+const opterraResult = calculateOpterraRisk(demoForensicInputs);
+const { sedimentLbs, estDamage, failProb } = opterraResult.metrics;
 
 // Calculate risk dilation using Opterra v4.0 algorithm
 const riskDilation = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
@@ -27,8 +29,8 @@ const locationRiskLevel = getLocationRiskLevel(demoAsset.location);
 const recommendation = getRecommendation(
   riskDilation.forensicRisk,
   riskDilation.biologicalAge,
-  demoVitals.sedimentLoad.pounds,
-  45000, // Attic estimated damage
+  sedimentLbs,
+  estDamage,
   locationRiskLevel
 );
 
@@ -112,7 +114,7 @@ function EvidenceLockerSection() {
 }
 
 function VerdictSection({ onDownloadPDF }: { onDownloadPDF: () => void }) {
-  const { failureProbability } = demoHealthScore;
+  const failureProbability = failProb;
 
   return (
     <section className="clean-card mx-4 mb-4">
