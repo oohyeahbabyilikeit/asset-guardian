@@ -86,6 +86,7 @@ export interface Recommendation {
 
 export interface OpterraMetrics {
   bioAge: number;
+  rawBioAge: number;
   bioAgeCapped: boolean;
   failProb: number;
   sedimentLbs: number;
@@ -218,6 +219,7 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   return {
     metrics: {
       bioAge: Math.round(bioAge * 10) / 10,
+      rawBioAge: Math.round(rawBioAge * 10) / 10,
       bioAgeCapped,
       failProb: Math.round(failProb * 10) / 10,
       sedimentLbs: Math.round(sedimentLbs * 10) / 10,
