@@ -1,29 +1,20 @@
-import { industryBaseline, type BaselineRisk } from '@/lib/opterraAlgorithm';
-import { TrendingUp, TrendingDown, Equal, BarChart3 } from 'lucide-react';
+import { Clock, Zap } from 'lucide-react';
 
 interface RiskComparisonChartProps {
-  calculatedRisk: number;
   biologicalAge: number;
+  calendarAge: number;
 }
 
-function getBaselineForAge(bioAge: number): BaselineRisk {
-  return industryBaseline.find(b => bioAge >= b.minAge && bioAge <= b.maxAge) 
-    || industryBaseline[industryBaseline.length - 1];
-}
-
-export function RiskComparisonChart({ calculatedRisk, biologicalAge }: RiskComparisonChartProps) {
-  const baseline = getBaselineForAge(biologicalAge);
-  const difference = calculatedRisk - baseline.failureProb;
-  const percentDiff = ((difference / baseline.failureProb) * 100).toFixed(0);
-  const displayAge = Math.round(biologicalAge * 10) / 10; // Consistent rounding
+export function RiskComparisonChart({ biologicalAge, calendarAge }: RiskComparisonChartProps) {
+  const displayBioAge = Math.round(biologicalAge * 10) / 10;
+  const agingFactor = (biologicalAge / calendarAge).toFixed(1);
+  const yearsDifference = Math.round((biologicalAge - calendarAge) * 10) / 10;
   
-  const isLower = difference < -0.5;
-  const isHigher = difference > 0.5;
-  const isSimilar = !isLower && !isHigher;
+  const maxAge = Math.max(biologicalAge, calendarAge) * 1.1;
+  const bioBarWidth = (biologicalAge / maxAge) * 100;
+  const calendarBarWidth = (calendarAge / maxAge) * 100;
 
-  const maxRisk = Math.max(calculatedRisk, baseline.failureProb, 25);
-  const yourBarWidth = (calculatedRisk / maxRisk) * 100;
-  const baselineBarWidth = (baseline.failureProb / maxRisk) * 100;
+  const isAccelerated = biologicalAge > calendarAge + 0.5;
 
   return (
     <div className="mx-4">
@@ -35,76 +26,60 @@ export function RiskComparisonChart({ calculatedRisk, biologicalAge }: RiskCompa
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-muted-foreground" />
+              <Clock className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground font-data">
-                Risk vs Industry Baseline
+                Age Comparison
               </span>
             </div>
-            <span className="text-xs text-muted-foreground font-data">Bio Age: {displayAge} yrs</span>
+            <span className="text-xs text-amber-400 font-data font-bold">{agingFactor}x Aging Rate</span>
           </div>
 
           {/* Comparison Bars */}
           <div className="space-y-4">
-            {/* Your Risk */}
+            {/* Biological Age */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground font-medium">Your Unit</span>
-                <span className="font-data font-bold text-primary">{calculatedRisk.toFixed(1)}%</span>
+                <span className="text-muted-foreground font-medium">Biological Age</span>
+                <span className="font-data font-bold text-amber-400">{displayBioAge} yrs</span>
               </div>
               <div className="h-3 bg-secondary/50 rounded-full overflow-hidden border border-border">
                 <div 
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-700 ease-out"
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-500/70 transition-all duration-700 ease-out"
                   style={{ 
-                    width: `${yourBarWidth}%`,
-                    boxShadow: '0 0 12px hsl(var(--primary) / 0.4)'
+                    width: `${bioBarWidth}%`,
+                    boxShadow: '0 0 12px hsl(38 92% 50% / 0.4)'
                   }}
                 />
               </div>
             </div>
 
-            {/* Industry Baseline */}
+            {/* Calendar Age */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground font-medium">Industry Avg</span>
-                <span className="font-data font-bold text-muted-foreground">{baseline.failureProb}%</span>
+                <span className="text-muted-foreground font-medium">Calendar Age</span>
+                <span className="font-data font-bold text-muted-foreground">{calendarAge} yrs</span>
               </div>
               <div className="h-3 bg-secondary/50 rounded-full overflow-hidden border border-border">
                 <div 
                   className="h-full rounded-full bg-muted-foreground/40 transition-all duration-700 ease-out"
-                  style={{ width: `${baselineBarWidth}%` }}
+                  style={{ width: `${calendarBarWidth}%` }}
                 />
               </div>
             </div>
           </div>
 
           {/* Comparison Result */}
-          <div className={`mt-5 flex items-center gap-2 px-4 py-3 rounded-lg ${
-            isLower ? 'bg-green-950/40 border border-green-800/50' :
-            isHigher ? 'bg-red-950/40 border border-red-800/50' :
-            'bg-secondary/50 border border-border'
-          }`}
-          style={{
-            boxShadow: isLower 
-              ? '0 0 16px -4px rgba(34, 197, 94, 0.3)' 
-              : isHigher 
-                ? '0 0 16px -4px rgba(239, 68, 68, 0.3)' 
-                : 'none'
-          }}
-          >
-            {isLower && <TrendingDown className="w-4 h-4 text-green-400" />}
-            {isHigher && <TrendingUp className="w-4 h-4 text-red-400" />}
-            {isSimilar && <Equal className="w-4 h-4 text-muted-foreground" />}
-            
-            <span className={`text-xs font-semibold ${
-              isLower ? 'text-green-400' :
-              isHigher ? 'text-red-400' :
-              'text-muted-foreground'
-            }`}>
-              {isLower && `${Math.abs(Number(percentDiff))}% below average for ${baseline.ageRange.toLowerCase()}`}
-              {isHigher && `${percentDiff}% above average for ${baseline.ageRange.toLowerCase()}`}
-              {isSimilar && `On par with industry average for ${baseline.ageRange.toLowerCase()}`}
-            </span>
-          </div>
+          {isAccelerated && (
+            <div 
+              className="mt-5 flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-950/40 border border-amber-800/50"
+              style={{ boxShadow: '0 0 16px -4px rgba(245, 158, 11, 0.3)' }}
+            >
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-semibold text-amber-400">
+                Aging {yearsDifference} years faster than expected
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
