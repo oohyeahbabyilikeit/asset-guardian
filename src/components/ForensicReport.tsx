@@ -173,6 +173,9 @@ export function ForensicReport({ onBack }: ForensicReportProps) {
           defenseFactor={riskDilation.defenseFactor}
           hasSoftener={demoForensicInputs.hasSoftener}
           insight={riskDilation.insight}
+          anodeLifespan={riskDilation.anodeLifespan}
+          exposureYears={riskDilation.exposureYears}
+          nakedAgingRate={riskDilation.nakedAgingRate}
         />
         <EvidenceLockerSection />
         <VerdictSection onDownloadPDF={handleDownloadPDF} />

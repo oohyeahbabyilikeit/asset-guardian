@@ -1,4 +1,5 @@
 // Opterra v3.0 Physics-Based Risk Calculation Engine
+// Recalibrated with "Shield vs. Body" Logic
 // Based on DOE (LBNL) & InterNACHI Actuarial Tables
 
 export interface BaselineRisk {
@@ -15,6 +16,7 @@ export interface ForensicInputs {
   hasSoftener: boolean;
   hasExpansionTank: boolean;
   anodeCondition: 'good' | 'depleted' | 'missing';
+  visualRust?: boolean; // Override for visible rust/leak
 }
 
 export interface RiskDilationResult {
@@ -25,6 +27,10 @@ export interface RiskDilationResult {
   accelerationFactor: number;
   stressFactor: number;
   defenseFactor: number;
+  anodeLifespan: number;
+  exposureYears: number;
+  protectedYears: number;
+  nakedAgingRate: number;
   status: 'safe' | 'moderate' | 'warning' | 'critical';
   insight: string;
 }
@@ -37,43 +43,76 @@ export const industryBaseline: BaselineRisk[] = [
   { ageRange: '13+ Years', minAge: 13, maxAge: 99, failureProb: 60, status: 'critical' },
 ];
 
+// Standard anode rod lifespan in years
+const STANDARD_ANODE_LIFE = 6;
+
+// Softener penalty factor (kills anode 2.4x faster)
+const SOFTENER_PENALTY = 2.4;
+
+// Maximum credible risk cap (unless visual rust detected)
+const MAX_CREDIBLE_RISK = 45.0;
+
+// Naked steel aging rate multiplier (base rate when anode is dead)
+const BASE_NAKED_RATE = 2.0;
+
 /**
- * Step A: Calculate Stress Factor using Basquin's Law (Cubic Stress Curve)
- * Higher pressure = exponentially more stress on glass lining
+ * Step A: Calculate when the anode "shield" died
+ * Softener accelerates anode depletion, not tank aging directly
+ */
+export function calculateAnodeLifespan(hasSoftener: boolean): number {
+  if (hasSoftener) {
+    return STANDARD_ANODE_LIFE / SOFTENER_PENALTY; // ~2.5 years
+  }
+  return STANDARD_ANODE_LIFE;
+}
+
+/**
+ * Step B: Calculate exposure (naked) years
+ * Time the tank has been unprotected
+ */
+export function calculateExposureYears(paperAge: number, anodeLifespan: number): number {
+  return Math.max(0, paperAge - anodeLifespan);
+}
+
+/**
+ * Step C: Calculate Stress Factor using pressure
+ * Higher pressure = faster rust on exposed steel
  */
 export function calculateStressFactor(currentPSI: number, baselinePSI: number = 60): number {
-  return Math.pow(currentPSI / baselinePSI, 3);
+  return Math.pow(currentPSI / baselinePSI, 2); // Squared for pressure impact on naked steel
 }
 
 /**
- * Step B: Calculate Defense Factor (Anode Effectiveness)
- * Softener increases water conductivity 2.4x, reducing anode life
- * Depleted/missing anode provides less protection
+ * Step D: Calculate "Naked Steel" aging rate
+ * Once anode is dead: Pressure + Salt = accelerated rust
  */
-export function calculateDefenseFactor(
-  hasSoftener: boolean, 
-  anodeCondition: 'good' | 'depleted' | 'missing'
-): number {
-  const softenerFactor = hasSoftener ? 0.42 : 1.0;
-  const anodeFactor = anodeCondition === 'good' ? 1.0 : 
-                      anodeCondition === 'depleted' ? 0.6 : 0.2;
-  return softenerFactor * anodeFactor;
+export function calculateNakedAgingRate(stressFactor: number): number {
+  return BASE_NAKED_RATE * stressFactor; // Base 2x + pressure multiplier
 }
 
 /**
- * Step C: Calculate Biological Age (Time Dilation)
- * Bio Age = Paper Age × (Stress / Defense)
+ * Step E: Calculate Biological Age using Shield vs Body logic
+ * Protected years age normally (1x)
+ * Naked years age at accelerated rate
  */
 export function calculateBiologicalAge(
-  paperAge: number, 
-  stressFactor: number, 
-  defenseFactor: number
+  paperAge: number,
+  anodeLifespan: number,
+  nakedAgingRate: number
 ): number {
-  return paperAge * (stressFactor / defenseFactor);
+  const protectedYears = Math.min(paperAge, anodeLifespan);
+  const exposureYears = Math.max(0, paperAge - anodeLifespan);
+  
+  // Protected phase: normal aging (1x)
+  // Naked phase: accelerated aging
+  const protectedAging = protectedYears * 1.0;
+  const nakedAging = exposureYears * nakedAgingRate;
+  
+  return protectedAging + nakedAging;
 }
 
 /**
- * Step D: Calculate Failure Probability using Weibull Distribution
+ * Step F: Calculate Failure Probability using Weibull Distribution
  * Standard life expectancy for water heaters is 11.5 years
  */
 export function calculateWeibullProbability(
@@ -82,7 +121,18 @@ export function calculateWeibullProbability(
   shape: number = 2.5
 ): number {
   const probability = 1 - Math.exp(-Math.pow(biologicalAge / lifeExpectancy, shape));
-  return Math.min(99.9, probability * 100);
+  return probability * 100;
+}
+
+/**
+ * Apply safety cap to maintain credibility
+ * No working tank has >45% chance of bursting unless visible rust
+ */
+export function applySafetyCap(calculatedRisk: number, visualRust: boolean = false): number {
+  if (visualRust) {
+    return 99.0; // Override if we physically see a leak
+  }
+  return Math.min(calculatedRisk, MAX_CREDIBLE_RISK);
 }
 
 /**
@@ -91,7 +141,7 @@ export function calculateWeibullProbability(
 export function getBaselineRisk(paperAge: number): BaselineRisk {
   return industryBaseline.find(
     b => paperAge >= b.minAge && paperAge <= b.maxAge
-  ) || industryBaseline[3]; // Default to critical for very old units
+  ) || industryBaseline[3];
 }
 
 /**
@@ -100,41 +150,55 @@ export function getBaselineRisk(paperAge: number): BaselineRisk {
 export function getStatusFromRisk(risk: number): 'safe' | 'moderate' | 'warning' | 'critical' {
   if (risk < 10) return 'safe';
   if (risk < 25) return 'moderate';
-  if (risk < 50) return 'warning';
+  if (risk < 45) return 'warning';
   return 'critical';
 }
 
 /**
  * Master function: Calculate complete risk dilation analysis
+ * Uses "Shield vs. Body" logic for realistic aging
  */
 export function calculateRiskDilation(
   paperAge: number,
   forensics: ForensicInputs
 ): RiskDilationResult {
-  // Step A: Calculate stress from pressure
+  // Step A: When did the shield die?
+  const anodeLifespan = calculateAnodeLifespan(forensics.hasSoftener);
+  
+  // Step B: Calculate exposure years
+  const exposureYears = calculateExposureYears(paperAge, anodeLifespan);
+  const protectedYears = Math.min(paperAge, anodeLifespan);
+  
+  // Step C: Calculate stress from pressure
   const stressFactor = calculateStressFactor(forensics.pressure, forensics.baselinePressure);
   
-  // Step B: Calculate defense from anode condition
-  const defenseFactor = calculateDefenseFactor(forensics.hasSoftener, forensics.anodeCondition);
+  // Step D: Calculate naked aging rate
+  const nakedAgingRate = calculateNakedAgingRate(stressFactor);
   
-  // Step C: Calculate biological age
-  const biologicalAge = calculateBiologicalAge(paperAge, stressFactor, defenseFactor);
+  // Step E: Calculate biological age
+  const biologicalAge = calculateBiologicalAge(paperAge, anodeLifespan, nakedAgingRate);
   
-  // Step D: Calculate forensic risk using Weibull
-  const forensicRisk = calculateWeibullProbability(biologicalAge);
+  // Step F: Calculate raw forensic risk using Weibull
+  const rawForensicRisk = calculateWeibullProbability(biologicalAge);
+  
+  // Apply safety cap for credibility
+  const forensicRisk = applySafetyCap(rawForensicRisk, forensics.visualRust);
   
   // Get baseline risk for comparison
   const baselineData = getBaselineRisk(paperAge);
   const baselineRisk = baselineData.failureProb;
   
-  // Calculate acceleration factor
-  const accelerationFactor = stressFactor / defenseFactor;
+  // Calculate acceleration factor (how much faster than baseline)
+  const accelerationFactor = forensicRisk / Math.max(baselineRisk, 0.1);
+  
+  // Defense factor for display (lower = less protection)
+  const defenseFactor = forensics.hasSoftener ? 0.42 : 1.0;
   
   // Determine status
   const status = getStatusFromRisk(forensicRisk);
   
   // Generate insight text
-  const insight = generateInsight(paperAge, biologicalAge, accelerationFactor, forensics);
+  const insight = generateInsight(paperAge, biologicalAge, exposureYears, forensics);
   
   return {
     paperAge,
@@ -144,6 +208,10 @@ export function calculateRiskDilation(
     accelerationFactor: Math.round(accelerationFactor * 10) / 10,
     stressFactor: Math.round(stressFactor * 100) / 100,
     defenseFactor: Math.round(defenseFactor * 100) / 100,
+    anodeLifespan: Math.round(anodeLifespan * 10) / 10,
+    exposureYears: Math.round(exposureYears * 10) / 10,
+    protectedYears: Math.round(protectedYears * 10) / 10,
+    nakedAgingRate: Math.round(nakedAgingRate * 10) / 10,
     status,
     insight,
   };
@@ -155,26 +223,20 @@ export function calculateRiskDilation(
 function generateInsight(
   paperAge: number,
   biologicalAge: number,
-  accelerationFactor: number,
+  exposureYears: number,
   forensics: ForensicInputs
 ): string {
-  const factors: string[] = [];
+  const riskMultiple = Math.round((biologicalAge / paperAge) * 10) / 10;
+  const yearsAgo = Math.round(exposureYears * 10) / 10;
   
-  if (forensics.hasSoftener) {
-    factors.push('Water Softener (which eats protection)');
+  if (exposureYears <= 0) {
+    return `your tank is ${paperAge} years old and still has active corrosion protection. Standard risk applies.`;
   }
   
-  if (forensics.pressure > 70) {
-    factors.push('Elevated Pressure (which cracks glass)');
-  }
+  const baselineRisk = getBaselineRisk(paperAge).failureProb;
+  const currentRisk = calculateWeibullProbability(biologicalAge);
+  const cappedRisk = applySafetyCap(currentRisk, forensics.visualRust);
+  const riskRatio = Math.round(cappedRisk / baselineRisk);
   
-  if (forensics.anodeCondition !== 'good') {
-    factors.push(`${forensics.anodeCondition === 'depleted' ? 'Depleted' : 'Missing'} Anode Rod`);
-  }
-  
-  const factorText = factors.length > 0 
-    ? `Because you have ${factors.join(' and ')}, your` 
-    : 'Your';
-  
-  return `On paper your tank is ${paperAge} years old. ${factorText} tank has aged ${accelerationFactor.toFixed(1)} years for every 1 year it has been installed. Physically, it is ${Math.round(biologicalAge)} years old.`;
+  return `a normal ${paperAge}-year-old tank has a ${baselineRisk.toFixed(1)}% risk. Yours has a ${cappedRisk.toFixed(1)}% risk. You are ${riskRatio}x more likely to have a flood this year than your neighbor because your protection rod died ${yearsAgo} years ago.`;
 }
