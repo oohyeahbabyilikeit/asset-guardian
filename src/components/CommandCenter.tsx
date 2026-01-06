@@ -3,7 +3,7 @@ import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
-import { RiskComparisonChart } from '@/components/RiskComparisonChart';
+
 import { ServiceHistory } from '@/components/ServiceHistory';
 import { demoAsset, type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
@@ -144,10 +144,6 @@ export function CommandCenter({
           />
         </div>
 
-        {/* Age Comparison Chart */}
-        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.15s' }}>
-          <RiskComparisonChart biologicalAge={bioAge} calendarAge={currentInputs.calendarAge} />
-        </div>
 
         {/* Vitals Grid / Action List */}
         <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.2s' }}>
