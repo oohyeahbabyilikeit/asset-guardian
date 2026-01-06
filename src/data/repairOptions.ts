@@ -132,11 +132,8 @@ export function getAvailableRepairs(
     return options;
   }
 
-  // Full replacement is an option for REPAIR recommendations
-  if (recommendation.action === 'REPAIR') {
-    const replacement = repairOptions.find(r => r.id === 'replace');
-    if (replacement) options.push(replacement);
-  }
+  // Full replacement is ONLY available when algorithm requires it
+  // Do NOT offer replacement for REPAIR/UPGRADE recommendations
 
   // Determine closed loop status
   const isActuallyClosed = inputs.isClosedLoop || inputs.hasPrv;
