@@ -2,7 +2,10 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
-import { demoVitals, demoHealthScore, demoAsset } from '@/data/mockAsset';
+import { RecommendationBanner } from '@/components/RecommendationBanner';
+import { demoVitals, demoHealthScore, demoAsset, demoForensicInputs } from '@/data/mockAsset';
+import { getRecommendation, getLocationRiskLevel } from '@/lib/opterraAlgorithm';
+import { calculateRiskDilation } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
   onPanicMode: () => void;
@@ -15,6 +18,16 @@ export function CommandCenter({
   onServiceRequest, 
   onViewReport 
 }: CommandCenterProps) {
+  // Calculate recommendation using the algorithm
+  const riskResult = calculateRiskDilation(demoAsset.paperAge, demoForensicInputs);
+  const recommendation = getRecommendation(
+    riskResult.forensicRisk,
+    riskResult.biologicalAge,
+    demoForensicInputs.sedimentLoad,
+    demoForensicInputs.estimatedDamage,
+    demoForensicInputs.locationRiskLevel
+  );
+
   return (
     <div className="min-h-screen bg-background pb-40 relative">
       {/* Tech grid background */}
@@ -31,6 +44,11 @@ export function CommandCenter({
           <HealthGauge healthScore={demoHealthScore} location={demoAsset.location} />
         </div>
 
+        {/* Recommendation Banner */}
+        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
+          <RecommendationBanner recommendation={recommendation} />
+        </div>
+
         {/* Vitals Grid / Action List */}
         <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.2s' }}>
           <VitalsGrid vitals={demoVitals} />
@@ -41,6 +59,7 @@ export function CommandCenter({
           onPanicMode={onPanicMode}
           onFixPressure={onServiceRequest}
           onViewReport={onViewReport}
+          recommendation={recommendation}
         />
       </div>
     </div>

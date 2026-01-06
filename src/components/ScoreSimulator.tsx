@@ -256,49 +256,80 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
           </div>
         </div>
 
-        {/* Do Nothing Projection */}
-        <div className="clean-card mb-4 border-red-500/30 bg-red-500/5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="text-sm font-medium text-foreground">If You Do Nothing</span>
-          </div>
-          <p className="text-xs text-muted-foreground mb-4">
-            Without repairs, your water heater will continue to degrade:
-          </p>
-          <div className="space-y-3">
-            {animatedDoNothing.map((projection) => (
-              <div key={projection.months} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">In {projection.months} months</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <span className={`text-sm font-bold font-data ${projection.score >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                      {projection.score}
-                    </span>
-                    <span className="text-xs text-muted-foreground"> score</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-bold font-data text-red-400">
-                      {projection.failureProb}%
-                    </span>
-                    <span className="text-xs text-muted-foreground"> risk</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 pt-3 border-t border-red-500/20">
-            <p className="text-xs text-red-400">
-              ⚠️ At current trajectory, failure becomes likely within 18-24 months
+        {/* Do Nothing Projection - Only show for repairs, not replacement */}
+        {!isFullReplacement && (
+          <div className="clean-card mb-4 border-red-500/30 bg-red-500/5">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <span className="text-sm font-medium text-foreground">If You Do Nothing</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Without repairs, your water heater will continue to degrade:
             </p>
+            <div className="space-y-3">
+              {animatedDoNothing.map((projection) => (
+                <div key={projection.months} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">In {projection.months} months</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className={`text-sm font-bold font-data ${projection.score >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {projection.score}
+                      </span>
+                      <span className="text-xs text-muted-foreground"> score</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-bold font-data text-red-400">
+                        {projection.failureProb}%
+                      </span>
+                      <span className="text-xs text-muted-foreground"> risk</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-3 border-t border-red-500/20">
+              <p className="text-xs text-red-400">
+                At current trajectory, failure becomes likely within 18-24 months
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Selected Repairs Summary */}
+        {/* New System Benefits - Only show for replacement */}
+        {isFullReplacement && (
+          <div className="clean-card mb-4 border-green-500/30 bg-green-500/5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-sm font-medium text-foreground">New System Benefits</span>
+            </div>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                <span>Paper age resets to 0 years</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                <span>Full manufacturer warranty</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                <span>Updated safety features and efficiency</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                <span>New anode rod protection active</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Selected Items Summary */}
         <div className="clean-card mb-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Selected Repairs</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
+            {isFullReplacement ? 'Selected Option' : 'Selected Repairs'}
+          </p>
           <div className="space-y-2">
             {selectedRepairs.map(repair => (
               <div key={repair.id} className="flex items-center">
@@ -313,7 +344,7 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-200/80">
-              These repairs extend life but don't reset the {demoAsset.paperAge}-year paper age. For maximum protection, consider full replacement.
+              These repairs extend life but don't reset the {demoAsset.paperAge}-year paper age.
             </p>
           </div>
         )}
@@ -326,7 +357,7 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule }: ScoreSim
             onClick={onSchedule}
             className="w-full h-14 text-base font-semibold"
           >
-            Schedule These Repairs
+            {isFullReplacement ? 'Request Replacement Quote' : 'Schedule These Repairs'}
           </Button>
         </div>
       </div>
