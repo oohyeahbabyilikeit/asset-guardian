@@ -3,7 +3,7 @@ import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
-import { demoVitals, demoHealthScore, demoAsset, demoForensicInputs } from '@/data/mockAsset';
+import { demoAsset, demoForensicInputs, type VitalsData, type HealthScore } from '@/data/mockAsset';
 import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
@@ -12,14 +12,54 @@ interface CommandCenterProps {
   onViewReport: () => void;
 }
 
+// Derive status from thresholds
+function getStatusFromValue(value: number, warningThreshold: number, criticalThreshold: number): 'optimal' | 'warning' | 'critical' {
+  if (value >= criticalThreshold) return 'critical';
+  if (value >= warningThreshold) return 'warning';
+  return 'optimal';
+}
+
 export function CommandCenter({ 
   onPanicMode, 
   onServiceRequest, 
   onViewReport 
 }: CommandCenterProps) {
-  // Calculate recommendation using v4.0 algorithm
+  // Calculate all metrics using v4.0 algorithm
   const opterraResult = calculateOpterraRisk(demoForensicInputs);
+  const { bioAge, failProb, sedimentLbs } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
+
+  // Derive dynamic vitals from algorithm output
+  const dynamicVitals: VitalsData = {
+    pressure: {
+      current: demoForensicInputs.psi,
+      limit: 80,
+      status: getStatusFromValue(demoForensicInputs.psi, 70, 80),
+    },
+    sedimentLoad: {
+      pounds: sedimentLbs,
+      gasLossEstimate: Math.round(sedimentLbs * 4.5),
+      status: getStatusFromValue(sedimentLbs, 10, 15),
+    },
+    liabilityStatus: {
+      insured: false,
+      location: demoAsset.location,
+      status: demoAsset.location === 'Attic' || demoAsset.location === 'Utility Closet' ? 'critical' : 'warning',
+    },
+    biologicalAge: {
+      real: Math.round(bioAge * 10) / 10,
+      paper: demoForensicInputs.calendarAge,
+      status: getStatusFromValue(bioAge, 8, 12),
+    },
+  };
+
+  // Derive dynamic health score from algorithm output
+  const dynamicHealthScore: HealthScore = {
+    score: Math.round(100 - failProb),
+    status: getStatusFromValue(failProb, 10, 20),
+    failureProbability: Math.round(failProb * 10) / 10,
+    recommendation: recommendation.action,
+  };
 
   return (
     <div className="min-h-screen bg-background pb-40 relative">
@@ -34,7 +74,7 @@ export function CommandCenter({
 
         {/* Hero Health Gauge */}
         <div className="animate-fade-in-up">
-          <HealthGauge healthScore={demoHealthScore} location={demoAsset.location} />
+          <HealthGauge healthScore={dynamicHealthScore} location={demoAsset.location} />
         </div>
 
         {/* Recommendation Banner */}
@@ -44,7 +84,7 @@ export function CommandCenter({
 
         {/* Vitals Grid / Action List */}
         <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.2s' }}>
-          <VitalsGrid vitals={demoVitals} />
+          <VitalsGrid vitals={dynamicVitals} />
         </div>
 
         {/* Action Dock */}
