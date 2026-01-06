@@ -12,107 +12,112 @@ interface HealthGaugeProps {
 
 // Aging Speedometer Component
 function AgingSpeedometer({ agingRate }: { agingRate: number }) {
-  // Clamp aging rate for display (0.5x to 3x range)
+  // Use the displayed (rounded) value for status to avoid mismatch
+  const displayRate = parseFloat(agingRate.toFixed(1));
+  
+  // Clamp for visual needle position (0.5x to 3.0x range)
   const minRate = 0.5;
-  const maxRate = 3;
-  const clampedRate = Math.min(Math.max(agingRate, minRate), maxRate);
+  const maxRate = 3.0;
+  const clampedRate = Math.min(Math.max(displayRate, minRate), maxRate);
   
-  // Calculate needle angle (-135° to +135° = 270° sweep)
+  // Calculate needle angle for a half-circle (-90 to +90 degrees)
   const normalizedRate = (clampedRate - minRate) / (maxRate - minRate);
-  const needleAngle = -135 + (normalizedRate * 270);
+  const needleAngle = -90 + (normalizedRate * 180);
   
-  // Color zones
-  const getZoneColor = () => {
-    if (agingRate <= 1.0) return '#22C55E'; // Green - slower than normal
-    if (agingRate <= 1.5) return '#F59E0B'; // Amber - slightly accelerated
-    return '#EF4444'; // Red - rapid aging
+  // Color based on displayed rate
+  const getColor = () => {
+    if (displayRate <= 1.0) return 'hsl(142 71% 45%)'; // Green
+    if (displayRate <= 1.5) return 'hsl(45 93% 47%)'; // Amber
+    return 'hsl(0 84% 60%)'; // Red
   };
-
+  
+  // Status text aligned with color thresholds
   const getStatusText = () => {
-    if (agingRate <= 0.8) return 'Excellent';
-    if (agingRate <= 1.0) return 'Normal';
-    if (agingRate <= 1.5) return 'Elevated';
-    if (agingRate <= 2.0) return 'High';
+    if (displayRate <= 1.0) return 'Normal';
+    if (displayRate <= 1.5) return 'Elevated';
+    if (displayRate <= 2.0) return 'High';
     return 'Critical';
   };
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-28 h-16 overflow-hidden">
+      {/* Speedometer gauge */}
+      <svg width="100" height="56" viewBox="0 0 100 56" className="overflow-visible">
         {/* Background arc */}
-        <svg className="absolute inset-0 w-28 h-28" viewBox="0 0 100 100">
-          {/* Gauge background */}
-          <path
-            d="M 15 75 A 40 40 0 1 1 85 75"
-            fill="none"
-            stroke="hsl(var(--secondary))"
-            strokeWidth="8"
+        <path
+          d="M 10 52 A 40 40 0 0 1 90 52"
+          fill="none"
+          stroke="hsl(var(--secondary))"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
+        
+        {/* Green zone (0.5x-1.0x) - first 20% of arc */}
+        <path
+          d="M 10 52 A 40 40 0 0 1 22 22"
+          fill="none"
+          stroke="hsl(142 71% 45% / 0.4)"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
+        {/* Amber zone (1.0x-1.5x) - next 20% */}
+        <path
+          d="M 22 22 A 40 40 0 0 1 50 12"
+          fill="none"
+          stroke="hsl(45 93% 47% / 0.4)"
+          strokeWidth="6"
+        />
+        {/* Red zone (1.5x-3.0x) - last 60% */}
+        <path
+          d="M 50 12 A 40 40 0 0 1 90 52"
+          fill="none"
+          stroke="hsl(0 84% 60% / 0.4)"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
+        
+        {/* Needle */}
+        <g 
+          style={{ 
+            transform: `rotate(${needleAngle}deg)`,
+            transformOrigin: '50px 52px',
+            transition: 'transform 0.5s ease-out'
+          }}
+        >
+          <line
+            x1="50"
+            y1="52"
+            x2="50"
+            y2="18"
+            stroke={getColor()}
+            strokeWidth="2.5"
             strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 4px ${getColor()})` }}
           />
-          {/* Green zone (0.5x - 1.0x) */}
-          <path
-            d="M 15 75 A 40 40 0 0 1 28 35"
-            fill="none"
-            stroke="#22C55E"
-            strokeWidth="8"
-            strokeLinecap="round"
-            opacity="0.4"
+          <circle 
+            cx="50" 
+            cy="52" 
+            r="4" 
+            fill={getColor()}
+            style={{ filter: `drop-shadow(0 0 6px ${getColor()})` }}
           />
-          {/* Amber zone (1.0x - 1.5x) */}
-          <path
-            d="M 28 35 A 40 40 0 0 1 50 15"
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth="8"
-            opacity="0.4"
-          />
-          {/* Red zone (1.5x - 3.0x) */}
-          <path
-            d="M 50 15 A 40 40 0 0 1 85 75"
-            fill="none"
-            stroke="#EF4444"
-            strokeWidth="8"
-            strokeLinecap="round"
-            opacity="0.4"
-          />
-          {/* Needle */}
-          <g transform={`rotate(${needleAngle}, 50, 50)`}>
-            <line
-              x1="50"
-              y1="50"
-              x2="50"
-              y2="20"
-              stroke={getZoneColor()}
-              strokeWidth="3"
-              strokeLinecap="round"
-              style={{
-                filter: `drop-shadow(0 0 4px ${getZoneColor()})`,
-              }}
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="5"
-              fill={getZoneColor()}
-              style={{
-                filter: `drop-shadow(0 0 6px ${getZoneColor()})`,
-              }}
-            />
-          </g>
-        </svg>
-      </div>
+        </g>
+      </svg>
       
-      {/* Rate value */}
-      <div className="text-center -mt-1">
+      {/* Rate value and status */}
+      <div className="flex flex-col items-center mt-1">
         <span 
           className="text-xl font-black font-data"
-          style={{ color: getZoneColor() }}
+          style={{ color: getColor() }}
         >
-          {agingRate.toFixed(1)}x
+          {displayRate.toFixed(1)}x
         </span>
-        <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+        <span 
+          className="text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: getColor() }}
+        >
           {getStatusText()}
-        </div>
+        </span>
       </div>
     </div>
   );
