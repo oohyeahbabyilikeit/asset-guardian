@@ -133,10 +133,10 @@ export const demoAsset: AssetData = {
   type: "Water Heater",
   brand: "Rheem",
   model: "Professional Classic Plus",
-  serialNumber: "RH-2018-9942-X",
-  installDate: "2018-03-15",
-  paperAge: 6.0,
-  biologicalAge: 13.0, // Calculated by v4.0 algorithm
+  serialNumber: "RH-2017-9942-X",
+  installDate: "2017-03-15",
+  paperAge: 7.0,
+  biologicalAge: 11.3, // Calculated by v4.0 algorithm
   location: "Attic",
   specs: {
     capacity: "50-Gal",
@@ -149,7 +149,7 @@ export const demoAsset: AssetData = {
 // Demo Forensic Inputs - v4.0 Algorithm Specification
 // "The Softener Accelerator" scenario - Attic location with high damage potential
 export const demoForensicInputs: ForensicInputs = {
-  calendarAge: 6,                    // 6 years since install
+  calendarAge: 7,                    // 7 years since install
   psi: 75,                           // Below 80 PSI threshold
   warrantyYears: 6,                  // Standard 6-year warranty (proxy for anode mass)
   fuelType: 'GAS' as FuelType,       // Natural gas unit
@@ -181,18 +181,18 @@ export const demoVitals: VitalsData = {
     status: 'critical',
   },
   biologicalAge: {
-    real: 13.0, // v4.0 biological age
-    paper: 6.0,
+    real: 11.3, // v4.0 biological age (7yr calendar with softener)
+    paper: 7.0,
     status: 'critical',
   },
 };
 
 // Demo Health Score - Calibrated with v4.0 safety cap
 export const demoHealthScore: HealthScore = {
-  score: 28, // ~28% risk maps to low score
+  score: 77, // 100 - failureProbability
   status: 'critical',
-  failureProbability: 28.5, // Believable risk with safety cap
-  recommendation: "REPLACE ANODE OR TANK",
+  failureProbability: 22.8, // Calculated: 7yr calendar, softener, attic
+  recommendation: "FIX LIABILITY RISK",
 };
 
 // Demo Audit Findings
@@ -217,7 +217,7 @@ export const demoAuditFindings: AuditFinding[] = [
     name: "Anode Rod",
     value: "DEPLETED",
     passed: false,
-    details: "Water softener accelerated anode consumption (2.4x decay rate). Tank has been unprotected for ~3.5 years. Replacement critical.",
+    details: "Water softener accelerated anode consumption (2.4x decay rate). Tank has been unprotected for ~4.5 years. Replacement critical.",
   },
   {
     id: "softener",
