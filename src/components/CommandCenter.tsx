@@ -119,7 +119,7 @@ export function CommandCenter({
 
         {/* Hero Health Gauge */}
         <div className="animate-fade-in-up">
-          <HealthGauge healthScore={dynamicHealthScore} location={currentAsset.location} riskLevel={riskLevel} />
+          <HealthGauge healthScore={dynamicHealthScore} location={currentAsset.location} riskLevel={riskLevel} agingRate={agingRate} />
         </div>
 
         {/* Tank Health / Service History */}
