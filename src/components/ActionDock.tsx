@@ -21,7 +21,7 @@ export function ActionDock({
     
     switch (recommendation.action as ActionType) {
       case 'REPLACE':
-        return recommendation.urgent ? '🆘 Stop Flood' : 'Quote Replacement';
+        return 'Protect Your Home';
       case 'REPAIR':
         return recommendation.title.includes('PRV') ? 'Install PRV' : 
                recommendation.title.includes('Expansion') ? 'Install Expansion Tank' : 
@@ -64,13 +64,13 @@ export function ActionDock({
         <Button
           onClick={onFixPressure}
           size="lg"
-          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 h-auto rounded-xl active:scale-[0.98] transition-all text-lg"
+          className="flex-1 min-w-0 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 h-auto rounded-xl active:scale-[0.98] transition-all text-base"
           style={{
             boxShadow: '0 4px 24px -4px hsl(24 95% 53% / 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)',
           }}
         >
-          {getButtonLabel()}
-          <ChevronRight className="w-5 h-5 ml-2" />
+          <span className="truncate">{getButtonLabel()}</span>
+          <ChevronRight className="w-5 h-5 ml-2 flex-shrink-0" />
         </Button>
       </div>
       
