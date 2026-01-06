@@ -150,37 +150,35 @@ export function IssueSelector({ onBack, onSimulate, currentInputs }: IssueSelect
           }
         </p>
 
-        {/* Full Replacement Option */}
-        {fullReplacement && (
+        {/* Full Replacement Option - ONLY show when replacement is required */}
+        {fullReplacement && replacementRequired && (
           <button
             onClick={() => toggleRepair(fullReplacement.id)}
             className={`w-full text-left mb-6 p-4 rounded-xl border-2 transition-all ${
               isReplacementSelected
-                ? 'border-primary bg-primary/10'
-                : 'border-amber-500/50 bg-amber-500/5 hover:border-amber-500/70'
+                ? 'border-red-500 bg-red-500/10'
+                : 'border-red-500/50 bg-red-500/5 hover:border-red-500/70'
             }`}
             style={{
               boxShadow: isReplacementSelected
-                ? '0 0 20px -4px hsl(var(--primary) / 0.4)'
-                : '0 0 20px -4px rgba(245, 158, 11, 0.2)',
+                ? '0 0 20px -4px rgba(239, 68, 68, 0.4)'
+                : '0 0 20px -4px rgba(239, 68, 68, 0.2)',
             }}
           >
             <div className="flex items-start gap-3">
               <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
                 isReplacementSelected
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-amber-500/50'
+                  ? 'border-red-500 bg-red-500 text-white'
+                  : 'border-red-500/50'
               }`}>
                 {isReplacementSelected && <Check className="w-4 h-4" />}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-foreground">{fullReplacement.name}</span>
-                  {(healthStatus === 'critical' || replacementRequired) && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                      RECOMMENDED
-                    </span>
-                  )}
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                    REQUIRED
+                  </span>
                 </div>
                 <p className="text-sm text-muted-foreground">{fullReplacement.description}</p>
                 <div className="mt-3 space-y-1.5">
@@ -202,14 +200,7 @@ export function IssueSelector({ onBack, onSimulate, currentInputs }: IssueSelect
           </button>
         )}
 
-        {/* Divider - only show if individual repairs are available */}
-        {!replacementRequired && individualRepairs.length > 0 && fullReplacement && (
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground font-medium">OR FIX INDIVIDUAL ISSUES</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-        )}
+        {/* No divider needed - replacement and repairs are mutually exclusive now */}
 
         {/* Individual Repairs - hidden if replacement required */}
         {!replacementRequired && individualRepairs.length > 0 && (
