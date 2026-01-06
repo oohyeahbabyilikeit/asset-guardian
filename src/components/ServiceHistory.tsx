@@ -722,24 +722,29 @@ export function ServiceHistory({
                   <span>Rate:</span>
                   <span className="font-mono text-foreground">+{sedimentRate.toFixed(2)} lbs/yr</span>
                 </div>
-                {flushStatus === 'optimal' && (
+                {flushStatus === 'optimal' && monthsToFlush !== null && (
                   <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
-                    <span>Annual flush due in:</span>
-                    <span className="font-mono font-medium text-green-400">
-                      {monthsToFlush} mo
+                    <span>Schedule flush in:</span>
+                    <span className={cn(
+                      "font-mono font-medium",
+                      monthsToFlush <= 6 ? "text-amber-400" : "text-green-400"
+                    )}>
+                      {monthsToFlush >= 12 
+                        ? `${(monthsToFlush / 12).toFixed(1)} yrs` 
+                        : `${monthsToFlush} mo`}
                     </span>
                   </div>
                 )}
-                {flushStatus === 'schedule' && (
+                {flushStatus === 'schedule' && monthsToFlush !== null && (
                   <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
-                    <span className="text-amber-400">⚠ Annual flush due in:</span>
+                    <span className="text-amber-400">⚠ Flush recommended in:</span>
                     <span className="font-mono font-medium text-amber-400">{monthsToFlush} mo</span>
                   </div>
                 )}
                 {flushStatus === 'due' && (
                   <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
-                    <span className="text-amber-400 font-medium">🔧 Annual flush due</span>
-                    <span className="font-mono text-amber-400">{sedimentLbs.toFixed(1)} lbs built up</span>
+                    <span className="text-amber-400 font-medium">🔧 Flush now</span>
+                    <span className="font-mono text-amber-400">5-15 lb zone</span>
                   </div>
                 )}
                 {flushStatus === 'lockout' && (
