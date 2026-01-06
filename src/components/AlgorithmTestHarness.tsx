@@ -208,7 +208,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
           </Button>
           <div>
             <h1 className="text-lg font-bold">Algorithm Test Harness</h1>
-            <p className="text-xs text-muted-foreground">Opterra v4.0 Rule Engine</p>
+            <p className="text-xs text-muted-foreground">Opterra v5.0 Physics Engine</p>
           </div>
         </div>
       </div>
@@ -392,18 +392,42 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               <div className="font-mono text-sm">{result.verdict.triggerRule}</div>
             </div>
 
-            {/* Metrics Grid */}
+            {/* Core Metrics Grid */}
             <div className="grid grid-cols-2 gap-3">
               <MetricCard 
                 label="Biological Age" 
-                value={result.metrics.bioAgeCapped ? `20+ yrs (raw: ${result.metrics.rawBioAge})` : `${result.metrics.bioAge} yrs`} 
+                value={result.metrics.bioAgeCapped ? `25+ yrs (raw: ${result.metrics.rawBioAge.toFixed(1)})` : `${result.metrics.bioAge.toFixed(1)} yrs`} 
                 highlight={result.metrics.bioAge > 12} 
               />
-              <MetricCard label="Failure Prob" value={`${result.metrics.failProb}%`} highlight={result.metrics.failProb > 20} />
-              <MetricCard label="Sediment Load" value={`${result.metrics.sedimentLbs} lbs`} highlight={result.metrics.sedimentLbs > 15} />
+              <MetricCard label="Failure Prob" value={`${result.metrics.failProb.toFixed(1)}%`} highlight={result.metrics.failProb > 20} />
+              <MetricCard label="Sediment Load" value={`${result.metrics.sedimentLbs.toFixed(1)} lbs`} highlight={result.metrics.sedimentLbs > 15} />
               <MetricCard label="Est. Damage" value={`$${(result.metrics.estDamage / 1000).toFixed(0)}K`} />
-              <MetricCard label="Shield Life" value={`${result.metrics.shieldLife} yrs`} />
-              <MetricCard label="Stress Factor" value={`${result.metrics.stress}x`} highlight={result.metrics.stress >= 10} />
+              <MetricCard label="Shield Life" value={`${result.metrics.shieldLife.toFixed(1)} yrs`} />
+              <MetricCard label="Total Stress" value={`${result.metrics.stress.toFixed(2)}x`} highlight={result.metrics.stress >= 5} />
+            </div>
+
+            {/* Physics Breakdown */}
+            <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                Physics Breakdown (Stress = P × T × L)
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 bg-background rounded border">
+                  <div className="text-xs text-muted-foreground">Pressure</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.pressureStress.toFixed(2)}x</div>
+                  <div className="text-[10px] text-muted-foreground">Basquin's Law</div>
+                </div>
+                <div className="p-2 bg-background rounded border">
+                  <div className="text-xs text-muted-foreground">Thermal</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.tempStress.toFixed(1)}x</div>
+                  <div className="text-[10px] text-muted-foreground">Arrhenius</div>
+                </div>
+                <div className="p-2 bg-background rounded border">
+                  <div className="text-xs text-muted-foreground">Loop</div>
+                  <div className="font-mono font-bold text-sm">{result.metrics.loopPenalty.toFixed(1)}x</div>
+                  <div className="text-[10px] text-muted-foreground">Hammer Effect</div>
+                </div>
+              </div>
             </div>
 
             {/* Flags */}
