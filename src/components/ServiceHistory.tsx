@@ -20,104 +20,90 @@ interface ServiceHistoryProps {
   serviceHistory?: ServiceEvent[];
 }
 
-// Professional Water Heater SVG Diagram Component
+// Simplified Water Heater SVG Diagram Component
 function WaterHeaterDiagram({ 
   anodePercent, 
   sedimentPercent, 
   anodeStatus, 
-  sedimentStatus 
+  sedimentStatus,
+  sedimentLbs
 }: { 
   anodePercent: number; 
   sedimentPercent: number;
   anodeStatus: 'good' | 'warning' | 'critical';
   sedimentStatus: 'good' | 'warning' | 'critical';
+  sedimentLbs: number;
 }) {
   // SVG dimensions
-  const width = 200;
-  const height = 280;
-  const tankWidth = 120;
+  const width = 180;
+  const height = 300;
+  const tankWidth = 100;
   const tankHeight = 200;
   const tankX = (width - tankWidth) / 2;
-  const tankY = 40;
+  const tankY = 50;
   
   // Calculated values
-  const sedimentHeight = (sedimentPercent / 100) * (tankHeight * 0.6);
-  const anodeLength = ((100 - anodePercent) / 100) * (tankHeight * 0.7);
-  const waterLevel = tankHeight - 10;
-  
-  const statusColors = {
-    good: { fill: '#22c55e', glow: 'rgba(34, 197, 94, 0.4)' },
-    warning: { fill: '#f59e0b', glow: 'rgba(245, 158, 11, 0.4)' },
-    critical: { fill: '#ef4444', glow: 'rgba(239, 68, 68, 0.4)' }
-  };
+  const sedimentHeight = Math.max(8, (sedimentPercent / 100) * (tankHeight * 0.5));
+  const anodeFullHeight = tankHeight * 0.7;
+  const anodeDepletedHeight = (anodePercent / 100) * anodeFullHeight;
+  const anodeHealthyHeight = anodeFullHeight - anodeDepletedHeight;
 
   return (
     <svg 
       viewBox={`0 0 ${width} ${height}`} 
-      className="w-full h-auto max-h-[280px]"
+      className="w-full h-auto max-h-[300px]"
       style={{ filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }}
     >
       <defs>
-        {/* Tank body gradient - metallic look */}
+        {/* Tank body gradient - metallic cylinder look */}
         <linearGradient id="tankGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#374151" />
-          <stop offset="15%" stopColor="#4b5563" />
-          <stop offset="50%" stopColor="#6b7280" />
-          <stop offset="85%" stopColor="#4b5563" />
-          <stop offset="100%" stopColor="#374151" />
+          <stop offset="0%" stopColor="#2d3748" />
+          <stop offset="20%" stopColor="#4a5568" />
+          <stop offset="50%" stopColor="#718096" />
+          <stop offset="80%" stopColor="#4a5568" />
+          <stop offset="100%" stopColor="#2d3748" />
         </linearGradient>
         
-        {/* Tank dome gradient */}
-        <radialGradient id="domeGradient" cx="50%" cy="100%" r="100%">
-          <stop offset="0%" stopColor="#6b7280" />
-          <stop offset="100%" stopColor="#374151" />
+        {/* Tank top dome */}
+        <radialGradient id="domeGradient" cx="50%" cy="80%" r="100%">
+          <stop offset="0%" stopColor="#718096" />
+          <stop offset="100%" stopColor="#2d3748" />
         </radialGradient>
         
         {/* Water gradient */}
         <linearGradient id="waterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="rgba(59, 130, 246, 0.15)" />
-          <stop offset="50%" stopColor="rgba(59, 130, 246, 0.25)" />
-          <stop offset="100%" stopColor="rgba(59, 130, 246, 0.35)" />
+          <stop offset="0%" stopColor="rgba(59, 130, 246, 0.1)" />
+          <stop offset="100%" stopColor="rgba(59, 130, 246, 0.25)" />
         </linearGradient>
         
-        {/* Sediment gradient */}
+        {/* Sediment gradient - more prominent */}
         <linearGradient id="sedimentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#92400e" />
-          <stop offset="40%" stopColor="#78350f" />
-          <stop offset="100%" stopColor="#451a03" />
-        </linearGradient>
-        
-        {/* Anode rod gradient - metallic */}
-        <linearGradient id="anodeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#9ca3af" />
-          <stop offset="50%" stopColor="#d1d5db" />
-          <stop offset="100%" stopColor="#9ca3af" />
-        </linearGradient>
-        
-        {/* Corroded anode gradient */}
-        <linearGradient id="corrodedAnodeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#78350f" />
+          <stop offset="0%" stopColor="#b45309" />
           <stop offset="50%" stopColor="#92400e" />
           <stop offset="100%" stopColor="#78350f" />
         </linearGradient>
         
+        {/* Anode healthy gradient */}
+        <linearGradient id="anodeHealthyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#9ca3af" />
+          <stop offset="50%" stopColor="#e5e7eb" />
+          <stop offset="100%" stopColor="#9ca3af" />
+        </linearGradient>
+        
+        {/* Anode depleted gradient - red highlight */}
+        <linearGradient id="anodeDepletedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#dc2626" />
+          <stop offset="50%" stopColor="#ef4444" />
+          <stop offset="100%" stopColor="#dc2626" />
+        </linearGradient>
+        
         {/* Heat element glow */}
         <filter id="heatGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feGaussianBlur stdDeviation="2" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
-        </filter>
-        
-        {/* Inner shadow for tank */}
-        <filter id="innerShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feOffset dx="0" dy="2" />
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="shadowDiff" />
-          <feFlood floodColor="#000000" floodOpacity="0.4" />
-          <feComposite in2="shadowDiff" operator="in" />
-          <feComposite in2="SourceGraphic" operator="over" />
         </filter>
 
         {/* Clip path for tank interior */}
@@ -134,50 +120,60 @@ function WaterHeaterDiagram({
 
       {/* Tank Base/Stand */}
       <rect 
-        x={tankX + 10} 
+        x={tankX + 5} 
         y={tankY + tankHeight} 
-        width={tankWidth - 20} 
-        height="12" 
+        width={tankWidth - 10} 
+        height="10" 
         fill="#1f2937"
         rx="2"
       />
       <rect 
-        x={tankX + 20} 
-        y={tankY + tankHeight + 12} 
-        width="20" 
-        height="8" 
+        x={tankX + 15} 
+        y={tankY + tankHeight + 10} 
+        width="16" 
+        height="6" 
         fill="#111827"
         rx="1"
       />
       <rect 
-        x={tankX + tankWidth - 40} 
-        y={tankY + tankHeight + 12} 
-        width="20" 
-        height="8" 
+        x={tankX + tankWidth - 31} 
+        y={tankY + tankHeight + 10} 
+        width="16" 
+        height="6" 
         fill="#111827"
         rx="1"
       />
 
-      {/* Main Tank Body */}
+      {/* Tank Top Dome */}
+      <ellipse 
+        cx={tankX + tankWidth / 2} 
+        cy={tankY} 
+        rx={tankWidth / 2} 
+        ry="15" 
+        fill="url(#domeGradient)"
+        stroke="#1f2937"
+        strokeWidth="2"
+      />
+
+      {/* Main Tank Body - Cylinder */}
       <rect 
         x={tankX} 
         y={tankY} 
         width={tankWidth} 
         height={tankHeight} 
         fill="url(#tankGradient)"
-        rx="8"
         stroke="#1f2937"
         strokeWidth="2"
       />
       
-      {/* Tank highlight edge */}
+      {/* Tank highlight edge for 3D effect */}
       <rect 
-        x={tankX + 2} 
-        y={tankY + 2} 
-        width="4" 
-        height={tankHeight - 4} 
-        fill="rgba(255,255,255,0.1)"
-        rx="2"
+        x={tankX + 3} 
+        y={tankY + 5} 
+        width="3" 
+        height={tankHeight - 10} 
+        fill="rgba(255,255,255,0.08)"
+        rx="1"
       />
 
       {/* Tank Interior (clipped) */}
@@ -187,22 +183,12 @@ function WaterHeaterDiagram({
           x={tankX + 4} 
           y={tankY + 4} 
           width={tankWidth - 8} 
-          height={waterLevel} 
+          height={tankHeight - sedimentHeight - 8} 
           fill="url(#waterGradient)"
           className="animate-water-shimmer"
         />
-        
-        {/* Water surface shimmer */}
-        <ellipse 
-          cx={tankX + tankWidth / 2} 
-          cy={tankY + 15} 
-          rx={tankWidth / 2 - 10} 
-          ry="4" 
-          fill="rgba(147, 197, 253, 0.2)"
-          className="animate-water-shimmer"
-        />
 
-        {/* Sediment Layer */}
+        {/* Sediment Layer - Prominent */}
         <g className="animate-sediment-settle">
           <rect 
             x={tankX + 4} 
@@ -211,193 +197,151 @@ function WaterHeaterDiagram({
             height={sedimentHeight} 
             fill="url(#sedimentGradient)"
           />
-          {/* Sediment texture lines */}
-          {Array.from({ length: Math.ceil(sedimentPercent / 15) }).map((_, i) => (
-            <line 
-              key={i}
-              x1={tankX + 10} 
-              y1={tankY + tankHeight - sedimentHeight * (i + 1) / Math.ceil(sedimentPercent / 15) - 4}
-              x2={tankX + tankWidth - 10}
-              y2={tankY + tankHeight - sedimentHeight * (i + 1) / Math.ceil(sedimentPercent / 15) - 4}
-              stroke="rgba(120, 53, 15, 0.5)"
-              strokeWidth="1"
-              strokeDasharray="4 2"
-            />
-          ))}
-          {/* Sediment particles */}
-          {sedimentPercent > 20 && (
+          {/* Sediment texture particles */}
+          {sedimentPercent > 10 && (
             <>
-              <circle cx={tankX + 30} cy={tankY + tankHeight - sedimentHeight / 2} r="3" fill="#451a03" opacity="0.6" />
-              <circle cx={tankX + 50} cy={tankY + tankHeight - sedimentHeight / 3} r="2" fill="#451a03" opacity="0.5" />
-              <circle cx={tankX + 80} cy={tankY + tankHeight - sedimentHeight / 2.5} r="2.5" fill="#451a03" opacity="0.6" />
-              <circle cx={tankX + 95} cy={tankY + tankHeight - sedimentHeight / 4} r="2" fill="#451a03" opacity="0.5" />
+              <circle cx={tankX + 25} cy={tankY + tankHeight - sedimentHeight / 2 - 4} r="3" fill="#78350f" opacity="0.7" />
+              <circle cx={tankX + 45} cy={tankY + tankHeight - sedimentHeight / 3 - 4} r="2" fill="#78350f" opacity="0.6" />
+              <circle cx={tankX + 65} cy={tankY + tankHeight - sedimentHeight / 2 - 4} r="2.5" fill="#78350f" opacity="0.7" />
+              <circle cx={tankX + 80} cy={tankY + tankHeight - sedimentHeight / 4 - 4} r="2" fill="#78350f" opacity="0.6" />
             </>
           )}
         </g>
 
         {/* Heating Elements */}
         <g filter="url(#heatGlow)" className="animate-heat-glow">
-          {/* Upper element */}
           <line 
-            x1={tankX + 15} 
+            x1={tankX + 12} 
             y1={tankY + tankHeight * 0.35} 
-            x2={tankX + tankWidth - 15} 
+            x2={tankX + tankWidth - 12} 
             y2={tankY + tankHeight * 0.35}
             stroke="#ef4444"
-            strokeWidth="3"
+            strokeWidth="2"
             strokeLinecap="round"
-            opacity="0.7"
+            opacity="0.6"
           />
-          {/* Lower element */}
           <line 
-            x1={tankX + 15} 
-            y1={tankY + tankHeight * 0.7} 
-            x2={tankX + tankWidth - 15} 
-            y2={tankY + tankHeight * 0.7}
+            x1={tankX + 12} 
+            y1={tankY + tankHeight * 0.65} 
+            x2={tankX + tankWidth - 12} 
+            y2={tankY + tankHeight * 0.65}
             stroke="#ef4444"
-            strokeWidth="3"
+            strokeWidth="2"
             strokeLinecap="round"
-            opacity="0.7"
+            opacity="0.6"
           />
         </g>
 
-        {/* Dip Tube (cold water inlet) */}
-        <rect 
-          x={tankX + 25} 
-          y={tankY} 
-          width="6" 
-          height={tankHeight * 0.8}
-          fill="#374151"
-          stroke="#1f2937"
-          strokeWidth="1"
-        />
-
-        {/* Anode Rod */}
+        {/* Anode Rod with Red Depletion */}
         <g>
-          {/* Anode rod mounting hex */}
-          <polygon 
-            points={`${tankX + tankWidth / 2 - 8},${tankY + 2} ${tankX + tankWidth / 2 + 8},${tankY + 2} ${tankX + tankWidth / 2 + 10},${tankY + 10} ${tankX + tankWidth / 2 + 8},${tankY + 18} ${tankX + tankWidth / 2 - 8},${tankY + 18} ${tankX + tankWidth / 2 - 10},${tankY + 10}`}
-            fill="#4b5563"
-            stroke="#374151"
-            strokeWidth="1"
-          />
-          
-          {/* Corroded portion (top) */}
+          {/* Depleted portion (top) - RED */}
           {anodePercent > 0 && (
             <rect 
-              x={tankX + tankWidth / 2 - 4} 
-              y={tankY + 18} 
-              width="8" 
-              height={(tankHeight * 0.7) * (anodePercent / 100)}
-              fill="url(#corrodedAnodeGradient)"
+              x={tankX + tankWidth / 2 - 5} 
+              y={tankY + 20} 
+              width="10" 
+              height={anodeDepletedHeight}
+              fill="url(#anodeDepletedGradient)"
+              rx="2"
               className="animate-anode-corrode"
             />
           )}
           
-          {/* Healthy portion (bottom) */}
-          <rect 
-            x={tankX + tankWidth / 2 - 4} 
-            y={tankY + 18 + (tankHeight * 0.7) * (anodePercent / 100)} 
-            width="8" 
-            height={anodeLength}
-            fill="url(#anodeGradient)"
-            rx="2"
-          />
-          
-          {/* Anode rod tip */}
-          {anodeLength > 10 && (
-            <ellipse 
-              cx={tankX + tankWidth / 2} 
-              cy={tankY + 18 + (tankHeight * 0.7)} 
-              rx="4" 
-              ry="2" 
-              fill="#9ca3af"
+          {/* Healthy portion (bottom) - Silver */}
+          {anodeHealthyHeight > 0 && (
+            <rect 
+              x={tankX + tankWidth / 2 - 5} 
+              y={tankY + 20 + anodeDepletedHeight} 
+              width="10" 
+              height={anodeHealthyHeight}
+              fill="url(#anodeHealthyGradient)"
+              rx="2"
             />
           )}
         </g>
 
-        {/* Bubbles (when heating) */}
-        <circle cx={tankX + 35} cy={tankY + tankHeight * 0.5} r="2" fill="rgba(255,255,255,0.3)" className="animate-bubble-rise" style={{ animationDelay: '0s' }} />
-        <circle cx={tankX + 70} cy={tankY + tankHeight * 0.55} r="1.5" fill="rgba(255,255,255,0.25)" className="animate-bubble-rise" style={{ animationDelay: '0.5s' }} />
-        <circle cx={tankX + 90} cy={tankY + tankHeight * 0.45} r="2" fill="rgba(255,255,255,0.3)" className="animate-bubble-rise" style={{ animationDelay: '1s' }} />
+        {/* Bubbles */}
+        <circle cx={tankX + 25} cy={tankY + tankHeight * 0.5} r="2" fill="rgba(255,255,255,0.25)" className="animate-bubble-rise" style={{ animationDelay: '0s' }} />
+        <circle cx={tankX + 70} cy={tankY + tankHeight * 0.55} r="1.5" fill="rgba(255,255,255,0.2)" className="animate-bubble-rise" style={{ animationDelay: '0.7s' }} />
       </g>
 
-      {/* Pipe Connections */}
-      {/* Cold Water Inlet (left) */}
+      {/* ANODE Label with line */}
       <g>
-        <rect x={tankX - 20} y={tankY + 15} width="25" height="14" fill="#4b5563" rx="2" />
-        <rect x={tankX - 25} y={tankY + 12} width="10" height="20" fill="#374151" rx="1" />
-        <text x={tankX - 35} y={tankY + 26} fill="#6b7280" fontSize="8" textAnchor="end">COLD</text>
-      </g>
-      
-      {/* Hot Water Outlet (right) */}
-      <g>
-        <rect x={tankX + tankWidth - 5} y={tankY + 15} width="25" height="14" fill="#4b5563" rx="2" />
-        <rect x={tankX + tankWidth + 15} y={tankY + 12} width="10" height="20" fill="#374151" rx="1" />
-        <text x={tankX + tankWidth + 35} y={tankY + 26} fill="#ef4444" fontSize="8" textAnchor="start">HOT</text>
-      </g>
-
-      {/* T&P Relief Valve */}
-      <g>
-        <rect x={tankX + tankWidth - 2} y={tankY + 50} width="18" height="10" fill="#4b5563" rx="2" />
-        <rect x={tankX + tankWidth + 14} y={tankY + 48} width="8" height="14" fill="#374151" rx="1" />
-        <rect x={tankX + tankWidth + 14} y={tankY + 62} width="4" height="30" fill="#4b5563" rx="1" />
-      </g>
-
-      {/* Thermostat/Control Box */}
-      <g>
-        <rect x={tankX + tankWidth - 5} y={tankY + tankHeight * 0.5} width="20" height="35" fill="#1f2937" rx="3" stroke="#374151" strokeWidth="1" />
-        {/* Power indicator */}
-        <circle cx={tankX + tankWidth + 5} cy={tankY + tankHeight * 0.5 + 10} r="3" fill="#22c55e" opacity="0.8" />
-        {/* Dial */}
-        <circle cx={tankX + tankWidth + 5} cy={tankY + tankHeight * 0.5 + 25} r="6" fill="#374151" stroke="#4b5563" strokeWidth="1" />
-        <line x1={tankX + tankWidth + 5} y1={tankY + tankHeight * 0.5 + 22} x2={tankX + tankWidth + 5} y2={tankY + tankHeight * 0.5 + 25} stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-      </g>
-
-      {/* Drain Valve */}
-      <g>
-        <rect x={tankX + 20} y={tankY + tankHeight - 5} width="12" height="15" fill="#374151" rx="2" />
-        <circle cx={tankX + 26} cy={tankY + tankHeight + 8} r="4" fill="#4b5563" stroke="#374151" strokeWidth="1" />
-      </g>
-
-      {/* Status Indicators */}
-      {/* Anode Status */}
-      <g>
+        <line 
+          x1={tankX + tankWidth / 2 + 8} 
+          y1={tankY + 20 + anodeFullHeight / 2} 
+          x2={tankX + tankWidth + 15} 
+          y2={tankY + 20 + anodeFullHeight / 2}
+          stroke="#6b7280"
+          strokeWidth="1"
+          strokeDasharray="2 2"
+        />
         <circle 
-          cx={tankX + tankWidth / 2} 
-          cy={tankY - 15} 
-          r="8" 
-          fill={statusColors[anodeStatus].fill}
-          style={{ filter: `drop-shadow(0 0 6px ${statusColors[anodeStatus].glow})` }}
+          cx={tankX + tankWidth + 15} 
+          cy={tankY + 20 + anodeFullHeight / 2} 
+          r="3" 
+          fill={anodeStatus === 'critical' ? '#ef4444' : anodeStatus === 'warning' ? '#f59e0b' : '#22c55e'}
         />
         <text 
-          x={tankX + tankWidth / 2} 
-          y={tankY - 25} 
+          x={tankX + tankWidth + 22} 
+          y={tankY + 20 + anodeFullHeight / 2 - 6} 
           fill="#9ca3af" 
-          fontSize="8" 
-          textAnchor="middle"
+          fontSize="9" 
+          fontWeight="600"
+          textAnchor="start"
         >
           ANODE
         </text>
+        <text 
+          x={tankX + tankWidth + 22} 
+          y={tankY + 20 + anodeFullHeight / 2 + 6} 
+          fill={anodeStatus === 'critical' ? '#ef4444' : anodeStatus === 'warning' ? '#f59e0b' : '#22c55e'} 
+          fontSize="10" 
+          fontWeight="bold"
+          textAnchor="start"
+          className="font-data"
+        >
+          {(100 - anodePercent).toFixed(0)}%
+        </text>
       </g>
 
-      {/* Sediment Status */}
+      {/* SEDIMENT Label with line */}
       <g>
+        <line 
+          x1={tankX - 5} 
+          y1={tankY + tankHeight - sedimentHeight / 2 - 4} 
+          x2={tankX - 20} 
+          y2={tankY + tankHeight - sedimentHeight / 2 - 4}
+          stroke="#6b7280"
+          strokeWidth="1"
+          strokeDasharray="2 2"
+        />
         <circle 
-          cx={tankX + tankWidth / 2} 
-          cy={tankY + tankHeight + 30} 
-          r="8" 
-          fill={statusColors[sedimentStatus].fill}
-          style={{ filter: `drop-shadow(0 0 6px ${statusColors[sedimentStatus].glow})` }}
+          cx={tankX - 20} 
+          cy={tankY + tankHeight - sedimentHeight / 2 - 4} 
+          r="3" 
+          fill={sedimentStatus === 'critical' ? '#ef4444' : sedimentStatus === 'warning' ? '#f59e0b' : '#22c55e'}
         />
         <text 
-          x={tankX + tankWidth / 2} 
-          y={tankY + tankHeight + 48} 
+          x={tankX - 25} 
+          y={tankY + tankHeight - sedimentHeight / 2 - 10} 
           fill="#9ca3af" 
-          fontSize="8" 
-          textAnchor="middle"
+          fontSize="9" 
+          fontWeight="600"
+          textAnchor="end"
         >
           SEDIMENT
+        </text>
+        <text 
+          x={tankX - 25} 
+          y={tankY + tankHeight - sedimentHeight / 2 + 2} 
+          fill={sedimentStatus === 'critical' ? '#ef4444' : sedimentStatus === 'warning' ? '#f59e0b' : '#22c55e'} 
+          fontSize="10" 
+          fontWeight="bold"
+          textAnchor="end"
+          className="font-data"
+        >
+          {sedimentLbs.toFixed(1)} lbs
         </text>
       </g>
     </svg>
@@ -464,6 +408,7 @@ export function ServiceHistory({
                 sedimentPercent={sedimentPercent}
                 anodeStatus={anodeStatus}
                 sedimentStatus={sedimentStatus}
+                sedimentLbs={sedimentLbs}
               />
               
               {/* Stats Row */}
