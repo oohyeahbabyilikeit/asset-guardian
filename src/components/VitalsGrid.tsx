@@ -1,4 +1,4 @@
-import { Activity, ShieldAlert, CheckCircle2, ChevronRight, Clock, Gauge } from 'lucide-react';
+import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type VitalsData } from '@/data/mockAsset';
 
@@ -18,16 +18,16 @@ interface ActionItemProps {
 
 function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPassed, status }: ActionItemProps) {
   return (
-    <button 
+    <div 
       className={cn(
-        "action-item group",
+        "action-item",
         status === 'critical' && "action-item-critical",
         status === 'warning' && "action-item-warning",
         isPassed && "action-item-optimal"
       )}
     >
       <div className="flex items-center gap-4">
-        <div className={cn("w-11 h-11 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform border", iconBgClass)}>
+        <div className={cn("w-11 h-11 rounded-full flex items-center justify-center border", iconBgClass)}>
           {icon}
         </div>
         <div className="text-left">
@@ -35,8 +35,7 @@ function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPasse
           <div className={cn("text-xs font-bold font-data", subtitleClass)}>{subtitle}</div>
         </div>
       </div>
-      {!isPassed && <ChevronRight className="w-5 h-5 text-muted-foreground/50" />}
-    </button>
+    </div>
   );
 }
 

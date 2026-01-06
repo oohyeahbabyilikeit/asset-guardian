@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, X, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, X, CheckCircle2, Phone, Calendar, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTypewriter } from '@/hooks/useTypewriter';
-import { demoAsset, demoContractor, formatCurrency } from '@/data/mockAsset';
+import { demoAsset, demoContractor } from '@/data/mockAsset';
 import { RepairOption } from '@/data/repairOptions';
 
 interface ServiceRequestProps {
@@ -24,6 +24,8 @@ function generateTicketNumber(): string {
 export function ServiceRequest({ onBack, onCancel, selectedRepairs = [] }: ServiceRequestProps) {
   const [ticketNumber] = useState(generateTicketNumber);
   const [stepStatuses, setStepStatuses] = useState<('pending' | 'ok' | 'sent')[]>(['pending', 'pending', 'pending']);
+  
+  const isReplacement = selectedRepairs.some(r => r.isFullReplacement);
   
   const { displayedLines, currentLineIndex, isComplete } = useTypewriter({
     lines: transmissionSteps,
@@ -109,14 +111,57 @@ export function ServiceRequest({ onBack, onCancel, selectedRepairs = [] }: Servi
         {isComplete && (
           <div className="w-full clean-card text-center animate-fade-in-up">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <span className="text-3xl">👨‍🔧</span>
+              <span className="text-3xl">{isReplacement ? '🔧' : '👨‍🔧'}</span>
             </div>
             
-            <h3 className="font-bold text-lg mb-2">Request Submitted</h3>
+            <h3 className="font-bold text-lg mb-2">
+              {isReplacement ? 'Replacement Quote Requested' : 'Service Request Submitted'}
+            </h3>
             
             <p className="text-sm text-muted-foreground mb-4">
-              Your diagnostic file has been sent. Expect a call within 10 minutes.
+              {isReplacement 
+                ? 'A technician will call within 10 minutes to discuss replacement options and scheduling.'
+                : 'Your diagnostic file has been sent. Expect a call within 10 minutes.'
+              }
             </p>
+
+            {/* What Happens Next */}
+            <div className="bg-muted rounded-xl p-4 text-sm text-left mb-4">
+              <p className="text-muted-foreground mb-3 text-xs font-medium uppercase">What Happens Next</p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Phone className="w-3 h-3 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-foreground font-medium">Call within 10 min</p>
+                    <p className="text-xs text-muted-foreground">Technician reviews your file and confirms details</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-3 h-3 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-foreground font-medium">Schedule visit</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isReplacement ? 'On-site assessment and quote' : 'Technician arrives with parts'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Wrench className="w-3 h-3 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-foreground font-medium">Work completed</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isReplacement ? 'New system installed and tested' : 'Repairs completed, system verified'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Asset Summary */}
             <div className="bg-muted rounded-xl p-4 text-sm text-left mb-4">
@@ -126,7 +171,9 @@ export function ServiceRequest({ onBack, onCancel, selectedRepairs = [] }: Servi
                 <p>• Location: {demoAsset.location}</p>
                 {selectedRepairs.length > 0 && (
                   <>
-                    <p className="mt-2 font-medium">Selected Repairs:</p>
+                    <p className="mt-2 font-medium">
+                      {isReplacement ? 'Requested:' : 'Selected Repairs:'}
+                    </p>
                     {selectedRepairs.map(repair => (
                       <p key={repair.id}>• {repair.name}</p>
                     ))}

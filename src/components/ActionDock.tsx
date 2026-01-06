@@ -1,19 +1,34 @@
 import { AlertTriangle, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Recommendation } from '@/lib/opterraAlgorithm';
 
 interface ActionDockProps {
   onPanicMode: () => void;
   onFixPressure: () => void;
   onViewReport: () => void;
-  estimatedCost?: number;
+  recommendation?: Recommendation;
 }
 
 export function ActionDock({ 
   onPanicMode, 
   onFixPressure, 
-  onViewReport, 
-  estimatedCost = 450 
+  onViewReport,
+  recommendation
 }: ActionDockProps) {
+  // Dynamic button label based on recommendation
+  const getButtonLabel = () => {
+    if (!recommendation) return 'Resolve Issues';
+    if (!recommendation.canRepair && recommendation.action === 'REPLACE') {
+      return 'Get Replacement Quote';
+    }
+    if (recommendation.action === 'REPLACE') {
+      return 'View Options';
+    }
+    if (recommendation.action === 'MONITOR') {
+      return 'Schedule Maintenance';
+    }
+    return 'Resolve Issues';
+  };
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"
       style={{
@@ -44,7 +59,7 @@ export function ActionDock({
             boxShadow: '0 4px 24px -4px hsl(24 95% 53% / 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)',
           }}
         >
-          Resolve Issues
+          {getButtonLabel()}
           <ChevronRight className="w-5 h-5 ml-2" />
         </Button>
       </div>
@@ -55,7 +70,7 @@ export function ActionDock({
           onClick={onViewReport}
           className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
         >
-          View Full Forensic Report
+          See Detailed Analysis
         </button>
       </div>
     </div>
