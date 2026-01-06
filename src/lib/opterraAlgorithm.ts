@@ -218,29 +218,22 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Sediment rate (lbs per year based on water hardness)
   const sedimentRate = data.hardnessGPG * sedFactor;
   
-  // Annual flush scheduling - recommend at least once per year
-  // Calculate months since last flush (assume no flush since install for now)
-  const monthsSinceInstall = data.calendarAge * 12;
-  const monthsSinceLastFlush = monthsSinceInstall; // Could be input later
-  const monthsUntilAnnualDue = Math.max(0, 12 - (monthsSinceLastFlush % 12));
-  
-  // Calculate months until lockout threshold (15 lbs) - still relevant for safety
+  // Calculate months until flush threshold (5 lbs) and lockout threshold (15 lbs)
+  const lbsToFlush = CONSTANTS.LIMIT_SEDIMENT_FLUSH - sedimentLbs;
   const lbsToLockout = CONSTANTS.LIMIT_SEDIMENT_LOCKOUT - sedimentLbs;
+  const monthsToFlush = lbsToFlush > 0 ? Math.ceil((lbsToFlush / sedimentRate) * 12) : null;
   const monthsToLockout = lbsToLockout > 0 ? Math.ceil((lbsToLockout / sedimentRate) * 12) : null;
   
-  // monthsToFlush = months until next annual flush is due
-  const monthsToFlush = monthsUntilAnnualDue;
-  
-  // Determine flush status - annual maintenance schedule
+  // Determine flush status based on sediment level (5-15 lb sweet spot)
   let flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout';
   if (sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_LOCKOUT) {
-    flushStatus = 'lockout'; // Too late, sediment hardened - unsafe to flush
-  } else if (sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH || monthsSinceLastFlush >= 12) {
-    flushStatus = 'due'; // Over 5 lbs OR overdue for annual flush
-  } else if (monthsUntilAnnualDue <= 3) {
-    flushStatus = 'schedule'; // Within 3 months of annual flush due date
+    flushStatus = 'lockout'; // Too late, sediment hardened
+  } else if (sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH) {
+    flushStatus = 'due'; // In the sweet spot (5-15 lbs), flush now
+  } else if (monthsToFlush !== null && monthsToFlush <= 12) {
+    flushStatus = 'schedule'; // Will reach 5 lbs within a year
   } else {
-    flushStatus = 'optimal'; // Recently flushed, under 5 lbs
+    flushStatus = 'optimal'; // Clean, no action needed
   }
 
   // 3. STRESS FACTORS (Split into FATIGUE vs. CORROSION)
