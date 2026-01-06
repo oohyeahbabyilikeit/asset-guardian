@@ -134,6 +134,7 @@ export const demoContractor: ContractorData = {
 };
 
 // Demo Water Heater Asset - "The Softener Accelerator" Scenario
+// Recalibrated: 6 years paper age -> 13 years biological age (not 27.8)
 export const demoAsset: AssetData = {
   id: "RH-9942-X",
   type: "Water Heater",
@@ -142,7 +143,7 @@ export const demoAsset: AssetData = {
   serialNumber: "RH-2018-9942-X",
   installDate: "2018-03-15",
   paperAge: 6.0,
-  biologicalAge: 27.8, // Calculated from forensic inputs
+  biologicalAge: 13.0, // Recalibrated: 2.5 protected + (3.5 × 3.0 naked) = 13
   location: "Attic",
   specs: {
     capacity: "50-Gal",
@@ -161,7 +162,7 @@ export const demoForensicInputs: ForensicInputs = {
   anodeCondition: 'depleted',
 };
 
-// Demo Vitals - Updated for Softener Accelerator demo
+// Demo Vitals - Recalibrated for believable scenario
 export const demoVitals: VitalsData = {
   pressure: {
     current: 75,
@@ -179,18 +180,18 @@ export const demoVitals: VitalsData = {
     status: 'critical',
   },
   biologicalAge: {
-    real: 27.8,
+    real: 13.0, // Recalibrated biological age
     paper: 6.0,
     status: 'critical',
   },
 };
 
-// Demo Health Score - Calculated from Opterra v3.0 algorithm
+// Demo Health Score - Recalibrated with safety cap
 export const demoHealthScore: HealthScore = {
-  score: 8,
+  score: 28, // ~28% risk maps to low score
   status: 'critical',
-  failureProbability: 99.0, // From Weibull calculation
-  recommendation: "IMMEDIATE REPLACEMENT",
+  failureProbability: 28.5, // Believable risk with safety cap
+  recommendation: "REPLACE ANODE OR TANK",
 };
 
 // Demo Audit Findings
