@@ -3,13 +3,13 @@ import { ArrowLeft, TrendingDown, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, simulateRepairs, SimulatedResult } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, formatCurrency } from '@/data/mockAsset';
-import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore } from '@/lib/opterraAlgorithm';
 
 // Calculate health score dynamically from algorithm
 const opterraResult = calculateOpterraRisk(demoForensicInputs);
 const { bioAge, failProb } = opterraResult.metrics;
 const dynamicHealthScore = {
-  score: Math.round(100 - failProb),
+  score: failProbToHealthScore(failProb),
   status: (failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
   failureProbability: Math.round(failProb * 10) / 10,
 };

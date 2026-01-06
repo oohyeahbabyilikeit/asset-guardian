@@ -5,7 +5,7 @@ import {
   demoForensicInputs,
   demoAuditFindings 
 } from '@/data/mockAsset';
-import { calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore } from '@/lib/opterraAlgorithm';
 
 // Calculate all values dynamically from the algorithm
 const opterraResult = calculateOpterraRisk(demoForensicInputs);
@@ -13,7 +13,7 @@ const { bioAge, failProb, sedimentLbs } = opterraResult.metrics;
 
 // Derive dynamic vitals and health score
 const demoHealthScore = {
-  score: Math.round(100 - failProb),
+  score: failProbToHealthScore(failProb),
   status: (failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
   failureProbability: Math.round(failProb * 10) / 10,
   recommendation: opterraResult.verdict.action,
