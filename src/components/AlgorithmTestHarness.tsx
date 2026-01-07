@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap } from 'lucide-react';
+import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,8 @@ const DEFAULT_INPUTS: ForensicInputs = {
   isFinishedArea: false,
   visualRust: false,
   tempSetting: 'NORMAL',
+  lastAnodeReplaceYearsAgo: undefined,
+  lastFlushYearsAgo: undefined,
 };
 
 interface Issue {
@@ -362,6 +364,67 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       <SelectItem value="12">12 Years</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Service History */}
+            <section>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                <Wrench className="w-3.5 h-3.5" /> Service History
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Anode Replaced (years ago)</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={inputs.calendarAge}
+                      value={inputs.lastAnodeReplaceYearsAgo ?? ''}
+                      placeholder="Never"
+                      onChange={(e) => updateInput('lastAnodeReplaceYearsAgo', e.target.value ? Number(e.target.value) : undefined)}
+                      className="h-9"
+                    />
+                    {inputs.lastAnodeReplaceYearsAgo !== undefined && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => updateInput('lastAnodeReplaceYearsAgo', undefined)}
+                        className="h-9 px-2 text-xs"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Leave empty if anode was never replaced</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Last Flush (years ago)</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={inputs.calendarAge}
+                      value={inputs.lastFlushYearsAgo ?? ''}
+                      placeholder="Never"
+                      onChange={(e) => updateInput('lastFlushYearsAgo', e.target.value ? Number(e.target.value) : undefined)}
+                      className="h-9"
+                    />
+                    {inputs.lastFlushYearsAgo !== undefined && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => updateInput('lastFlushYearsAgo', undefined)}
+                        className="h-9 px-2 text-xs"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Leave empty if tank was never flushed</p>
                 </div>
               </div>
             </section>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Gauge, Thermometer, Calendar, Droplets, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, Gauge, Thermometer, Calendar, Droplets, Shield, Wrench } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -150,6 +150,37 @@ export function QuickSimulator({ inputs, onInputsChange }: QuickSimulatorProps) 
                   onCheckedChange={(v) => updateInput('hasPrv', v)} 
                 />
               </div>
+            </div>
+
+            {/* Service History */}
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Wrench className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Service History</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                  <Label className="text-xs">Anode Reset</Label>
+                  <Switch 
+                    checked={inputs.lastAnodeReplaceYearsAgo !== undefined} 
+                    onCheckedChange={(v) => updateInput('lastAnodeReplaceYearsAgo', v ? 1 : undefined)} 
+                  />
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                  <Label className="text-xs">Flushed</Label>
+                  <Switch 
+                    checked={inputs.lastFlushYearsAgo !== undefined} 
+                    onCheckedChange={(v) => updateInput('lastFlushYearsAgo', v ? 1 : undefined)} 
+                  />
+                </div>
+              </div>
+              {(inputs.lastAnodeReplaceYearsAgo !== undefined || inputs.lastFlushYearsAgo !== undefined) && (
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  {inputs.lastAnodeReplaceYearsAgo !== undefined && `Anode: ${inputs.lastAnodeReplaceYearsAgo}yr ago`}
+                  {inputs.lastAnodeReplaceYearsAgo !== undefined && inputs.lastFlushYearsAgo !== undefined && ' • '}
+                  {inputs.lastFlushYearsAgo !== undefined && `Flush: ${inputs.lastFlushYearsAgo}yr ago`}
+                </p>
+              )}
             </div>
           </div>
         </CollapsibleContent>
