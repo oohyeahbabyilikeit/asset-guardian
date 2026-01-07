@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs, calculateOpterraRisk, failProbToHealthScore, type ActionType } from '@/lib/opterraAlgorithm';
 import { InteractiveWaterHeaterDiagram } from './InteractiveWaterHeaterDiagram';
-
+import containmentBreachImage from '@/assets/containment-breach.png';
 interface DiscoveryFlowProps {
   asset: AssetData;
   inputs: ForensicInputs;
@@ -61,26 +61,38 @@ function UrgentAlertStep({
   
   return (
     <div className="space-y-6">
-      {/* Alert Icon */}
-      <div className="flex justify-center">
-        <div className={cn(
-          "w-20 h-20 rounded-full flex items-center justify-center",
-          isBreach 
-            ? "bg-red-500/20 animate-pulse" 
-            : isReplace 
-            ? "bg-red-500/15" 
-            : "bg-amber-500/15"
-        )}>
-          {isBreach ? (
-            <XCircle className="w-10 h-10 text-red-500" />
-          ) : (
+      {/* Containment Breach Image for leaks */}
+      {isBreach && (
+        <div className="relative rounded-xl overflow-hidden border-2 border-red-500/50">
+          <img 
+            src={containmentBreachImage} 
+            alt="Water heater leak damage" 
+            className="w-full h-40 object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          <div className="absolute bottom-3 left-3 right-3">
+            <div className="flex items-center gap-2 text-red-500">
+              <XCircle className="w-5 h-5 animate-pulse" />
+              <span className="text-sm font-bold">Active Containment Breach</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alert Icon - only show if not breach */}
+      {!isBreach && (
+        <div className="flex justify-center">
+          <div className={cn(
+            "w-20 h-20 rounded-full flex items-center justify-center",
+            isReplace ? "bg-red-500/15" : "bg-amber-500/15"
+          )}>
             <AlertOctagon className={cn(
               "w-10 h-10",
               isReplace ? "text-red-500" : "text-amber-500"
             )} />
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Alert Title */}
       <div className="text-center space-y-2">
