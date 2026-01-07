@@ -156,8 +156,13 @@ export function getAvailableRepairs(
       // No expansion tank - MUST offer package deal, not standalone PRV
       const prvPackage = repairOptions.find(r => r.id === 'prv_exp_package');
       if (prvPackage) options.push(prvPackage);
+    } else if (inputs.housePsi > 80) {
+      // Has expansion tank BUT pressure is dangerously high - tank is likely failed/overwhelmed
+      // Must replace expansion tank WITH the PRV install as a mandatory package
+      const prvPackage = repairOptions.find(r => r.id === 'prv_exp_package');
+      if (prvPackage) options.push(prvPackage);
     } else {
-      // Has expansion tank - safe to offer standalone PRV
+      // Has expansion tank and pressure not extreme - safe to offer standalone PRV
       const prv = repairOptions.find(r => r.id === 'prv');
       if (prv) options.push(prv);
     }
@@ -185,7 +190,8 @@ export function getAvailableRepairs(
   }
 
   // Expansion tank replacement if tank exists but pressure still very high
-  if (inputs.hasExpTank && inputs.housePsi > 80) {
+  // Only offer as standalone if PRV already exists (otherwise it's bundled in prv_exp_package above)
+  if (inputs.hasExpTank && inputs.housePsi > 80 && inputs.hasPrv) {
     const replaceExp = repairOptions.find(r => r.id === 'replace_exp');
     if (replaceExp) options.push(replaceExp);
   }
