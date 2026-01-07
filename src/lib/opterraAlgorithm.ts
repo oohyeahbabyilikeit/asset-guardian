@@ -42,9 +42,13 @@ export interface OpterraMetrics {
   shieldLife: number;      // Years until anode was depleted
   stressFactors: {
     total: number;
+    mechanical: number;   // Pressure + Sediment (always applies - anode ignores)
+    chemical: number;     // Temp + Circ + Loop (anode can prevent)
     pressure: number;
-    corrosion: number;  // Combined corrosion factors (temp * circ * loop * sediment)
+    corrosion: number;    // Legacy: same as chemical for backward compat
     temp: number;
+    tempMechanical: number;  // 50% of temp stress (thermal expansion)
+    tempChemical: number;    // 50% of temp stress (rust acceleration)
     circ: number;
     loop: number;
     sediment: number;
@@ -280,42 +284,61 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     flushStatus = 'optimal'; // Clean, no action needed
   }
 
-  // 3. STRESS FACTORS (Split into FATIGUE vs. CORROSION)
+  // 3. STRESS FACTORS (Split into MECHANICAL vs. CHEMICAL)
 
-  // === FATIGUE STRESS (Mechanical - Anode CANNOT Prevent) ===
-  // Pressure cycling causes micro-cracks in glass lining from Day 1
+  // === MECHANICAL STRESS (Fatigue - Anode CANNOT Prevent) ===
+  // These hurt the tank from Day 1, regardless of anode status
   
   // A. Pressure (Basquin's Power Law)
-  const effectivePsi = Math.max(data.psi, CONSTANTS.DESIGN_PSI);
+  // Detect closed loop pressure trap - assume transient spikes during firing
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv;
+  let effectivePsi = data.psi;
+  if (isActuallyClosed && !data.hasExpTank) {
+    // User inputs static pressure, but dynamic spikes to ~130 PSI when firing
+    effectivePsi = Math.max(effectivePsi, 120);
+  }
+  effectivePsi = Math.max(effectivePsi, CONSTANTS.DESIGN_PSI);
   const pressureStress = Math.pow(effectivePsi / CONSTANTS.DESIGN_PSI, CONSTANTS.FATIGUE_EXP);
 
-  // === CORROSION STRESS (Chemical - Anode CAN Prevent) ===
-  // These accelerate electrochemical rust, which the anode fights
-
-  // B. Temperature (Arrhenius with eco reward)
-  let tempStress = 1.0;  // NORMAL baseline (120°F)
-  if (data.tempSetting === 'HOT') tempStress = 2.0;   // 140°F+ accelerates corrosion
-  if (data.tempSetting === 'LOW') tempStress = 0.8;   // 110°F eco mode life extension
-
-  // C. Circulation (Erosion-Corrosion & Duty Cycle)
-  const circStress = data.hasCircPump ? 1.4 : 1.0;
-
-  // D. Closed Loop Hammer (Thermal expansion stress)
-  const isActuallyClosed = data.isClosedLoop || data.hasPrv;
-  const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.5 : 1.0;
-
-  // E. Sediment Stress (Under-deposit corrosion / thermal fatigue)
+  // B. Sediment (Thermal Stress / Overheating) - 100% mechanical
+  // Sediment insulates the tank bottom, causing hot spots and thermal fatigue
   // 0 lbs = 1.0x, 10 lbs = 1.5x, 20 lbs = 2.0x
   const sedimentStress = 1.0 + (sedimentLbs * 0.05);
 
-  // Combine CORROSION factors (excluding pressure - that's fatigue)
-  const corrosionStress = tempStress * circStress * loopPenalty * sedimentStress;
+  // Combine mechanical stresses - these hurt the tank from Day 1
+  const mechanicalStress = pressureStress * sedimentStress;
+
+
+  // === CHEMICAL STRESS (Corrosion - Anode CAN Prevent) ===
+  // These accelerate electrochemical rust, which the anode fights
+
+  // C. Temperature - Split 50/50 (expansion = mechanical, rust = chemical)
+  let tempStressRaw = 1.0;  // NORMAL baseline (120°F)
+  if (data.tempSetting === 'HOT') tempStressRaw = 2.0;   // 140°F+ accelerates both
+  if (data.tempSetting === 'LOW') tempStressRaw = 0.8;   // 110°F eco mode life extension
+  
+  const tempMechanical = Math.sqrt(tempStressRaw);  // 50% mechanical (expansion cycles)
+  const tempChemical = Math.sqrt(tempStressRaw);    // 50% chemical (rust acceleration)
+
+  // D. Circulation (Erosion-Corrosion & Duty Cycle) - 100% chemical
+  const circStress = data.hasCircPump ? 1.4 : 1.0;
+
+  // E. Closed Loop (Dissolved oxygen cycling) - 100% chemical
+  // Note: Pressure spike is handled above in mechanical
+  const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;  // Reduced from 1.5 since pressure handled
+
+  // Combine chemical stresses
+  const chemicalStress = tempChemical * circStress * loopPenalty;
+
+  // Legacy: corrosionStress for backward compatibility (includes all old factors)
+  const corrosionStress = tempStressRaw * circStress * loopPenalty * sedimentStress;
   
   // Combined stress for UI display (Aging Speedometer)
-  const rawStress = pressureStress * corrosionStress;
+  const mechanicalWithTempExpansion = mechanicalStress * tempMechanical;
+  const rawStress = mechanicalWithTempExpansion * chemicalStress;
   const totalStress = Math.min(rawStress, CONSTANTS.MAX_STRESS_CAP);
 
-  // 4. BIOLOGICAL AGE (Fatigue vs. Corrosion Split)
+  // 4. BIOLOGICAL AGE (Mechanical vs. Chemical Split)
   const age = data.calendarAge;
   
   // Time with anode protection vs exposed steel
@@ -323,19 +346,18 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const timeNaked = Math.max(0, age - effectiveShieldDuration);
 
   // === PHASE 1: PROTECTED (Anode Active) ===
-  // Fatigue: Applies 100% - anode cannot prevent mechanical stress from pressure
-  const protectedFatigue = timeProtected * pressureStress;
-  // Corrosion: Suppressed to 10% - anode is actively fighting rust
-  const protectedCorrosion = timeProtected * corrosionStress * 0.1;
+  // Mechanical stress (Pressure + Sediment + Temp expansion) applies 100%
+  const protectedMechanical = timeProtected * mechanicalWithTempExpansion;
+  // Chemical stress (Rust/Circ/Temp corrosion) is suppressed by 90%
+  const protectedChemical = timeProtected * chemicalStress * 0.1;
 
   // === PHASE 2: NAKED (Anode Depleted) ===
-  // Both fatigue and corrosion hit full force
-  // Multiplicative: high pressure OPENS cracks for corrosion to accelerate
-  const nakedStress = Math.min(pressureStress * corrosionStress, CONSTANTS.MAX_STRESS_CAP);
+  // Everything applies 100%
+  const nakedStress = Math.min(mechanicalWithTempExpansion * chemicalStress, CONSTANTS.MAX_STRESS_CAP);
   const nakedAging = timeNaked * nakedStress;
 
   // Final biological age (capped for extreme cases)
-  const rawBioAge = protectedFatigue + protectedCorrosion + nakedAging;
+  const rawBioAge = protectedMechanical + protectedChemical + nakedAging;
   const bioAge = Math.min(rawBioAge, CONSTANTS.MAX_BIO_AGE);
 
   // 5. WEIBULL FAILURE PROBABILITY
@@ -361,8 +383,10 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Calculate OPTIMIZED stress (what if we fix pressure + expansion tank?)
   const optimizedPressureStress = 1.0;  // Fixed to 60 PSI
   const optimizedLoopPenalty = 1.0;     // Expansion tank installed
+  const optimizedMechanical = optimizedPressureStress * sedimentStress * tempMechanical;
+  const optimizedChemical = tempChemical * circStress * optimizedLoopPenalty;
   const optimizedStress = Math.min(
-    optimizedPressureStress * tempStress * circStress * optimizedLoopPenalty * sedimentStress,
+    optimizedMechanical * optimizedChemical,
     CONSTANTS.MAX_STRESS_CAP
   );
 
@@ -375,7 +399,7 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Identify primary stressor for UX messaging
   const stressorFactors = [
     { name: 'High Pressure', value: pressureStress },
-    { name: 'High Temperature', value: tempStress },
+    { name: 'High Temperature', value: tempStressRaw },
     { name: 'Sediment Buildup', value: sedimentStress },
     { name: 'Thermal Expansion', value: loopPenalty },
     { name: 'Circulation Pump', value: circStress }
@@ -390,9 +414,13 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     shieldLife: parseFloat(shieldLife.toFixed(1)),
     stressFactors: {
       total: parseFloat(totalStress.toFixed(2)),
+      mechanical: parseFloat(mechanicalStress.toFixed(2)),
+      chemical: parseFloat(chemicalStress.toFixed(2)),
       pressure: parseFloat(pressureStress.toFixed(2)),
-      corrosion: parseFloat(corrosionStress.toFixed(2)),
-      temp: tempStress,
+      corrosion: parseFloat(corrosionStress.toFixed(2)),  // Legacy backward compat
+      temp: tempStressRaw,
+      tempMechanical: parseFloat(tempMechanical.toFixed(2)),
+      tempChemical: parseFloat(tempChemical.toFixed(2)),
       circ: circStress,
       loop: loopPenalty,
       sediment: parseFloat(sedimentStress.toFixed(2))
