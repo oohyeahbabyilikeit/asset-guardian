@@ -144,7 +144,7 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
   };
 
   return (
-    <div className="clean-card relative overflow-hidden mx-4 mt-4 tech-corners">
+    <div className="clean-card relative overflow-hidden tech-corners">
       {/* Tech grid overlay */}
       <div className="absolute inset-0 tech-grid-bg opacity-30 pointer-events-none" />
       
@@ -165,42 +165,42 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
 
       <div className="relative flex flex-col items-center text-center">
         {/* Header */}
-        <div className="flex items-center gap-2 mb-4 self-start">
-          <Activity className="w-4 h-4 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground font-data">
+        <div className="flex items-center gap-2 mb-3 self-start">
+          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             System Diagnostics
           </span>
         </div>
 
-        {/* Score Ring + Aging Speedometer */}
-        <div className="flex items-center justify-center gap-10 w-full mb-5">
-          {/* Score Ring */}
+        {/* Score Ring + Aging Speedometer - More Compact */}
+        <div className="flex items-center justify-center gap-8 w-full mb-4">
+          {/* Score Ring - Smaller */}
           <div className={cn("relative rounded-full", getGlowClass())}>
-            <div className="w-32 h-32 rounded-full border-[6px] border-secondary flex items-center justify-center bg-card">
+            <div className="w-24 h-24 rounded-full border-[5px] border-secondary flex items-center justify-center bg-card">
               <div className="text-center">
-                <span className="block text-3xl font-black text-foreground tracking-tight font-data">
+                <span className="block text-2xl font-black text-foreground tracking-tight font-data">
                   {score}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">/ 100</span>
+                <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">/ 100</span>
               </div>
             </div>
             
             {/* Colored Progress Ring */}
             <svg 
-              className="absolute top-0 left-0 w-32 h-32 -rotate-90"
+              className="absolute top-0 left-0 w-24 h-24 -rotate-90"
               style={{
-                filter: `drop-shadow(0 0 10px ${getRingColor()})`,
+                filter: `drop-shadow(0 0 8px ${getRingColor()})`,
               }}
             >
               <circle 
-                cx="64" 
-                cy="64" 
-                r="51" 
+                cx="48" 
+                cy="48" 
+                r="42" 
                 fill="none" 
                 stroke={getRingColor()} 
-                strokeWidth="6" 
-                strokeDasharray={320} 
-                strokeDashoffset={320 - (score / 100) * 320} 
+                strokeWidth="5" 
+                strokeDasharray={264} 
+                strokeDashoffset={264 - (score / 100) * 264} 
                 strokeLinecap="round"
                 className="transition-all duration-1000 ease-out"
               />
@@ -211,7 +211,7 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
           <div className="flex flex-col items-center">
             <div className="flex items-center gap-1 mb-1">
               <Gauge className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Aging Rate
               </span>
             </div>
@@ -220,64 +220,64 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
         </div>
 
 
-        {/* Risk Stats Grid */}
-        <div className="w-full grid grid-cols-2 gap-3">
+        {/* Risk Stats Grid - More Compact */}
+        <div className="w-full grid grid-cols-2 gap-2">
           {/* Failure Probability */}
-          <div className="data-box data-box-critical">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-red-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Industry Failure Rate
+          <div className="data-box data-box-critical py-2.5 px-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Failure Rate
               </span>
             </div>
-              <div className="text-2xl font-black text-red-400 font-data">
-                {failureProbability === 'FAIL' 
-                  ? 'FAIL' 
-                  : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
-              </div>
-            <div className="text-[10px] text-muted-foreground mt-1">
-              {failureProbability === 'FAIL' ? 'Breach detected' : 'For similar units'}
+            <div className="text-xl font-black text-red-400 font-data">
+              {failureProbability === 'FAIL' 
+                ? 'FAIL' 
+                : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
+            </div>
+            <div className="text-[9px] text-muted-foreground">
+              {failureProbability === 'FAIL' ? 'Breach detected' : 'Similar units'}
             </div>
           </div>
 
           {/* Location Risk Level */}
           <div className={cn(
-            "data-box",
+            "data-box py-2.5 px-3",
             riskLevel >= 3 ? "data-box-critical" : "data-box-warning"
           )}>
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className={cn("w-4 h-4", riskLevel >= 3 ? "text-red-400" : "text-amber-400")} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center gap-1.5 mb-1">
+              <AlertTriangle className={cn("w-3.5 h-3.5", riskLevel >= 3 ? "text-red-400" : "text-amber-400")} />
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Location Risk
               </span>
             </div>
             <div className={cn(
-              "text-xl font-black font-data",
+              "text-lg font-black font-data",
               riskLevel >= 3 ? "text-red-400" : "text-amber-400"
             )}>
               {riskInfo.label}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">
+            <div className="text-[9px] text-muted-foreground">
               Damage severity
             </div>
           </div>
         </div>
 
-        {/* Location & Context */}
-        <div className="w-full mt-4 p-3 rounded-lg bg-secondary/30 border border-border">
+        {/* Location Context - Compact */}
+        <div className="w-full mt-3 p-2.5 rounded-lg bg-secondary/30 border border-border">
           <div className="flex items-start gap-2 text-left">
             <MapPin className={cn(
-              "w-4 h-4 mt-0.5 shrink-0",
+              "w-3.5 h-3.5 mt-0.5 shrink-0",
               riskLevel >= 3 ? "text-red-400" : "text-amber-400"
             )} />
             <div className="flex-1 min-w-0">
               <span className={cn(
-                "text-[10px] font-bold uppercase tracking-wider font-data",
+                "text-[9px] font-bold uppercase tracking-wider font-data",
                 riskLevel >= 3 ? "text-red-400" : "text-amber-400"
               )}>
                 {location} Installation
               </span>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
                 {riskInfo.description}
               </p>
             </div>
@@ -286,8 +286,8 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
       </div>
       
       {/* Disclaimer */}
-      <p className="text-[9px] text-muted-foreground/60 text-center mt-3">
-        Statistics based on industry data for similar units. Individual results may vary.
+      <p className="text-[8px] text-muted-foreground/60 text-center mt-2">
+        Statistics based on industry data for similar units.
       </p>
     </div>
   );

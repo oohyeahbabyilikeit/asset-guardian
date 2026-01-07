@@ -155,12 +155,12 @@ export function CommandCenter({
         </div>
 
         {/* DISCOVERY PHASE 2: Items to Review */}
-        <div className="px-4 animate-fade-in-up mt-4" style={{ animationDelay: '0.05s' }}>
+        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.05s' }}>
           <VitalsGrid vitals={dynamicVitals} />
         </div>
 
         {/* DISCOVERY PHASE 3: Tank Visualization */}
-        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
+        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.1s' }}>
           <ServiceHistory 
             calendarAge={currentInputs.calendarAge}
             sedimentLbs={sedimentLbs}
@@ -176,7 +176,7 @@ export function CommandCenter({
         </div>
 
         {/* DISCOVERY PHASE 4: Industry Context */}
-        <div className="px-4 animate-fade-in-up mt-4" style={{ animationDelay: '0.15s' }}>
+        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.15s' }}>
           <IndustryBenchmarks 
             asset={currentAsset} 
             inputs={currentInputs}
@@ -185,7 +185,7 @@ export function CommandCenter({
         </div>
 
         {/* ACTION PHASE: What Homeowners Consider */}
-        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.25s' }}>
+        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.2s' }}>
           <RecommendationBanner 
             recommendation={recommendation} 
             agingRate={agingRate}
