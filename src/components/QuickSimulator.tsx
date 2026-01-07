@@ -33,7 +33,7 @@ export function QuickSimulator({ inputs, onInputsChange }: QuickSimulatorProps) 
               <span className="font-semibold text-sm">Quick Simulator</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{inputs.calendarAge}yr • {inputs.psi} PSI</span>
+              <span>{inputs.calendarAge}yr • {inputs.housePsi} PSI</span>
               {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </div>
           </Button>
@@ -65,15 +65,15 @@ export function QuickSimulator({ inputs, onInputsChange }: QuickSimulatorProps) 
               <div className="flex items-center justify-between">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Gauge className="w-3.5 h-3.5" />
-                  Static Pressure
+                  House Pressure
                 </Label>
-                <span className={`text-sm font-mono font-bold ${inputs.psi >= 80 ? 'text-destructive' : inputs.psi >= 70 ? 'text-amber-500' : ''}`}>
-                  {inputs.psi} PSI
+                <span className={`text-sm font-mono font-bold ${inputs.housePsi >= 80 ? 'text-destructive' : inputs.housePsi >= 70 ? 'text-amber-500' : ''}`}>
+                  {inputs.housePsi} PSI
                 </span>
               </div>
               <Slider
-                value={[inputs.psi]}
-                onValueChange={([v]) => updateInput('psi', v)}
+                value={[inputs.housePsi]}
+                onValueChange={([v]) => updateInput('housePsi', v)}
                 min={40}
                 max={140}
                 step={5}

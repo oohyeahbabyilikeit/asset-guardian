@@ -1,8 +1,11 @@
 /**
- * OPTERRA v6.0 Risk Calculation Engine
+ * OPTERRA v6.1 Risk Calculation Engine
  * 
- * A physics-based reliability algorithm for water heater risk assessment.
- * Only recommends action for documented problems - never on healthy systems.
+ * CHANGES v6.1:
+ * - INPUT UPDATE: Renamed 'psi' to 'housePsi' to match technician workflow (Hose Bib Measure).
+ * - PHYSICS ADAPTER: Added 'getEffectivePressure' to calculate internal tank stress (detects Ghost Spikes).
+ * - SAFETY PATCH: Added Tier 0 (Explosion Hazard) & Fixed Tier 2 (Highlander Bug).
+ * - STABILITY: Fixed Division by Zero crash on soft water inputs.
  */
 
 // --- TYPES & INTERFACES ---
@@ -15,12 +18,15 @@ export type RiskLevel = 1 | 2 | 3 | 4;
 export interface ForensicInputs {
   calendarAge: number;     // Years
   warrantyYears: number;   // Standard is 6, 9, or 12
-  psi: number;             // System pressure
-  tempSetting: TempSetting; // HOT = 140°F+
+  
+  // CHANGED: Technician inputs the Static Pressure measured at a fixture (Hose Bib)
+  housePsi: number;        
+  
+  tempSetting: TempSetting; 
   location: LocationType;
-  isFinishedArea: boolean; // Is the area finished (drywall/carpet)?
+  isFinishedArea: boolean; 
   fuelType: FuelType;
-  hardnessGPG: number;     // Grains per gallon
+  hardnessGPG: number;     
   
   // Equipment Flags
   hasSoftener: boolean;
@@ -30,25 +36,29 @@ export interface ForensicInputs {
   isClosedLoop: boolean;   // Check valve or backflow preventer present?
   
   // Visual Inspection
-  visualRust: boolean;     // Visible corrosion on tank body
-  isLeaking?: boolean;     // Active water leak
+  visualRust: boolean;     
+  isLeaking?: boolean;     
 }
 
 export interface OpterraMetrics {
-  bioAge: number;          // The "True" age of the metal
-  failProb: number;        // Probability of failure in next 12mo
-  healthScore: number;     // 0-100 User Facing Score
-  sedimentLbs: number;     // Calculated calcium buildup
-  shieldLife: number;      // Years until anode was depleted
+  bioAge: number;          
+  failProb: number;        
+  healthScore: number;     
+  sedimentLbs: number;     
+  shieldLife: number;      
+  
+  // NEW: The calculated max pressure the tank actually experiences
+  effectivePsi: number;    
+  
   stressFactors: {
     total: number;
-    mechanical: number;   // Pressure + Sediment (always applies - anode ignores)
-    chemical: number;     // Temp + Circ + Loop (anode can prevent)
+    mechanical: number;    
+    chemical: number;      
     pressure: number;
-    corrosion: number;    // Legacy: same as chemical for backward compat
+    corrosion: number;     
     temp: number;
-    tempMechanical: number;  // 50% of temp stress (thermal expansion)
-    tempChemical: number;    // 50% of temp stress (rust acceleration)
+    tempMechanical: number;
+    tempChemical: number;  
     circ: number;
     loop: number;
     sediment: number;
@@ -56,18 +66,18 @@ export interface OpterraMetrics {
   riskLevel: RiskLevel;
   
   // Sediment Projection metrics
-  sedimentRate: number;        // lbs per year accumulation rate
-  monthsToFlush: number | null; // Months until sediment hits 5 lbs (null if already past)
-  monthsToLockout: number | null; // Months until sediment hits 15 lbs (null if already past)
-  flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout'; // Current flush recommendation status
+  sedimentRate: number;        
+  monthsToFlush: number | null; 
+  monthsToLockout: number | null; 
+  flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout'; 
   
   // Aging Speedometer metrics
-  agingRate: number;           // Current stress multiplier (e.g., 3.1x)
-  optimizedRate: number;       // Rate after PRV + expansion tank fixes
-  yearsLeftCurrent: number;    // Remaining life on current path
-  yearsLeftOptimized: number;  // Remaining life if optimized
-  lifeExtension: number;       // Years gained by fixing (ROI)
-  primaryStressor: string;     // Main contributor to accelerated aging
+  agingRate: number;           
+  optimizedRate: number;       
+  yearsLeftCurrent: number;    
+  yearsLeftOptimized: number;  
+  lifeExtension: number;       
+  primaryStressor: string;     
 }
 
 export type ActionType = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
@@ -98,46 +108,45 @@ export interface OpterraResult {
 // --- CONSTANTS & CONFIGURATION ---
 
 const CONSTANTS = {
-  // Weibull Reliability Parameters (Calibrated for Glass-Lined Steel)
-  ETA: 11.5,               // Characteristic Life (63.2% failure point)
-  BETA: 2.2,               // Shape >2.0 indicates wear-out (corrosion) vs random
+  // Weibull Reliability Parameters
+  ETA: 11.5,               
+  BETA: 2.2,               
   
-  // Physics Baselines - Pressure "Buffer Zone" Model
-  // Glass lining is fired at 1600°F. As it cools, steel shrinks more than glass,
-  // creating permanent compressive pre-stress. Glass is strong in compression.
-  // The first ~80 PSI merely "relaxes" this compression - no tensile stress occurs.
-  PSI_SAFE_LIMIT: 80,      // Below this, compressive pre-stress protects the glass
-  PSI_SCALAR: 20,          // Every 20 PSI over limit = 1 "Step" of damage
-  PSI_QUADRATIC_EXP: 2.0,  // Quadratic penalty (steel backing restrains explosive strain)
-  DESIGN_PSI: 60,          // Code-compliant static pressure (reference only)
+  // Physics Baselines
+  PSI_SAFE_LIMIT: 80,      
+  PSI_SCALAR: 20,          
+  PSI_QUADRATIC_EXP: 2.0,  
   
-  // Sediment Accumulation (lbs per year per GPG)
+  // Thermal Expansion Spike Baseline
+  // In a closed loop without an expansion tank, pressure rises until 
+  // the T&P weeps or a fixture leaks. We model this as a chronic 120 PSI spike.
+  PSI_THERMAL_SPIKE: 120, 
+  
+  // Sediment Accumulation
   SEDIMENT_FACTOR_GAS: 0.044, 
   SEDIMENT_FACTOR_ELEC: 0.08,
   
-  // Stress Saturation (Diffusion-Limited Corrosion)
-  MAX_STRESS_CAP: 12.0,    // Max multiplier: 1 year = 12 years wear. Higher = immediate failure (Tier 1)
+  // Limits
+  MAX_STRESS_CAP: 12.0,    
+  MAX_BIO_AGE: 25,         
+  STATISTICAL_CAP: 85.0,   
+  VISUAL_CAP: 99.9,        
   
-  // Critical Thresholds
-  MAX_BIO_AGE: 25,         // Cap for age calculation (extended from 20)
-  STATISTICAL_CAP: 85.0,   // Max probability based on math alone
-  VISUAL_CAP: 99.9,        // Max probability if rust is seen
+  LIMIT_PSI_SAFE: 80,      
+  LIMIT_PSI_CRITICAL: 100, 
+  LIMIT_PSI_EXPLOSION: 150, // T&P Rating (Safety Limit)
   
-  LIMIT_PSI_SAFE: 80,      // Max code-compliant pressure
-  LIMIT_PSI_CRITICAL: 100, // Vessel fatigue threshold
-  LIMIT_PSI_PRV_FAIL: 75,  // If PRV exists but PSI > this, PRV failed
-  LIMIT_PSI_OPTIMIZE: 65,  // Threshold for recommending PRV optimization
+  LIMIT_SEDIMENT_LOCKOUT: 15, 
+  LIMIT_SEDIMENT_FLUSH: 5,     
+  LIMIT_AGE_FRAGILE: 12,       
+  LIMIT_FAILPROB_FRAGILE: 60,  
+  LIMIT_AGE_MAX: 20,       // Hard cap for service life (Fixes Highlander Bug)
   
-  LIMIT_SEDIMENT_LOCKOUT: 15,  // lbs - hardened "limestone" threshold (Killer Flush)
-  LIMIT_SEDIMENT_FLUSH: 5,     // lbs - maintenance threshold (Sweet Spot lower bound)
-  LIMIT_AGE_FRAGILE: 12,       // years - tank too old to safely disturb
-  LIMIT_FAILPROB_FRAGILE: 60,  // % - statistical death threshold
-  
-  // Risk Levels (Severity Index)
-  RISK_LOW: 1 as RiskLevel,      // Concrete/Exterior
-  RISK_MED: 2 as RiskLevel,      // Unfinished Basement/Garage
-  RISK_HIGH: 3 as RiskLevel,     // Finished Basement/Main Floor
-  RISK_EXTREME: 4 as RiskLevel,  // Attic/Upper Floor
+  // Risk Levels
+  RISK_LOW: 1 as RiskLevel,      
+  RISK_MED: 2 as RiskLevel,      
+  RISK_HIGH: 3 as RiskLevel,     
+  RISK_EXTREME: 4 as RiskLevel,  
 };
 
 // --- HELPER FUNCTIONS ---
@@ -238,6 +247,30 @@ export function getRiskLevelInfo(level: RiskLevel): RiskLevelInfo {
   }
 }
 
+/**
+ * PHYSICS ADAPTER
+ * Calculates the ACTUAL pressure the tank experiences (Effective PSI).
+ * 
+ * Scenario A: House PSI is 60. Closed Loop. No Exp Tank.
+ * -> The gauge reads 60, but the tank spikes to ~120 during heating.
+ * -> effectivePsi = 120.
+ * 
+ * Scenario B: House PSI is 90. No PRV.
+ * -> The tank is always at 90.
+ * -> effectivePsi = 90.
+ */
+function getEffectivePressure(data: ForensicInputs): number {
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv;
+  let effectivePsi = data.housePsi;
+  
+  if (isActuallyClosed && !data.hasExpTank) {
+    // If closed loop without protection, tank takes the thermal spike.
+    // We assume a minimum spike to 120 PSI, or the static pressure if higher.
+    effectivePsi = Math.max(effectivePsi, CONSTANTS.PSI_THERMAL_SPIKE);
+  }
+  return effectivePsi;
+}
+
 // --- CORE CALCULATION ENGINE ---
 
 export function calculateHealth(data: ForensicInputs): OpterraMetrics {
@@ -295,28 +328,17 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // === MECHANICAL STRESS (Fatigue - Anode CANNOT Prevent) ===
   // These hurt the tank from Day 1, regardless of anode status
   
-  // A. Pressure (Buffer Zone Model - Compressive Pre-Stress)
-  // The glass lining sits in compression from manufacturing. First 80 PSI just 
-  // "relaxes" the squeeze. Only EXCESS pressure over 80 PSI causes tensile stress.
-  
-  // Detect closed loop pressure trap - assume transient spikes during firing
+  // A. Pressure (Buffer Zone Model)
+  // **KEY CHANGE**: Use calculated Effective PSI for stress modeling
+  const effectivePsi = getEffectivePressure(data);
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
-  let effectivePsi = data.psi;
-  if (isActuallyClosed && !data.hasExpTank) {
-    // User inputs static pressure, but dynamic spikes to ~120-130 PSI when firing
-    effectivePsi = Math.max(effectivePsi, 120);
-  }
-  
-  // Buffer Zone Calculation
+
   let pressureStress = 1.0;
   if (effectivePsi > CONSTANTS.PSI_SAFE_LIMIT) {
-    // Only penalize the "illegal" pressure above the buffer
     const excessPsi = effectivePsi - CONSTANTS.PSI_SAFE_LIMIT;
-    // Quadratic penalty (Power of 2) - steel backing restrains explosive strain
     const penalty = Math.pow(excessPsi / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
     pressureStress = 1.0 + penalty;
   }
-  // Expected outputs: 60 PSI → 1.0x, 80 PSI → 1.0x, 100 PSI → 2.0x, 120 PSI → 5.0x, 140 PSI → 10.0x
 
   // B. Sediment (Thermal Stress / Overheating) - 100% mechanical
   // Sediment insulates the tank bottom, causing hot spots and thermal fatigue
@@ -341,9 +363,10 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // D. Circulation (Erosion-Corrosion & Duty Cycle) - 100% chemical
   const circStress = data.hasCircPump ? 1.4 : 1.0;
 
-  // E. Closed Loop (Dissolved oxygen cycling) - 100% chemical
-  // Note: Pressure spike is handled above in mechanical
-  const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;  // Reduced from 1.5 since pressure handled
+  // E. Closed Loop (Oxygen Cycling)
+  // We reduced the penalty here because the pressure penalty is now handled 
+  // correctly in 'pressureStress' via the getEffectivePressure() function.
+  const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;
 
   // Combine chemical stresses
   const chemicalStress = tempChemical * circStress * loopPenalty;
@@ -437,12 +460,13 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     healthScore: failProbToHealthScore(failProb),
     sedimentLbs: parseFloat(sedimentLbs.toFixed(1)),
     shieldLife: parseFloat(shieldLife.toFixed(1)),
+    effectivePsi: parseFloat(effectivePsi.toFixed(1)), // Derived PSI
     stressFactors: {
       total: parseFloat(totalStress.toFixed(2)),
       mechanical: parseFloat(mechanicalStress.toFixed(2)),
       chemical: parseFloat(chemicalStress.toFixed(2)),
       pressure: parseFloat(pressureStress.toFixed(2)),
-      corrosion: parseFloat(corrosionStress.toFixed(2)),  // Legacy backward compat
+      corrosion: parseFloat(corrosionStress.toFixed(2)),
       temp: tempStressRaw,
       tempMechanical: parseFloat(tempMechanical.toFixed(2)),
       tempChemical: parseFloat(tempChemical.toFixed(2)),
@@ -451,14 +475,10 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
       sediment: parseFloat(sedimentStress.toFixed(2))
     },
     riskLevel: getLocationRisk(data.location, data.isFinishedArea),
-    
-    // Sediment Projection metrics
     sedimentRate: parseFloat(sedimentRate.toFixed(2)),
     monthsToFlush,
     monthsToLockout,
     flushStatus,
-    
-    // Aging Speedometer metrics
     agingRate: parseFloat(currentAgingRate.toFixed(2)),
     optimizedRate: parseFloat(optimizedStress.toFixed(2)),
     yearsLeftCurrent: parseFloat(yearsLeftCurrent.toFixed(1)),
@@ -476,15 +496,14 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
 export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
   
   // ============================================
-  // TIER 0: T&P SAFETY OVERRIDE (Explosion Hazard)
-  // Pressure exceeds T&P relief valve rating - immediate danger
+  // TIER 0: IMMEDIATE EXPLOSION HAZARD
   // ============================================
-  
-  if (data.psi >= 150) {
+  // Checks measured house pressure against T&P rating
+  if (data.housePsi >= CONSTANTS.LIMIT_PSI_EXPLOSION) {
     return {
       action: 'REPLACE',
       title: 'Explosion Hazard',
-      reason: `Pressure (${data.psi} PSI) exceeds T&P relief valve rating (150 PSI). Immediate danger of catastrophic tank rupture.`,
+      reason: `House pressure (${data.housePsi} PSI) exceeds the T&P Safety Valve rating (150 PSI). Unit is a ticking bomb.`,
       urgent: true,
       badgeColor: 'red',
       badge: 'CRITICAL'
@@ -520,12 +539,19 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     };
   }
 
-  // 1C. Structural Fatigue: Critical pressure (>100 PSI) + Old tank (>10 yrs)
-  if (data.psi > CONSTANTS.LIMIT_PSI_CRITICAL && data.calendarAge > 10) {
+  // 1C. Structural Fatigue (Updated Logic)
+  // USES EFFECTIVE PSI to catch hidden thermal expansion damage
+  if (metrics.effectivePsi > CONSTANTS.LIMIT_PSI_CRITICAL && data.calendarAge > 10) {
+    // Distinguish between High House Pressure vs Hidden Spike for the reason text
+    const isGhostSpike = data.housePsi <= 80 && metrics.effectivePsi > 100;
+    const reason = isGhostSpike
+      ? `Tank is fatigued by years of hidden thermal expansion spikes (~${metrics.effectivePsi} PSI) due to missing expansion tank.`
+      : `Long-term exposure to critical pressure (>100 PSI) has compromised the steel tank structure.`;
+
     return {
       action: 'REPLACE',
       title: 'Vessel Fatigue',
-      reason: 'Long-term exposure to critical pressure (>100 PSI) has compromised the steel tank structure.',
+      reason,
       urgent: true,
       badgeColor: 'red',
       badge: 'CRITICAL'
@@ -537,16 +563,13 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
   // Only if failProb exceeds strict thresholds
   // ============================================
   
-  // 2A. Statistical End-of-Life: failProb > 60% OR calendarAge > 20
-  // The failProb > 60 check is mathematically unreachable due to MAX_BIO_AGE cap,
-  // so we add a hard calendar age limit to catch "zombie" tanks.
-  if (metrics.failProb > 60 || data.calendarAge > 20) {
+  // 2A. Statistical End-of-Life (Patched Highlander Loophole)
+  // We added || age > 20 to ensure old tanks don't slip through the math
+  if (metrics.failProb > 60 || data.calendarAge > CONSTANTS.LIMIT_AGE_MAX) {
     return {
       action: 'REPLACE',
       title: 'End of Service Life',
-      reason: data.calendarAge > 20 
-        ? `Unit has exceeded maximum service life (${data.calendarAge} years). Statistical failure risk is unacceptable.`
-        : `Failure probability is ${metrics.failProb.toFixed(0)}%. Repair costs are not justifiable.`,
+      reason: `Unit has exceeded its statistical service life (${data.calendarAge} years / ${metrics.failProb.toFixed(0)}% risk).`,
       urgent: false,
       badgeColor: 'red',
       badge: 'REPLACE'
@@ -587,25 +610,26 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     };
   }
 
-  // 3B. Critical Pressure Violation (PSI > 80) - URGENT
-  if (data.psi > CONSTANTS.LIMIT_PSI_SAFE) {
-    // Determine root cause
+  // 3B. Critical Pressure Violation (House Pressure)
+  // This catches the "High House Pressure" scenario (PRV failed or missing)
+  if (data.housePsi > CONSTANTS.LIMIT_PSI_SAFE) {
     if (data.hasPrv) {
       return {
         action: 'REPAIR',
         title: 'Failed PRV Detected',
-        reason: `System pressure is ${data.psi} PSI despite having a PRV. The valve has failed and needs replacement.`,
+        reason: `House pressure is ${data.housePsi} PSI despite having a PRV. The valve has failed.`,
         urgent: true,
         badgeColor: 'orange',
         badge: 'SERVICE'
       };
     }
     
+    // If we have an Exp Tank but high House PSI
     if (data.hasExpTank) {
       return {
         action: 'REPAIR',
-        title: 'Expansion Tank Failure',
-        reason: 'High pressure detected despite expansion tank presence. Bladder likely ruptured.',
+        title: 'High House Pressure',
+        reason: `Incoming pressure is ${data.housePsi} PSI. PRV required to protect the system.`,
         urgent: true,
         badgeColor: 'orange',
         badge: 'SERVICE'
@@ -615,20 +639,19 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
     return {
       action: 'REPAIR',
       title: 'Critical Pressure Violation',
-      reason: `Water pressure is ${data.psi} PSI (Code Max: 80). Install PRV and Expansion Tank immediately.`,
+      reason: `House pressure is ${data.housePsi} PSI (Code Max: 80). Install PRV and Expansion Tank.`,
       urgent: true,
       badgeColor: 'orange',
       badge: 'SERVICE'
     };
   }
 
-  // 3C. Pressure Optimization (65-80 PSI on young tanks) - NOT URGENT
-  if (!data.hasPrv && data.psi >= CONSTANTS.LIMIT_PSI_OPTIMIZE && data.psi <= CONSTANTS.LIMIT_PSI_SAFE && data.calendarAge < 8) {
-    const improvement = Math.round((metrics.stressFactors.pressure - 1) * 100);
+  // 3C. Pressure Optimization
+  if (!data.hasPrv && data.housePsi >= 65 && data.housePsi <= 80 && data.calendarAge < 8) {
     return {
       action: 'UPGRADE',
       title: 'Pressure Optimization',
-      reason: `Pressure is ${data.psi} PSI. Installing a PRV will reduce tank stress by ~${improvement}% and extend life.`,
+      reason: `Pressure is ${data.housePsi} PSI. Installing a PRV will reduce stress and extend life.`,
       urgent: false,
       badgeColor: 'yellow',
       badge: 'SERVICE'

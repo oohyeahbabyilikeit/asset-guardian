@@ -21,9 +21,9 @@ const demoHealthScore = {
 
 const demoVitals = {
   pressure: {
-    current: demoForensicInputs.psi,
+    current: demoForensicInputs.housePsi,
     limit: 80,
-    status: (demoForensicInputs.psi >= 80 ? 'critical' : demoForensicInputs.psi >= 70 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
+    status: (demoForensicInputs.housePsi >= 80 ? 'critical' : demoForensicInputs.housePsi >= 70 ? 'warning' : 'optimal') as 'critical' | 'warning' | 'optimal',
   },
   sedimentLoad: {
     pounds: sedimentLbs,

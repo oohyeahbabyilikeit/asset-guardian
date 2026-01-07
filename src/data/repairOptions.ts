@@ -139,13 +139,13 @@ export function getAvailableRepairs(
   const isActuallyClosed = inputs.isClosedLoop || inputs.hasPrv;
 
   // PRV recommended at 70+ PSI - reduces strain by ~50% when cut to 60 PSI
-  if (!inputs.hasPrv && inputs.psi >= 70) {
+  if (!inputs.hasPrv && inputs.housePsi >= 70) {
     const prv = repairOptions.find(r => r.id === 'prv');
     if (prv) options.push(prv);
   }
 
   // PRV replacement if PRV exists but pressure still high (failed PRV)
-  if (inputs.hasPrv && inputs.psi > 75) {
+  if (inputs.hasPrv && inputs.housePsi > 75) {
     const replacePrv = repairOptions.find(r => r.id === 'replace_prv');
     if (replacePrv) options.push(replacePrv);
   }
@@ -157,7 +157,7 @@ export function getAvailableRepairs(
   }
 
   // Expansion tank replacement if tank exists but pressure still very high
-  if (inputs.hasExpTank && inputs.psi > 80) {
+  if (inputs.hasExpTank && inputs.housePsi > 80) {
     const replaceExp = repairOptions.find(r => r.id === 'replace_exp');
     if (replaceExp) options.push(replaceExp);
   }

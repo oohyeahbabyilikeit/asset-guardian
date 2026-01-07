@@ -25,7 +25,7 @@ interface AlgorithmTestHarnessProps {
 // Default inputs for a healthy tank
 const DEFAULT_INPUTS: ForensicInputs = {
   calendarAge: 5,
-  psi: 60,
+  housePsi: 60,
   warrantyYears: 6,
   fuelType: 'GAS',
   hardnessGPG: 8,
@@ -88,7 +88,7 @@ const TEST_CASES: TestCase[] = [
     inputs: {
       ...DEFAULT_INPUTS,
       calendarAge: 3,
-      psi: 180,
+      housePsi: 180,
       location: 'GARAGE',
     }
   },
@@ -120,13 +120,13 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
 
   const currentPsiStress = useMemo(() => {
     let stress = 1.0;
-    if (inputs.psi > PSI_SAFE_LIMIT) {
-      const excessPsi = inputs.psi - PSI_SAFE_LIMIT;
+    if (inputs.housePsi > PSI_SAFE_LIMIT) {
+      const excessPsi = inputs.housePsi - PSI_SAFE_LIMIT;
       const penalty = Math.pow(excessPsi / PSI_SCALAR, PSI_QUADRATIC_EXP);
       stress = 1.0 + penalty;
     }
     return stress;
-  }, [inputs.psi]);
+  }, [inputs.housePsi]);
 
   const runCalculation = () => {
     const calcResult = calculateOpterraRisk(inputs);
@@ -174,11 +174,11 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               />
             </div>
             <div>
-              <Label className="text-xs">PSI (Static Pressure)</Label>
+              <Label className="text-xs">House PSI (Hose Bib)</Label>
               <Input
                 type="number"
-                value={inputs.psi}
-                onChange={(e) => updateInput('psi', Number(e.target.value))}
+                value={inputs.housePsi}
+                onChange={(e) => updateInput('housePsi', Number(e.target.value))}
                 className="mt-1"
               />
             </div>
@@ -268,7 +268,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       dot={false}
                     />
                     <ReferenceDot 
-                      x={inputs.psi} 
+                      x={inputs.housePsi} 
                       y={Math.round(currentPsiStress * 100) / 100} 
                       r={6} 
                       fill="hsl(var(--primary))" 
@@ -279,8 +279,8 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 </ResponsiveContainer>
               </div>
               <div className="text-center text-xs text-muted-foreground mt-2">
-                Current: <span className="font-mono font-bold text-foreground">{inputs.psi} PSI</span> → <span className="font-mono font-bold text-primary">{currentPsiStress.toFixed(2)}× stress</span>
-                {inputs.psi <= 80 && <span className="ml-2 text-emerald-500">(Protected by glass pre-stress)</span>}
+                House PSI: <span className="font-mono font-bold text-foreground">{inputs.housePsi}</span> → <span className="font-mono font-bold text-primary">{currentPsiStress.toFixed(2)}× stress</span>
+                {inputs.housePsi <= 80 && <span className="ml-2 text-emerald-500">(Protected by glass pre-stress)</span>}
               </div>
             </div>
 
