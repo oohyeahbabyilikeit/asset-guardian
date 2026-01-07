@@ -269,7 +269,8 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const sedimentLbs = data.calendarAge * effectiveHardness * sedFactor;
   
   // Sediment rate (lbs per year based on EFFECTIVE water hardness)
-  const sedimentRate = effectiveHardness * sedFactor;
+  // Guard against division by zero - use minimum rate of 0.1 lbs/year
+  const sedimentRate = Math.max(0.1, effectiveHardness * sedFactor);
   
   // Calculate months until flush threshold (5 lbs) and lockout threshold (15 lbs)
   const lbsToFlush = CONSTANTS.LIMIT_SEDIMENT_FLUSH - sedimentLbs;
@@ -409,9 +410,16 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
 
   // Calculate remaining capacity and life projection
   const remainingCapacity = Math.max(0, CONSTANTS.MAX_BIO_AGE - bioAge);
-  const yearsLeftCurrent = remainingCapacity > 0 ? remainingCapacity / currentAgingRate : 0;
-  const yearsLeftOptimized = remainingCapacity > 0 ? remainingCapacity / optimizedStress : 0;
-  const lifeExtension = Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
+  
+  // CRITICAL: If tank is breached (leaking or rust), remaining life is ZERO
+  const isBreach = data.visualRust || data.isLeaking;
+  const yearsLeftCurrent = isBreach 
+    ? 0 
+    : (remainingCapacity > 0 ? remainingCapacity / currentAgingRate : 0);
+  const yearsLeftOptimized = isBreach 
+    ? 0 
+    : (remainingCapacity > 0 ? remainingCapacity / optimizedStress : 0);
+  const lifeExtension = isBreach ? 0 : Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
 
   // Identify primary stressor for UX messaging
   const stressorFactors = [
@@ -468,6 +476,22 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
 export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
   
   // ============================================
+  // TIER 0: T&P SAFETY OVERRIDE (Explosion Hazard)
+  // Pressure exceeds T&P relief valve rating - immediate danger
+  // ============================================
+  
+  if (data.psi >= 150) {
+    return {
+      action: 'REPLACE',
+      title: 'Explosion Hazard',
+      reason: `Pressure (${data.psi} PSI) exceeds T&P relief valve rating (150 PSI). Immediate danger of catastrophic tank rupture.`,
+      urgent: true,
+      badgeColor: 'red',
+      badge: 'CRITICAL'
+    };
+  }
+
+  // ============================================
   // TIER 1: SAFETY & PHYSICAL LOCKOUT (Must Replace)
   // Only these conditions warrant immediate replacement
   // ============================================
@@ -513,12 +537,16 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
   // Only if failProb exceeds strict thresholds
   // ============================================
   
-  // 2A. Statistical End-of-Life: failProb > 60%
-  if (metrics.failProb > 60) {
+  // 2A. Statistical End-of-Life: failProb > 60% OR calendarAge > 20
+  // The failProb > 60 check is mathematically unreachable due to MAX_BIO_AGE cap,
+  // so we add a hard calendar age limit to catch "zombie" tanks.
+  if (metrics.failProb > 60 || data.calendarAge > 20) {
     return {
       action: 'REPLACE',
-      title: 'Statistical End-of-Life',
-      reason: `Failure probability is ${metrics.failProb.toFixed(0)}%. Repair costs are not justifiable.`,
+      title: 'End of Service Life',
+      reason: data.calendarAge > 20 
+        ? `Unit has exceeded maximum service life (${data.calendarAge} years). Statistical failure risk is unacceptable.`
+        : `Failure probability is ${metrics.failProb.toFixed(0)}%. Repair costs are not justifiable.`,
       urgent: false,
       badgeColor: 'red',
       badge: 'REPLACE'
