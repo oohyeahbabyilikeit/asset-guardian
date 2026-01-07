@@ -167,12 +167,12 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
 
   return (
     <div className="px-4 space-y-5">
-      {/* Issues Section */}
+      {/* Observations Section */}
       {issues.length > 0 && (
         <div>
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 ml-1 flex items-center gap-2 font-data">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_2px_rgba(239,68,68,0.5)]"></span>
-            Insights ({issues.length})
+            <span className="w-2 h-2 rounded-full bg-amber-500/70"></span>
+            Items to Review ({issues.length})
           </h3>
           <div className="space-y-3">
             {issues.map((item, idx) => (

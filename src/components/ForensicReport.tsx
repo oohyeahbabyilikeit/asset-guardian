@@ -96,7 +96,8 @@ function EvidenceLockerSection({ findings }: { findings: AuditFinding[] }) {
   );
 }
 
-function VerdictSection({ failProb, recommendation, onDownloadPDF }: { 
+
+function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
   failProb: number; 
   recommendation: ReturnType<typeof calculateOpterraRisk>['verdict'];
   onDownloadPDF: () => void;
@@ -104,15 +105,18 @@ function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
   return (
     <section className="clean-card mx-4 mb-4">
       <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
-        Section 3: The Verdict
+        Section 3: Summary & Statistics
       </h3>
 
       <div className="text-center py-4">
         <p className="text-xs text-muted-foreground mb-1">
-          Actuarial Failure Probability
+          Statistical Failure Rate
         </p>
         <p className="text-5xl font-black text-red-600">
           {failProb.toFixed(0)}%
+        </p>
+        <p className="text-[10px] text-muted-foreground mt-2">
+          Based on industry data for similar units
         </p>
         
         <div className="mt-6 pt-4 border-t border-border">
@@ -126,7 +130,7 @@ function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
         className="w-full mt-4 h-12 rounded-xl"
       >
         <Download className="w-4 h-4 mr-2" />
-        Download Insurance PDF
+        Download Report PDF
       </Button>
     </section>
   );
