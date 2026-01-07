@@ -1,15 +1,116 @@
 import { useState } from 'react';
-import { BarChart3, ChevronDown, ChevronUp, Droplets, Gauge, ThermometerSun, Zap } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, Droplets, Gauge, ThermometerSun, Zap, Activity } from 'lucide-react';
 import { AssetData } from '@/data/mockAsset';
 import { ForensicInputs } from '@/lib/opterraAlgorithm';
+import { cn } from '@/lib/utils';
 
 interface IndustryBenchmarksProps {
   asset: AssetData;
   inputs: ForensicInputs;
   onLearnMore: (topic: string) => void;
+  agingRate?: number;
 }
 
-export function IndustryBenchmarks({ asset, inputs, onLearnMore }: IndustryBenchmarksProps) {
+// Aging Speedometer Component
+function AgingSpeedometer({ agingRate }: { agingRate: number }) {
+  const displayRate = parseFloat(agingRate.toFixed(1));
+  
+  const minRate = 0.5;
+  const maxRate = 3.0;
+  const clampedRate = Math.min(Math.max(displayRate, minRate), maxRate);
+  
+  const normalizedRate = (clampedRate - minRate) / (maxRate - minRate);
+  const needleAngle = -90 + (normalizedRate * 180);
+  
+  const getColor = () => {
+    if (displayRate <= 1.0) return 'hsl(142 71% 45%)';
+    if (displayRate <= 1.5) return 'hsl(45 93% 47%)';
+    return 'hsl(0 84% 60%)';
+  };
+  
+  const getStatusText = () => {
+    if (displayRate <= 1.0) return 'Normal';
+    if (displayRate <= 1.5) return 'Elevated';
+    if (displayRate <= 2.0) return 'High';
+    return 'Critical';
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="80" height="46" viewBox="0 0 100 56" className="overflow-visible">
+        <path
+          d="M 10 52 A 40 40 0 0 1 90 52"
+          fill="none"
+          stroke="hsl(var(--secondary))"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
+        <path
+          d="M 10 52 A 40 40 0 0 1 22 22"
+          fill="none"
+          stroke="hsl(142 71% 45% / 0.4)"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
+        <path
+          d="M 22 22 A 40 40 0 0 1 50 12"
+          fill="none"
+          stroke="hsl(45 93% 47% / 0.4)"
+          strokeWidth="6"
+        />
+        <path
+          d="M 50 12 A 40 40 0 0 1 90 52"
+          fill="none"
+          stroke="hsl(0 84% 60% / 0.4)"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
+        <g 
+          style={{ 
+            transform: `rotate(${needleAngle}deg)`,
+            transformOrigin: '50px 52px',
+            transition: 'transform 0.5s ease-out'
+          }}
+        >
+          <line
+            x1="50"
+            y1="52"
+            x2="50"
+            y2="18"
+            stroke={getColor()}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 4px ${getColor()})` }}
+          />
+          <circle 
+            cx="50" 
+            cy="52" 
+            r="4" 
+            fill={getColor()}
+            style={{ filter: `drop-shadow(0 0 6px ${getColor()})` }}
+          />
+        </g>
+      </svg>
+      
+      <div className="flex flex-col items-center">
+        <span 
+          className="text-lg font-black font-data"
+          style={{ color: getColor() }}
+        >
+          {displayRate.toFixed(1)}x
+        </span>
+        <span 
+          className="text-[9px] font-semibold uppercase tracking-wider"
+          style={{ color: getColor() }}
+        >
+          {getStatusText()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0 }: IndustryBenchmarksProps) {
   const [expandedFactor, setExpandedFactor] = useState<string | null>(null);
 
   const averageLifespan = inputs.fuelType === 'GAS' ? 12 : 13;
@@ -72,35 +173,49 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore }: IndustryBench
 
       {/* Content */}
       <div className="p-4 space-y-4">
-        {/* Lifespan Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-baseline">
-            <span className="text-xs text-muted-foreground">Average Lifespan</span>
-            <span className="text-xs text-muted-foreground">10-{averageLifespan} years</span>
-          </div>
-          
-          <div className="relative">
-            <div className="h-2.5 bg-muted/30 rounded-full overflow-hidden">
+        {/* Lifespan + Aging Rate Row */}
+        <div className="flex items-start gap-4">
+          {/* Lifespan Progress */}
+          <div className="flex-1 space-y-2">
+            <div className="flex justify-between items-baseline">
+              <span className="text-xs text-muted-foreground">Average Lifespan</span>
+              <span className="text-xs text-muted-foreground">10-{averageLifespan} years</span>
+            </div>
+            
+            <div className="relative">
+              <div className="h-2.5 bg-muted/30 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 rounded-full transition-all duration-500"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              {/* Marker for current age */}
               <div 
-                className="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 rounded-full transition-all duration-500"
-                style={{ width: '100%' }}
-              />
+                className="absolute top-0 h-2.5 flex items-center justify-center transition-all duration-500"
+                style={{ left: `${lifespanProgress}%`, transform: 'translateX(-50%)' }}
+              >
+                <div className="w-0.5 h-4 bg-foreground rounded-full shadow-lg" />
+              </div>
             </div>
-            {/* Marker for current age */}
-            <div 
-              className="absolute top-0 h-2.5 flex items-center justify-center transition-all duration-500"
-              style={{ left: `${lifespanProgress}%`, transform: 'translateX(-50%)' }}
-            >
-              <div className="w-0.5 h-4 bg-foreground rounded-full shadow-lg" />
+            
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-muted-foreground">0 years</span>
+              <span className="text-xs font-semibold text-foreground">
+                Your unit: {asset.paperAge} years
+              </span>
+              <span className="text-[10px] text-muted-foreground">{averageLifespan} years</span>
             </div>
           </div>
-          
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] text-muted-foreground">0 years</span>
-            <span className="text-xs font-semibold text-foreground">
-              Your unit: {asset.paperAge} years
-            </span>
-            <span className="text-[10px] text-muted-foreground">{averageLifespan} years</span>
+
+          {/* Aging Rate Speedometer */}
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-1 mb-1">
+              <Activity className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Aging Rate
+              </span>
+            </div>
+            <AgingSpeedometer agingRate={agingRate} />
           </div>
         </div>
 

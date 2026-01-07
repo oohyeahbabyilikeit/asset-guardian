@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, TrendingUp, MapPin, AlertTriangle, Activity, Gauge } from 'lucide-react';
+import { AlertCircle, CheckCircle2, TrendingUp, MapPin, AlertTriangle, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
 import { getRiskLevelInfo, type RiskLevel } from '@/lib/opterraAlgorithm';
@@ -7,130 +7,11 @@ interface HealthGaugeProps {
   healthScore: HealthScoreType;
   location: string;
   riskLevel: RiskLevel;
-  agingRate?: number;
 }
 
-// Aging Speedometer Component
-function AgingSpeedometer({ agingRate }: { agingRate: number }) {
-  // Use the displayed (rounded) value for status to avoid mismatch
-  const displayRate = parseFloat(agingRate.toFixed(1));
-  
-  // Clamp for visual needle position (0.5x to 3.0x range)
-  const minRate = 0.5;
-  const maxRate = 3.0;
-  const clampedRate = Math.min(Math.max(displayRate, minRate), maxRate);
-  
-  // Calculate needle angle for a half-circle (-90 to +90 degrees)
-  const normalizedRate = (clampedRate - minRate) / (maxRate - minRate);
-  const needleAngle = -90 + (normalizedRate * 180);
-  
-  // Color based on displayed rate
-  const getColor = () => {
-    if (displayRate <= 1.0) return 'hsl(142 71% 45%)'; // Green
-    if (displayRate <= 1.5) return 'hsl(45 93% 47%)'; // Amber
-    return 'hsl(0 84% 60%)'; // Red
-  };
-  
-  // Status text aligned with color thresholds
-  const getStatusText = () => {
-    if (displayRate <= 1.0) return 'Normal';
-    if (displayRate <= 1.5) return 'Elevated';
-    if (displayRate <= 2.0) return 'High';
-    return 'Critical';
-  };
-
-  return (
-    <div className="flex flex-col items-center">
-      {/* Speedometer gauge */}
-      <svg width="100" height="56" viewBox="0 0 100 56" className="overflow-visible">
-        {/* Background arc */}
-        <path
-          d="M 10 52 A 40 40 0 0 1 90 52"
-          fill="none"
-          stroke="hsl(var(--secondary))"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-        
-        {/* Green zone (0.5x-1.0x) - first 20% of arc */}
-        <path
-          d="M 10 52 A 40 40 0 0 1 22 22"
-          fill="none"
-          stroke="hsl(142 71% 45% / 0.4)"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-        {/* Amber zone (1.0x-1.5x) - next 20% */}
-        <path
-          d="M 22 22 A 40 40 0 0 1 50 12"
-          fill="none"
-          stroke="hsl(45 93% 47% / 0.4)"
-          strokeWidth="6"
-        />
-        {/* Red zone (1.5x-3.0x) - last 60% */}
-        <path
-          d="M 50 12 A 40 40 0 0 1 90 52"
-          fill="none"
-          stroke="hsl(0 84% 60% / 0.4)"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-        
-        {/* Needle */}
-        <g 
-          style={{ 
-            transform: `rotate(${needleAngle}deg)`,
-            transformOrigin: '50px 52px',
-            transition: 'transform 0.5s ease-out'
-          }}
-        >
-          <line
-            x1="50"
-            y1="52"
-            x2="50"
-            y2="18"
-            stroke={getColor()}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            style={{ filter: `drop-shadow(0 0 4px ${getColor()})` }}
-          />
-          <circle 
-            cx="50" 
-            cy="52" 
-            r="4" 
-            fill={getColor()}
-            style={{ filter: `drop-shadow(0 0 6px ${getColor()})` }}
-          />
-        </g>
-      </svg>
-      
-      {/* Rate value and status */}
-      <div className="flex flex-col items-center mt-1">
-        <span 
-          className="text-xl font-black font-data"
-          style={{ color: getColor() }}
-        >
-          {displayRate.toFixed(1)}x
-        </span>
-        <span 
-          className="text-[10px] font-semibold uppercase tracking-wider"
-          style={{ color: getColor() }}
-        >
-          {getStatusText()}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugeProps) {
   const { score, status, failureProbability } = healthScore;
   const riskInfo = getRiskLevelInfo(riskLevel);
-  
-  // Calculate stroke dash offset for the ring
-  const circumference = 351;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
-
 
   const getRingColor = () => {
     if (status === 'critical') return '#EF4444';
@@ -172,9 +53,9 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
           </span>
         </div>
 
-        {/* Score Ring + Aging Speedometer - More Compact */}
-        <div className="flex items-center justify-center gap-8 w-full mb-4">
-          {/* Score Ring - Smaller */}
+        {/* Score Ring + Stats Row */}
+        <div className="flex items-center justify-center gap-6 w-full mb-4">
+          {/* Score Ring */}
           <div className={cn("relative rounded-full", getGlowClass())}>
             <div className="w-24 h-24 rounded-full border-[5px] border-secondary flex items-center justify-center bg-card">
               <div className="text-center">
@@ -207,64 +88,46 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
             </svg>
           </div>
 
-          {/* Aging Speedometer */}
-          <div className="flex flex-col items-center">
-            <div className="flex items-center gap-1 mb-1">
-              <Gauge className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Aging Rate
-              </span>
+          {/* Stats Column */}
+          <div className="flex flex-col gap-2">
+            {/* Failure Probability */}
+            <div className="data-box data-box-critical py-2 px-3">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <TrendingUp className="w-3 h-3 text-red-400" />
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Failure Rate
+                </span>
+              </div>
+              <div className="text-lg font-black text-red-400 font-data">
+                {failureProbability === 'FAIL' 
+                  ? 'FAIL' 
+                  : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
+              </div>
             </div>
-            <AgingSpeedometer agingRate={agingRate} />
-          </div>
-        </div>
 
-
-        {/* Risk Stats Grid - More Compact */}
-        <div className="w-full grid grid-cols-2 gap-2">
-          {/* Failure Probability */}
-          <div className="data-box data-box-critical py-2.5 px-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Failure Rate
-              </span>
-            </div>
-            <div className="text-xl font-black text-red-400 font-data">
-              {failureProbability === 'FAIL' 
-                ? 'FAIL' 
-                : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
-            </div>
-            <div className="text-[9px] text-muted-foreground">
-              {failureProbability === 'FAIL' ? 'Breach detected' : 'Similar units'}
-            </div>
-          </div>
-
-          {/* Location Risk Level */}
-          <div className={cn(
-            "data-box py-2.5 px-3",
-            riskLevel >= 3 ? "data-box-critical" : "data-box-warning"
-          )}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <AlertTriangle className={cn("w-3.5 h-3.5", riskLevel >= 3 ? "text-red-400" : "text-amber-400")} />
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Location Risk
-              </span>
-            </div>
+            {/* Location Risk Level */}
             <div className={cn(
-              "text-lg font-black font-data",
-              riskLevel >= 3 ? "text-red-400" : "text-amber-400"
+              "data-box py-2 px-3",
+              riskLevel >= 3 ? "data-box-critical" : "data-box-warning"
             )}>
-              {riskInfo.label}
-            </div>
-            <div className="text-[9px] text-muted-foreground">
-              Damage severity
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <AlertTriangle className={cn("w-3 h-3", riskLevel >= 3 ? "text-red-400" : "text-amber-400")} />
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Location Risk
+                </span>
+              </div>
+              <div className={cn(
+                "text-lg font-black font-data",
+                riskLevel >= 3 ? "text-red-400" : "text-amber-400"
+              )}>
+                {riskInfo.label}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Location Context - Compact */}
-        <div className="w-full mt-3 p-2.5 rounded-lg bg-secondary/30 border border-border">
+        {/* Location Context */}
+        <div className="w-full p-2.5 rounded-lg bg-secondary/30 border border-border">
           <div className="flex items-start gap-2 text-left">
             <MapPin className={cn(
               "w-3.5 h-3.5 mt-0.5 shrink-0",
