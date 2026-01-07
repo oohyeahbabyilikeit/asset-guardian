@@ -284,6 +284,11 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
           </div>
         </div>
       </div>
+      
+      {/* Liability Disclaimer */}
+      <p className="text-[9px] text-muted-foreground/60 text-center mt-3">
+        Assessment based on provided data. Professional inspection recommended.
+      </p>
     </div>
   );
 }
