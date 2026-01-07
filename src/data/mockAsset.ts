@@ -413,7 +413,7 @@ export function generateAuditFindings(
     details: pressurePassed
       ? inputs.housePsi >= 70 
         ? 'Elevated but within warranty threshold. Consider PRV to reduce strain by ~50%.'
-        : 'Within safe operating range. No action required.'
+        : 'Currently within typical operating range. Routine monitoring recommended.'
       : `Exceeds 80 PSI warranty threshold. High pressure accelerates tank wear by ${((metrics.stressFactors.pressure - 1) * 100).toFixed(0)}%.`,
     photoUrl: '/placeholder.svg',
   });

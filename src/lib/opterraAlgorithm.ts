@@ -766,16 +766,16 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   }
 
   // ============================================
-  // TIER 4: PASS (System Healthy)
+  // TIER 4: PASS (No Immediate Issues Detected)
   // ============================================
   
   return {
     action: 'PASS',
-    title: 'System Healthy',
-    reason: 'Unit is operating within safe parameters.',
+    title: 'No Issues Detected',
+    reason: 'No immediate concerns identified. Professional inspection and routine maintenance recommended.',
     urgent: false,
     badgeColor: 'green',
-    badge: 'OPTIMAL'
+    badge: 'MONITOR'
   };
 }
 
@@ -821,18 +821,16 @@ function optimizeEconomicDecision(
     }
   }
 
-  // BUDGETING ADVICE (Healthy but Past Warranty)
+  // BUDGETING ADVICE (Past Warranty)
   if (rec.action === 'PASS' && data.calendarAge > data.warrantyYears) {
-    if (rec.badge === 'OPTIMAL') {
-      return {
-        action: 'PASS',
-        title: 'Warranty Expired',
-        reason: `Unit is operating normally but is past its ${data.warrantyYears}-year warranty. Start budgeting for replacement.`,
-        urgent: false,
-        badgeColor: 'blue',
-        badge: 'MONITOR'
-      };
-    }
+    return {
+      action: 'PASS',
+      title: 'Warranty Expired',
+      reason: `Unit is past its ${data.warrantyYears}-year manufacturer warranty. Professional inspection and replacement budgeting recommended.`,
+      urgent: false,
+      badgeColor: 'blue',
+      badge: 'MONITOR'
+    };
   }
 
   return rec;
@@ -916,7 +914,7 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
     recommendation = `Plan to replace by ${targetYear}. Budget $${monthlyBudget}/mo to stay ahead.`;
   } else {
     urgency = 'LOW';
-    recommendation = `System is healthy. A small maintenance fund of $${monthlyBudget}/mo covers future replacement.`;
+    recommendation = `No immediate issues detected. A maintenance fund of $${monthlyBudget}/mo prepares for eventual replacement.`;
   }
 
   // Generate Target Date String

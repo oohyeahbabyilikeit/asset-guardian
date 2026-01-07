@@ -84,7 +84,7 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
   // Get PRV display info - context-aware
   const getPrvInfo = () => {
     if (!vitals.prv.required && !vitals.prv.present) {
-      return { title: 'PRV Not Needed', subtitle: 'Pressure within safe range', tooltip: null };
+      return { title: 'PRV Optional', subtitle: 'Pressure currently acceptable', tooltip: 'PRV installation may extend equipment life' };
     }
     if (!vitals.prv.required && vitals.prv.present) {
       return { title: 'PRV Installed', subtitle: 'Extra protection (optional)', tooltip: null };
@@ -123,9 +123,9 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     {
       status: vitals.pressure.status,
       icon: <Gauge className="w-5 h-5" />,
-      title: vitals.pressure.status === 'optimal' ? 'Pressure Normal' : 'High Pressure',
+      title: vitals.pressure.status === 'optimal' ? 'Pressure Acceptable' : 'Elevated Pressure',
       subtitle: vitals.pressure.status === 'optimal' 
-        ? 'Within safe range' 
+        ? 'Within typical range' 
         : `${vitals.pressure.current} PSI (Limit: ${vitals.pressure.limit})`,
     },
     {

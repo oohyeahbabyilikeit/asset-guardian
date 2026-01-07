@@ -145,10 +145,10 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         </header>
 
         <div className="relative p-6 max-w-md mx-auto text-center py-16">
-          <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-6" />
-          <h2 className="text-xl font-bold text-foreground mb-3">No Repairs Needed</h2>
+          <CheckCircle2 className="w-16 h-16 text-blue-400 mx-auto mb-6" />
+          <h2 className="text-xl font-bold text-foreground mb-3">Assessment Complete</h2>
           <p className="text-muted-foreground mb-8">
-            Your water heater is operating within safe parameters. Continue regular maintenance to keep it healthy.
+            No urgent repairs identified at this time. Regular professional inspection and routine maintenance are always recommended.
           </p>
           <Button onClick={onBack} variant="outline" className="w-full max-w-xs">
             Return to Dashboard
