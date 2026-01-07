@@ -146,11 +146,21 @@ export function CommandCenter({
         {/* DISCOVERY PHASE 1: Your Unit Profile + System Diagnostics */}
         <div className="px-4 animate-fade-in-up space-y-3">
           <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
+          <HealthGauge 
+            healthScore={dynamicHealthScore} 
+            location={currentAsset.location} 
+            riskLevel={riskLevel} 
+            agingRate={agingRate}
+          />
+        </div>
+
+        {/* DISCOVERY PHASE 2: Items to Review */}
+        <div className="px-4 animate-fade-in-up mt-4" style={{ animationDelay: '0.05s' }}>
           <VitalsGrid vitals={dynamicVitals} />
         </div>
 
-        {/* DISCOVERY PHASE 2: Tank Visualization */}
-        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.05s' }}>
+        {/* DISCOVERY PHASE 3: Tank Visualization */}
+        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
           <ServiceHistory 
             calendarAge={currentInputs.calendarAge}
             sedimentLbs={sedimentLbs}
@@ -165,27 +175,12 @@ export function CommandCenter({
           />
         </div>
 
-        {/* DISCOVERY PHASE 3: Industry Context (Benchmarks Before Judgment) */}
-        <div className="px-4 animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
+        {/* DISCOVERY PHASE 4: Industry Context */}
+        <div className="px-4 animate-fade-in-up mt-4" style={{ animationDelay: '0.15s' }}>
           <IndustryBenchmarks 
             asset={currentAsset} 
             inputs={currentInputs}
             onLearnMore={handleLearnMore}
-          />
-        </div>
-
-        {/* SUMMARY PHASE: Assessment Summary (Score AFTER Context) */}
-        <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.2s' }}>
-          <div className="px-4">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 px-1">
-              Assessment Summary
-            </div>
-          </div>
-          <HealthGauge 
-            healthScore={dynamicHealthScore} 
-            location={currentAsset.location} 
-            riskLevel={riskLevel} 
-            agingRate={agingRate}
           />
         </div>
 
