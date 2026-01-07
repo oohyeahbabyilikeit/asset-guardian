@@ -143,9 +143,10 @@ export function CommandCenter({
       <div className="relative">
         <DashboardHeader onTestHarness={onTestHarness} onRandomize={onRandomize} scenarioName={scenarioName} />
 
-        {/* DISCOVERY PHASE 1: Your Unit Profile (Neutral Facts First) */}
-        <div className="px-4 animate-fade-in-up">
+        {/* DISCOVERY PHASE 1: Your Unit Profile + System Diagnostics */}
+        <div className="px-4 animate-fade-in-up space-y-3">
           <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
+          <VitalsGrid vitals={dynamicVitals} />
         </div>
 
         {/* DISCOVERY PHASE 2: Tank Visualization */}
@@ -171,11 +172,6 @@ export function CommandCenter({
             inputs={currentInputs}
             onLearnMore={handleLearnMore}
           />
-        </div>
-
-        {/* UNDERSTANDING PHASE: What We Observed */}
-        <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.15s' }}>
-          <VitalsGrid vitals={dynamicVitals} />
         </div>
 
         {/* SUMMARY PHASE: Assessment Summary (Score AFTER Context) */}
