@@ -50,8 +50,8 @@ export function CommandCenter({
   const expansionTankMissing = expansionTankRequired && !currentInputs.hasExpTank;
   
   // PRV status calculation - recommend at 70+ PSI (cuts strain ~50% when reduced to 60)
-  const prvRequired = currentInputs.psi >= 70;
-  const prvFunctional = currentInputs.hasPrv && currentInputs.psi <= 75; // Working if pressure is controlled
+  const prvRequired = currentInputs.housePsi >= 70;
+  const prvFunctional = currentInputs.hasPrv && currentInputs.housePsi <= 75; // Working if pressure is controlled
   const prvStatus: 'critical' | 'warning' | 'optimal' = 
     !prvRequired && !currentInputs.hasPrv ? 'optimal' : // Not needed, not installed
     currentInputs.hasPrv && prvFunctional ? 'optimal' : // Installed and working
@@ -60,9 +60,9 @@ export function CommandCenter({
   
   const dynamicVitals: VitalsData = {
     pressure: {
-      current: currentInputs.psi,
+      current: currentInputs.housePsi,
       limit: 80,
-      status: getStatusFromValue(currentInputs.psi, 70, 80),
+      status: getStatusFromValue(currentInputs.housePsi, 70, 80),
     },
     sedimentLoad: {
       pounds: sedimentLbs,

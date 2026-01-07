@@ -166,7 +166,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Direct Vent", piping: "3/4\" PEX" },
     },
     inputs: {
-      calendarAge: 2, psi: 55, warrantyYears: 12, fuelType: 'GAS' as FuelType,
+      calendarAge: 2, housePsi: 55, warrantyYears: 12, fuelType: 'GAS' as FuelType,
       hardnessGPG: 8, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
@@ -187,7 +187,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "50-Gal", fuelType: "Electric", ventType: "N/A", piping: "3/4\" PEX" },
     },
     inputs: {
-      calendarAge: 4, psi: 62, warrantyYears: 9, fuelType: 'ELECTRIC' as FuelType,
+      calendarAge: 4, housePsi: 62, warrantyYears: 9, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 12, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
@@ -208,7 +208,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "40-Gal", fuelType: "Natural Gas", ventType: "Atmospheric", piping: "3/4\" Copper" },
     },
     inputs: {
-      calendarAge: 3, psi: 58, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      calendarAge: 3, housePsi: 58, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 10, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: false, hasPrv: false, location: 'BASEMENT' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
@@ -230,7 +230,7 @@ const scenarios: DemoScenario[] = [
     },
     inputs: {
       // Sediment calc: 6 × 20 × 0.044 = 5.28 lbs (in flush zone 5-15)
-      calendarAge: 6, psi: 62, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      calendarAge: 6, housePsi: 62, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 20, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: false, hasPrv: false, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
@@ -253,7 +253,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Atmospheric", piping: "3/4\" Copper" },
     },
     inputs: {
-      calendarAge: 5, psi: 95, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      calendarAge: 5, housePsi: 95, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
@@ -274,7 +274,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "50-Gal", fuelType: "Electric", ventType: "N/A", piping: "3/4\" PEX" },
     },
     inputs: {
-      calendarAge: 4, psi: 68, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
+      calendarAge: 4, housePsi: 68, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 14, hasSoftener: false, hasCircPump: false, isClosedLoop: true,
       hasExpTank: false, hasPrv: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
@@ -295,7 +295,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "50-Gal", fuelType: "Natural Gas", ventType: "Power Vent (PVC)", piping: "3/4\" Copper" },
     },
     inputs: {
-      calendarAge: 7, psi: 58, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      calendarAge: 7, housePsi: 58, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 15, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: true, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
@@ -318,7 +318,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "40-Gal", fuelType: "Electric", ventType: "N/A", piping: "3/4\" PEX" },
     },
     inputs: {
-      calendarAge: 11, psi: 82, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
+      calendarAge: 11, housePsi: 82, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 22, hasSoftener: false, hasCircPump: true, isClosedLoop: true,
       hasExpTank: false, hasPrv: false, location: 'BASEMENT' as LocationType, isFinishedArea: true,
       visualRust: true, tempSetting: 'HIGH' as TempSetting,
@@ -339,7 +339,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "40-Gal", fuelType: "Electric", ventType: "N/A", piping: "3/4\" CPVC" },
     },
     inputs: {
-      calendarAge: 9, psi: 78, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
+      calendarAge: 9, housePsi: 78, warrantyYears: 6, fuelType: 'ELECTRIC' as FuelType,
       hardnessGPG: 25, hasSoftener: true, hasCircPump: true, isClosedLoop: true,
       hasExpTank: false, hasPrv: false, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: true, tempSetting: 'HIGH' as TempSetting,
@@ -360,7 +360,7 @@ const scenarios: DemoScenario[] = [
       specs: { capacity: "40-Gal", fuelType: "Natural Gas", ventType: "Atmospheric", piping: "3/4\" Copper" },
     },
     inputs: {
-      calendarAge: 12, psi: 88, warrantyYears: 6, fuelType: 'GAS' as FuelType,
+      calendarAge: 12, housePsi: 88, warrantyYears: 6, fuelType: 'GAS' as FuelType,
       hardnessGPG: 20, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: false, hasPrv: false, location: 'CRAWLSPACE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'HIGH' as TempSetting,
@@ -404,14 +404,14 @@ export function generateAuditFindings(
   const findings: AuditFinding[] = [];
 
   // Pressure check
-  const pressurePassed = inputs.psi <= 80;
+  const pressurePassed = inputs.housePsi <= 80;
   findings.push({
     id: 'pressure',
     name: 'Static Pressure',
-    value: `${inputs.psi} PSI`,
+    value: `${inputs.housePsi} PSI`,
     passed: pressurePassed,
     details: pressurePassed
-      ? inputs.psi >= 70 
+      ? inputs.housePsi >= 70 
         ? 'Elevated but within warranty threshold. Consider PRV to reduce strain by ~50%.'
         : 'Within safe operating range. No action required.'
       : `Exceeds 80 PSI warranty threshold. High pressure accelerates tank wear by ${((metrics.stressFactors.pressure - 1) * 100).toFixed(0)}%.`,
@@ -419,14 +419,14 @@ export function generateAuditFindings(
   });
 
   // PRV check
-  if (inputs.psi >= 70) {
+  if (inputs.housePsi >= 70) {
     findings.push({
       id: 'prv',
       name: 'Pressure Reducing Valve',
-      value: inputs.hasPrv ? (inputs.psi <= 75 ? 'FUNCTIONAL' : 'FAILED') : 'NOT INSTALLED',
-      passed: inputs.hasPrv && inputs.psi <= 75,
+      value: inputs.hasPrv ? (inputs.housePsi <= 75 ? 'FUNCTIONAL' : 'FAILED') : 'NOT INSTALLED',
+      passed: inputs.hasPrv && inputs.housePsi <= 75,
       details: inputs.hasPrv
-        ? inputs.psi <= 75
+        ? inputs.housePsi <= 75
           ? 'PRV is actively regulating inlet pressure to ~60 PSI.'
           : 'PRV installed but not regulating pressure effectively. Replacement recommended.'
         : 'No PRV installed. Installing one would reduce system pressure to ~60 PSI, cutting plumbing strain by approximately 50%.',
