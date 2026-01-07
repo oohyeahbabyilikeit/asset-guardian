@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Droplets, Gauge, Shield, Thermometer, AlertTriangle, CheckCircle2, Info, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Droplets, Gauge, Shield, Thermometer, AlertTriangle, CheckCircle2, Info, Zap, AlertOctagon, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { type AssetData } from '@/data/mockAsset';
-import { type ForensicInputs, calculateOpterraRisk, failProbToHealthScore } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, calculateOpterraRisk, failProbToHealthScore, type ActionType } from '@/lib/opterraAlgorithm';
 import { InteractiveWaterHeaterDiagram } from './InteractiveWaterHeaterDiagram';
 
 interface DiscoveryFlowProps {
@@ -36,6 +36,135 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
           )}
         />
       ))}
+    </div>
+  );
+}
+
+// Urgent Alert Step - Shows first when replacement is needed
+function UrgentAlertStep({ 
+  action, 
+  title, 
+  reason, 
+  healthScore,
+  isLeaking,
+  hasVisualRust 
+}: { 
+  action: ActionType;
+  title: string;
+  reason: string;
+  healthScore: number;
+  isLeaking?: boolean;
+  hasVisualRust?: boolean;
+}) {
+  const isReplace = action === 'REPLACE';
+  const isBreach = isLeaking;
+  
+  return (
+    <div className="space-y-6">
+      {/* Alert Icon */}
+      <div className="flex justify-center">
+        <div className={cn(
+          "w-20 h-20 rounded-full flex items-center justify-center",
+          isBreach 
+            ? "bg-red-500/20 animate-pulse" 
+            : isReplace 
+            ? "bg-red-500/15" 
+            : "bg-amber-500/15"
+        )}>
+          {isBreach ? (
+            <XCircle className="w-10 h-10 text-red-500" />
+          ) : (
+            <AlertOctagon className={cn(
+              "w-10 h-10",
+              isReplace ? "text-red-500" : "text-amber-500"
+            )} />
+          )}
+        </div>
+      </div>
+
+      {/* Alert Title */}
+      <div className="text-center space-y-2">
+        <h2 className={cn(
+          "text-2xl font-bold",
+          isBreach || isReplace ? "text-red-500" : "text-amber-500"
+        )}>
+          {isBreach ? "Active Leak Detected" : title}
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+          {isBreach 
+            ? "Your water heater requires immediate attention. An active leak can cause significant water damage."
+            : reason
+          }
+        </p>
+      </div>
+
+      {/* Health Score */}
+      <Card className={cn(
+        "p-4 border-2",
+        isBreach || isReplace ? "border-red-500/50 bg-red-500/5" : "border-amber-500/50 bg-amber-500/5"
+      )}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Health Score</span>
+          <span className={cn(
+            "text-3xl font-bold",
+            healthScore < 30 ? "text-red-500" : healthScore < 50 ? "text-amber-500" : "text-foreground"
+          )}>
+            {healthScore}
+          </span>
+        </div>
+        <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+          <div 
+            className={cn(
+              "h-full rounded-full transition-all",
+              healthScore < 30 ? "bg-red-500" : healthScore < 50 ? "bg-amber-500" : "bg-green-500"
+            )}
+            style={{ width: `${healthScore}%` }}
+          />
+        </div>
+      </Card>
+
+      {/* Key Issues */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Key Issues</p>
+        <div className="space-y-2">
+          {isLeaking && (
+            <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+              <span className="text-sm font-medium text-red-400">Active leak requiring immediate action</span>
+            </div>
+          )}
+          {hasVisualRust && (
+            <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+              <span className="text-sm font-medium text-red-400">Visible rust or corrosion detected</span>
+            </div>
+          )}
+          {action === 'REPLACE' && !isLeaking && (
+            <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+              <span className="text-sm font-medium text-amber-400">Unit has exceeded recommended service life</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recommendation */}
+      <Card className="p-4 bg-muted/30">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-foreground mb-1">What This Means</p>
+            <p className="text-sm text-muted-foreground">
+              {isBreach 
+                ? "Stop using the unit if safe to do so. Contact a licensed plumber immediately. Continue to see the full assessment."
+                : action === 'REPLACE'
+                ? "Based on age, condition, and stress factors, replacement is more cost-effective than continued repairs. Continue to see the full assessment."
+                : "Your unit would benefit from professional service. Continue to learn what's affecting your water heater."
+              }
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -407,9 +536,14 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
   const [step, setStep] = useState(0);
   const [observationIndex, setObservationIndex] = useState(0);
 
-  // Calculate metrics
+  // Calculate metrics and verdict
   const result = calculateOpterraRisk(inputs);
   const metrics = result.metrics;
+  const verdict = result.verdict;
+  const healthScore = failProbToHealthScore(metrics.failProb);
+  
+  // Determine if we need to show urgent alert first
+  const needsUrgentAlert = verdict.action === 'REPLACE' || inputs.isLeaking || inputs.visualRust;
   
   // Build observations list
   const observations: Observation[] = [];
@@ -483,10 +617,25 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
     });
   }
 
-  const totalSteps = 4;
+  // Total steps depends on whether we show urgent alert
+  const totalSteps = needsUrgentAlert ? 5 : 4;
+  
+  // Map step indices based on whether urgent alert is shown
+  const getStepContent = (currentStep: number) => {
+    if (needsUrgentAlert) {
+      // Steps: 0=Alert, 1=Profile, 2=Observations, 3=Benchmarks, 4=Summary
+      return currentStep;
+    } else {
+      // Steps: 0=Profile, 1=Observations, 2=Benchmarks, 3=Summary (add 1 to skip alert)
+      return currentStep + 1;
+    }
+  };
+  
+  const contentStep = getStepContent(step);
+  const isObservationsStep = contentStep === 2;
 
   const handleNext = () => {
-    if (step === 1) {
+    if (isObservationsStep) {
       // In observations step
       if (observationIndex < observations.length - 1) {
         setObservationIndex(observationIndex + 1);
@@ -502,11 +651,11 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
   };
 
   const handleBack = () => {
-    if (step === 1 && observationIndex > 0) {
+    if (isObservationsStep && observationIndex > 0) {
       setObservationIndex(observationIndex - 1);
     } else if (step > 0) {
       setStep(step - 1);
-      if (step === 2) {
+      if (contentStep === 3) {
         setObservationIndex(observations.length - 1);
       }
     }
@@ -534,9 +683,23 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
         <div className="max-w-md mx-auto">
           <StepIndicator currentStep={step} totalSteps={totalSteps} />
 
-          {step === 0 && <UnitProfileStep asset={asset} inputs={inputs} metrics={metrics} />}
+          {/* Urgent Alert - Step 0 when needed */}
+          {contentStep === 0 && needsUrgentAlert && (
+            <UrgentAlertStep
+              action={verdict.action}
+              title={verdict.title}
+              reason={verdict.reason}
+              healthScore={healthScore}
+              isLeaking={inputs.isLeaking}
+              hasVisualRust={inputs.visualRust}
+            />
+          )}
+
+          {/* Unit Profile - Step 1 */}
+          {contentStep === 1 && <UnitProfileStep asset={asset} inputs={inputs} metrics={metrics} />}
           
-          {step === 1 && (
+          {/* Observations - Step 2 */}
+          {contentStep === 2 && (
             <ObservationsStep
               observations={observations}
               currentIndex={observationIndex}
@@ -546,11 +709,13 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
             />
           )}
           
-          {step === 2 && <BenchmarksStep inputs={inputs} bioAge={metrics.bioAge} />}
+          {/* Benchmarks - Step 3 */}
+          {contentStep === 3 && <BenchmarksStep inputs={inputs} bioAge={metrics.bioAge} />}
           
-          {step === 3 && (
+          {/* Summary - Step 4 */}
+          {contentStep === 4 && (
             <SummaryStep 
-              score={failProbToHealthScore(metrics.failProb)} 
+              score={healthScore} 
               status={metrics.failProb > 50 ? 'critical' : metrics.failProb > 25 ? 'warning' : 'optimal'}
               inputs={inputs}
               averageScore={averageScore}
@@ -562,16 +727,27 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
       {/* Footer navigation */}
       <div className="p-4 border-t border-border/50">
         <div className="max-w-md mx-auto flex items-center gap-3">
-          {step > 0 && step !== 1 && (
+          {step > 0 && !isObservationsStep && (
             <Button variant="outline" onClick={handleBack} className="gap-2">
               <ChevronLeft className="w-4 h-4" />
               Back
             </Button>
           )}
           
-          {step !== 1 && (
-            <Button onClick={handleNext} className="flex-1 gap-2">
-              {step === totalSteps - 1 ? 'View Full Dashboard' : 'Continue'}
+          {!isObservationsStep && (
+            <Button 
+              onClick={handleNext} 
+              className={cn(
+                "flex-1 gap-2",
+                contentStep === 0 && needsUrgentAlert && "bg-red-600 hover:bg-red-700"
+              )}
+            >
+              {step === totalSteps - 1 
+                ? 'View Full Dashboard' 
+                : contentStep === 0 && needsUrgentAlert 
+                ? 'See Full Assessment'
+                : 'Continue'
+              }
               <ChevronRight className="w-4 h-4" />
             </Button>
           )}
