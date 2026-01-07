@@ -323,7 +323,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             </Button>
             <div>
               <h1 className="text-lg font-bold">OPTERRA Test Harness</h1>
-              <p className="text-xs text-muted-foreground">v6.2 Physics Engine</p>
+              <p className="text-xs text-muted-foreground">v6.4 Physics Engine</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={resetInputs}>
@@ -762,6 +762,57 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                     </div>
                     <div className="text-center mt-3 text-xs text-muted-foreground font-mono">
                       {result.metrics.stressFactors.pressure.toFixed(2)} × {result.metrics.stressFactors.temp.toFixed(2)} × {result.metrics.stressFactors.circ.toFixed(2)} × {result.metrics.stressFactors.loop.toFixed(2)} = {result.metrics.stressFactors.total.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Forecast (NEW v6.4) */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Forecast</h3>
+                  <div className={`p-4 rounded-lg border ${
+                    result.financial.budgetUrgency === 'IMMEDIATE' ? 'bg-destructive/10 border-destructive/30' :
+                    result.financial.budgetUrgency === 'HIGH' ? 'bg-orange-500/10 border-orange-500/30' :
+                    result.financial.budgetUrgency === 'MED' ? 'bg-yellow-500/10 border-yellow-500/30' :
+                    'bg-emerald-500/10 border-emerald-500/30'
+                  }`}>
+                    <div className="grid grid-cols-3 gap-3 text-center mb-3">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Target Date</div>
+                        <div className={`text-sm font-bold ${
+                          result.financial.budgetUrgency === 'IMMEDIATE' ? 'text-destructive' :
+                          result.financial.budgetUrgency === 'HIGH' ? 'text-orange-500' :
+                          'text-foreground'
+                        }`}>
+                          {result.financial.targetReplacementDate}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Est. Cost</div>
+                        <div className="text-sm font-bold font-mono">
+                          ${result.financial.estReplacementCost.toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Monthly Budget</div>
+                        <div className={`text-sm font-bold font-mono ${
+                          result.financial.budgetUrgency === 'IMMEDIATE' ? 'text-destructive' :
+                          result.financial.budgetUrgency === 'HIGH' ? 'text-orange-500' :
+                          'text-emerald-500'
+                        }`}>
+                          ${result.financial.monthlyBudget}/mo
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`shrink-0 px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                        result.financial.budgetUrgency === 'IMMEDIATE' ? 'bg-destructive/20 text-destructive' :
+                        result.financial.budgetUrgency === 'HIGH' ? 'bg-orange-500/20 text-orange-600' :
+                        result.financial.budgetUrgency === 'MED' ? 'bg-yellow-500/20 text-yellow-700' :
+                        'bg-emerald-500/20 text-emerald-600'
+                      }`}>
+                        {result.financial.budgetUrgency}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{result.financial.recommendation}</p>
                     </div>
                   </div>
                 </div>

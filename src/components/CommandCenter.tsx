@@ -42,6 +42,7 @@ export function CommandCenter({
   const opterraResult = calculateOpterraRisk(currentInputs);
   const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor, sedimentRate, monthsToFlush, monthsToLockout, flushStatus } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
+  const financial = opterraResult.financial;
 
   // Derive dynamic vitals from algorithm output
   // PRV implies closed loop (backpressure), so expansion tank is required if either condition is true
@@ -145,6 +146,7 @@ export function CommandCenter({
             agingRate={agingRate}
             lifeExtension={lifeExtension}
             primaryStressor={primaryStressor}
+            financial={financial}
           />
         </div>
 

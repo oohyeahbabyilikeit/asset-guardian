@@ -1,11 +1,12 @@
-import { AlertTriangle, Shield, Wrench, Eye, Droplets, Clock, AlertOctagon, Gauge, CheckCircle2, TrendingUp, Zap } from 'lucide-react';
-import { Recommendation, ActionType } from '@/lib/opterraAlgorithm';
+import { AlertTriangle, Shield, Wrench, Eye, Droplets, Clock, AlertOctagon, Gauge, CheckCircle2, TrendingUp, Zap, PiggyBank } from 'lucide-react';
+import { Recommendation, ActionType, FinancialForecast } from '@/lib/opterraAlgorithm';
 
 interface RecommendationBannerProps {
   recommendation: Recommendation;
   agingRate?: number;
   lifeExtension?: number;
   primaryStressor?: string;
+  financial?: FinancialForecast;
   className?: string;
 }
 
@@ -49,6 +50,7 @@ export function RecommendationBanner({
   agingRate = 1, 
   lifeExtension = 0,
   primaryStressor = '',
+  financial,
   className = '' 
 }: RecommendationBannerProps) {
   const Icon = getActionIcon(recommendation.action, recommendation.title);
@@ -57,9 +59,14 @@ export function RecommendationBanner({
   // Show accelerated wear banner for high stress (> 1.5x) on non-replacement scenarios
   const showAcceleratedWear = agingRate > 1.5 && recommendation.action !== 'REPLACE';
   const hasLifeExtensionValue = lifeExtension > 0.5;
+  
+  // Show financial forecast for healthy/monitoring systems
+  const showFinancial = financial && 
+    (recommendation.action === 'PASS' || recommendation.action === 'MAINTAIN') &&
+    recommendation.badge !== 'CRITICAL';
 
-  // Don't show banner for healthy/passing systems
-  if (recommendation.action === 'PASS') {
+  // Don't show banner for healthy/passing systems (but still show financial if available)
+  if (recommendation.action === 'PASS' && !showFinancial) {
     return null;
   }
 
@@ -119,6 +126,44 @@ export function RecommendationBanner({
           </div>
         </div>
       </div>
+
+      {/* Financial Outlook Card (NEW v6.4) */}
+      {showFinancial && financial && (
+        <div className="p-4 rounded-xl border bg-blue-500/10 border-blue-500/30">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-background/50">
+              <PiggyBank className="w-5 h-5 text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-sm uppercase tracking-wide text-blue-400">
+                  Financial Outlook
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded ${
+                  financial.budgetUrgency === 'IMMEDIATE' ? 'bg-destructive/20 text-destructive' :
+                  financial.budgetUrgency === 'HIGH' ? 'bg-orange-500/20 text-orange-400' :
+                  financial.budgetUrgency === 'MED' ? 'bg-yellow-500/20 text-yellow-400' :
+                  'bg-emerald-500/20 text-emerald-400'
+                }`}>
+                  {financial.budgetUrgency}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-4 mb-2">
+                <div>
+                  <span className="text-2xl font-bold text-blue-300">${financial.monthlyBudget}</span>
+                  <span className="text-sm text-blue-400/80">/mo</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  → Replace by <span className="font-medium text-blue-300">{financial.targetReplacementDate}</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {financial.recommendation}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
