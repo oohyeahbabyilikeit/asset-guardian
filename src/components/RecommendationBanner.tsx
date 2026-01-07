@@ -65,8 +65,11 @@ export function RecommendationBanner({
     (recommendation.action === 'PASS' || recommendation.action === 'MAINTAIN') &&
     recommendation.badge !== 'CRITICAL';
 
-  // Don't show banner for healthy/passing systems (but still show financial if available)
-  if (recommendation.action === 'PASS' && !showFinancial) {
+  // Check if system is healthy (PASS with OPTIMAL badge)
+  const isHealthySystem = recommendation.action === 'PASS' && recommendation.badge === 'OPTIMAL';
+  
+  // Don't show anything for healthy systems without financial data
+  if (isHealthySystem && !showFinancial) {
     return null;
   }
 
@@ -103,29 +106,31 @@ export function RecommendationBanner({
         </div>
       )}
 
-      {/* Primary Recommendation Banner */}
-      <div className={`p-4 rounded-xl border ${style}`}>
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-background/50">
-            <Icon className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-sm uppercase tracking-wide">
-                {recommendation.title}
-              </span>
-              {recommendation.urgent && recommendation.action === 'REPLACE' && (
-                <span className="text-xs px-2 py-0.5 rounded bg-destructive/20 text-destructive">
-                  Urgent
-                </span>
-              )}
+      {/* Primary Recommendation Banner - Hide for healthy systems */}
+      {!isHealthySystem && (
+        <div className={`p-4 rounded-xl border ${style}`}>
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-background/50">
+              <Icon className="w-5 h-5" />
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {recommendation.reason}
-            </p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-sm uppercase tracking-wide">
+                  {recommendation.title}
+                </span>
+                {recommendation.urgent && recommendation.action === 'REPLACE' && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-destructive/20 text-destructive">
+                    Urgent
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {recommendation.reason}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Financial Outlook Card (NEW v6.4) */}
       {showFinancial && financial && (
