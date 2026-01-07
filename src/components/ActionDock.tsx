@@ -16,7 +16,7 @@ export function ActionDock({
   recommendation
 }: ActionDockProps) {
   const getButtonLabel = () => {
-    return recommendation ? 'Protect Your Home' : 'View Options';
+    return recommendation ? 'Explore My Options' : 'See What Others Do';
   };
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"
@@ -59,7 +59,7 @@ export function ActionDock({
           onClick={onViewReport}
           className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
         >
-          See Detailed Analysis
+          Learn More About My Results
         </button>
       </div>
     </div>

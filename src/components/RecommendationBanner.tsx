@@ -45,6 +45,35 @@ const getBadgeStyle = (badgeColor: Recommendation['badgeColor']): string => {
   }
 };
 
+// Map internal titles to education-centric titles
+const getEducationalTitle = (title: string): string => {
+  const titleMap: Record<string, string> = {
+    'Missing Thermal Expansion': 'Thermal Expansion Not Managed',
+    'Install Expansion Tank': 'Thermal Expansion Not Managed',
+    'Critical Pressure Violation': 'Pressure Above Industry Limits',
+    'High Pressure Detected': 'Pressure Above Recommended Range',
+    'Replacement Required': 'End of Expected Service Life',
+    'Strategic Replacement Recommended': 'Approaching End of Service Life',
+    'Liability Hazard': 'Higher Risk Installation Location',
+    'PRV Installation Needed': 'No Pressure Regulation Detected',
+    'System Healthy': 'No Issues Detected This Assessment',
+    'Maintenance Recommended': 'Routine Maintenance Suggested',
+  };
+  return titleMap[title] || title;
+};
+
+// Get education-centric action label
+const getEducationalAction = (action: ActionType): string => {
+  switch (action) {
+    case 'REPLACE': return 'CONSIDER REPLACEMENT';
+    case 'REPAIR': return 'MAINTENANCE SUGGESTED';
+    case 'UPGRADE': return 'UPGRADE OPTION';
+    case 'MAINTAIN': return 'ROUTINE CARE';
+    case 'PASS': return 'MONITORING';
+    default: return action;
+  }
+};
+
 export function RecommendationBanner({ 
   recommendation, 
   agingRate = 1, 
@@ -55,6 +84,8 @@ export function RecommendationBanner({
 }: RecommendationBannerProps) {
   const Icon = getActionIcon(recommendation.action, recommendation.title);
   const style = getBadgeStyle(recommendation.badgeColor);
+  const educationalTitle = getEducationalTitle(recommendation.title);
+  const educationalAction = getEducationalAction(recommendation.action);
   
   // Show accelerated wear banner for high stress (> 1.5x) on non-replacement scenarios
   const showAcceleratedWear = agingRate > 1.5 && recommendation.action !== 'REPLACE';
@@ -116,7 +147,7 @@ export function RecommendationBanner({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-semibold text-sm uppercase tracking-wide">
-                  {recommendation.title}
+                  {educationalAction}
                 </span>
                 {recommendation.urgent && recommendation.action === 'REPLACE' && (
                   <span className="text-xs px-2 py-0.5 rounded bg-destructive/20 text-destructive">
@@ -124,6 +155,9 @@ export function RecommendationBanner({
                   </span>
                 )}
               </div>
+              <p className="text-xs font-medium text-foreground/80 mb-1">
+                {educationalTitle}
+              </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {recommendation.reason}
               </p>

@@ -169,7 +169,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-foreground">Plan Your Repairs</h1>
+          <h1 className="font-bold text-foreground">Understanding Your Options</h1>
           <div className="w-10" />
         </div>
       </header>
@@ -350,15 +350,15 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           </div>
         )}
 
-        {/* Do Nothing Projection - Collapsible */}
+        {/* Continue Monitoring Projection - Collapsible */}
         {!replacementRequired && (
           <Collapsible open={doNothingOpen} onOpenChange={setDoNothingOpen}>
             <CollapsibleTrigger asChild>
-              <button className="w-full clean-card border-red-500/30 bg-red-500/5 mb-4">
+              <button className="w-full clean-card border-zinc-700/50 bg-zinc-900/30 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-medium text-foreground">If You Do Nothing</span>
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">If You Continue Monitoring</span>
                   </div>
                   {doNothingOpen ? (
                     <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -369,9 +369,9 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="clean-card border-red-500/30 bg-red-500/5 mb-4 -mt-2">
+              <div className="clean-card border-zinc-700/50 bg-zinc-900/30 mb-4 -mt-2">
                 <p className="text-xs text-muted-foreground mb-4">
-                  Without repairs, your water heater will continue to degrade:
+                  Without maintenance, here's the projected timeline:
                 </p>
                 <div className="space-y-3">
                   {[

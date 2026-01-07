@@ -227,7 +227,7 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="w-4 h-4 text-red-400" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Failure Risk
+                Industry Failure Rate
               </span>
             </div>
               <div className="text-2xl font-black text-red-400 font-data">
@@ -236,7 +236,7 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
                   : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
               </div>
             <div className="text-[10px] text-muted-foreground mt-1">
-              {failureProbability === 'FAIL' ? 'Breach detected' : 'Annual probability'}
+              {failureProbability === 'FAIL' ? 'Breach detected' : 'For similar units'}
             </div>
           </div>
 
@@ -285,9 +285,9 @@ export function HealthGauge({ healthScore, location, riskLevel, agingRate = 1.0 
         </div>
       </div>
       
-      {/* Liability Disclaimer */}
+      {/* Disclaimer */}
       <p className="text-[9px] text-muted-foreground/60 text-center mt-3">
-        Assessment based on provided data. Professional inspection recommended.
+        Statistics based on industry data for similar units. Individual results may vary.
       </p>
     </div>
   );
