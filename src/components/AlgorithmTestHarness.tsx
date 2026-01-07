@@ -61,6 +61,59 @@ function generateBufferZoneCurve() {
 
 const PRESSURE_CURVE_DATA = generateBufferZoneCurve();
 
+// Pre-configured test cases for validation
+interface TestCase {
+  name: string;
+  description: string;
+  expected: string;
+  inputs: ForensicInputs;
+}
+
+const TEST_CASES: TestCase[] = [
+  {
+    name: 'The Immortal',
+    description: 'Age: 45, Garage, Hardness: 2',
+    expected: 'REPLACE (End of Service Life)',
+    inputs: {
+      ...DEFAULT_INPUTS,
+      calendarAge: 45,
+      location: 'GARAGE',
+      hardnessGPG: 2,
+    }
+  },
+  {
+    name: 'The Bomb',
+    description: 'Age: 3, PSI: 180, Garage',
+    expected: 'REPLACE (Explosion Hazard)',
+    inputs: {
+      ...DEFAULT_INPUTS,
+      calendarAge: 3,
+      psi: 180,
+      location: 'GARAGE',
+    }
+  },
+  {
+    name: 'The Leaker',
+    description: 'Age: 1, Leaking: True',
+    expected: 'REPLACE + Years Left: 0',
+    inputs: {
+      ...DEFAULT_INPUTS,
+      calendarAge: 1,
+      isLeaking: true,
+    }
+  },
+  {
+    name: 'Soft Water',
+    description: 'Hardness: 0, No Softener',
+    expected: 'PASS (no crash)',
+    inputs: {
+      ...DEFAULT_INPUTS,
+      hardnessGPG: 0,
+      hasSoftener: false,
+    }
+  },
+];
+
 export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
   const [inputs, setInputs] = useState<ForensicInputs>(DEFAULT_INPUTS);
   const [result, setResult] = useState<OpterraResult | null>(null);
@@ -293,9 +346,37 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               <Switch checked={inputs.isFinishedArea} onCheckedChange={(v) => updateInput('isFinishedArea', v)} />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-destructive font-semibold">Visual Rust/Leak</Label>
+              <Label className="text-xs text-destructive font-semibold">Visual Rust</Label>
               <Switch checked={inputs.visualRust} onCheckedChange={(v) => updateInput('visualRust', v)} />
             </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-destructive font-semibold">Active Leak</Label>
+              <Switch checked={inputs.isLeaking ?? false} onCheckedChange={(v) => updateInput('isLeaking', v)} />
+            </div>
+          </div>
+        </Card>
+
+        {/* Test Cases */}
+        <Card className="p-4 space-y-3">
+          <h2 className="font-semibold text-sm uppercase tracking-wider">Validation Test Cases</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {TEST_CASES.map((tc) => (
+              <Button
+                key={tc.name}
+                variant="outline"
+                size="sm"
+                className="h-auto py-2 flex flex-col items-start text-left"
+                onClick={() => {
+                  setInputs(tc.inputs);
+                  const calcResult = calculateOpterraRisk(tc.inputs);
+                  setResult(calcResult);
+                }}
+              >
+                <span className="font-semibold text-xs">{tc.name}</span>
+                <span className="text-[10px] text-muted-foreground">{tc.description}</span>
+                <span className="text-[10px] text-primary mt-1">Expected: {tc.expected}</span>
+              </Button>
+            ))}
           </div>
         </Card>
 
@@ -346,6 +427,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 highlight={result.metrics.bioAge > 12} 
               />
               <MetricCard label="Failure Prob" value={`${result.metrics.failProb.toFixed(1)}%`} highlight={result.metrics.failProb > 20} />
+              <MetricCard label="Years Left" value={`${result.metrics.yearsLeftCurrent.toFixed(1)} yrs`} highlight={result.metrics.yearsLeftCurrent === 0} />
               <MetricCard label="Sediment Load" value={`${result.metrics.sedimentLbs.toFixed(1)} lbs`} highlight={result.metrics.sedimentLbs > 15} />
               <MetricCard label="Location Risk" value={getRiskLevelInfo(result.metrics.riskLevel).label} highlight={result.metrics.riskLevel >= 3} />
               <MetricCard label="Shield Life" value={`${result.metrics.shieldLife.toFixed(1)} yrs`} />
