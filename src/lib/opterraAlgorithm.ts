@@ -1,5 +1,14 @@
 /**
- * OPTERRA v6.1 Risk Calculation Engine
+ * OPTERRA v6.2 Risk Calculation Engine (Verified)
+ * 
+ * A physics-based reliability algorithm with economic optimization logic.
+ * VERIFIED: January 7, 2026
+ * 
+ * CHANGES v6.2:
+ * - ARCHITECTURE: Split recommendation into getRawRecommendation + optimizeEconomicDecision
+ * - ECONOMIC LAYER: Added ROI logic for repair vs. replacement decisions
+ * - CONSTANTS: Added AGE_ECONOMIC_REPAIR_LIMIT, AGE_ANODE_LIMIT
+ * - TUNING: Reduced LIMIT_AGE_FRAGILE from 12 to 10 years
  * 
  * CHANGES v6.1:
  * - INPUT UPDATE: Renamed 'psi' to 'housePsi' to match technician workflow (Hose Bib Measure).
@@ -88,8 +97,8 @@ export interface Recommendation {
   reason: string;
   urgent: boolean;
   badgeColor: 'red' | 'orange' | 'yellow' | 'blue' | 'green';
-  // Legacy compatibility fields
   badge?: RecommendationBadge;
+  note?: string; // Internal debugging note
 }
 
 // Legacy types for backwards compatibility
@@ -138,9 +147,13 @@ const CONSTANTS = {
   
   LIMIT_SEDIMENT_LOCKOUT: 15, 
   LIMIT_SEDIMENT_FLUSH: 5,     
-  LIMIT_AGE_FRAGILE: 12,       
+  LIMIT_AGE_FRAGILE: 10,       // CHANGED v6.2: Was 12, now 10
   LIMIT_FAILPROB_FRAGILE: 60,  
   LIMIT_AGE_MAX: 20,       // Hard cap for service life (Fixes Highlander Bug)
+  
+  // Economic Thresholds (NEW v6.2)
+  AGE_ECONOMIC_REPAIR_LIMIT: 10, // Don't recommend heavy repairs past this age
+  AGE_ANODE_LIMIT: 6,            // Age limit for anode refresh recommendation
   
   // Risk Levels
   RISK_LOW: 1 as RiskLevel,      
@@ -488,12 +501,12 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   };
 }
 
-// --- RECOMMENDATION ENGINE ---
+// --- RAW RECOMMENDATION ENGINE ---
 // Strict Tiered Decision Tree v7.0
 // Priority: Safety → Economic → Service → Pass
 // Units that pass Tiers 1 & 2 are SAVEABLE
 
-export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
+function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
   
   // ============================================
   // TIER 0: IMMEDIATE EXPLOSION HAZARD
@@ -663,7 +676,7 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
   // ============================================
   
   const isFragile = metrics.failProb > CONSTANTS.LIMIT_FAILPROB_FRAGILE 
-                 || data.calendarAge > CONSTANTS.LIMIT_AGE_FRAGILE;
+                 || data.calendarAge >= CONSTANTS.LIMIT_AGE_FRAGILE;
   const isServiceable = metrics.sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH 
                      && metrics.sedimentLbs <= CONSTANTS.LIMIT_SEDIMENT_LOCKOUT;
   
@@ -692,7 +705,7 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
   }
 
   // Anode refresh on young tanks
-  if (metrics.shieldLife < 1 && data.calendarAge < 6) {
+  if (metrics.shieldLife < 1 && data.calendarAge < CONSTANTS.AGE_ANODE_LIMIT) {
     return {
       action: 'MAINTAIN',
       title: 'Anode Refresh',
@@ -717,13 +730,78 @@ export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs)
   };
 }
 
+// --- ECONOMIC OPTIMIZATION ENGINE ---
+
+function optimizeEconomicDecision(
+  rec: Recommendation, 
+  data: ForensicInputs, 
+  metrics: OpterraMetrics
+): Recommendation {
+  const isOld = data.calendarAge > CONSTANTS.AGE_ECONOMIC_REPAIR_LIMIT;
+  
+  // HEAVY REPAIR OPTIMIZATION (PRV / Exp Tank / Pressure)
+  if (rec.action === 'REPAIR' || rec.action === 'UPGRADE') {
+    const isHeavyRepair = rec.title.includes('PRV') 
+                       || rec.title.includes('Expansion') 
+                       || rec.title.includes('Pressure');
+    
+    if (isHeavyRepair && isOld) {
+      // Scenario A: Low Risk Location (Garage) -> RUN TO FAILURE
+      if (metrics.riskLevel <= CONSTANTS.RISK_MED) {
+        return {
+          action: 'PASS',
+          title: 'Run to Failure',
+          reason: `High pressure detected, but tank age (${data.calendarAge} yrs) does not justify expensive repairs in this low-risk location. Budget for replacement.`,
+          urgent: false,
+          badgeColor: 'yellow',
+          badge: 'MONITOR'
+        };
+      }
+      
+      // Scenario B: High Risk Location (Attic/Living) -> STRATEGIC REPLACEMENT
+      if (metrics.riskLevel >= CONSTANTS.RISK_HIGH) {
+        return {
+          action: 'REPLACE',
+          title: 'Strategic Replacement',
+          reason: `System requires major pressure repairs ($$$). Given tank age (${data.calendarAge} yrs) and high-risk location, replacement is the safer investment.`,
+          urgent: false,
+          badgeColor: 'orange',
+          badge: 'REPLACE'
+        };
+      }
+    }
+  }
+
+  // BUDGETING ADVICE (Healthy but Past Warranty)
+  if (rec.action === 'PASS' && data.calendarAge > data.warrantyYears) {
+    if (rec.badge === 'OPTIMAL') {
+      return {
+        action: 'PASS',
+        title: 'Warranty Expired',
+        reason: `Unit is operating normally but is past its ${data.warrantyYears}-year warranty. Start budgeting for replacement.`,
+        urgent: false,
+        badgeColor: 'blue',
+        badge: 'MONITOR'
+      };
+    }
+  }
+
+  return rec;
+}
+
 // --- MAIN ENTRY POINT ---
 
 export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   const metrics = calculateHealth(data);
-  const verdict = getRecommendation(metrics, data);
+  const rawVerdict = getRawRecommendation(metrics, data);
+  const verdict = optimizeEconomicDecision(rawVerdict, data, metrics);
   
   return { metrics, verdict };
+}
+
+// Exported wrapper for backward compatibility
+export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
+  return optimizeEconomicDecision(getRawRecommendation(metrics, data), data, metrics);
 }
 
 // --- LEGACY COMPATIBILITY ---
