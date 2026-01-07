@@ -1,15 +1,17 @@
 /**
- * OPTERRA v6.4 Risk Calculation Engine
+ * OPTERRA v6.5 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
  * 
+ * CHANGES v6.5:
+ * - ARRHENIUS ADJUSTMENT: Lowered 'HOT' (140°F) penalty from 2.0x to 1.5x.
+ *   (Prevents false positives where hot water settings triggered premature replacement).
+ * - PHYSICS: Retained 1.05x Soft-Start for Sediment (Quadratic Curve).
+ * - FINANCIAL: Includes Financial Forecasting Engine.
+ * 
  * CHANGES v6.4:
  * - PHYSICS FIX: Quadratic Sediment Stress (Soft Start curve)
- *   - OLD: Linear model (1.0 + sedimentLbs * 0.05) penalized healthy tanks too harshly
- *   - NEW: Quadratic model (1.0 + sedimentLbs² / 300) keeps 0-5 lbs near 1.0x, spikes at 15+ lbs
  * - NEW FEATURE: Financial Forecasting Engine (Budget & Date Prediction)
- *   - Calculates target replacement date based on 13-year service life and aging rate
- *   - Provides monthly budget recommendation with inflation adjustment
  * 
  * CHANGES v6.2:
  * - ARCHITECTURE: Split recommendation into getRawRecommendation + optimizeEconomicDecision
@@ -290,7 +292,7 @@ export function getRiskLevelInfo(level: RiskLevel): RiskLevelInfo {
  * -> effectivePsi = 90.
  */
 function getEffectivePressure(data: ForensicInputs): number {
-  const isActuallyClosed = data.isClosedLoop || data.hasPrv;
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
   let effectivePsi = data.housePsi;
   
   if (isActuallyClosed && !data.hasExpTank) {
@@ -390,10 +392,18 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // These accelerate electrochemical rust, which the anode fights
 
   // C. Temperature - Split 50/50 (expansion = mechanical, rust = chemical)
+  // --- ARRHENIUS CALIBRATION v6.5 ---
+  // Adjusted 'HOT' factor from 2.0 -> 1.5.
+  // This represents a 50% acceleration in aging, rather than 100%.
+  // Physics Logic: While chemical corrosion might double, the mechanical structure
+  // (steel thickness, welds) does not degrade at that same exponential speed.
+  // The Anode Rod acts as a chemical buffer, absorbing much of that accelerated corrosion.
   let tempStressRaw = 1.0;  // NORMAL baseline (120°F)
-  if (data.tempSetting === 'HOT') tempStressRaw = 2.0;   // 140°F+ accelerates both
+  if (data.tempSetting === 'HOT') tempStressRaw = 1.5;   // 140°F+ (was 2.0, now calibrated to 1.5)
   if (data.tempSetting === 'LOW') tempStressRaw = 0.8;   // 110°F eco mode life extension
   
+  // Split the factor between mechanical (expansion) and chemical (rust)
+  // sqrt(1.5) = 1.22x multiplier for each component.
   const tempMechanical = Math.sqrt(tempStressRaw);  // 50% mechanical (expansion cycles)
   const tempChemical = Math.sqrt(tempStressRaw);    // 50% chemical (rust acceleration)
 
