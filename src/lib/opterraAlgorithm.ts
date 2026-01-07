@@ -659,8 +659,21 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     };
   }
 
-  // 3C. Pressure Optimization
+  // 3C. Pressure Optimization (Young tanks with elevated pressure)
   if (!data.hasPrv && data.housePsi >= 65 && data.housePsi <= 80 && data.calendarAge < 8) {
+    // If no expansion tank, MUST recommend both as a package - PRV alone creates dangerous closed-loop thermal spikes
+    if (!data.hasExpTank) {
+      return {
+        action: 'UPGRADE',
+        title: 'Pressure Package',
+        reason: `Pressure is ${data.housePsi} PSI. Install PRV + Expansion Tank together. PRV alone would create dangerous thermal spikes.`,
+        urgent: false,
+        badgeColor: 'yellow',
+        badge: 'SERVICE'
+      };
+    }
+    
+    // Has expansion tank - safe to recommend just PRV
     return {
       action: 'UPGRADE',
       title: 'Pressure Optimization',
