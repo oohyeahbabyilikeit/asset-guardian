@@ -1,62 +1,19 @@
 import { useState } from 'react';
-import { BarChart3, ChevronDown, ChevronUp, Droplets, Gauge, ThermometerSun, Zap, Container, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, Droplets, Gauge, ThermometerSun, Zap } from 'lucide-react';
 import { AssetData } from '@/data/mockAsset';
 import { ForensicInputs } from '@/lib/opterraAlgorithm';
-import { cn } from '@/lib/utils';
-
-interface PrvStatus {
-  present: boolean;
-  required: boolean;
-  functional: boolean;
-  status: 'critical' | 'warning' | 'optimal';
-}
-
-interface ExpansionTankStatus {
-  present: boolean;
-  required: boolean;
-  status: 'critical' | 'warning' | 'optimal';
-}
 
 interface IndustryBenchmarksProps {
   asset: AssetData;
   inputs: ForensicInputs;
   onLearnMore: (topic: string) => void;
-  prvStatus?: PrvStatus;
-  expansionTankStatus?: ExpansionTankStatus;
 }
 
-export function IndustryBenchmarks({ asset, inputs, onLearnMore, prvStatus, expansionTankStatus }: IndustryBenchmarksProps) {
+export function IndustryBenchmarks({ asset, inputs, onLearnMore }: IndustryBenchmarksProps) {
   const [expandedFactor, setExpandedFactor] = useState<string | null>(null);
 
   const averageLifespan = inputs.fuelType === 'GAS' ? 12 : 13;
   const lifespanProgress = Math.min((asset.paperAge / averageLifespan) * 100, 100);
-
-  // Get actionable items (non-optimal equipment statuses)
-  const actionableItems = [];
-  
-  if (prvStatus && prvStatus.status !== 'optimal') {
-    const prvLabel = prvStatus.present && !prvStatus.functional 
-      ? 'PRV Failed' 
-      : 'PRV Recommended';
-    const prvSubtitle = prvStatus.present && !prvStatus.functional
-      ? 'High pressure despite PRV'
-      : 'Cuts strain by ~50%';
-    actionableItems.push({
-      icon: Gauge,
-      label: prvLabel,
-      subtitle: prvSubtitle,
-      status: prvStatus.status,
-    });
-  }
-  
-  if (expansionTankStatus && expansionTankStatus.status !== 'optimal' && expansionTankStatus.required) {
-    actionableItems.push({
-      icon: Container,
-      label: 'Missing Expansion Tank',
-      subtitle: 'Required for closed loop',
-      status: expansionTankStatus.status,
-    });
-  }
 
   const factors = [
     {
@@ -195,53 +152,6 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, prvStatus, expa
             ))}
           </div>
         </div>
-
-        {/* Actionable Items - Only show if there are issues */}
-        {actionableItems.length > 0 && (
-          <>
-            <div className="border-t border-border/30" />
-            <div className="space-y-2">
-              <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                Items to Review
-              </span>
-              <div className="space-y-1.5">
-                {actionableItems.map((item, idx) => (
-                  <div 
-                    key={idx}
-                    className={cn(
-                      "flex items-center gap-2.5 p-2.5 rounded-lg border",
-                      item.status === 'critical' 
-                        ? "bg-red-500/5 border-red-500/30" 
-                        : "bg-amber-500/5 border-amber-500/30"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-7 h-7 rounded-full flex items-center justify-center",
-                      item.status === 'critical' 
-                        ? "bg-red-500/20" 
-                        : "bg-amber-500/20"
-                    )}>
-                      <item.icon className={cn(
-                        "w-3.5 h-3.5",
-                        item.status === 'critical' ? "text-red-400" : "text-amber-400"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-foreground">{item.label}</span>
-                      <span className={cn(
-                        "text-xs block",
-                        item.status === 'critical' ? "text-red-400" : "text-amber-400"
-                      )}>
-                        {item.subtitle}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

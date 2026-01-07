@@ -175,8 +175,6 @@ export function CommandCenter({
             asset={currentAsset} 
             inputs={currentInputs}
             onLearnMore={handleLearnMore}
-            prvStatus={dynamicVitals.prv}
-            expansionTankStatus={dynamicVitals.expansionTank}
           />
         </div>
 
