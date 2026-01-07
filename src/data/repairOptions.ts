@@ -53,6 +53,18 @@ export const repairOptions: RepairOption[] = [
     },
   },
   {
+    id: 'prv_exp_package',
+    name: 'Install PRV + Expansion Tank',
+    description: 'Required together: PRV creates closed loop, expansion tank prevents thermal spikes',
+    costMin: 600,
+    costMax: 950,
+    impact: {
+      healthScoreBoost: 35,
+      agingFactorReduction: 45,
+      failureProbReduction: 55,
+    },
+  },
+  {
     id: 'exp_tank',
     name: 'Install Expansion Tank',
     description: 'Absorbs thermal expansion in closed loop system',
@@ -138,20 +150,36 @@ export function getAvailableRepairs(
   // Determine closed loop status
   const isActuallyClosed = inputs.isClosedLoop || inputs.hasPrv;
 
-  // PRV recommended at 70+ PSI - reduces strain by ~50% when cut to 60 PSI
+  // PRV Logic - CRITICAL: Cannot install PRV without expansion tank (creates dangerous thermal spikes)
   if (!inputs.hasPrv && inputs.housePsi >= 70) {
-    const prv = repairOptions.find(r => r.id === 'prv');
-    if (prv) options.push(prv);
+    if (!inputs.hasExpTank) {
+      // No expansion tank - MUST offer package deal, not standalone PRV
+      const prvPackage = repairOptions.find(r => r.id === 'prv_exp_package');
+      if (prvPackage) options.push(prvPackage);
+    } else {
+      // Has expansion tank - safe to offer standalone PRV
+      const prv = repairOptions.find(r => r.id === 'prv');
+      if (prv) options.push(prv);
+    }
   }
 
   // PRV replacement if PRV exists but pressure still high (failed PRV)
+  // Also needs expansion tank check - replacing PRV still creates closed loop
   if (inputs.hasPrv && inputs.housePsi > 75) {
-    const replacePrv = repairOptions.find(r => r.id === 'replace_prv');
-    if (replacePrv) options.push(replacePrv);
+    if (!inputs.hasExpTank) {
+      // Failed PRV but no expansion tank - need to add tank with the replacement
+      const replacePrv = repairOptions.find(r => r.id === 'replace_prv');
+      const expTank = repairOptions.find(r => r.id === 'exp_tank');
+      if (replacePrv) options.push(replacePrv);
+      if (expTank) options.push(expTank);
+    } else {
+      const replacePrv = repairOptions.find(r => r.id === 'replace_prv');
+      if (replacePrv) options.push(replacePrv);
+    }
   }
 
-  // Expansion tank needed if closed loop and no tank
-  if (isActuallyClosed && !inputs.hasExpTank) {
+  // Expansion tank needed if closed loop and no tank (and PRV not being installed - that's handled above)
+  if (isActuallyClosed && !inputs.hasExpTank && inputs.hasPrv && inputs.housePsi <= 75) {
     const expTank = repairOptions.find(r => r.id === 'exp_tank');
     if (expTank) options.push(expTank);
   }
