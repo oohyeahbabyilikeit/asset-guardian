@@ -66,6 +66,8 @@ function UnitProfileStep({ asset, inputs, metrics }: { asset: AssetData; inputs:
         anodePercent={Math.round(anodePercent)}
         sedimentLbs={metrics.sedimentLbs}
         fuelType={inputs.fuelType}
+        hasExpansionTank={inputs.hasExpTank}
+        hasPRV={inputs.hasPrv}
       />
 
       {/* Age indicator */}
