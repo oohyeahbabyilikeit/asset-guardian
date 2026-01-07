@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
-import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { ServiceHistory } from '@/components/ServiceHistory';
@@ -154,13 +153,8 @@ export function CommandCenter({
           />
         </div>
 
-        {/* DISCOVERY PHASE 2: Items to Review */}
-        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.05s' }}>
-          <VitalsGrid vitals={dynamicVitals} />
-        </div>
-
-        {/* DISCOVERY PHASE 3: Tank Visualization */}
-        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.1s' }}>
+        {/* DISCOVERY PHASE 2: Tank Visualization */}
+        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.05s' }}>
           <ServiceHistory 
             calendarAge={currentInputs.calendarAge}
             sedimentLbs={sedimentLbs}
@@ -175,12 +169,14 @@ export function CommandCenter({
           />
         </div>
 
-        {/* DISCOVERY PHASE 4: Industry Context */}
-        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.15s' }}>
+        {/* DISCOVERY PHASE 3: Industry Context + Actionable Items */}
+        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.1s' }}>
           <IndustryBenchmarks 
             asset={currentAsset} 
             inputs={currentInputs}
             onLearnMore={handleLearnMore}
+            prvStatus={dynamicVitals.prv}
+            expansionTankStatus={dynamicVitals.expansionTank}
           />
         </div>
 
