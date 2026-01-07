@@ -23,33 +23,33 @@ function ActionItem({ icon, iconBgClass, title, subtitle, subtitleClass, isPasse
   return (
     <div 
       className={cn(
-        "action-item",
+        "action-item py-2.5 px-3",
         status === 'critical' && "action-item-critical",
         status === 'warning' && "action-item-warning",
         isPassed && "action-item-optimal"
       )}
     >
-      <div className="flex items-center gap-4">
-        <div className={cn("w-11 h-11 rounded-full flex items-center justify-center border", iconBgClass)}>
+      <div className="flex items-center gap-3">
+        <div className={cn("w-9 h-9 rounded-full flex items-center justify-center border", iconBgClass)}>
           {icon}
         </div>
-        <div className="text-left">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-foreground">{title}</span>
+        <div className="text-left flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-sm text-foreground truncate">{title}</span>
             {tooltip && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-help flex-shrink-0" />
+                    <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help flex-shrink-0" />
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[220px] text-xs">
+                  <TooltipContent side="top" className="max-w-[200px] text-xs">
                     {tooltip}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
           </div>
-          <div className={cn("text-xs font-bold font-data", subtitleClass)}>{subtitle}</div>
+          <div className={cn("text-xs font-medium", subtitleClass)}>{subtitle}</div>
         </div>
       </div>
     </div>
@@ -166,15 +166,15 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
   const passed = items.filter(item => item.status === 'optimal');
 
   return (
-    <div className="px-4 space-y-5">
+    <div className="space-y-4">
       {/* Observations Section */}
       {issues.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 ml-1 flex items-center gap-2 font-data">
-            <span className="w-2 h-2 rounded-full bg-amber-500/70"></span>
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500/70"></span>
             Items to Review ({issues.length})
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {issues.map((item, idx) => (
               <ActionItem
                 key={idx}
@@ -194,10 +194,10 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
       {/* Passed Items Section */}
       {passed.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 ml-1 font-data">
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
             Verified Systems
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {passed.map((item, idx) => (
               <ActionItem
                 key={idx}
