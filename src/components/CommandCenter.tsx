@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { VitalsGrid } from '@/components/VitalsGrid';
 import { ActionDock } from '@/components/ActionDock';
 import { RecommendationBanner } from '@/components/RecommendationBanner';
-
 import { ServiceHistory } from '@/components/ServiceHistory';
-import { demoAsset, type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
+import { UnitProfileCard } from '@/components/UnitProfileCard';
+import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
+import { EducationalDrawer, type EducationalTopic } from '@/components/EducationalDrawer';
+import { type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
 
 interface CommandCenterProps {
@@ -27,6 +30,22 @@ function getStatusFromValue(value: number, warningThreshold: number, criticalThr
   return 'optimal';
 }
 
+// Map string topics to valid EducationalTopic
+function mapToEducationalTopic(topic: string): EducationalTopic {
+  const mapping: Record<string, EducationalTopic> = {
+    'pressure': 'pressure',
+    'hardness': 'hardness',
+    'thermal': 'thermal-expansion',
+    'temperature': 'temperature',
+    'aging': 'aging',
+    'sediment': 'sediment',
+    'prv': 'prv',
+    'anode-rod': 'anode-rod',
+    'failure-rate': 'failure-rate',
+  };
+  return mapping[topic] || 'pressure';
+}
+
 export function CommandCenter({ 
   onPanicMode, 
   onServiceRequest, 
@@ -38,6 +57,8 @@ export function CommandCenter({
   onRandomize,
   scenarioName
 }: CommandCenterProps) {
+  const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
+
   // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
   const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor, sedimentRate, monthsToFlush, monthsToLockout, flushStatus } = opterraResult.metrics;
@@ -107,6 +128,10 @@ export function CommandCenter({
     recommendation: recommendation.action,
   };
 
+  const handleLearnMore = (topic: string) => {
+    setEducationalTopic(mapToEducationalTopic(topic));
+  };
+
   return (
     <div className="min-h-screen bg-background pb-40 relative">
       {/* Tech grid background */}
@@ -118,12 +143,12 @@ export function CommandCenter({
       <div className="relative">
         <DashboardHeader onTestHarness={onTestHarness} onRandomize={onRandomize} scenarioName={scenarioName} />
 
-        {/* Hero Health Gauge */}
-        <div className="animate-fade-in-up">
-          <HealthGauge healthScore={dynamicHealthScore} location={currentAsset.location} riskLevel={riskLevel} agingRate={agingRate} />
+        {/* DISCOVERY PHASE 1: Your Unit Profile (Neutral Facts First) */}
+        <div className="px-4 animate-fade-in-up">
+          <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
         </div>
 
-        {/* Tank Health / Service History */}
+        {/* DISCOVERY PHASE 2: Tank Visualization */}
         <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.05s' }}>
           <ServiceHistory 
             calendarAge={currentInputs.calendarAge}
@@ -139,8 +164,37 @@ export function CommandCenter({
           />
         </div>
 
-        {/* Recommendation Banner */}
-        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
+        {/* DISCOVERY PHASE 3: Industry Context (Benchmarks Before Judgment) */}
+        <div className="px-4 animate-fade-in-up mt-4" style={{ animationDelay: '0.1s' }}>
+          <IndustryBenchmarks 
+            asset={currentAsset} 
+            inputs={currentInputs}
+            onLearnMore={handleLearnMore}
+          />
+        </div>
+
+        {/* UNDERSTANDING PHASE: What We Observed */}
+        <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.15s' }}>
+          <VitalsGrid vitals={dynamicVitals} />
+        </div>
+
+        {/* SUMMARY PHASE: Assessment Summary (Score AFTER Context) */}
+        <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.2s' }}>
+          <div className="px-4">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 px-1">
+              Assessment Summary
+            </div>
+          </div>
+          <HealthGauge 
+            healthScore={dynamicHealthScore} 
+            location={currentAsset.location} 
+            riskLevel={riskLevel} 
+            agingRate={agingRate}
+          />
+        </div>
+
+        {/* ACTION PHASE: What Homeowners Consider */}
+        <div className="animate-fade-in-up mt-4" style={{ animationDelay: '0.25s' }}>
           <RecommendationBanner 
             recommendation={recommendation} 
             agingRate={agingRate}
@@ -148,12 +202,6 @@ export function CommandCenter({
             primaryStressor={primaryStressor}
             financial={financial}
           />
-        </div>
-
-
-        {/* Vitals Grid / Action List */}
-        <div className="animate-fade-in-up mt-6" style={{ animationDelay: '0.2s' }}>
-          <VitalsGrid vitals={dynamicVitals} />
         </div>
 
         {/* Action Dock */}
@@ -164,6 +212,13 @@ export function CommandCenter({
           recommendation={recommendation}
         />
       </div>
+
+      {/* Educational Drawer */}
+      <EducationalDrawer 
+        isOpen={!!educationalTopic}
+        onClose={() => setEducationalTopic(null)}
+        topic={educationalTopic || 'pressure'}
+      />
     </div>
   );
 }

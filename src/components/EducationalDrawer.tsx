@@ -17,12 +17,17 @@ export type EducationalTopic =
   | 'anode-rod' 
   | 'sediment' 
   | 'prv'
-  | 'failure-rate';
+  | 'failure-rate'
+  | 'hardness'
+  | 'thermal'
+  | 'temperature';
 
 interface EducationalDrawerProps {
   topic: EducationalTopic;
   trigger?: React.ReactNode;
   children?: React.ReactNode;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 const topicContent: Record<EducationalTopic, {
@@ -92,6 +97,26 @@ const topicContent: Record<EducationalTopic, {
     ],
     source: 'Plumbing code requirements for closed-loop systems'
   },
+  'thermal': {
+    icon: <ThermometerSun className="w-5 h-5" />,
+    title: 'Thermal Expansion Explained',
+    description: 'What happens when water heats up in a closed system',
+    sections: [
+      {
+        heading: 'The Physics',
+        content: 'When water heats from 50°F to 120°F, it expands by about 2%. In a 50-gallon tank, this creates roughly 1 gallon of additional volume that needs somewhere to go.'
+      },
+      {
+        heading: 'Open vs Closed Systems',
+        content: 'In older "open" systems, expanded water could flow back into the city main. Modern homes have check valves or PRVs that create "closed" systems—the expanded water has nowhere to escape, creating pressure spikes.'
+      },
+      {
+        heading: 'Expansion Tanks',
+        content: 'An expansion tank provides a cushion for this extra volume. It contains a bladder that compresses to absorb the expansion. Without one, each heating cycle creates a pressure spike that stresses the tank and T&P relief valve.'
+      }
+    ],
+    source: 'Plumbing code requirements for closed-loop systems'
+  },
   'anode-rod': {
     icon: <Shield className="w-5 h-5" />,
     title: 'Anode Rod Protection',
@@ -131,6 +156,46 @@ const topicContent: Record<EducationalTopic, {
       }
     ],
     source: 'DOE water heater maintenance recommendations'
+  },
+  'hardness': {
+    icon: <Droplets className="w-5 h-5" />,
+    title: 'Water Hardness Explained',
+    description: 'Understanding mineral content in your water',
+    sections: [
+      {
+        heading: 'What Is Hard Water?',
+        content: 'Water hardness measures dissolved calcium and magnesium content, typically in "grains per gallon" (gpg). Water above 7 gpg is considered moderately hard. Many US regions have naturally hard water from groundwater sources.'
+      },
+      {
+        heading: 'Effects on Water Heaters',
+        content: 'Hard water accelerates sediment buildup and scale formation on heating elements. This reduces efficiency, increases energy costs, and can shorten tank lifespan. Scale can also affect water flow and clog fixtures.'
+      },
+      {
+        heading: 'Treatment Options',
+        content: 'Water softeners remove minerals using ion exchange. While they reduce scale buildup, softened water accelerates anode rod depletion (2-3x faster). More frequent anode inspection is recommended with softeners.'
+      }
+    ],
+    source: 'USGS water quality standards'
+  },
+  'temperature': {
+    icon: <ThermometerSun className="w-5 h-5" />,
+    title: 'Temperature Settings',
+    description: 'How thermostat settings affect your water heater',
+    sections: [
+      {
+        heading: 'Recommended Settings',
+        content: 'Most manufacturers recommend 120°F (the "warm" or "normal" setting). This balances comfort, safety (reducing scald risk), and energy efficiency. Higher settings increase energy costs by 3-5% per 10°F.'
+      },
+      {
+        heading: 'Effects of High Temperature',
+        content: 'Settings above 120°F accelerate mineral precipitation, sediment formation, and anode consumption. Chemical reactions roughly double for every 18°F increase. This can significantly shorten tank lifespan.'
+      },
+      {
+        heading: 'When Higher Temps Are Needed',
+        content: 'Dishwashers without internal heaters may need 140°F water. Some households prefer higher temperatures for specific needs. Consider a mixing valve to maintain safe temperatures at fixtures while keeping tank temperature higher.'
+      }
+    ],
+    source: 'DOE water heater efficiency guidelines'
   },
   'prv': {
     icon: <Wrench className="w-5 h-5" />,
@@ -174,7 +239,7 @@ const topicContent: Record<EducationalTopic, {
   }
 };
 
-export function EducationalDrawer({ topic, trigger, children }: EducationalDrawerProps) {
+export function EducationalDrawer({ topic, trigger, children, isOpen, onClose }: EducationalDrawerProps) {
   const content = topicContent[topic];
   
   const defaultTrigger = (
@@ -184,6 +249,61 @@ export function EducationalDrawer({ topic, trigger, children }: EducationalDrawe
     </button>
   );
 
+  // If controlled mode (isOpen/onClose provided)
+  if (typeof isOpen !== 'undefined') {
+    return (
+      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
+        <DrawerContent className="max-h-[85vh]">
+          <div className="mx-auto w-full max-w-lg">
+            <DrawerHeader className="text-left">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  {content.icon}
+                </div>
+                <div>
+                  <DrawerTitle className="text-lg">{content.title}</DrawerTitle>
+                  <DrawerDescription className="text-sm">
+                    {content.description}
+                  </DrawerDescription>
+                </div>
+              </div>
+            </DrawerHeader>
+            
+            <div className="px-4 pb-6 space-y-4 overflow-y-auto max-h-[50vh]">
+              {content.sections.map((section, index) => (
+                <div key={index} className="space-y-1.5">
+                  <h4 className="text-sm font-medium text-foreground">
+                    {section.heading}
+                  </h4>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {section.content}
+                  </p>
+                </div>
+              ))}
+              
+              {content.source && (
+                <div className="pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground italic">
+                    {content.source}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-border">
+              <DrawerClose asChild>
+                <Button variant="outline" className="w-full">
+                  Got it
+                </Button>
+              </DrawerClose>
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  // Trigger mode (original behavior)
   return (
     <Drawer>
       <DrawerTrigger asChild>

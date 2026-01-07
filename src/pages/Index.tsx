@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { HandshakeLoading } from '@/components/HandshakeLoading';
 import { CommandCenter } from '@/components/CommandCenter';
+import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { ForensicReport } from '@/components/ForensicReport';
 import { PanicMode } from '@/components/PanicMode';
 import { ServiceRequest } from '@/components/ServiceRequest';
@@ -10,10 +11,10 @@ import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs } from '@/lib/opterraAlgorithm';
 
-type Screen = 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'test-harness';
+type Screen = 'welcome' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'test-harness';
 
 const Index = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
   const [selectedRepairs, setSelectedRepairs] = useState<RepairOption[]>([]);
   
   // Shared scenario state - use stable default values
@@ -32,8 +33,15 @@ const Index = () => {
     setCurrentScreen('dashboard');
   };
 
+  const handleWelcomeComplete = () => {
+    setCurrentScreen('dashboard');
+  };
+
   const renderScreen = () => {
     switch (currentScreen) {
+      case 'welcome':
+        return <WelcomeScreen onBegin={handleWelcomeComplete} />;
+      
       case 'loading':
         return <HandshakeLoading onComplete={handleLoadingComplete} />;
       
@@ -89,7 +97,7 @@ const Index = () => {
         return <AlgorithmTestHarness onBack={() => setCurrentScreen('dashboard')} />;
       
       default:
-        return <HandshakeLoading onComplete={handleLoadingComplete} />;
+        return <WelcomeScreen onBegin={handleWelcomeComplete} />;
     }
   };
 
