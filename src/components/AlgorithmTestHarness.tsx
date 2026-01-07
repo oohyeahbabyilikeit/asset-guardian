@@ -40,29 +40,39 @@ const DEFAULT_INPUTS: ForensicInputs = {
   tempSetting: 'NORMAL',
 };
 
-// Generate Basquin curve data points
-const DESIGN_PSI = 60;
-const FATIGUE_EXP = 4.0;
+// Buffer Zone Model constants (must match opterraAlgorithm.ts)
+const PSI_SAFE_LIMIT = 80;    // Below this, compressive pre-stress protects the glass
+const PSI_SCALAR = 20;        // Every 20 PSI over limit = 1 "Step" of damage
+const PSI_QUADRATIC_EXP = 2.0; // Quadratic penalty
 
-function generateBasquinCurve() {
+function generateBufferZoneCurve() {
   const points = [];
   for (let psi = 40; psi <= 150; psi += 5) {
-    const effectivePsi = Math.max(psi, DESIGN_PSI);
-    const stress = Math.pow(effectivePsi / DESIGN_PSI, FATIGUE_EXP);
+    let stress = 1.0;
+    if (psi > PSI_SAFE_LIMIT) {
+      const excessPsi = psi - PSI_SAFE_LIMIT;
+      const penalty = Math.pow(excessPsi / PSI_SCALAR, PSI_QUADRATIC_EXP);
+      stress = 1.0 + penalty;
+    }
     points.push({ psi, stress: Math.round(stress * 100) / 100 });
   }
   return points;
 }
 
-const BASQUIN_DATA = generateBasquinCurve();
+const PRESSURE_CURVE_DATA = generateBufferZoneCurve();
 
 export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
   const [inputs, setInputs] = useState<ForensicInputs>(DEFAULT_INPUTS);
   const [result, setResult] = useState<OpterraResult | null>(null);
 
   const currentPsiStress = useMemo(() => {
-    const effectivePsi = Math.max(inputs.psi, DESIGN_PSI);
-    return Math.pow(effectivePsi / DESIGN_PSI, FATIGUE_EXP);
+    let stress = 1.0;
+    if (inputs.psi > PSI_SAFE_LIMIT) {
+      const excessPsi = inputs.psi - PSI_SAFE_LIMIT;
+      const penalty = Math.pow(excessPsi / PSI_SCALAR, PSI_QUADRATIC_EXP);
+      stress = 1.0 + penalty;
+    }
+    return stress;
   }, [inputs.psi]);
 
   const runCalculation = () => {
@@ -161,14 +171,14 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             />
             </div>
 
-            {/* Basquin Curve Visualization */}
+            {/* Buffer Zone Pressure Curve Visualization */}
             <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
               <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                Basquin's Law: Pressure Stress = (PSI / 60)⁴
+                Buffer Zone Model: Stress = 1 + ((PSI - 80) / 20)²
               </div>
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={BASQUIN_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <LineChart data={PRESSURE_CURVE_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                     <XAxis 
                       dataKey="psi" 
@@ -181,6 +191,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       tick={{ fontSize: 10 }} 
                       tickLine={false}
                       axisLine={false}
+                      domain={[0, 'auto']}
                       label={{ value: 'Stress ×', angle: -90, position: 'insideLeft', fontSize: 10, offset: 15 }}
                     />
                     <Tooltip 
@@ -193,9 +204,9 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       formatter={(value: number) => [`${value}×`, 'Stress']}
                       labelFormatter={(label) => `${label} PSI`}
                     />
-                    <ReferenceLine x={60} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: 'Design', fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
-                    <ReferenceLine x={80} stroke="hsl(var(--warning))" strokeDasharray="3 3" label={{ value: 'High', fontSize: 9, fill: 'hsl(var(--warning))' }} />
-                    <ReferenceLine x={110} stroke="hsl(var(--destructive))" strokeDasharray="3 3" label={{ value: 'Critical', fontSize: 9, fill: 'hsl(var(--destructive))' }} />
+                    <ReferenceLine x={80} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: 'Buffer Limit', fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+                    <ReferenceLine x={100} stroke="hsl(var(--warning))" strokeDasharray="3 3" label={{ value: 'High (2×)', fontSize: 9, fill: 'hsl(var(--warning))' }} />
+                    <ReferenceLine x={120} stroke="hsl(var(--destructive))" strokeDasharray="3 3" label={{ value: 'Critical (5×)', fontSize: 9, fill: 'hsl(var(--destructive))' }} />
                     <Line 
                       type="monotone" 
                       dataKey="stress" 
@@ -216,6 +227,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               </div>
               <div className="text-center text-xs text-muted-foreground mt-2">
                 Current: <span className="font-mono font-bold text-foreground">{inputs.psi} PSI</span> → <span className="font-mono font-bold text-primary">{currentPsiStress.toFixed(2)}× stress</span>
+                {inputs.psi <= 80 && <span className="ml-2 text-emerald-500">(Protected by glass pre-stress)</span>}
               </div>
             </div>
 
@@ -349,7 +361,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Pressure</div>
                   <div className="font-mono font-bold text-sm">{result.metrics.stressFactors.pressure.toFixed(2)}x</div>
-                  <div className="text-[10px] text-muted-foreground">Basquin's Law</div>
+                  <div className="text-[10px] text-muted-foreground">Buffer Zone</div>
                 </div>
                 <div className="p-2 bg-background rounded border">
                   <div className="text-xs text-muted-foreground">Thermal</div>
