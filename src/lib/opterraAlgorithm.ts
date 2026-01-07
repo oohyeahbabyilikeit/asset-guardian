@@ -102,9 +102,14 @@ const CONSTANTS = {
   ETA: 11.5,               // Characteristic Life (63.2% failure point)
   BETA: 2.2,               // Shape >2.0 indicates wear-out (corrosion) vs random
   
-  // Physics Baselines
-  DESIGN_PSI: 60,          // The "Safe" working pressure baseline
-  FATIGUE_EXP: 4.0,        // Basquin's exponent for corrosion-fatigue in steel
+  // Physics Baselines - Pressure "Buffer Zone" Model
+  // Glass lining is fired at 1600°F. As it cools, steel shrinks more than glass,
+  // creating permanent compressive pre-stress. Glass is strong in compression.
+  // The first ~80 PSI merely "relaxes" this compression - no tensile stress occurs.
+  PSI_SAFE_LIMIT: 80,      // Below this, compressive pre-stress protects the glass
+  PSI_SCALAR: 20,          // Every 20 PSI over limit = 1 "Step" of damage
+  PSI_QUADRATIC_EXP: 2.0,  // Quadratic penalty (steel backing restrains explosive strain)
+  DESIGN_PSI: 60,          // Code-compliant static pressure (reference only)
   
   // Sediment Accumulation (lbs per year per GPG)
   SEDIMENT_FACTOR_GAS: 0.044, 
@@ -289,16 +294,28 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // === MECHANICAL STRESS (Fatigue - Anode CANNOT Prevent) ===
   // These hurt the tank from Day 1, regardless of anode status
   
-  // A. Pressure (Basquin's Power Law)
+  // A. Pressure (Buffer Zone Model - Compressive Pre-Stress)
+  // The glass lining sits in compression from manufacturing. First 80 PSI just 
+  // "relaxes" the squeeze. Only EXCESS pressure over 80 PSI causes tensile stress.
+  
   // Detect closed loop pressure trap - assume transient spikes during firing
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
   let effectivePsi = data.psi;
   if (isActuallyClosed && !data.hasExpTank) {
-    // User inputs static pressure, but dynamic spikes to ~130 PSI when firing
+    // User inputs static pressure, but dynamic spikes to ~120-130 PSI when firing
     effectivePsi = Math.max(effectivePsi, 120);
   }
-  effectivePsi = Math.max(effectivePsi, CONSTANTS.DESIGN_PSI);
-  const pressureStress = Math.pow(effectivePsi / CONSTANTS.DESIGN_PSI, CONSTANTS.FATIGUE_EXP);
+  
+  // Buffer Zone Calculation
+  let pressureStress = 1.0;
+  if (effectivePsi > CONSTANTS.PSI_SAFE_LIMIT) {
+    // Only penalize the "illegal" pressure above the buffer
+    const excessPsi = effectivePsi - CONSTANTS.PSI_SAFE_LIMIT;
+    // Quadratic penalty (Power of 2) - steel backing restrains explosive strain
+    const penalty = Math.pow(excessPsi / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
+    pressureStress = 1.0 + penalty;
+  }
+  // Expected outputs: 60 PSI → 1.0x, 80 PSI → 1.0x, 100 PSI → 2.0x, 120 PSI → 5.0x, 140 PSI → 10.0x
 
   // B. Sediment (Thermal Stress / Overheating) - 100% mechanical
   // Sediment insulates the tank bottom, causing hot spots and thermal fatigue
