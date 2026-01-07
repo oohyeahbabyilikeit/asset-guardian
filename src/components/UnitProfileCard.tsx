@@ -54,51 +54,45 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
         </div>
       </div>
 
-      {/* Content - Compact horizontal layout */}
-      <div className="p-4">
-        <div className="flex gap-6">
-          {/* Basic Info - Inline */}
-          <div className="flex gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground text-xs">Age</span>
-              <p className="font-semibold text-foreground">{asset.paperAge}y</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Type</span>
-              <p className="font-semibold text-foreground capitalize">{asset.specs.fuelType}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Location</span>
-              <p className="font-semibold text-foreground">{locationLabel}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Capacity</span>
-              <p className="font-semibold text-foreground">{asset.specs.capacity}</p>
-            </div>
+      {/* Content */}
+      <div className="p-4 space-y-4">
+        {/* Basic Info Grid */}
+        <div className="grid grid-cols-4 gap-4">
+          <div>
+            <span className="text-muted-foreground text-xs block">Age</span>
+            <p className="font-semibold text-foreground">{asset.paperAge} years</p>
           </div>
-
-          {/* Divider */}
-          <div className="border-l border-border/30" />
-
-          {/* Equipment - Inline icons */}
-          <div className="flex items-center gap-3">
-            {equipment.map((item) => (
-              <div 
-                key={item.label} 
-                className="flex items-center gap-1.5"
-                title={item.label}
-              >
-                {item.present ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <Circle className="w-3.5 h-3.5 text-muted-foreground/40" />
-                )}
-                <span className={`text-xs ${item.present ? 'text-foreground' : 'text-muted-foreground/60'}`}>
-                  {item.label.split(' ')[0]}
-                </span>
-              </div>
-            ))}
+          <div>
+            <span className="text-muted-foreground text-xs block">Type</span>
+            <p className="font-semibold text-foreground capitalize">{asset.specs.fuelType}</p>
           </div>
+          <div>
+            <span className="text-muted-foreground text-xs block">Location</span>
+            <p className="font-semibold text-foreground">{locationLabel}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs block">Capacity</span>
+            <p className="font-semibold text-foreground">{asset.specs.capacity}</p>
+          </div>
+        </div>
+
+        {/* Equipment Grid */}
+        <div className="grid grid-cols-2 gap-2">
+          {equipment.map((item) => (
+            <div 
+              key={item.label} 
+              className="flex items-center gap-2"
+            >
+              {item.present ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <Circle className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+              )}
+              <span className={`text-sm ${item.present ? 'text-foreground' : 'text-muted-foreground/60'}`}>
+                {item.label}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
