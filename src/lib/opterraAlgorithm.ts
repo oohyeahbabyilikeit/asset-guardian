@@ -1,11 +1,16 @@
 /**
- * OPTERRA v6.5 Risk Calculation Engine
+ * OPTERRA v6.6 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
  * 
+ * CHANGES v6.6:
+ * - PHYSICS FIX: Implemented "Duty Cycle" logic (0.25 dampener) for Thermal Expansion.
+ *   (Distinguishes between constant high pressure vs. transient thermal spikes).
+ *   (Prevents false condemnation of young tanks).
+ * - SAFETY: Added specific warnings for Attic units in the Repair workflow.
+ * 
  * CHANGES v6.5:
  * - ARRHENIUS ADJUSTMENT: Lowered 'HOT' (140°F) penalty from 2.0x to 1.5x.
- *   (Prevents false positives where hot water settings triggered premature replacement).
  * - PHYSICS: Retained 1.05x Soft-Start for Sediment (Quadratic Curve).
  * - FINANCIAL: Includes Financial Forecasting Engine.
  * 
@@ -280,27 +285,41 @@ export function getRiskLevelInfo(level: RiskLevel): RiskLevelInfo {
 }
 
 /**
- * PHYSICS ADAPTER
- * Calculates the ACTUAL pressure the tank experiences (Effective PSI).
+ * PHYSICS ADAPTER v6.6 - Duty Cycle Logic
+ * Determines both the EFFECTIVE PSI and whether it's TRANSIENT (duty cycle).
  * 
- * Scenario A: House PSI is 60. Closed Loop. No Exp Tank.
- * -> The gauge reads 60, but the tank spikes to ~120 during heating.
- * -> effectivePsi = 120.
+ * Scenario 1: House PSI is 60, Closed Loop, No Exp Tank
+ * -> Spikes to 120 during heating, but only ~25% duty cycle
+ * -> Returns { effectivePsi: 120, isTransient: true }
  * 
- * Scenario B: House PSI is 90. No PRV.
- * -> The tank is always at 90.
- * -> effectivePsi = 90.
+ * Scenario 2: House PSI is 110 (PRV failed)
+ * -> Tank is always at 110 PSI
+ * -> Returns { effectivePsi: 110, isTransient: false }
+ * 
+ * The Duty Cycle dampener (0.25x) prevents false condemnation of young tanks
+ * that experience thermal expansion spikes vs. constant static pressure.
  */
-function getEffectivePressure(data: ForensicInputs): number {
+function getPressureProfile(data: ForensicInputs): { effectivePsi: number; isTransient: boolean } {
   const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
   let effectivePsi = data.housePsi;
-  
+  let isTransient = false;
+
+  // Scenario 1: House pressure is normal (e.g. 60), but Closed Loop creates spikes
   if (isActuallyClosed && !data.hasExpTank) {
-    // If closed loop without protection, tank takes the thermal spike.
-    // We assume a minimum spike to 120 PSI, or the static pressure if higher.
-    effectivePsi = Math.max(effectivePsi, CONSTANTS.PSI_THERMAL_SPIKE);
+    if (data.housePsi < CONSTANTS.PSI_THERMAL_SPIKE) {
+      effectivePsi = CONSTANTS.PSI_THERMAL_SPIKE; // Spike to 120
+      isTransient = true; // This is a Duty Cycle spike (not constant)
+    }
   }
-  return effectivePsi;
+  
+  // Scenario 2: House pressure is ALREADY high (e.g. 110)
+  // This is NOT transient; the tank is always under this load.
+  if (data.housePsi >= CONSTANTS.PSI_THERMAL_SPIKE) {
+    effectivePsi = data.housePsi;
+    isTransient = false;
+  }
+
+  return { effectivePsi, isTransient };
 }
 
 // --- CORE CALCULATION ENGINE ---
@@ -365,16 +384,24 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // === MECHANICAL STRESS (Fatigue - Anode CANNOT Prevent) ===
   // These hurt the tank from Day 1, regardless of anode status
   
-  // A. Pressure (Buffer Zone Model)
-  // **KEY CHANGE**: Use calculated Effective PSI for stress modeling
-  const effectivePsi = getEffectivePressure(data);
+  // A. Pressure (Buffer Zone Model) - v6.6 Duty Cycle Logic
+  // Uses getPressureProfile() to distinguish constant vs transient pressure
+  const { effectivePsi, isTransient } = getPressureProfile(data);
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
 
   let pressureStress = 1.0;
   if (effectivePsi > CONSTANTS.PSI_SAFE_LIMIT) {
     const excessPsi = effectivePsi - CONSTANTS.PSI_SAFE_LIMIT;
-    const penalty = Math.pow(excessPsi / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
-    pressureStress = 1.0 + penalty;
+    let rawPenalty = Math.pow(excessPsi / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
+    
+    // DUTY CYCLE DAMPENER (v6.6)
+    // If this is a transient spike (heating only), apply 0.25x dampener (25% Duty Cycle).
+    // If this is static pressure (PRV failure), apply full 1.0x penalty.
+    if (isTransient) {
+      rawPenalty = rawPenalty * 0.25; 
+    }
+    
+    pressureStress = 1.0 + rawPenalty;
   }
 
   // B. Sediment (Thermal Stress / Overheating) - 100% mechanical
@@ -648,11 +675,22 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
 
   // 3A. Missing Thermal Expansion (Closed Loop without Expansion Tank) - URGENT
+  // v6.6: Enhanced with Attic Safety Warning
   if (isActuallyClosed && !data.hasExpTank) {
+    const reasonText = data.hasCircPump 
+      ? 'Circulation pump detected without expansion tank. Check valves in the loop are trapping pressure.'
+      : 'Closed-loop system detected without an expansion tank. Pressure spikes to ~120 PSI during heating.';
+    
+    // SAFETY OVERRIDE: Attics are always Urgent with specific warning
+    const isAttic = data.location === 'ATTIC' || data.location === 'UPPER_FLOOR';
+    const atticWarning = isAttic 
+      ? ' ATTIC LOCATION RISK: Thermal expansion may cause relief valve discharge or tank rupture in finished space.'
+      : '';
+
     return {
       action: 'REPAIR',
       title: 'Missing Thermal Expansion',
-      reason: 'Closed-loop system detected without an expansion tank. This voids manufacturer warranty and causes premature tank failure.',
+      reason: reasonText + atticWarning,
       urgent: true,
       badgeColor: 'orange',
       badge: 'SERVICE'
@@ -787,6 +825,15 @@ function optimizeEconomicDecision(
   metrics: OpterraMetrics
 ): Recommendation {
   const isOld = data.calendarAge > CONSTANTS.AGE_ECONOMIC_REPAIR_LIMIT;
+  
+  // High Risk Location Logic (e.g. Attic) - v6.6
+  const isHighRisk = metrics.riskLevel >= CONSTANTS.RISK_HIGH;
+
+  // SAFETY OVERRIDE: If unit is in Attic/Upper Floor and needs repair, force urgency
+  if (isHighRisk && rec.action === 'REPAIR') {
+    rec.urgent = true;
+    rec.note = 'Safety override: High risk location increases repair urgency.';
+  }
   
   // HEAVY REPAIR OPTIMIZATION (PRV / Exp Tank / Pressure)
   if (rec.action === 'REPAIR' || rec.action === 'UPGRADE') {

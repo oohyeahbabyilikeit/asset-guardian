@@ -323,7 +323,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             </Button>
             <div>
               <h1 className="text-lg font-bold">OPTERRA Test Harness</h1>
-              <p className="text-xs text-muted-foreground">v6.5 Physics Engine</p>
+              <p className="text-xs text-muted-foreground">v6.6 Physics Engine</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={resetInputs}>
