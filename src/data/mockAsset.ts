@@ -373,8 +373,8 @@ export function getRandomScenario(): DemoScenario {
   return scenarios[Math.floor(Math.random() * scenarios.length)];
 }
 
-// Current demo data (starts with first scenario)
-const initialScenario = scenarios[0];
+// Current demo data - using a replacement scenario (The Double Whammy - attic install with issues)
+const initialScenario = scenarios[8]; // "The Double Whammy" - needs replacement
 export const demoAsset: AssetData = initialScenario.asset;
 export const demoForensicInputs: ForensicInputs = initialScenario.inputs;
 
