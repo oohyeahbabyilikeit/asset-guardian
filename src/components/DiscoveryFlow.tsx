@@ -55,18 +55,122 @@ function UnitProfileStep({ asset, inputs }: { asset: AssetData; inputs: Forensic
         <p className="text-sm text-muted-foreground">Here's what we know about your unit</p>
       </div>
 
-      {/* Tank Visual */}
+      {/* Professional Tank Visual */}
       <div className="flex justify-center py-4">
-        <div className="relative w-32 h-48 bg-gradient-to-b from-slate-600 to-slate-700 rounded-lg border-2 border-slate-500 shadow-lg">
-          {/* Tank top */}
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-24 h-4 bg-slate-500 rounded-t-lg" />
-          {/* Pipes */}
-          <div className="absolute -top-6 left-6 w-3 h-6 bg-amber-600 rounded-t" />
-          <div className="absolute -top-6 right-6 w-3 h-6 bg-amber-600 rounded-t" />
-          {/* Water level indicator */}
-          <div className="absolute bottom-4 left-4 right-4 top-8 bg-blue-500/20 rounded border border-blue-400/30" />
+        <div className="relative">
+          <svg 
+            viewBox="0 0 160 240" 
+            className="w-40 h-60 animate-fade-in"
+            style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.4))' }}
+          >
+            <defs>
+              {/* Tank body gradient */}
+              <linearGradient id="tankBodyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#374151" />
+                <stop offset="20%" stopColor="#4b5563" />
+                <stop offset="50%" stopColor="#6b7280" />
+                <stop offset="80%" stopColor="#4b5563" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              
+              {/* Tank jacket gradient */}
+              <linearGradient id="jacketGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#1f2937" />
+                <stop offset="50%" stopColor="#374151" />
+                <stop offset="100%" stopColor="#1f2937" />
+              </linearGradient>
+              
+              {/* Top dome gradient */}
+              <radialGradient id="domeGradient" cx="50%" cy="100%" r="100%">
+                <stop offset="0%" stopColor="#6b7280" />
+                <stop offset="70%" stopColor="#4b5563" />
+                <stop offset="100%" stopColor="#374151" />
+              </radialGradient>
+              
+              {/* Copper pipe gradient */}
+              <linearGradient id="copperGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#b45309" />
+                <stop offset="50%" stopColor="#d97706" />
+                <stop offset="100%" stopColor="#b45309" />
+              </linearGradient>
+              
+              {/* Water gradient */}
+              <linearGradient id="waterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="rgba(59, 130, 246, 0.1)" />
+                <stop offset="100%" stopColor="rgba(59, 130, 246, 0.25)" />
+              </linearGradient>
+              
+              {/* Glow filter */}
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {/* Shadow ellipse */}
+            <ellipse cx="80" cy="232" rx="45" ry="6" fill="rgba(0,0,0,0.3)" />
+
+            {/* Tank stand/legs */}
+            <rect x="35" y="200" width="90" height="10" rx="2" fill="#1f2937" />
+            <rect x="42" y="210" width="16" height="12" rx="2" fill="#111827" />
+            <rect x="102" y="210" width="16" height="12" rx="2" fill="#111827" />
+
+            {/* Outer jacket */}
+            <rect x="28" y="38" width="104" height="164" rx="4" fill="url(#jacketGradient)" stroke="#111827" strokeWidth="1" />
+
+            {/* Tank top dome */}
+            <ellipse cx="80" cy="40" rx="52" ry="14" fill="url(#domeGradient)" stroke="#374151" strokeWidth="1.5" />
+
+            {/* Main tank body */}
+            <rect x="32" y="40" width="96" height="160" fill="url(#tankBodyGradient)" />
+            
+            {/* Highlight edge for 3D effect */}
+            <rect x="36" y="48" width="4" height="144" rx="2" fill="rgba(255,255,255,0.08)" />
+
+            {/* Seam lines */}
+            <line x1="32" y1="70" x2="128" y2="70" stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+            <line x1="32" y1="170" x2="128" y2="170" stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+
+            {/* Rivets */}
+            {[45, 65, 85, 105, 120].map((x, i) => (
+              <g key={i}>
+                <circle cx={x} cy="70" r="2" fill="#4b5563" />
+                <circle cx={x} cy="70" r="0.8" fill="#6b7280" />
+                <circle cx={x} cy="170" r="2" fill="#4b5563" />
+                <circle cx={x} cy="170" r="0.8" fill="#6b7280" />
+              </g>
+            ))}
+
+            {/* Water inside tank */}
+            <rect x="36" y="50" width="88" height="140" rx="2" fill="url(#waterGradient)" opacity="0.6" />
+
+            {/* Copper pipes on top */}
+            <rect x="50" y="18" width="12" height="16" rx="2" fill="url(#copperGradient)" />
+            <ellipse cx="56" cy="18" rx="6" ry="2.5" fill="#d97706" />
+            <rect x="98" y="18" width="12" height="16" rx="2" fill="url(#copperGradient)" />
+            <ellipse cx="104" cy="18" rx="6" ry="2.5" fill="#d97706" />
+
+            {/* Thermostat control box */}
+            <rect x="130" y="100" width="16" height="32" rx="2" fill="#1f2937" stroke="#374151" strokeWidth="0.5" />
+            <circle cx="138" cy="112" r="4" fill="#111827" stroke="#4b5563" strokeWidth="0.5" />
+            <line x1="138" y1="109" x2="138" y2="112" stroke="#ef4444" strokeWidth="1" />
+            <circle cx="138" cy="124" r="2.5" fill="#22c55e" filter="url(#glow)" className="animate-pulse" />
+
+            {/* Temperature/Pressure gauge */}
+            <circle cx="80" cy="120" r="12" fill="#1f2937" stroke="#4b5563" strokeWidth="1" />
+            <circle cx="80" cy="120" r="8" fill="#111827" />
+            <line x1="80" y1="120" x2="80" y2="114" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
+            
+            {/* Brand label area */}
+            <rect x="50" y="85" width="60" height="20" rx="2" fill="#111827" opacity="0.5" />
+            <rect x="52" y="87" width="56" height="16" rx="1" fill="none" stroke="#4b5563" strokeWidth="0.5" />
+          </svg>
+
           {/* Age badge */}
-          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-background border border-border rounded-full text-xs font-medium">
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-background border border-border rounded-full text-sm font-semibold shadow-lg">
             {inputs.calendarAge} years old
           </div>
         </div>
