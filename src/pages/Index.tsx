@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { HandshakeLoading } from '@/components/HandshakeLoading';
 import { CommandCenter } from '@/components/CommandCenter';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
+import { DiscoveryFlow } from '@/components/DiscoveryFlow';
 import { ForensicReport } from '@/components/ForensicReport';
 import { PanicMode } from '@/components/PanicMode';
 import { ServiceRequest } from '@/components/ServiceRequest';
@@ -11,7 +12,7 @@ import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs } from '@/lib/opterraAlgorithm';
 
-type Screen = 'welcome' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'test-harness';
+type Screen = 'welcome' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'test-harness';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
@@ -34,6 +35,10 @@ const Index = () => {
   };
 
   const handleWelcomeComplete = () => {
+    setCurrentScreen('discovery');
+  };
+
+  const handleDiscoveryComplete = () => {
     setCurrentScreen('dashboard');
   };
 
@@ -41,6 +46,15 @@ const Index = () => {
     switch (currentScreen) {
       case 'welcome':
         return <WelcomeScreen onBegin={handleWelcomeComplete} />;
+      
+      case 'discovery':
+        return (
+          <DiscoveryFlow
+            asset={currentAsset}
+            inputs={currentInputs}
+            onComplete={handleDiscoveryComplete}
+          />
+        );
       
       case 'loading':
         return <HandshakeLoading onComplete={handleLoadingComplete} />;
