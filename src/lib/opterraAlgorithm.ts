@@ -1,20 +1,22 @@
 /**
- * OPTERRA v6.2 Risk Calculation Engine (Verified)
+ * OPTERRA v6.4 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
- * VERIFIED: January 7, 2026
+ * 
+ * CHANGES v6.4:
+ * - PHYSICS FIX: Quadratic Sediment Stress (Soft Start curve)
+ *   - OLD: Linear model (1.0 + sedimentLbs * 0.05) penalized healthy tanks too harshly
+ *   - NEW: Quadratic model (1.0 + sedimentLbs² / 300) keeps 0-5 lbs near 1.0x, spikes at 15+ lbs
+ * - NEW FEATURE: Financial Forecasting Engine (Budget & Date Prediction)
+ *   - Calculates target replacement date based on 13-year service life and aging rate
+ *   - Provides monthly budget recommendation with inflation adjustment
  * 
  * CHANGES v6.2:
  * - ARCHITECTURE: Split recommendation into getRawRecommendation + optimizeEconomicDecision
  * - ECONOMIC LAYER: Added ROI logic for repair vs. replacement decisions
- * - CONSTANTS: Added AGE_ECONOMIC_REPAIR_LIMIT, AGE_ANODE_LIMIT
- * - TUNING: Reduced LIMIT_AGE_FRAGILE from 12 to 10 years
  * 
  * CHANGES v6.1:
- * - INPUT UPDATE: Renamed 'psi' to 'housePsi' to match technician workflow (Hose Bib Measure).
- * - PHYSICS ADAPTER: Added 'getEffectivePressure' to calculate internal tank stress (detects Ghost Spikes).
- * - SAFETY PATCH: Added Tier 0 (Explosion Hazard) & Fixed Tier 2 (Highlander Bug).
- * - STABILITY: Fixed Division by Zero crash on soft water inputs.
+ * - PHYSICS ADAPTER: Added 'getEffectivePressure' to calculate internal tank stress
  */
 
 // --- TYPES & INTERFACES ---
@@ -113,9 +115,20 @@ export type RecommendationAction =
 
 export type RecommendationBadge = 'CRITICAL' | 'REPLACE' | 'SERVICE' | 'MONITOR' | 'OPTIMAL';
 
+// Financial Forecasting Interface (NEW v6.4)
+export interface FinancialForecast {
+  targetReplacementDate: string;  // "June 2028"
+  monthsUntilTarget: number;
+  estReplacementCost: number;     // Future value (inflation adjusted)
+  monthlyBudget: number;          // Recommended savings
+  budgetUrgency: 'LOW' | 'MED' | 'HIGH' | 'IMMEDIATE';
+  recommendation: string;
+}
+
 export interface OpterraResult {
   metrics: OpterraMetrics;
   verdict: Recommendation;
+  financial: FinancialForecast;  // NEW v6.4
 }
 
 // --- CONSTANTS & CONFIGURATION ---
@@ -363,9 +376,11 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   }
 
   // B. Sediment (Thermal Stress / Overheating) - 100% mechanical
-  // Sediment insulates the tank bottom, causing hot spots and thermal fatigue
-  // 0 lbs = 1.0x, 10 lbs = 1.5x, 20 lbs = 2.0x
-  const sedimentStress = 1.0 + (sedimentLbs * 0.05);
+  // QUADRATIC SEDIMENT FIX (v6.4): "Soft Start" curve
+  // - OLD Linear: 1.0 + (lbs * 0.05) = 1.2x at 4 lbs (Too harsh for healthy tanks)
+  // - NEW Quadratic: Keeps 0-5 lbs near 1.0x, but spikes at 15+ lbs
+  // Calibrated: 4 lbs = 1.05x, 10 lbs = 1.33x, 15 lbs = 1.75x (Lockout Threshold)
+  const sedimentStress = 1.0 + ((sedimentLbs * sedimentLbs) / 300);
 
   // Combine mechanical stresses - these hurt the tank from Day 1
   const mechanicalStress = pressureStress * sedimentStress;
@@ -813,14 +828,112 @@ function optimizeEconomicDecision(
   return rec;
 }
 
+// --- FINANCIAL FORECASTING ENGINE (NEW v6.4) ---
+
+/**
+ * Calculates a monthly savings plan based on Accelerated Aging.
+ * 
+ * Formula: (Target Life - Current Age) / Aging Rate = Real Time Remaining
+ * 
+ * Example:
+ * - Healthy tank (Age 4, Rate 1.0x): (13 - 4) / 1.0 = 9 years left
+ * - Stressed tank (Age 4, Rate 2.0x): (13 - 4) / 2.0 = 4.5 years left
+ * 
+ * The stressed tank owner must save money twice as fast!
+ */
+function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetrics): FinancialForecast {
+  
+  // 1. Establish Financial Targets
+  // We plan for replacement at year 13 (typical end of financial life, not 25-year physics max)
+  const TARGET_SERVICE_LIFE = 13;
+  const BASE_REPLACEMENT_COST = data.fuelType === 'GAS' ? 2400 : 2100;
+  
+  // Add Granular Cost Adders based on location
+  let totalCost = BASE_REPLACEMENT_COST;
+  if (data.location === 'ATTIC' || data.location === 'UPPER_FLOOR') totalCost += 600;
+  if (data.location === 'CRAWLSPACE') totalCost += 400;
+  
+  // If system needs code upgrades (PRV/ExpTank), the *next* install will be more expensive
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
+  const needsCodeUpgrade = (!data.hasPrv && data.housePsi > 80) || (!data.hasExpTank && isActuallyClosed);
+  if (needsCodeUpgrade) totalCost += 450;
+
+  const INFLATION_RATE = 0.03;
+
+  // 2. Calculate Real Time Remaining
+  // Use the agingRate (Stress) to accelerate the timeline
+  const rawYearsRemaining = Math.max(0, TARGET_SERVICE_LIFE - data.calendarAge);
+  
+  // If unit is already dead or past target, give it a 6-month emergency horizon
+  let adjustedYearsRemaining = 0.5;
+  
+  if (rawYearsRemaining > 0) {
+    adjustedYearsRemaining = rawYearsRemaining / metrics.agingRate;
+  }
+  
+  // Override for failed units - immediate action needed
+  if (data.visualRust || data.isLeaking || metrics.failProb > 60) {
+    adjustedYearsRemaining = 0;
+  }
+
+  // 3. Calculate Future Cost (inflation adjusted)
+  // Cost = Base * (1 + Inflation)^Years
+  const futureCost = totalCost * Math.pow(1 + INFLATION_RATE, Math.max(0, adjustedYearsRemaining));
+
+  // 4. Calculate Monthly Budget
+  const monthsUntilTarget = Math.max(0, Math.ceil(adjustedYearsRemaining * 12));
+  let monthlyBudget = 0;
+  
+  if (monthsUntilTarget <= 0) {
+    monthlyBudget = Math.ceil(futureCost); // Lump sum needed
+  } else {
+    monthlyBudget = Math.ceil(futureCost / monthsUntilTarget);
+  }
+
+  // 5. Determine Urgency & Messaging
+  let urgency: 'LOW' | 'MED' | 'HIGH' | 'IMMEDIATE' = 'LOW';
+  let recommendation = '';
+
+  if (monthsUntilTarget <= 0) {
+    urgency = 'IMMEDIATE';
+    recommendation = `Unit is past its financial end-of-life. Immediate financing or replacement fund of $${Math.ceil(futureCost).toLocaleString()} required.`;
+  } else if (monthsUntilTarget < 12) {
+    urgency = 'HIGH';
+    recommendation = `Replacement likely within 12 months. Aggressive savings of $${monthlyBudget}/mo required to pay cash.`;
+  } else if (monthsUntilTarget < 36) {
+    urgency = 'MED';
+    const targetYear = new Date(Date.now() + monthsUntilTarget * 30 * 24 * 60 * 60 * 1000).getFullYear();
+    recommendation = `Plan to replace by ${targetYear}. Budget $${monthlyBudget}/mo to stay ahead.`;
+  } else {
+    urgency = 'LOW';
+    recommendation = `System is healthy. A small maintenance fund of $${monthlyBudget}/mo covers future replacement.`;
+  }
+
+  // Generate Target Date String
+  const targetDate = new Date(Date.now() + monthsUntilTarget * 30 * 24 * 60 * 60 * 1000);
+  const dateString = monthsUntilTarget <= 0 
+    ? "Immediate Action" 
+    : targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return {
+    targetReplacementDate: dateString,
+    monthsUntilTarget,
+    estReplacementCost: Math.round(futureCost),
+    monthlyBudget,
+    budgetUrgency: urgency,
+    recommendation
+  };
+}
+
 // --- MAIN ENTRY POINT ---
 
 export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   const metrics = calculateHealth(data);
   const rawVerdict = getRawRecommendation(metrics, data);
   const verdict = optimizeEconomicDecision(rawVerdict, data, metrics);
+  const financial = calculateFinancialForecast(data, metrics);
   
-  return { metrics, verdict };
+  return { metrics, verdict, financial };
 }
 
 // Exported wrapper for backward compatibility
