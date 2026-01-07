@@ -46,7 +46,11 @@ export interface ForensicInputs {
   
   // Visual Inspection
   visualRust: boolean;     
-  isLeaking?: boolean;     
+  isLeaking?: boolean;
+  
+  // Service History Resets (null/undefined = never serviced)
+  lastAnodeReplaceYearsAgo?: number;  // Years since last anode replacement
+  lastFlushYearsAgo?: number;         // Years since last tank flush
 }
 
 export interface OpterraMetrics {
@@ -300,8 +304,11 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Effective shield duration (how long the anode protects the steel)
   const effectiveShieldDuration = baseAnodeLife / anodeDecayRate;
   
+  // SERVICE HISTORY: If anode was replaced, use time since replacement; otherwise use tank age
+  const anodeAge = data.lastAnodeReplaceYearsAgo ?? data.calendarAge;
+  
   // Remaining shield life (can't go below 0)
-  const shieldLife = Math.max(0, effectiveShieldDuration - data.calendarAge);
+  const shieldLife = Math.max(0, effectiveShieldDuration - anodeAge);
 
   // 2. SEDIMENT CALCULATION (Needed for stress factor)
   const sedFactor = data.fuelType === 'ELECTRIC' 
@@ -312,7 +319,9 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Softened water removes 95%+ of minerals; remaining sediment is primarily anode byproduct
   const effectiveHardness = data.hasSoftener ? 0.5 : data.hardnessGPG;
   
-  const sedimentLbs = data.calendarAge * effectiveHardness * sedFactor;
+  // SERVICE HISTORY: If tank was flushed, use time since flush; otherwise use tank age
+  const sedimentAge = data.lastFlushYearsAgo ?? data.calendarAge;
+  const sedimentLbs = sedimentAge * effectiveHardness * sedFactor;
   
   // Sediment rate (lbs per year based on EFFECTIVE water hardness)
   // Guard against division by zero - use minimum rate of 0.1 lbs/year
@@ -395,9 +404,11 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // 4. BIOLOGICAL AGE (Mechanical vs. Chemical Split)
   const age = data.calendarAge;
   
+  // SERVICE HISTORY: anodeAge already defined above for shield life calculation
   // Time with anode protection vs exposed steel
-  const timeProtected = Math.min(age, effectiveShieldDuration);
-  const timeNaked = Math.max(0, age - effectiveShieldDuration);
+  // New anode provides fresh protection for effectiveShieldDuration years
+  const timeProtected = Math.min(age, effectiveShieldDuration + (age - anodeAge));
+  const timeNaked = Math.max(0, age - timeProtected);
 
   // === PHASE 1: PROTECTED (Anode Active) ===
   // Mechanical stress (Pressure + Sediment + Temp expansion) applies 100%
