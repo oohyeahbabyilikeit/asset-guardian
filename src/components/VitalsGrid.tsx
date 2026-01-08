@@ -1,4 +1,4 @@
-import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge, Container, Info } from 'lucide-react';
+import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge, Container, Info, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type VitalsData } from '@/data/mockAsset';
 import { getRiskLevelInfo, type RiskLevel } from '@/lib/opterraAlgorithm';
@@ -116,8 +116,36 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
     return { title: 'Missing Expansion Tank', subtitle: 'Required for closed loop' };
   };
 
+  // Get usage impact display info
+  const getUsageImpactInfo = () => {
+    const { usageIntensity, undersizing, peopleCount, usageType, tankCapacity } = vitals.usageImpact;
+    const usageLabel = usageType === 'heavy' ? 'Heavy' : usageType === 'light' ? 'Light' : 'Normal';
+    
+    if (undersizing > 1.2) {
+      const recommendedSize = Math.ceil(peopleCount * 15);
+      return { 
+        title: 'Tank Undersized', 
+        subtitle: `${tankCapacity}gal for ${peopleCount} people`,
+        tooltip: `Tank is undersized by ${((undersizing - 1) * 100).toFixed(0)}%. Consider upgrading to ${recommendedSize}+ gallons for your household.`
+      };
+    }
+    if (usageIntensity > 1.5) {
+      return { 
+        title: 'High Usage Impact', 
+        subtitle: `${usageIntensity.toFixed(1)}× baseline wear`,
+        tooltip: `${peopleCount} people with ${usageLabel.toLowerCase()} usage accelerates wear. This affects anode depletion and thermal cycling.`
+      };
+    }
+    return { 
+      title: 'Usage Impact', 
+      subtitle: `${usageIntensity.toFixed(1)}× baseline`,
+      tooltip: `${peopleCount} ${peopleCount === 1 ? 'person' : 'people'} with ${usageLabel.toLowerCase()} usage. Tank capacity is adequate.`
+    };
+  };
+
   const prvInfo = getPrvInfo();
   const expTankInfo = getExpansionTankInfo();
+  const usageInfo = getUsageImpactInfo();
 
   const items = [
     {
@@ -149,6 +177,13 @@ export function VitalsGrid({ vitals }: VitalsGridProps) {
       tooltip: vitals.biologicalAge.agingRate > 1.2 
         ? `${vitals.biologicalAge.primaryStressor} is causing accelerated wear.${vitals.biologicalAge.lifeExtension > 0.5 ? ` Fix to gain ~${vitals.biologicalAge.lifeExtension.toFixed(1)} years.` : ''}`
         : 'Your tank is aging at a healthy rate.',
+    },
+    {
+      status: vitals.usageImpact.status,
+      icon: <Users className="w-5 h-5" />,
+      title: usageInfo.title,
+      subtitle: usageInfo.subtitle,
+      tooltip: usageInfo.tooltip,
     },
     {
       status: vitals.liabilityStatus.status,
