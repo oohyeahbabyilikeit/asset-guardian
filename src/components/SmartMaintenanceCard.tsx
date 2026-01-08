@@ -76,15 +76,15 @@ export function SmartMaintenanceCard({
   };
 
   const urgencyStyles = isOverdue 
-    ? { border: 'border-destructive/40', bg: 'bg-destructive/5', accent: 'text-destructive', progressColor: 'bg-destructive' }
+    ? { border: 'border-amber-500/40', bg: 'bg-amber-500/5', accent: 'text-amber-500', progressColor: 'bg-amber-500' }
     : isDueSoon 
-      ? { border: 'border-amber-500/40', bg: 'bg-amber-500/5', accent: 'text-amber-500', progressColor: 'bg-amber-500' }
+      ? { border: 'border-amber-500/30', bg: 'bg-amber-500/5', accent: 'text-amber-400', progressColor: 'bg-amber-400' }
       : { border: 'border-primary/20', bg: 'bg-card', accent: 'text-primary', progressColor: 'bg-primary' };
 
   const iconBg = isOverdue
-    ? 'bg-destructive/15 text-destructive border-destructive/20'
+    ? 'bg-amber-500/15 text-amber-500 border-amber-500/20'
     : isDueSoon
-      ? 'bg-amber-500/15 text-amber-500 border-amber-500/20'
+      ? 'bg-amber-400/15 text-amber-400 border-amber-400/20'
       : 'bg-primary/15 text-primary border-primary/20';
 
   return (
@@ -157,8 +157,11 @@ export function SmartMaintenanceCard({
       <div className="flex gap-3">
         <Button 
           onClick={onSchedule}
-          className="flex-1 gap-2 h-11"
-          variant={isOverdue ? "destructive" : "default"}
+          className={cn(
+            "flex-1 gap-2 h-11",
+            isOverdue && "bg-amber-600 hover:bg-amber-500 text-white"
+          )}
+          variant={isOverdue ? undefined : "default"}
         >
           <Calendar className="w-4 h-4" />
           Schedule Service
