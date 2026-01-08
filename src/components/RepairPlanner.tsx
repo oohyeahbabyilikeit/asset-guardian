@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Bell, Phone, MessageSquare, Droplets, Shield, Clock } from 'lucide-react';
+import { MaintenanceChatInterface } from './MaintenanceChatInterface';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
 import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, calculateHealth } from '@/lib/opterraAlgorithm';
@@ -213,194 +214,131 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         </header>
 
         <div className="relative p-4 max-w-md mx-auto">
-          {/* Status Card */}
-          <div className="clean-card border-green-500/30 bg-green-500/5 text-center mb-6">
-            <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
-            <h2 className="text-lg font-bold text-foreground mb-2">All Clear!</h2>
-            <p className="text-sm text-muted-foreground">
-              No urgent repairs needed. Here's your upcoming maintenance schedule.
-            </p>
+          {/* Chat Interface */}
+          <div className="mb-6">
+            <MaintenanceChatInterface
+              flushMonths={cappedMonthsToFlush}
+              anodeMonths={cappedMonthsToAnode}
+              sedimentRate={sedimentRate}
+            />
           </div>
 
-          {/* Upcoming Maintenance Timeline */}
-          {hasUpcomingMaintenance && (
-            <div className="clean-card mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-foreground">Upcoming Maintenance</h3>
-              </div>
-              
-              <div className="space-y-3">
-                {/* Tank Flush */}
-                {cappedMonthsToFlush !== null && flushStatus === 'optimal' && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <Droplets className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground text-sm">Tank Flush</p>
-                        <p className="text-xs text-muted-foreground">Remove sediment buildup</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono font-semibold text-foreground">
-                        {cappedMonthsToFlush >= 12 
-                          ? `${(cappedMonthsToFlush / 12).toFixed(1)} yrs` 
-                          : `${cappedMonthsToFlush} mo`}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Anode Replacement */}
-                {cappedMonthsToAnode > 0 && !anodeNeedsAttention && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                        <Shield className="w-5 h-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground text-sm">Anode Rod Check</p>
-                        <p className="text-xs text-muted-foreground">Inspect sacrificial anode</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono font-semibold text-foreground">
-                        {cappedMonthsToAnode >= 12 
-                          ? `${(cappedMonthsToAnode / 12).toFixed(1)} yrs` 
-                          : `${cappedMonthsToAnode} mo`}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Reminder Options */}
-          {reminderMode === 'none' && (
-            <div className="clean-card mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Bell className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-foreground">Set a Reminder</h3>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Don't forget your maintenance! Choose how you'd like to be reminded.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setReminderMode('sms')}
-                  className="p-4 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
-                >
-                  <MessageSquare className="w-6 h-6 mx-auto mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
-                  <p className="font-medium text-sm text-foreground">SMS Reminder</p>
-                  <p className="text-xs text-muted-foreground mt-1">Get a text when due</p>
-                </button>
-                
-                <button
-                  onClick={() => setReminderMode('contact')}
-                  className="p-4 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
-                >
-                  <Phone className="w-6 h-6 mx-auto mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
-                  <p className="font-medium text-sm text-foreground">Contact Me</p>
-                  <p className="text-xs text-muted-foreground mt-1">Have a plumber call</p>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* SMS Reminder Form */}
-          {reminderMode === 'sms' && (
-            <div className="clean-card mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-foreground">SMS Reminder</h3>
-                </div>
-                <button 
-                  onClick={() => setReminderMode('none')}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="sms-phone" className="text-xs">Phone Number *</Label>
-                  <Input
-                    id="sms-phone"
-                    type="tel"
-                    placeholder="(555) 123-4567"
-                    value={reminderForm.phone}
-                    onChange={(e) => setReminderForm(prev => ({ ...prev, phone: e.target.value }))}
-                    className="mt-1"
-                  />
+          {/* Combined Maintenance & Reminder Card */}
+          <div className="clean-card mb-6">
+            {/* Upcoming Maintenance Section */}
+            {hasUpcomingMaintenance && (
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-foreground">Upcoming Maintenance</h3>
                 </div>
                 
-                <div>
-                  <Label className="text-xs mb-2 block">Remind me about:</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Tank Flush', 'Anode Check', 'Annual Inspection'].map(type => (
-                      <button
-                        key={type}
-                        onClick={() => toggleMaintenanceType(type)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                          reminderForm.maintenanceType.includes(type)
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                <Button onClick={handleReminderSubmit} className="w-full">
-                  <Bell className="w-4 h-4 mr-2" />
-                  Set Reminder
-                </Button>
-              </div>
-            </div>
-          )}
+                <div className="space-y-3 mb-5">
+                  {/* Tank Flush */}
+                  {cappedMonthsToFlush !== null && flushStatus === 'optimal' && (
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                          <Droplets className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">Tank Flush</p>
+                          <p className="text-xs text-muted-foreground">Remove sediment buildup</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-semibold text-foreground">
+                          {cappedMonthsToFlush >= 12 
+                            ? `${(cappedMonthsToFlush / 12).toFixed(1)} yrs` 
+                            : `${cappedMonthsToFlush} mo`}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
+                      </div>
+                    </div>
+                  )}
 
-          {/* Contact Request Form */}
-          {reminderMode === 'contact' && (
-            <div className="clean-card mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-foreground">Request a Call</h3>
+                  {/* Anode Replacement */}
+                  {cappedMonthsToAnode > 0 && !anodeNeedsAttention && (
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">Anode Rod Check</p>
+                          <p className="text-xs text-muted-foreground">Inspect sacrificial anode</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-semibold text-foreground">
+                          {cappedMonthsToAnode >= 12 
+                            ? `${(cappedMonthsToAnode / 12).toFixed(1)} yrs` 
+                            : `${cappedMonthsToAnode} mo`}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button 
-                  onClick={() => setReminderMode('none')}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-              </div>
-              
-              <div className="space-y-4">
+
+                <div className="border-t border-border/50 pt-4" />
+              </>
+            )}
+
+            {/* Reminder Section */}
+            {reminderMode === 'none' && (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <Bell className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-foreground">Set a Reminder</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Don't forget your maintenance! Choose how you'd like to be reminded.
+                </p>
+                
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="contact-name" className="text-xs">Name *</Label>
-                    <Input
-                      id="contact-name"
-                      placeholder="John Smith"
-                      value={reminderForm.name}
-                      onChange={(e) => setReminderForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="mt-1"
-                    />
+                  <button
+                    onClick={() => setReminderMode('sms')}
+                    className="p-3 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
+                  >
+                    <MessageSquare className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <p className="font-medium text-xs text-foreground">SMS Reminder</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Get a text when due</p>
+                  </button>
+                  
+                  <button
+                    onClick={() => setReminderMode('contact')}
+                    className="p-3 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
+                  >
+                    <Phone className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <p className="font-medium text-xs text-foreground">Contact Me</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Have a plumber call</p>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* SMS Reminder Form - Inline */}
+            {reminderMode === 'sms' && (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-foreground">SMS Reminder</h3>
                   </div>
+                  <button 
+                    onClick={() => setReminderMode('none')}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
                   <div>
-                    <Label htmlFor="contact-phone" className="text-xs">Phone *</Label>
+                    <Label htmlFor="sms-phone" className="text-xs">Phone Number *</Label>
                     <Input
-                      id="contact-phone"
+                      id="sms-phone"
                       type="tel"
                       placeholder="(555) 123-4567"
                       value={reminderForm.phone}
@@ -408,90 +346,158 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                       className="mt-1"
                     />
                   </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="contact-email" className="text-xs">Email</Label>
-                  <Input
-                    id="contact-email"
-                    type="email"
-                    placeholder="john@example.com"
-                    value={reminderForm.email}
-                    onChange={(e) => setReminderForm(prev => ({ ...prev, email: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="contact-address" className="text-xs">Address</Label>
-                  <Input
-                    id="contact-address"
-                    placeholder="123 Main St, City, State"
-                    value={reminderForm.address}
-                    onChange={(e) => setReminderForm(prev => ({ ...prev, address: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="contact-unit" className="text-xs">Water Heater Details</Label>
-                  <Input
-                    id="contact-unit"
-                    placeholder="e.g., 50 gal gas, located in garage"
-                    value={reminderForm.unitDetails}
-                    onChange={(e) => setReminderForm(prev => ({ ...prev, unitDetails: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <Label className="text-xs mb-2 block">Service Needed:</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Tank Flush', 'Anode Replacement', 'Full Inspection', 'Repair Quote', 'Other'].map(type => (
-                      <button
-                        key={type}
-                        onClick={() => toggleMaintenanceType(type)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                          reminderForm.maintenanceType.includes(type)
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                  
+                  <div>
+                    <Label className="text-xs mb-2 block">Remind me about:</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Tank Flush', 'Anode Check', 'Annual Inspection'].map(type => (
+                        <button
+                          key={type}
+                          onClick={() => toggleMaintenanceType(type)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            reminderForm.maintenanceType.includes(type)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  
+                  <Button onClick={handleReminderSubmit} className="w-full">
+                    <Bell className="w-4 h-4 mr-2" />
+                    Set Reminder
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* Contact Request Form - Inline */}
+            {reminderMode === 'contact' && (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-foreground">Request a Call</h3>
+                  </div>
+                  <button 
+                    onClick={() => setReminderMode('none')}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
                 </div>
                 
-                <div>
-                  <Label htmlFor="contact-time" className="text-xs">Preferred Contact Time</Label>
-                  <Input
-                    id="contact-time"
-                    placeholder="e.g., Weekday mornings"
-                    value={reminderForm.preferredTime}
-                    onChange={(e) => setReminderForm(prev => ({ ...prev, preferredTime: e.target.value }))}
-                    className="mt-1"
-                  />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="contact-name" className="text-xs">Name *</Label>
+                      <Input
+                        id="contact-name"
+                        placeholder="John Smith"
+                        value={reminderForm.name}
+                        onChange={(e) => setReminderForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="contact-phone" className="text-xs">Phone *</Label>
+                      <Input
+                        id="contact-phone"
+                        type="tel"
+                        placeholder="(555) 123-4567"
+                        value={reminderForm.phone}
+                        onChange={(e) => setReminderForm(prev => ({ ...prev, phone: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="contact-email" className="text-xs">Email</Label>
+                    <Input
+                      id="contact-email"
+                      type="email"
+                      placeholder="john@example.com"
+                      value={reminderForm.email}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="contact-address" className="text-xs">Address</Label>
+                    <Input
+                      id="contact-address"
+                      placeholder="123 Main St, City, State"
+                      value={reminderForm.address}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, address: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="contact-unit" className="text-xs">Water Heater Details</Label>
+                    <Input
+                      id="contact-unit"
+                      placeholder="e.g., 50 gal gas, located in garage"
+                      value={reminderForm.unitDetails}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, unitDetails: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs mb-2 block">Service Needed:</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Tank Flush', 'Anode Replacement', 'Full Inspection', 'Repair Quote', 'Other'].map(type => (
+                        <button
+                          key={type}
+                          onClick={() => toggleMaintenanceType(type)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            reminderForm.maintenanceType.includes(type)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="contact-time" className="text-xs">Preferred Contact Time</Label>
+                    <Input
+                      id="contact-time"
+                      placeholder="e.g., Weekday mornings"
+                      value={reminderForm.preferredTime}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, preferredTime: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="contact-notes" className="text-xs">Additional Notes</Label>
+                    <Textarea
+                      id="contact-notes"
+                      placeholder="Any other details..."
+                      value={reminderForm.notes}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, notes: e.target.value }))}
+                      className="mt-1 min-h-[80px]"
+                    />
+                  </div>
+                  
+                  <Button onClick={handleReminderSubmit} className="w-full">
+                    <Phone className="w-4 h-4 mr-2" />
+                    Request Contact
+                  </Button>
                 </div>
-                
-                <div>
-                  <Label htmlFor="contact-notes" className="text-xs">Additional Notes</Label>
-                  <Textarea
-                    id="contact-notes"
-                    placeholder="Any other details..."
-                    value={reminderForm.notes}
-                    onChange={(e) => setReminderForm(prev => ({ ...prev, notes: e.target.value }))}
-                    className="mt-1 min-h-[80px]"
-                  />
-                </div>
-                
-                <Button onClick={handleReminderSubmit} className="w-full">
-                  <Phone className="w-4 h-4 mr-2" />
-                  Request Contact
-                </Button>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
 
           {/* Back Button */}
           <Button onClick={onBack} variant="outline" className="w-full">
