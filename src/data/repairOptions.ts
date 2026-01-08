@@ -30,7 +30,7 @@ export const repairOptions: RepairOption[] = [
   {
     id: 'replace',
     name: 'Replace Water Heater',
-    description: 'Full system replacement with new unit',
+    description: 'Full system replacement with code-compliant installation',
     costMin: 2800,
     costMax: 4500,
     impact: {
