@@ -152,8 +152,24 @@ export function CommandCenter({
           />
         </div>
 
-        {/* DISCOVERY PHASE 2: How Water Heaters Age */}
-        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.05s' }}>
+        {/* DISCOVERY PHASE 2: Tank Visualization */}
+        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.05s' }}>
+          <ServiceHistory 
+            calendarAge={currentInputs.calendarAge}
+            sedimentLbs={sedimentLbs}
+            shieldLife={shieldLife}
+            hasSoftener={currentInputs.hasSoftener}
+            tankCapacityGallons={parseInt(currentAsset.specs.capacity) || 50}
+            failProb={failProb}
+            sedimentRate={sedimentRate}
+            monthsToFlush={monthsToFlush}
+            monthsToLockout={monthsToLockout}
+            flushStatus={flushStatus}
+          />
+        </div>
+
+        {/* DISCOVERY PHASE 3: How Water Heaters Age */}
+        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.1s' }}>
           <IndustryBenchmarks 
             asset={currentAsset} 
             inputs={currentInputs}
@@ -162,7 +178,7 @@ export function CommandCenter({
           />
         </div>
 
-        {/* DISCOVERY PHASE 3: Tank Visualization */}
+        {/* ACTION PHASE: What Homeowners Consider */}
         <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.1s' }}>
           <ServiceHistory 
             calendarAge={currentInputs.calendarAge}
