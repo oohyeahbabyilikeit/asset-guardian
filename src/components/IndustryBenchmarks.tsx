@@ -205,7 +205,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
           <BarChart3 className="w-4 h-4 text-purple-400" />
         </div>
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-1 text-left">
-          How Water Heaters Age
+          How Your Water Heater Aged
         </h2>
         <ChevronDown className={cn(
           "w-4 h-4 text-muted-foreground transition-transform duration-200",
