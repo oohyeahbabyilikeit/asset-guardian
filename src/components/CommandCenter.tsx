@@ -180,6 +180,8 @@ export function CommandCenter({
           autoExpand={dynamicHealthScore.score < 50}
           recommendation={recommendation}
           serviceHistory={serviceHistory}
+          isLeaking={currentInputs.isLeaking}
+          visualRust={currentInputs.visualRust}
         />
         </div>
 
