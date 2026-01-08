@@ -70,11 +70,13 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
 
   // Calculate maintenance timeline
   const healthMetrics = useMemo(() => calculateHealth(currentInputs), [currentInputs]);
-  const { shieldLife, monthsToFlush, sedimentLbs } = healthMetrics;
+  const { shieldLife, monthsToFlush, sedimentLbs, flushStatus } = healthMetrics;
 
   // Cap maintenance timelines at 3 years (36 months)
+  // But if flushStatus is 'due' or 'lockout', flush is needed NOW (0 months)
   const MAX_MONTHS = 36;
-  const cappedMonthsToFlush = monthsToFlush !== null ? Math.min(Math.max(0, monthsToFlush), MAX_MONTHS) : 6;
+  const isFlushDueNow = flushStatus === 'due' || flushStatus === 'lockout';
+  const cappedMonthsToFlush = isFlushDueNow ? 0 : (monthsToFlush !== null ? Math.min(Math.max(0, monthsToFlush), MAX_MONTHS) : 6);
   const monthsToAnodeReplacement = shieldLife > 1 ? Math.round((shieldLife - 1) * 12) : 0;
   const cappedMonthsToAnode = Math.min(Math.max(0, monthsToAnodeReplacement), MAX_MONTHS);
   
