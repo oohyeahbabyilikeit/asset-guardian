@@ -91,10 +91,12 @@ export function CostSavingsTracker({
   const flushCount = flushEvents.length;
   const anodeCount = anodeEvents.length;
   
+  // Check if this is a first-time user (no maintenance history)
+  const isFirstTimeUser = maintenanceHistory.length === 0;
+  
   // === OPTERRA-INTEGRATED CALCULATIONS ===
   
   // 1. ENERGY EFFICIENCY SAVINGS (Sediment-Based)
-  // Uses actual sediment data from OPTERRA when available
   const baseEnergyCost = fuelType === 'GAS' ? 350 : 450; // $/year
   const currentSediment = metrics?.sedimentLbs ?? (flushCount > 0 ? 2 : unitAge * 0.5);
   const theoreticalSediment = calculateUnmaintainedSediment(unitAge, fuelType);
@@ -105,48 +107,82 @@ export function CostSavingsTracker({
   
   // Time-weighted energy savings (recent flushes count more)
   const flushTimeWeight = flushEvents.reduce((sum, e) => sum + getMaintenanceWeight(e.date), 0) / Math.max(flushCount, 1);
-  const yearsOfSavings = Math.min(unitAge, flushCount * 2); // Assume each flush provides ~2 years of improved efficiency
+  const yearsOfSavings = Math.min(unitAge, flushCount * 2);
   const energySavings = Math.round(baseEnergyCost * efficiencyGainPercent * yearsOfSavings * flushTimeWeight);
   
   // 2. AVOIDED EMERGENCY REPLACEMENT (Failure Probability Based)
-  // Uses OPTERRA's actual failure probability vs. worst-case scenario
   const currentFailProb = metrics?.failProb ?? (100 - currentHealthScore);
   const worstCaseFailProb = calculateUnmaintainedFailProb(unitAge);
   const failProbReduction = Math.max(0, worstCaseFailProb - currentFailProb);
   
-  // Emergency costs = replacement + 30% emergency premium + potential damage
   const emergencyPremium = 1.30;
   const emergencyReplacementCost = projectedReplacementCost.max * emergencyPremium;
-  
-  // Risk-weighted avoided cost (probability reduction as a percentage)
   const avoidedEmergency = Math.round((failProbReduction / 100) * emergencyReplacementCost);
   
   // 3. EXTENDED LIFESPAN BONUS (Aging Rate Based)
-  // Uses OPTERRA's life extension calculation when available
   const lifeExtensionYears = metrics?.lifeExtension ?? (anodeCount * 1.5);
-  
-  // Value per year = replacement cost / expected life (13 years avg)
   const yearlyValue = projectedReplacementCost.min / 13;
-  
-  // Time-weighted anode bonus (recent replacements count more)
   const anodeTimeWeight = anodeEvents.reduce((sum, e) => sum + getMaintenanceWeight(e.date), 0) / Math.max(anodeCount, 1);
   const lifespanBonus = Math.round(lifeExtensionYears * yearlyValue * anodeTimeWeight);
   
+  // === PROJECTED SAVINGS (For first-time users) ===
+  // Calculate what they COULD save with regular maintenance
+  const projectedYearsRemaining = Math.max(0, 13 - unitAge); // Average 13 year lifespan
+  const projectedFlushSavings = Math.round(baseEnergyCost * 0.08 * projectedYearsRemaining); // ~8% efficiency gain
+  const projectedAnodeSavings = Math.round(yearlyValue * 3); // ~3 years life extension potential
+  const projectedRiskReduction = Math.round(emergencyReplacementCost * 0.25); // 25% risk reduction potential
+  const totalProjectedSavings = projectedFlushSavings + projectedAnodeSavings + projectedRiskReduction;
+  
   // === TOTAL SAVINGS ===
   const totalSavings = energySavings + avoidedEmergency + lifespanBonus;
-  const animatedTotal = useAnimatedCounter(totalSavings);
+  const animatedTotal = useAnimatedCounter(isFirstTimeUser ? totalProjectedSavings : totalSavings);
   
   // Maintenance cost spent
   const totalSpent = maintenanceHistory.reduce((sum, e) => sum + e.cost, 0);
   
-  // ROI calculation
-  const roi = totalSpent > 0 ? Math.round((totalSavings / totalSpent) * 100) : 0;
+  // ROI calculation (use projected for first-time users)
+  const avgMaintenanceCost = 200; // Average cost of a flush/anode service
+  const projectedSpend = avgMaintenanceCost * 2; // Assume 2 services
+  const roi = isFirstTimeUser 
+    ? Math.round((totalProjectedSavings / projectedSpend) * 100)
+    : (totalSpent > 0 ? Math.round((totalSavings / totalSpent) * 100) : 0);
 
   // Confidence indicator based on data quality
   const hasOpterraData = !!metrics;
-  const confidenceLevel = hasOpterraData ? 'High' : 'Estimated';
+  const confidenceLevel = isFirstTimeUser ? 'Projected' : (hasOpterraData ? 'Verified' : 'Estimated');
 
-  const savingsBreakdown = [
+  const savingsBreakdown = isFirstTimeUser ? [
+    {
+      icon: Shield,
+      label: 'Potential Risk Reduction',
+      value: projectedRiskReduction,
+      description: 'Up to 25% lower failure risk',
+      color: 'text-emerald-400',
+      bgColor: 'bg-emerald-500/20',
+      borderColor: 'border-emerald-500/30',
+      tooltip: 'Regular maintenance significantly reduces unexpected failure risk'
+    },
+    {
+      icon: Zap,
+      label: 'Potential Energy Savings',
+      value: projectedFlushSavings,
+      description: `~8% efficiency gain over ${projectedYearsRemaining} years`,
+      color: 'text-amber-400',
+      bgColor: 'bg-amber-500/20',
+      borderColor: 'border-amber-500/30',
+      tooltip: 'Annual flushes prevent sediment buildup that reduces heating efficiency'
+    },
+    {
+      icon: TrendingUp,
+      label: 'Potential Life Extension',
+      value: projectedAnodeSavings,
+      description: '+3 years possible with anode care',
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/20',
+      borderColor: 'border-blue-500/30',
+      tooltip: 'Anode replacement every 3-5 years can extend unit life significantly'
+    }
+  ] : [
     {
       icon: Shield,
       label: 'Risk Reduction Value',
@@ -181,6 +217,21 @@ export function CostSavingsTracker({
 
   return (
     <div className="space-y-4">
+      {/* First-time user banner */}
+      {isFirstTimeUser && (
+        <div className="clean-card p-3 bg-gradient-to-r from-primary/10 to-transparent border-primary/20">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Your Potential Savings</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Based on your unit's age and condition, here's what you could save with regular maintenance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Savings Display */}
       <div className="relative clean-card p-5 bg-gradient-to-br from-emerald-500/10 via-card to-transparent border-emerald-500/20 overflow-hidden">
         {/* Animated background glow */}
@@ -193,7 +244,9 @@ export function CostSavingsTracker({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Estimated Savings</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                  {isFirstTimeUser ? 'Projected Savings' : 'Total Estimated Savings'}
+                </p>
                 <Tooltip>
                   <TooltipTrigger>
                     <Info className="w-3 h-3 text-muted-foreground/60" />
@@ -220,16 +273,31 @@ export function CostSavingsTracker({
           )}
         </div>
         
-        {/* Savings vs Spent */}
+        {/* Savings vs Spent / Projected ROI */}
         <div className="relative mt-4 pt-4 border-t border-border/30 grid grid-cols-2 gap-4">
-          <div className="text-center">
-            <p className="text-lg font-bold text-foreground font-mono">${totalSavings.toLocaleString()}</p>
-            <p className="text-[10px] text-muted-foreground">Estimated Saved</p>
-          </div>
-          <div className="text-center">
-            <p className="text-lg font-bold text-foreground font-mono">${totalSpent.toLocaleString()}</p>
-            <p className="text-[10px] text-muted-foreground">Spent on Maintenance</p>
-          </div>
+          {isFirstTimeUser ? (
+            <>
+              <div className="text-center">
+                <p className="text-lg font-bold text-foreground font-mono">${totalProjectedSavings.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Potential Savings</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-foreground font-mono">~${projectedSpend}</p>
+                <p className="text-[10px] text-muted-foreground">Est. Maintenance Cost</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-center">
+                <p className="text-lg font-bold text-foreground font-mono">${totalSavings.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Estimated Saved</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-foreground font-mono">${totalSpent.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Spent on Maintenance</p>
+              </div>
+            </>
+          )}
         </div>
       </div>
       
