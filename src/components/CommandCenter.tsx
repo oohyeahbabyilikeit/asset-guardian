@@ -212,6 +212,8 @@ export function CommandCenter({
           onViewReport={onViewReport}
           onMaintenancePlan={onMaintenancePlan}
           recommendation={recommendation}
+          monthsToFlush={monthsToFlush}
+          flushStatus={flushStatus}
         />
       </div>
 
