@@ -79,7 +79,7 @@ export function ActionDock({
       
       {/* Secondary links */}
       <div className="max-w-md mx-auto mt-3 flex items-center justify-center gap-4">
-        {onMaintenancePlan && (
+        {onMaintenancePlan && recommendation?.action !== 'REPLACE' && recommendation?.badge !== 'CRITICAL' && (
           <button 
             onClick={onMaintenancePlan}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"

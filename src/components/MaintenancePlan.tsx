@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, ShieldCheck, Calendar, PiggyBank, History, MessageSquare, Phone } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Calendar, PiggyBank, History, MessageSquare, Phone, AlertTriangle } from 'lucide-react';
 import { MaintenanceChatInterface } from './MaintenanceChatInterface';
 import { CostSavingsTracker } from './CostSavingsTracker';
 import { MaintenanceCalendar } from './MaintenanceCalendar';
@@ -18,6 +18,32 @@ interface MaintenancePlanProps {
 }
 
 export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: MaintenancePlanProps) {
+  // Calculate metrics first to check for critical state
+  const opterraResult = calculateOpterraRisk(currentInputs);
+  const recommendation = opterraResult.verdict;
+  
+  // Critical/Replace units should not be here - show locked out message
+  const isCriticalOrReplace = recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE';
+  
+  if (isCriticalOrReplace) {
+    return (
+      <div className="h-screen bg-background flex flex-col items-center justify-center p-6">
+        <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+        <h1 className="text-xl font-bold text-foreground mb-2">Maintenance Plan Unavailable</h1>
+        <p className="text-muted-foreground text-center mb-6 max-w-sm">
+          Your unit requires {recommendation.badge === 'CRITICAL' ? 'immediate attention' : 'replacement'} before a maintenance plan can be established.
+        </p>
+        <Button onClick={onScheduleService} className="bg-destructive hover:bg-destructive/90">
+          <AlertTriangle className="w-4 h-4 mr-2" />
+          View Required Action
+        </Button>
+        <button onClick={onBack} className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: '',
@@ -25,8 +51,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: Ma
     maintenanceType: [] as string[],
   });
 
-  // Calculate metrics
-  const opterraResult = calculateOpterraRisk(currentInputs);
+
   const { failProb } = opterraResult.metrics;
   const financial = opterraResult.financial;
   const currentScore = failProbToHealthScore(failProb);
