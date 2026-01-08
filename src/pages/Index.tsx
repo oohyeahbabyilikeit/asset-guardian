@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { HandshakeLoading } from '@/components/HandshakeLoading';
 import { CommandCenter } from '@/components/CommandCenter';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
@@ -12,6 +12,7 @@ import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
 
 type Screen = 'welcome' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'test-harness';
 
@@ -23,12 +24,32 @@ const Index = () => {
   const [scenarioName, setScenarioName] = useState<string>('');
   const [currentAsset, setCurrentAsset] = useState<AssetData>(demoAsset);
   const [currentInputs, setCurrentInputs] = useState<ForensicInputs>(demoForensicInputs);
+  
+  // Shared service history state
+  const [serviceHistory, setServiceHistory] = useState<ServiceEvent[]>([]);
+  
+  // When service history changes, update the relevant inputs
+  useEffect(() => {
+    if (serviceHistory.length > 0) {
+      const derived = deriveInputsFromServiceHistory(serviceHistory);
+      setCurrentInputs(prev => ({
+        ...prev,
+        lastFlushYearsAgo: derived.lastFlushYearsAgo ?? prev.lastFlushYearsAgo,
+        lastAnodeReplaceYearsAgo: derived.lastAnodeReplaceYearsAgo ?? prev.lastAnodeReplaceYearsAgo,
+      }));
+    }
+  }, [serviceHistory]);
 
   const handleRandomize = useCallback(() => {
     const newScenario = getRandomScenario();
     setCurrentAsset(newScenario.asset);
     setCurrentInputs(newScenario.inputs);
     setScenarioName(newScenario.name);
+    setServiceHistory([]); // Reset service history on new scenario
+  }, []);
+  
+  const handleAddServiceEvent = useCallback((event: ServiceEvent) => {
+    setServiceHistory(prev => [...prev, event]);
   }, []);
 
   const handleLoadingComplete = () => {
@@ -79,6 +100,7 @@ const Index = () => {
             onInputsChange={setCurrentInputs}
             onRandomize={handleRandomize}
             scenarioName={scenarioName}
+            serviceHistory={serviceHistory}
           />
         );
       
@@ -100,6 +122,8 @@ const Index = () => {
             onBack={() => setCurrentScreen('dashboard')}
             onScheduleService={() => setCurrentScreen('repair-planner')}
             currentInputs={currentInputs}
+            serviceHistory={serviceHistory}
+            onAddServiceEvent={handleAddServiceEvent}
           />
         );
       

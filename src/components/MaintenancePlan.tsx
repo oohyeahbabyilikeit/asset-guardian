@@ -1,23 +1,27 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, ShieldCheck, Calendar, PiggyBank, History, MessageSquare, Phone, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Calendar, PiggyBank, History, MessageSquare, Phone, AlertTriangle, Plus } from 'lucide-react';
 import { MaintenanceChatInterface } from './MaintenanceChatInterface';
 import { CostSavingsTracker } from './CostSavingsTracker';
 import { MaintenanceCalendar } from './MaintenanceCalendar';
-import { ServiceHistoryLog, ServiceEvent } from './ServiceHistoryLog';
+import { ServiceHistoryLog } from './ServiceHistoryLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { calculateOpterraRisk, failProbToHealthScore, calculateHealth, ForensicInputs } from '@/lib/opterraAlgorithm';
+import { ServiceEvent } from '@/types/serviceHistory';
 
 interface MaintenancePlanProps {
   onBack: () => void;
   onScheduleService: () => void;
   currentInputs: ForensicInputs;
+  serviceHistory?: ServiceEvent[];
+  onAddServiceEvent?: (event: ServiceEvent) => void;
 }
 
-export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: MaintenancePlanProps) {
+export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serviceHistory = [], onAddServiceEvent }: MaintenancePlanProps) {
   // Calculate metrics first to check for critical state
   const opterraResult = calculateOpterraRisk(currentInputs);
   const recommendation = opterraResult.verdict;
@@ -45,10 +49,18 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: Ma
   }
 
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [addEventModalOpen, setAddEventModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: '',
     phone: '',
     maintenanceType: [] as string[],
+  });
+  const [newEventForm, setNewEventForm] = useState({
+    type: 'flush' as 'flush' | 'anode_replacement' | 'inspection' | 'repair',
+    date: new Date().toISOString().split('T')[0],
+    technicianName: '',
+    cost: '',
+    notes: '',
   });
 
 
@@ -72,48 +84,46 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: Ma
     ? { min: rawReplacementCost, max: rawReplacementCost * 1.5 } 
     : rawReplacementCost || { min: 2500, max: 4500 };
 
-  // Mock service history - in production this would come from a database
-  const mockServiceHistory: ServiceEvent[] = [
-    {
-      id: '1',
-      type: 'flush',
-      date: '2026-01-07',
-      technicianName: 'Mike T.',
-      cost: 175,
-      healthScoreBefore: 82,
-      healthScoreAfter: 89,
-      notes: 'Routine tank flush completed. Removed approximately 2.5 lbs of sediment.',
-      findings: ['Moderate sediment buildup', 'Tank interior in good condition']
-    },
-    {
-      id: '2',
-      type: 'anode_replacement',
-      date: '2025-06-15',
-      technicianName: 'Mike T.',
-      cost: 225,
-      healthScoreBefore: 75,
-      healthScoreAfter: 88,
-      notes: 'Anode rod was 70% depleted. Replaced with magnesium anode.',
-      findings: ['Original anode heavily corroded', 'Tank showing early signs of protection loss']
-    },
-    {
-      id: '3',
-      type: 'inspection',
-      date: '2024-12-10',
-      technicianName: 'Sarah K.',
-      cost: 95,
-      healthScoreBefore: 85,
-      healthScoreAfter: 85,
-      notes: 'Annual inspection completed. All systems functioning normally.',
-      findings: ['T&P valve operational', 'No visible leaks', 'Thermostat calibrated correctly']
-    },
-  ];
+  // Use prop service history (combined with any existing events)
+  const allServiceEvents = serviceHistory;
 
   // Calculate total saved from service history
-  const totalSaved = mockServiceHistory.reduce((sum, e) => {
+  const totalSaved = allServiceEvents.reduce((sum, e) => {
     const healthGain = (e.healthScoreAfter || 0) - (e.healthScoreBefore || 0);
     return sum + (healthGain > 0 ? healthGain * 50 : 0);
   }, 0);
+
+  const handleAddEvent = () => {
+    if (!newEventForm.date) {
+      toast.error('Please select a date');
+      return;
+    }
+    
+    const newEvent: ServiceEvent = {
+      id: `event-${Date.now()}`,
+      type: newEventForm.type,
+      date: newEventForm.date,
+      technicianName: newEventForm.technicianName || undefined,
+      cost: parseFloat(newEventForm.cost) || 0,
+      notes: newEventForm.notes || undefined,
+      healthScoreBefore: currentScore,
+      healthScoreAfter: newEventForm.type === 'flush' ? Math.min(100, currentScore + 5) : 
+                        newEventForm.type === 'anode_replacement' ? Math.min(100, currentScore + 8) : currentScore,
+    };
+    
+    onAddServiceEvent?.(newEvent);
+    setAddEventModalOpen(false);
+    setNewEventForm({
+      type: 'flush',
+      date: new Date().toISOString().split('T')[0],
+      technicianName: '',
+      cost: '',
+      notes: '',
+    });
+    toast.success(`${newEventForm.type === 'flush' ? 'Tank Flush' : 
+                    newEventForm.type === 'anode_replacement' ? 'Anode Replacement' : 
+                    newEventForm.type === 'inspection' ? 'Inspection' : 'Repair'} logged successfully!`);
+  };
 
   const toggleMaintenanceType = (type: string) => {
     setContactForm(prev => ({
@@ -178,7 +188,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: Ma
               />
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
-              Monitored since {new Date(Date.now() - currentInputs.calendarAge * 365 * 24 * 60 * 60 * 1000).getFullYear()} • {mockServiceHistory.length} services completed
+              Monitored since {new Date(Date.now() - currentInputs.calendarAge * 365 * 24 * 60 * 60 * 1000).getFullYear()} • {allServiceEvents.length} services completed
             </p>
           </div>
 
@@ -222,7 +232,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: Ma
             <TabsContent value="savings" className="mt-3 tab-content-enter">
               <CostSavingsTracker
                 unitAge={currentInputs.calendarAge}
-                maintenanceHistory={mockServiceHistory}
+                maintenanceHistory={allServiceEvents}
                 projectedReplacementCost={projectedReplacementCost}
                 currentHealthScore={currentScore}
                 metrics={healthMetrics}
@@ -232,8 +242,8 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: Ma
 
             <TabsContent value="history" className="mt-3 tab-content-enter">
               <ServiceHistoryLog
-                events={mockServiceHistory}
-                onAddEvent={() => toast.info('Add service coming soon!')}
+                events={allServiceEvents}
+                onAddEvent={() => setAddEventModalOpen(true)}
                 onExportPDF={() => toast.success('PDF export coming soon!')}
               />
             </TabsContent>
@@ -327,6 +337,101 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs }: Ma
                 <Phone className="w-4 h-4 mr-2" />
                 Request Service
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Service Event Modal */}
+      {addEventModalOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="clean-card p-5 max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-foreground">Log Service Event</h3>
+              </div>
+              <button 
+                onClick={() => setAddEventModalOpen(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="event-type" className="text-xs">Service Type *</Label>
+                <Select
+                  value={newEventForm.type}
+                  onValueChange={(value) => setNewEventForm(prev => ({ ...prev, type: value as typeof prev.type }))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="flush">Tank Flush</SelectItem>
+                    <SelectItem value="anode_replacement">Anode Replacement</SelectItem>
+                    <SelectItem value="inspection">Inspection</SelectItem>
+                    <SelectItem value="repair">Repair</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="event-date" className="text-xs">Date *</Label>
+                  <Input
+                    id="event-date"
+                    type="date"
+                    value={newEventForm.date}
+                    onChange={(e) => setNewEventForm(prev => ({ ...prev, date: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="event-cost" className="text-xs">Cost ($)</Label>
+                  <Input
+                    id="event-cost"
+                    type="number"
+                    placeholder="0"
+                    value={newEventForm.cost}
+                    onChange={(e) => setNewEventForm(prev => ({ ...prev, cost: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="event-tech" className="text-xs">Technician Name</Label>
+                <Input
+                  id="event-tech"
+                  placeholder="Optional"
+                  value={newEventForm.technicianName}
+                  onChange={(e) => setNewEventForm(prev => ({ ...prev, technicianName: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="event-notes" className="text-xs">Notes</Label>
+                <Input
+                  id="event-notes"
+                  placeholder="Optional notes about the service"
+                  value={newEventForm.notes}
+                  onChange={(e) => setNewEventForm(prev => ({ ...prev, notes: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              
+              <Button onClick={handleAddEvent} className="w-full">
+                <Plus className="w-4 h-4 mr-2" />
+                Log Service
+              </Button>
+              
+              <p className="text-[10px] text-muted-foreground text-center">
+                This will update your tank health calculations
+              </p>
             </div>
           </div>
         </div>
