@@ -265,14 +265,16 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
                     )} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground font-medium">{factor.label}</span>
-                    <span className="text-[10px] text-muted-foreground ml-1.5">({factor.threshold})</span>
-                    {factor.isCritical && (
-                      <span className="ml-2 text-[9px] font-bold text-red-400 uppercase">Code Violation</span>
-                    )}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm text-foreground font-medium truncate">{factor.label}</span>
+                      {factor.isCritical && (
+                        <span className="text-[8px] font-bold text-red-400 uppercase bg-red-500/10 px-1.5 py-0.5 rounded">Violation</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">({factor.threshold})</span>
                   </div>
                   <span className={cn(
-                    "text-xs font-bold",
+                    "text-xs font-bold shrink-0",
                     factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
                   )}>
                     {factor.current}
