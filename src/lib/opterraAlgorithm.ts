@@ -1,7 +1,13 @@
 /**
- * OPTERRA v6.9 Risk Calculation Engine
+ * OPTERRA v7.0 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
+ * 
+ * CHANGES v7.0:
+ * - FIX "GRANDMA PARADOX": Lowered occupancy floor from 1.0 to 0.4 so single residents get credit for low wear
+ * - FIX "FRAT HOUSE AGGRESSION": Capped usageIntensity at 4.0x and anode usage penalty at 2.0x
+ * - FIX "SOAP MATH": Renamed local usageIntensity to styleMultiplier in HardWaterTax for clarity
+ * - NEW: Added plumbingProtection ($10/GPG) line item to HardWaterTax for realistic ROI
  * 
  * CHANGES v6.9:
  * - USAGE CALIBRATION: peopleCount and usageType now affect ALL calculations:
@@ -159,6 +165,7 @@ export interface HardWaterTax {
   energyLoss: number;           // From sediment barrier
   applianceDepreciation: number; // Accelerated aging
   detergentOverspend: number;   // Excess soap usage
+  plumbingProtection: number;   // Fixture/pipe mineral damage (NEW v7.0)
   totalAnnualLoss: number;      // Sum of all losses
   
   // ROI Analysis
@@ -376,11 +383,14 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const usageMultiplier = usageMultipliers[data.usageType] || 1.0;
   
   // Occupancy factor (normalized to average 2.5-person household)
-  const occupancyFactor = Math.max(1, data.peopleCount / 2.5);
+  // FIX v7.0 "GRANDMA PARADOX": Lower floor to 0.4 so single residents get credit for low wear
+  // (1-person: 0.4, 2-person: 0.8, 3-person: 1.2, 4-person: 1.6, etc.)
+  const occupancyFactor = Math.max(0.4, data.peopleCount / 2.5);
   
   // Combined usage intensity (1.0 = baseline 2.5-person normal use)
-  // Range: 0.6 (1-person light) to ~5.8 (8-person heavy)
-  const usageIntensity = usageMultiplier * occupancyFactor;
+  // FIX v7.0 "FRAT HOUSE": Cap at 4.0x to prevent extreme households from breaking the math
+  // Range: 0.24 (1-person light) to 4.0 (capped)
+  const usageIntensity = Math.min(4.0, usageMultiplier * occupancyFactor);
   
   // Tank undersizing penalty - small tank serving large household cycles more frequently
   // Rule of thumb: ~15 gallons per person for adequate recovery
@@ -400,7 +410,8 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   
   // NEW v6.9: Usage intensity accelerates electrochemical reactions
   // More hot water draws = more anode consumption (sqrt dampening for realism)
-  anodeDecayRate *= Math.pow(usageIntensity, 0.5);
+  // FIX v7.0: Cap usage penalty at 2.0x to prevent high-usage homes from showing <1 year anode life
+  anodeDecayRate *= Math.min(2.0, Math.pow(usageIntensity, 0.5));
   
   // Effective shield duration (how long the anode protects the steel)
   const effectiveShieldDuration = baseAnodeLife / anodeDecayRate;
@@ -1147,6 +1158,7 @@ export function calculateHardWaterTax(
       energyLoss: 0,
       applianceDepreciation: 0,
       detergentOverspend: 0,
+      plumbingProtection: 0,
       totalAnnualLoss: 0,
       softenerAnnualCost: 0,
       netAnnualSavings: 0,
@@ -1181,14 +1193,20 @@ export function calculateHardWaterTax(
   
   // C. Detergent & Soap Overspend
   // Battelle Institute: families in hard water use 2x-4x more soap
-  // Scale by actual household size AND usage intensity
+  // Scale by actual household size AND usage style (NOT full usageIntensity which includes population)
+  // FIX v7.0 "SOAP MATH": Renamed to styleMultiplier to avoid confusion with population factor
   const householdSize = data.peopleCount || C.DEFAULT_HOUSEHOLD_SIZE;
-  const usageMultipliers = { light: 0.6, normal: 1.0, heavy: 1.8 };
-  const usageIntensity = usageMultipliers[data.usageType] || 1.0;
-  const detergentOverspend = Math.round(householdSize * C.DETERGENT_ANNUAL_PER_PERSON * usageIntensity);
+  const styleMultipliers = { light: 0.6, normal: 1.0, heavy: 1.8 };
+  const styleMultiplier = styleMultipliers[data.usageType] || 1.0;
+  const detergentOverspend = Math.round(householdSize * C.DETERGENT_ANNUAL_PER_PERSON * styleMultiplier);
+  
+  // D. Plumbing Protection (NEW v7.0)
+  // Hard water causes pinhole leaks, faucet failures, and fixture damage
+  // Conservative estimate: ~$10 per Grain of Hardness annually
+  const plumbingProtection = Math.round(data.hardnessGPG * 10);
   
   // Total Annual Loss ("Hard Water Tax")
-  const totalAnnualLoss = energyLoss + applianceDepreciation + detergentOverspend;
+  const totalAnnualLoss = energyLoss + applianceDepreciation + detergentOverspend + plumbingProtection;
   
   // ROI Calculation
   const softenerAnnualCost = C.ANNUAL_COST_OF_OWNERSHIP;
@@ -1226,6 +1244,7 @@ export function calculateHardWaterTax(
     energyLoss,
     applianceDepreciation,
     detergentOverspend,
+    plumbingProtection,
     totalAnnualLoss,
     softenerAnnualCost,
     netAnnualSavings,

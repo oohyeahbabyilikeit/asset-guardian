@@ -1,4 +1,4 @@
-import { Flame, TrendingDown, Droplets, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Flame, TrendingDown, Droplets, CheckCircle2, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HardWaterTax } from '@/lib/opterraAlgorithm';
 
@@ -12,6 +12,7 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
     energyLoss,
     applianceDepreciation,
     detergentOverspend,
+    plumbingProtection,
     totalAnnualLoss,
     softenerAnnualCost,
     netAnnualSavings,
@@ -87,21 +88,26 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
         </div>
 
         {/* Cost Breakdown */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center p-3 bg-secondary/30 rounded-lg">
-            <Flame className="w-4 h-4 mx-auto mb-2 text-orange-400/70" />
+        <div className="grid grid-cols-4 gap-2">
+          <div className="text-center p-2 bg-secondary/30 rounded-lg">
+            <Flame className="w-4 h-4 mx-auto mb-1.5 text-orange-400/70" />
             <p className="text-sm font-bold font-data text-foreground">${energyLoss}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Energy Loss</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Energy Loss</p>
           </div>
-          <div className="text-center p-3 bg-secondary/30 rounded-lg">
-            <TrendingDown className="w-4 h-4 mx-auto mb-2 text-red-400/70" />
+          <div className="text-center p-2 bg-secondary/30 rounded-lg">
+            <TrendingDown className="w-4 h-4 mx-auto mb-1.5 text-red-400/70" />
             <p className="text-sm font-bold font-data text-foreground">${applianceDepreciation}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Appliance Wear</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Asset Loss</p>
           </div>
-          <div className="text-center p-3 bg-secondary/30 rounded-lg">
-            <Droplets className="w-4 h-4 mx-auto mb-2 text-blue-400/70" />
+          <div className="text-center p-2 bg-secondary/30 rounded-lg">
+            <Droplets className="w-4 h-4 mx-auto mb-1.5 text-blue-400/70" />
             <p className="text-sm font-bold font-data text-foreground">${detergentOverspend}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Extra Soap</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Extra Soap</p>
+          </div>
+          <div className="text-center p-2 bg-secondary/30 rounded-lg">
+            <Wrench className="w-4 h-4 mx-auto mb-1.5 text-purple-400/70" />
+            <p className="text-sm font-bold font-data text-foreground">${plumbingProtection}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Fixture Wear</p>
           </div>
         </div>
 
