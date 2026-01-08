@@ -333,8 +333,8 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                   />
                   <StressFactorItem 
                     icon={Thermometer} 
-                    label="Temperature" 
-                    value={metrics.stressFactors.temp} 
+                    label="Thermal Cycling" 
+                    value={metrics.stressFactors.tempMechanical} 
                   />
                   <StressFactorItem 
                     icon={Droplets} 
@@ -351,20 +351,30 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                     label="Closed Loop" 
                     value={metrics.stressFactors.loop} 
                   />
-                  <StressFactorItem 
-                    icon={Users} 
-                    label="Usage Intensity" 
-                    value={metrics.stressFactors.usageIntensity} 
-                  />
-                  <StressFactorItem 
-                    icon={Maximize2} 
-                    label="Tank Sizing" 
-                    value={metrics.stressFactors.undersizing} 
-                  />
+                  {metrics.stressFactors.undersizing > 1.0 && (
+                    <StressFactorItem 
+                      icon={Maximize2} 
+                      label="Tank Undersized" 
+                      value={metrics.stressFactors.undersizing} 
+                    />
+                  )}
+                  
+                  {/* Usage context - shown as info, not multiplier */}
+                  {metrics.stressFactors.usageIntensity > 1.0 && (
+                    <div className="flex items-center justify-between py-1.5 border-t border-border/20 mt-1">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs text-muted-foreground">Usage Impact</span>
+                      </div>
+                      <span className="text-xs font-mono text-cyan-400">
+                        +{((metrics.stressFactors.usageIntensity - 1) * 100).toFixed(0)}% wear
+                      </span>
+                    </div>
+                  )}
+                  
                   <div className="border-t border-border/30 pt-1.5 mt-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-foreground">Combined Aging Rate</span>
-                      {/* Only colorize for warnings */}
                       <span className={cn(
                         "text-xs font-mono font-bold",
                         metrics.agingRate > 2 ? "text-red-400" :
