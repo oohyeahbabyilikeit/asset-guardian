@@ -70,12 +70,6 @@ function UrgentAlertStep({
             className="w-full h-40 object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          <div className="absolute bottom-3 left-3 right-3">
-            <div className="flex items-center gap-2 text-red-500">
-              <XCircle className="w-5 h-5 animate-pulse" />
-              <span className="text-sm font-bold">Active Containment Breach</span>
-            </div>
-          </div>
         </div>
       )}
 
