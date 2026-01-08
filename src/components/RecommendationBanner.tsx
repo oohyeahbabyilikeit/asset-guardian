@@ -1,4 +1,4 @@
-import { AlertTriangle, Shield, Wrench, Eye, Droplets, Clock, AlertOctagon, Gauge, CheckCircle2, TrendingUp, Zap, PiggyBank } from 'lucide-react';
+import { AlertTriangle, Shield, Wrench, Eye, Droplets, Clock, AlertOctagon, Gauge, CheckCircle2, TrendingUp, Zap, PiggyBank, Sparkles } from 'lucide-react';
 import { Recommendation, ActionType, FinancialForecast } from '@/lib/opterraAlgorithm';
 import { cn } from '@/lib/utils';
 
@@ -100,18 +100,18 @@ export function RecommendationBanner({
   // Check if system is healthy (PASS with OPTIMAL badge)
   const isHealthySystem = recommendation.action === 'PASS' && recommendation.badge === 'OPTIMAL';
   
-  // Don't show anything for healthy systems without financial data
-  if (isHealthySystem && !showFinancial) {
-    return null;
-  }
+  // Check if it's a monitoring state (green-worthy)
+  const isMonitoring = recommendation.action === 'PASS' || recommendation.action === 'MAINTAIN';
+  const isGreenState = isMonitoring && recommendation.badgeColor === 'green';
 
   return (
     <div className={`mx-4 space-y-3 ${className}`}>
       {/* Accelerated Wear Banner (when stress is high but tank is serviceable) */}
       {showAcceleratedWear && (
-        <div className="command-card border-amber-500/30 p-5">
+        <div className="command-card border-amber-500/30 p-5 overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/50 via-orange-500/50 to-amber-500/50" />
           <div className="flex items-start gap-4">
-            <div className="command-icon command-icon-warning shrink-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30">
               <Zap className="w-5 h-5 text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
@@ -138,42 +138,88 @@ export function RecommendationBanner({
         </div>
       )}
 
+      {/* Monitoring / Healthy System Card - Green themed */}
+      {isHealthySystem && (
+        <div className="command-card p-5 overflow-hidden border-emerald-500/30">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500/60 via-green-400/60 to-emerald-500/60" />
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500/25 to-green-500/15 border border-emerald-500/35">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="font-semibold text-sm text-emerald-400">
+                  Active Monitoring
+                </span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                  Healthy
+                </span>
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">
+                System Operating Within Normal Parameters
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                No immediate concerns detected. Continue regular maintenance to maximize equipment lifespan.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Primary Recommendation Banner - Hide for healthy systems */}
       {!isHealthySystem && (
         <div className={cn(
-          "command-card p-5",
+          "command-card p-5 overflow-hidden",
           recommendation.badgeColor === 'red' && "border-red-500/30",
-          recommendation.badgeColor === 'orange' && "border-amber-500/20"
+          recommendation.badgeColor === 'orange' && "border-amber-500/20",
+          isGreenState && "border-emerald-500/25"
         )}>
+          {/* Top accent bar */}
+          <div className={cn(
+            "absolute top-0 left-0 right-0 h-1",
+            recommendation.badgeColor === 'red' && "bg-gradient-to-r from-red-500/60 via-red-400/60 to-red-500/60",
+            recommendation.badgeColor === 'orange' && "bg-gradient-to-r from-amber-500/50 via-amber-400/50 to-amber-500/50",
+            isGreenState && "bg-gradient-to-r from-emerald-500/60 via-green-400/60 to-emerald-500/60",
+            !recommendation.badgeColor && "bg-gradient-to-r from-blue-500/40 via-cyan-500/40 to-blue-500/40"
+          )} />
+          
           <div className="flex items-start gap-4">
-            {/* Icon - only colorize for critical/high urgency */}
+            {/* Icon - color based on state */}
             <div className={cn(
-              "command-icon shrink-0",
-              recommendation.badgeColor === 'red' && "command-icon-critical",
-              recommendation.badgeColor === 'orange' && "command-icon-warning",
-              (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange') && ""
+              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border",
+              recommendation.badgeColor === 'red' && "bg-gradient-to-br from-red-500/20 to-red-600/10 border-red-500/30",
+              recommendation.badgeColor === 'orange' && "bg-gradient-to-br from-amber-500/20 to-amber-600/10 border-amber-500/30",
+              isGreenState && "bg-gradient-to-br from-emerald-500/20 to-green-500/10 border-emerald-500/30",
+              (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange' && !isGreenState) && "bg-gradient-to-br from-blue-500/15 to-cyan-500/10 border-blue-500/25"
             )}>
               <Icon className={cn(
                 "w-5 h-5",
                 recommendation.badgeColor === 'red' && "text-red-400",
                 recommendation.badgeColor === 'orange' && "text-amber-400",
-                (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange') && "text-muted-foreground"
+                isGreenState && "text-emerald-400",
+                (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange' && !isGreenState) && "text-blue-400"
               )} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
-                {/* Label - only colorize for critical/high */}
+                {/* Label */}
                 <span className={cn(
                   "font-semibold text-sm",
                   recommendation.badgeColor === 'red' && "text-red-400",
                   recommendation.badgeColor === 'orange' && "text-amber-400",
-                  (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange') && "text-muted-foreground"
+                  isGreenState && "text-emerald-400",
+                  (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange' && !isGreenState) && "text-blue-400"
                 )}>
                   {educationalAction}
                 </span>
                 {recommendation.urgent && recommendation.action === 'REPLACE' && (
                   <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
                     Urgent
+                  </span>
+                )}
+                {isGreenState && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                    On Track
                   </span>
                 )}
               </div>
@@ -190,9 +236,10 @@ export function RecommendationBanner({
 
       {/* Financial Outlook Card */}
       {showFinancial && financial && (
-        <div className="command-card p-5">
+        <div className="command-card p-5 overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500/50 via-cyan-500/50 to-blue-500/50" />
           <div className="flex items-start gap-4">
-            <div className="command-icon shrink-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30">
               <PiggyBank className="w-5 h-5 text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
