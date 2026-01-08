@@ -153,6 +153,7 @@ export function CommandCenter({
             primaryStressor={dynamicVitals.biologicalAge.primaryStressor}
             estDamageCost={financial.estReplacementCost}
             metrics={opterraMetrics}
+            recommendation={recommendation}
           />
         </div>
 
