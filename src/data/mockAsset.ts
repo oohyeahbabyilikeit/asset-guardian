@@ -2,6 +2,7 @@
 // All data is configurable here for demo flexibility
 
 import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel } from '@/lib/opterraAlgorithm';
+import { ServiceEvent } from '@/types/serviceHistory';
 
 export interface AssetData {
   id: string;
@@ -147,6 +148,7 @@ export interface DemoScenario {
   name: string;
   asset: AssetData;
   inputs: ForensicInputs;
+  serviceHistory?: ServiceEvent[];
 }
 
 const scenarios: DemoScenario[] = [
@@ -368,15 +370,91 @@ const scenarios: DemoScenario[] = [
   },
 ];
 
-// Get a random scenario
+// Generate sample service history for a scenario
+function generateServiceHistory(scenario: DemoScenario): ServiceEvent[] {
+  const age = scenario.inputs.calendarAge;
+  const events: ServiceEvent[] = [];
+  
+  // Generate events based on age and scenario characteristics
+  if (age >= 2) {
+    // Most units get at least an inspection
+    events.push({
+      id: `event-install`,
+      type: 'inspection',
+      date: scenario.asset.installDate,
+      technicianName: 'Installation Tech',
+      cost: 0,
+      notes: 'Initial installation and startup inspection',
+      healthScoreBefore: 100,
+      healthScoreAfter: 100,
+    });
+  }
+  
+  if (age >= 3 && !scenario.inputs.visualRust) {
+    // Healthy units often have a flush at year 2-3
+    const flushDate = new Date(scenario.asset.installDate);
+    flushDate.setFullYear(flushDate.getFullYear() + 2);
+    events.push({
+      id: `event-flush-1`,
+      type: 'flush',
+      date: flushDate.toISOString().split('T')[0],
+      technicianName: 'Service Pro',
+      cost: 150,
+      notes: 'Routine sediment flush - approx 2 cups sediment removed',
+      healthScoreBefore: 88,
+      healthScoreAfter: 92,
+    });
+  }
+  
+  if (age >= 5) {
+    // Older units might have anode replacement
+    const anodeDate = new Date(scenario.asset.installDate);
+    anodeDate.setFullYear(anodeDate.getFullYear() + 4);
+    events.push({
+      id: `event-anode-1`,
+      type: 'anode_replacement',
+      date: anodeDate.toISOString().split('T')[0],
+      technicianName: 'Plumber Plus',
+      cost: 285,
+      notes: 'Anode rod 70% depleted - replaced with magnesium anode',
+      healthScoreBefore: 75,
+      healthScoreAfter: 85,
+    });
+  }
+  
+  if (age >= 8) {
+    // Very old units had a repair
+    const repairDate = new Date(scenario.asset.installDate);
+    repairDate.setFullYear(repairDate.getFullYear() + 7);
+    events.push({
+      id: `event-repair-1`,
+      type: 'repair',
+      date: repairDate.toISOString().split('T')[0],
+      technicianName: 'Emergency Plumbing',
+      cost: 425,
+      notes: 'T&P valve replacement - was leaking intermittently',
+      healthScoreBefore: 62,
+      healthScoreAfter: 68,
+    });
+  }
+  
+  return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+// Get a random scenario with service history
 export function getRandomScenario(): DemoScenario {
-  return scenarios[Math.floor(Math.random() * scenarios.length)];
+  const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+  return {
+    ...scenario,
+    serviceHistory: generateServiceHistory(scenario),
+  };
 }
 
 // Current demo data - using a replacement scenario (The Double Whammy - attic install with issues)
 const initialScenario = scenarios[8]; // "The Double Whammy" - needs replacement
 export const demoAsset: AssetData = initialScenario.asset;
 export const demoForensicInputs: ForensicInputs = initialScenario.inputs;
+export const demoServiceHistory: ServiceEvent[] = generateServiceHistory(initialScenario);
 
 // DEPRECATED: These are now calculated dynamically in CommandCenter.tsx
 // Kept for reference only - do not use in production code
