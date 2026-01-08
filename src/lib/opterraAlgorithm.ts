@@ -32,6 +32,7 @@ export type FuelType = 'GAS' | 'ELECTRIC';
 export type TempSetting = 'LOW' | 'NORMAL' | 'HOT';
 export type LocationType = 'ATTIC' | 'UPPER_FLOOR' | 'MAIN_LIVING' | 'BASEMENT' | 'GARAGE' | 'EXTERIOR' | 'CRAWLSPACE';
 export type RiskLevel = 1 | 2 | 3 | 4;
+export type UsageType = 'light' | 'normal' | 'heavy';
 
 export interface ForensicInputs {
   calendarAge: number;     // Years
@@ -45,6 +46,11 @@ export interface ForensicInputs {
   isFinishedArea: boolean; 
   fuelType: FuelType;
   hardnessGPG: number;     
+  
+  // Usage Calibration (NEW v6.8)
+  peopleCount: number;     // 1-8+ people in household
+  usageType: UsageType;    // light, normal, heavy (shower habits)
+  tankCapacity: number;    // Gallons (from model # or user input)
   
   // Equipment Flags
   hasSoftener: boolean;
@@ -379,6 +385,17 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Softened water removes 95%+ of minerals; remaining sediment is primarily anode byproduct
   const effectiveHardness = data.hasSoftener ? 0.5 : data.hardnessGPG;
   
+  // USAGE CALIBRATION (NEW v6.8)
+  // Usage multiplier based on household size and shower habits
+  const usageMultipliers = { light: 0.6, normal: 1.0, heavy: 1.8 };
+  const usageMultiplier = usageMultipliers[data.usageType] || 1.0;
+  
+  // Occupancy factor (normalized to average 2.5-person household)
+  const occupancyFactor = Math.max(1, data.peopleCount / 2.5);
+  
+  // Combined volume factor
+  const volumeFactor = usageMultiplier * occupancyFactor;
+  
   // SERVICE HISTORY: Residual Sediment Model (v6.7)
   // Flushing removes ~50% of sediment (conservative estimate for DIY flushes)
   // Residual sediment remains and new sediment accumulates on top
@@ -386,18 +403,18 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   if (data.lastFlushYearsAgo !== undefined && data.lastFlushYearsAgo !== null) {
     // Tank was flushed - calculate residual + new accumulation
     const ageAtFlush = data.calendarAge - data.lastFlushYearsAgo;
-    const sedimentAtFlush = ageAtFlush * effectiveHardness * sedFactor;
+    const sedimentAtFlush = ageAtFlush * effectiveHardness * sedFactor * volumeFactor;
     const residualLbs = sedimentAtFlush * (1 - CONSTANTS.FLUSH_EFFICIENCY);
-    const newAccumulationLbs = data.lastFlushYearsAgo * effectiveHardness * sedFactor;
+    const newAccumulationLbs = data.lastFlushYearsAgo * effectiveHardness * sedFactor * volumeFactor;
     sedimentLbs = residualLbs + newAccumulationLbs;
   } else {
     // Never flushed - full lifetime accumulation
-    sedimentLbs = data.calendarAge * effectiveHardness * sedFactor;
+    sedimentLbs = data.calendarAge * effectiveHardness * sedFactor * volumeFactor;
   }
   
-  // Sediment rate (lbs per year based on EFFECTIVE water hardness)
+  // Sediment rate (lbs per year based on EFFECTIVE water hardness AND volume factor)
   // Guard against division by zero - use minimum rate of 0.1 lbs/year
-  const sedimentRate = Math.max(0.1, effectiveHardness * sedFactor);
+  const sedimentRate = Math.max(0.1, effectiveHardness * sedFactor * volumeFactor);
   
   // Calculate months until flush threshold (5 lbs) and lockout threshold (15 lbs)
   const lbsToFlush = CONSTANTS.LIMIT_SEDIMENT_FLUSH - sedimentLbs;
