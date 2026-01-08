@@ -26,29 +26,12 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
 
   return (
     <div className={cn(
-      "command-card tech-corners p-5 relative overflow-hidden",
-      status === 'critical' && "animate-border-pulse-critical",
-      status === 'warning' && "animate-border-pulse-warning"
+      "command-card p-5",
+      status === 'critical' && "border-red-500/30",
+      status === 'warning' && "border-amber-500/30"
     )}>
-      {/* Tech grid overlay */}
-      <div className="absolute inset-0 tech-grid-bg opacity-30 pointer-events-none" />
-      
-      {/* Scan line effect for critical */}
-      {status === 'critical' && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent animate-scan-line" />
-        </div>
-      )}
-      
-      {/* Radial glow background */}
-      <div className={cn(
-        "absolute inset-0 pointer-events-none",
-        status === 'critical' && "bg-gradient-radial from-red-950/20 to-transparent",
-        status === 'warning' && "bg-gradient-radial from-amber-950/20 to-transparent",
-        status === 'optimal' && "bg-gradient-radial from-green-950/20 to-transparent"
-      )} />
 
-      <div className="relative flex flex-col items-center text-center z-10">
+      <div className="flex flex-col items-center text-center">
         {/* Header */}
         <div className="flex items-center gap-2.5 mb-4 self-start">
           <div className={cn(
@@ -57,9 +40,14 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
             status === 'warning' && "command-icon-warning",
             status === 'optimal' && "command-icon-success"
           )}>
-            <Activity className="w-4 h-4" />
+            <Activity className={cn(
+              "w-4 h-4",
+              status === 'critical' && "text-red-400",
+              status === 'warning' && "text-amber-400",
+              status === 'optimal' && "text-emerald-400"
+            )} />
           </div>
-          <span className="command-title">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             System Diagnostics
           </span>
         </div>
@@ -167,7 +155,7 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
       </div>
       
       {/* Disclaimer */}
-      <p className="text-[9px] text-muted-foreground/50 text-center mt-3 relative z-10">
+      <p className="text-[9px] text-muted-foreground/50 text-center mt-3">
         Statistics based on industry data for similar units.
       </p>
     </div>

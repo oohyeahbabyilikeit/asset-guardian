@@ -160,22 +160,19 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
   };
 
   return (
-    <div className="command-card hover-glow tech-corners">
-      {/* Tech grid overlay */}
-      <div className="absolute inset-0 tech-grid-bg opacity-20 pointer-events-none" />
-      
+    <div className="command-card">
       {/* Header */}
-      <div className="command-header-sm relative z-10">
+      <div className="command-header-sm">
         <div className="command-icon-sm">
           <BarChart3 className="w-4 h-4 text-blue-400" />
         </div>
-        <h2 className="command-title">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           How Water Heaters Age
         </h2>
       </div>
 
       {/* Content */}
-      <div className="command-content-sm space-y-4 relative z-10">
+      <div className="p-4 space-y-4">
         {/* Lifespan + Aging Rate Row */}
         <div className="flex items-start gap-4">
           {/* Lifespan Progress */}

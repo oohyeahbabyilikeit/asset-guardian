@@ -649,36 +649,31 @@ export function ServiceHistory({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="command-card hover-glow mx-4">
-        {/* Tech grid overlay */}
-        <div className="absolute inset-0 tech-grid-bg opacity-20 pointer-events-none" />
-        
+      <div className="command-card mx-4">
         <CollapsibleTrigger asChild>
           <Button 
             variant="ghost" 
-            className="w-full flex items-center justify-between command-header hover:bg-white/[0.02] transition-colors relative z-10"
+            className="w-full flex items-center justify-between command-header-sm hover:bg-secondary/20 transition-colors"
           >
             <div className="flex items-center gap-3">
               <div className="command-icon-sm command-icon-warning">
                 <Wrench className="w-4 h-4 text-amber-400" />
               </div>
-              <span className="font-semibold text-sm tracking-tight">Tank Health</span>
+              <span className="font-semibold text-sm">Tank Health</span>
             </div>
             <div className="flex items-center gap-2">
               {(needsFlush || needsAnode) && (
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   SERVICE DUE
                 </span>
               )}
-              <div className="command-trigger">
-                {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </div>
+              {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
             </div>
           </Button>
         </CollapsibleTrigger>
         
         <CollapsibleContent>
-          <div className="command-content space-y-4 border-t border-border/20 relative z-10">
+          <div className="p-5 space-y-4 border-t border-border/30">
             {/* Professional Water Heater Diagram */}
             <div className="flex flex-col items-center">
               <WaterHeaterDiagram 
