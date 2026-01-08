@@ -9,27 +9,20 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onTestHarness, onRandomize, scenarioName }: DashboardHeaderProps) {
   return (
-    <header className="bg-card/90 backdrop-blur-xl border-b border-border/50 px-6 py-3 flex justify-between items-center sticky top-0 z-50">
+    <header className="bg-card/90 backdrop-blur-xl border-b border-border/50 px-4 py-2 flex justify-between items-center sticky top-0 z-50">
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
       
-      <div className="relative flex items-center gap-3">
+      <div className="relative flex items-center gap-2">
         {/* Cortex Logo */}
         <div className="relative">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Brain className="w-5 h-5 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
+            <Brain className="w-4 h-4 text-primary-foreground" />
           </div>
-          {/* Subtle glow */}
-          <div className="absolute inset-0 rounded-xl bg-primary/20 blur-md -z-10" />
         </div>
         
-        <div className="flex flex-col">
-          <div className="font-display text-xl font-bold tracking-tight text-foreground">
-            CORTEX
-          </div>
-          <div className="text-[10px] uppercase text-muted-foreground font-medium tracking-widest">
-            {scenarioName || 'Asset Intelligence'}
-          </div>
+        <div className="font-display text-lg font-bold tracking-tight text-foreground">
+          CORTEX
         </div>
       </div>
       

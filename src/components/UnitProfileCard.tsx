@@ -55,38 +55,38 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-4">
+      <div className="p-5 space-y-5">
         {/* Basic Info Grid */}
-        <div className="grid grid-cols-4 gap-4">
-          <div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
             <span className="text-muted-foreground text-xs block">Age</span>
-            <p className="font-semibold text-foreground">{asset.paperAge} years</p>
+            <p className="font-semibold text-foreground text-lg">{asset.paperAge} years</p>
           </div>
-          <div>
+          <div className="space-y-1">
             <span className="text-muted-foreground text-xs block">Type</span>
-            <p className="font-semibold text-foreground capitalize">{asset.specs.fuelType}</p>
+            <p className="font-semibold text-foreground text-lg capitalize">{asset.specs.fuelType}</p>
           </div>
-          <div>
+          <div className="space-y-1">
             <span className="text-muted-foreground text-xs block">Location</span>
-            <p className="font-semibold text-foreground">{locationLabel}</p>
+            <p className="font-semibold text-foreground text-lg">{locationLabel}</p>
           </div>
-          <div>
+          <div className="space-y-1">
             <span className="text-muted-foreground text-xs block">Capacity</span>
-            <p className="font-semibold text-foreground">{asset.specs.capacity}</p>
+            <p className="font-semibold text-foreground text-lg">{asset.specs.capacity}</p>
           </div>
         </div>
 
         {/* Equipment Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           {equipment.map((item) => (
             <div 
               key={item.label} 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2.5 py-1"
             >
               {item.present ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-4.5 h-4.5 text-emerald-400 shrink-0" />
               ) : (
-                <Circle className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                <Circle className="w-4.5 h-4.5 text-muted-foreground/40 shrink-0" />
               )}
               <span className={`text-sm ${item.present ? 'text-foreground' : 'text-muted-foreground/60'}`}>
                 {item.label}
