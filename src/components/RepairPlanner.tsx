@@ -1009,7 +1009,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         <div className="max-w-md mx-auto">
         <Button
             onClick={() => {
-              if (isEconomicReplacement && selectedTimeline !== 'now') {
+              if (isEconomicReplacement) {
                 setShowContactForm(true);
               } else {
                 onSchedule(selectedRepairs);
