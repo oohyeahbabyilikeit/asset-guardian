@@ -149,6 +149,8 @@ export function CommandCenter({
             healthScore={dynamicHealthScore} 
             location={currentAsset.location} 
             riskLevel={riskLevel}
+            primaryStressor={dynamicVitals.biologicalAge.primaryStressor}
+            estDamageCost={financial.estReplacementCost}
           />
         </div>
 
@@ -165,6 +167,7 @@ export function CommandCenter({
             monthsToFlush={monthsToFlush}
             monthsToLockout={monthsToLockout}
             flushStatus={flushStatus}
+            autoExpand={dynamicHealthScore.score < 50}
           />
         </div>
 
@@ -175,6 +178,7 @@ export function CommandCenter({
             inputs={currentInputs}
             onLearnMore={handleLearnMore}
             agingRate={agingRate}
+            bioAge={bioAge}
           />
         </div>
 
