@@ -26,6 +26,7 @@ interface ServiceHistoryProps {
   flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout';
   serviceHistory?: ServiceEvent[];
   autoExpand?: boolean;  // Auto-expand when score is critical
+  recommendation?: { action: 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS' | 'URGENT' };
 }
 
 // Enhanced Water Heater SVG Diagram Component
@@ -618,8 +619,11 @@ export function ServiceHistory({
   monthsToLockout,
   flushStatus,
   serviceHistory = [],
-  autoExpand = false
+  autoExpand = false,
+  recommendation
 }: ServiceHistoryProps) {
+  // Check if replacement is recommended (no maintenance should be shown)
+  const isReplacementRequired = recommendation?.action === 'REPLACE';
   // Auto-expand when critical score (surfaces the diagnosis)
   const [isOpen, setIsOpen] = useState(autoExpand);
 
@@ -665,7 +669,7 @@ export function ServiceHistory({
               <span className="font-semibold text-sm">Tank Health</span>
             </div>
             <div className="flex items-center gap-2">
-              {(needsFlush || needsAnode) && (
+              {!isReplacementRequired && (needsFlush || needsAnode) && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   SERVICE DUE
                 </span>
@@ -712,62 +716,68 @@ export function ServiceHistory({
               </div>
             </div>
 
-            {/* Sediment Projection Card */}
+            {/* Sediment Projection Card - Show diagnostic info only for replacement units */}
             <div className="data-display-lg">
               <div className="flex items-center gap-2 mb-3">
                 <div className="command-icon-sm">
                   <Calendar className="w-3.5 h-3.5 text-blue-400" />
                 </div>
-                <span className="text-xs font-semibold">Sediment Forecast</span>
+                <span className="text-xs font-semibold">
+                  {isReplacementRequired ? 'Current Sediment' : 'Sediment Forecast'}
+                </span>
               </div>
               <div className="text-xs text-muted-foreground space-y-1.5">
                 <div className="flex justify-between">
                   <span>Current:</span>
                   <span className="font-mono font-medium text-foreground">{sedimentLbs.toFixed(1)} lbs</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Rate:</span>
-                  <span className="font-mono text-foreground">+{sedimentRate.toFixed(2)} lbs/yr</span>
-                </div>
-                {flushStatus === 'optimal' && monthsToFlush !== null && (
-                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
-                    <span>Schedule flush in:</span>
-                    <span className={cn(
-                      "font-mono font-medium",
-                      Math.min(monthsToFlush, 36) <= 6 ? "text-amber-400" : "text-emerald-400"
-                    )}>
-                      {(() => {
-                        const capped = Math.min(monthsToFlush, 36);
-                        return capped >= 12 
-                          ? `${(capped / 12).toFixed(1)} yrs` 
-                          : `${capped} mo`;
-                      })()}
-                    </span>
-                  </div>
-                )}
-                {flushStatus === 'schedule' && monthsToFlush !== null && (
-                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
-                    <span className="text-amber-400">⚠ Flush recommended in:</span>
-                    <span className="font-mono font-medium text-amber-400">{monthsToFlush} mo</span>
-                  </div>
-                )}
-                {flushStatus === 'due' && (
-                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
-                    <span className="text-amber-400 font-medium">🔧 Flush now</span>
-                    <span className="font-mono text-amber-400">5-15 lb zone</span>
-                  </div>
-                )}
-                {flushStatus === 'lockout' && (
-                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
-                    <span className="text-red-400 font-medium">🚫 Flush unsafe</span>
-                    <span className="font-mono text-red-400">&gt;15 lbs hardened</span>
-                  </div>
+                {!isReplacementRequired && (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Rate:</span>
+                      <span className="font-mono text-foreground">+{sedimentRate.toFixed(2)} lbs/yr</span>
+                    </div>
+                    {flushStatus === 'optimal' && monthsToFlush !== null && (
+                      <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
+                        <span>Schedule flush in:</span>
+                        <span className={cn(
+                          "font-mono font-medium",
+                          Math.min(monthsToFlush, 36) <= 6 ? "text-amber-400" : "text-emerald-400"
+                        )}>
+                          {(() => {
+                            const capped = Math.min(monthsToFlush, 36);
+                            return capped >= 12 
+                              ? `${(capped / 12).toFixed(1)} yrs` 
+                              : `${capped} mo`;
+                          })()}
+                        </span>
+                      </div>
+                    )}
+                    {flushStatus === 'schedule' && monthsToFlush !== null && (
+                      <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
+                        <span className="text-amber-400">⚠ Flush recommended in:</span>
+                        <span className="font-mono font-medium text-amber-400">{monthsToFlush} mo</span>
+                      </div>
+                    )}
+                    {flushStatus === 'due' && (
+                      <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
+                        <span className="text-amber-400 font-medium">🔧 Flush now</span>
+                        <span className="font-mono text-amber-400">5-15 lb zone</span>
+                      </div>
+                    )}
+                    {flushStatus === 'lockout' && (
+                      <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
+                        <span className="text-red-400 font-medium">🚫 Flush unsafe</span>
+                        <span className="font-mono text-red-400">&gt;15 lbs hardened</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
 
-            {/* Service Recommendations */}
-            {(needsFlush || needsAnode) && (
+            {/* Service Recommendations - Only show for maintainable units */}
+            {!isReplacementRequired && (needsFlush || needsAnode) && (
               <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
