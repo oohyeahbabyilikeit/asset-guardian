@@ -741,7 +741,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       </div>
                       <div className="text-xs text-muted-foreground">Total Aging Rate</div>
                     </div>
-                    <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="grid grid-cols-3 gap-3 text-center">
                       <StressFactor 
                         label="Pressure" 
                         value={result.metrics.stressFactors.pressure} 
@@ -762,9 +762,19 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                         value={result.metrics.stressFactors.loop} 
                         sublabel="Hammer"
                       />
+                      <StressFactor 
+                        label="Usage" 
+                        value={result.metrics.stressFactors.usageIntensity} 
+                        sublabel="Occupancy"
+                      />
+                      <StressFactor 
+                        label="Sizing" 
+                        value={result.metrics.stressFactors.undersizing} 
+                        sublabel="Tank Fit"
+                      />
                     </div>
                     <div className="text-center mt-3 text-xs text-muted-foreground font-mono">
-                      {result.metrics.stressFactors.pressure.toFixed(2)} × {result.metrics.stressFactors.temp.toFixed(2)} × {result.metrics.stressFactors.circ.toFixed(2)} × {result.metrics.stressFactors.loop.toFixed(2)} = {result.metrics.stressFactors.total.toFixed(2)}
+                      Mechanical: {result.metrics.stressFactors.mechanical.toFixed(2)}× · Chemical: {result.metrics.stressFactors.chemical.toFixed(2)}× · Total: {result.metrics.stressFactors.total.toFixed(2)}×
                     </div>
                   </div>
                 </div>
