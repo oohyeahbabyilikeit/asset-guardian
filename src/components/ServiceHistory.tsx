@@ -618,8 +618,8 @@ export function ServiceHistory({
 }: ServiceHistoryProps) {
   // Check if replacement is recommended (no maintenance should be shown)
   const isReplacementRequired = recommendation?.action === 'REPLACE';
-  // Auto-expand when critical score (surfaces the diagnosis)
-  const [isOpen, setIsOpen] = useState(autoExpand);
+  // Default to closed - user can expand to see details
+  const [isOpen, setIsOpen] = useState(false);
 
   // Calculate anode depletion percentage (0-100, where 100 = fully depleted)
   const maxAnodeLife = hasSoftener ? 2.5 : 6; // Years
