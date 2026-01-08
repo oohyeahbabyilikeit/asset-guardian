@@ -1005,13 +1005,13 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
       {/* Fixed Bottom Action */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border">
         <div className="max-w-md mx-auto">
-          <Button
+        <Button
             onClick={() => onSchedule(selectedRepairs)}
-            disabled={selectedRepairs.length === 0 && !selectedTimeline}
+            disabled={isEconomicReplacement ? false : (selectedRepairs.length === 0)}
             className="w-full h-14 text-base font-semibold"
           >
             {isEconomicReplacement 
-              ? (selectedTimeline === 'now' ? 'Get Upgrade Options' : selectedTimeline === 'later' ? 'Start My Savings Plan' : 'Choose a Timeline')
+              ? (selectedTimeline === 'now' ? 'Schedule Replacement' : 'Speak with a Plumber')
               : isReplacementSelected 
                 ? 'Request Replacement Quote' 
                 : 'Schedule These Repairs'}

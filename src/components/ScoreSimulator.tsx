@@ -528,7 +528,7 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
             className="w-full h-14 text-base font-semibold"
           >
             {isEconomicReplacement 
-              ? 'Get Upgrade Options' 
+              ? 'Schedule Replacement' 
               : isFullReplacement 
                 ? 'Request Replacement Quote' 
                 : 'Schedule These Repairs'}
