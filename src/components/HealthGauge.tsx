@@ -225,25 +225,21 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
             />
           </div>
 
-          {/* Status Label */}
-          <div className={cn(
-            "text-[10px] font-bold uppercase tracking-wider text-center px-3 py-1 rounded-full w-fit mx-auto",
-            riskStatus === 'CRITICAL' || riskStatus === 'HIGH' ? "bg-red-500/15 text-red-400 border border-red-500/20" :
-            riskStatus === 'ELEVATED' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
-            "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-          )}>
-            {riskStatus}
-          </div>
+          {/* Status Label - Hide when breach is showing */}
+          {!isBreach && (
+            <div className={cn(
+              "text-[10px] font-bold uppercase tracking-wider text-center px-3 py-1 rounded-full w-fit mx-auto",
+              riskStatus === 'CRITICAL' || riskStatus === 'HIGH' ? "bg-red-500/15 text-red-400 border border-red-500/20" :
+              riskStatus === 'ELEVATED' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
+              "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+            )}>
+              {riskStatus}
+            </div>
+          )}
 
           {/* Breach Evidence Photo - Always visible when breach detected */}
           {isBreach && (
-            <div className="mt-3 space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <Camera className="w-3 h-3 text-red-400" />
-                <span className="text-[9px] font-semibold text-red-400 uppercase tracking-wide">
-                  Evidence: {isLeaking ? 'Active Leak' : 'Corrosion'} Detected
-                </span>
-              </div>
+            <div className="mt-3">
               <div className="relative rounded-lg overflow-hidden border border-red-500/30 bg-red-500/5">
                 <img 
                   src={containmentBreachImg} 
