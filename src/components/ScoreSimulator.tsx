@@ -270,8 +270,8 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
                     <div className="flex items-start gap-3">
                       <span className="text-primary mt-0.5">✓</span>
                       <div>
-                        <span className="text-sm text-foreground font-medium">Estimated Cost: ${financial.estReplacementCost.toLocaleString()}</span>
-                        <p className="text-xs text-muted-foreground">Plan ahead with predictable costs</p>
+                        <span className="text-sm text-foreground font-medium">Estimated Cost: ${financial.estReplacementCostMin.toLocaleString()} - ${financial.estReplacementCostMax.toLocaleString()}</span>
+                        <p className="text-xs text-muted-foreground">Range varies by contractor</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
