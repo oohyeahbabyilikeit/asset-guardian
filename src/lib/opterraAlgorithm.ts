@@ -521,14 +521,20 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const lifeExtension = isBreach ? 0 : Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
 
   // Identify primary stressor for UX messaging
-  const stressorFactors = [
-    { name: 'High Pressure', value: pressureStress },
-    { name: 'High Temperature', value: tempStressRaw },
-    { name: 'Sediment Buildup', value: sedimentStress },
-    { name: 'Thermal Expansion', value: loopPenalty },
-    { name: 'Circulation Pump', value: circStress }
-  ];
-  const primaryStressor = stressorFactors.reduce((max, f) => f.value > max.value ? f : max, stressorFactors[0]).name;
+  // PRIORITY: Containment breach is ALWAYS the primary stressor if present
+  let primaryStressor: string;
+  if (isBreach) {
+    primaryStressor = 'Containment Breach';
+  } else {
+    const stressorFactors = [
+      { name: 'High Pressure', value: pressureStress },
+      { name: 'High Temperature', value: tempStressRaw },
+      { name: 'Sediment Buildup', value: sedimentStress },
+      { name: 'Thermal Expansion', value: loopPenalty },
+      { name: 'Circulation Pump', value: circStress }
+    ];
+    primaryStressor = stressorFactors.reduce((max, f) => f.value > max.value ? f : max, stressorFactors[0]).name;
+  }
 
   return {
     bioAge: parseFloat(bioAge.toFixed(1)),
