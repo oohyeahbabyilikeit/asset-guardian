@@ -208,8 +208,7 @@ export function CommandCenter({
         {/* Action Dock */}
         <ActionDock
           onPanicMode={onPanicMode}
-          onFixPressure={onServiceRequest}
-          onViewReport={onViewReport}
+          onServiceRequest={onServiceRequest}
           onMaintenancePlan={onMaintenancePlan}
           recommendation={recommendation}
           monthsToFlush={monthsToFlush}
