@@ -131,7 +131,8 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
       threshold: '> 80 PSI',
       current: `${inputs.housePsi} PSI`,
       isAbove: inputs.housePsi > 80,
-      explanation: 'Pressure above 80 PSI can stress tank components and reduce lifespan. The EPA recommends 40-60 PSI for residential use.'
+      isCritical: inputs.housePsi > 80, // Violates state plumbing code
+      explanation: 'Pressure above 80 PSI violates plumbing code in most states. It stresses tank components, accelerates wear, and can void warranties.'
     },
     {
       id: 'hardness',
@@ -142,6 +143,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
         ? `${inputs.hardnessGPG} gpg (softener installed)` 
         : `${inputs.hardnessGPG} gpg`,
       isAbove: inputs.hasSoftener ? false : inputs.hardnessGPG > 7,
+      isCritical: false,
       explanation: inputs.hasSoftener 
         ? 'Your water softener mitigates scale buildup from hard water. Maintain salt levels and service regularly to keep protection active.'
         : 'Hard water causes mineral buildup (scale) on heating elements and tank walls, reducing efficiency and accelerating wear.'
@@ -153,7 +155,8 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
       threshold: 'Closed system',
       current: inputs.hasExpTank ? 'Managed' : (inputs.isClosedLoop || inputs.hasPrv ? 'Unmanaged' : 'N/A'),
       isAbove: !inputs.hasExpTank && (inputs.isClosedLoop || inputs.hasPrv),
-      explanation: 'In closed-loop systems, water expands when heated with nowhere to go. Without an expansion tank, this pressure cycles stress the tank.'
+      isCritical: !inputs.hasExpTank && (inputs.isClosedLoop || inputs.hasPrv), // Violates state plumbing code
+      explanation: 'Missing expansion tank in a closed system violates plumbing code in most states. Thermal cycling causes dangerous pressure spikes that stress the tank.'
     },
     {
       id: 'temperature',
@@ -162,6 +165,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
       threshold: '> 120°F',
       current: inputs.tempSetting === 'HOT' ? '140°F+' : inputs.tempSetting === 'LOW' ? '110°F' : '120°F',
       isAbove: inputs.tempSetting === 'HOT',
+      isCritical: false,
       explanation: 'Higher temperatures accelerate corrosion and sediment formation. Most manufacturers recommend 120°F or below.'
     },
   ];
@@ -249,22 +253,27 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
                 >
                   <div className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center border shrink-0",
-                    factor.isAbove 
-                      ? "bg-amber-500/15 border-amber-500/30" 
-                      : "bg-emerald-500/10 border-emerald-500/25"
+                    factor.isCritical 
+                      ? "bg-red-500/15 border-red-500/30" 
+                      : factor.isAbove 
+                        ? "bg-amber-500/15 border-amber-500/30" 
+                        : "bg-emerald-500/10 border-emerald-500/25"
                   )}>
                     <factor.icon className={cn(
                       "w-4 h-4",
-                      factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
+                      factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
                     )} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-sm text-foreground font-medium">{factor.label}</span>
                     <span className="text-[10px] text-muted-foreground ml-1.5">({factor.threshold})</span>
+                    {factor.isCritical && (
+                      <span className="ml-2 text-[9px] font-bold text-red-400 uppercase">Code Violation</span>
+                    )}
                   </div>
                   <span className={cn(
                     "text-xs font-bold",
-                    factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
+                    factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
                   )}>
                     {factor.current}
                   </span>
