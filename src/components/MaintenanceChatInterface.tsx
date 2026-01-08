@@ -79,9 +79,9 @@ export function MaintenanceChatInterface({
   };
 
   const suggestedQuestions = [
-    "Why flush?",
-    "What's an anode?",
-    "Skip it?"
+    "What if anode fails?",
+    "Flush saves $?",
+    "Skipping = risk?"
   ];
 
   // Fullscreen overlay
@@ -274,14 +274,14 @@ export function MaintenanceChatInterface({
 }
 
 function getInitialMessage(flushMonths: number | null, anodeMonths: number): string {
-  const parts: string[] = ["Your water heater is in good shape! 🎉"];
+  const parts: string[] = ["Your water heater is protected! 🛡️"];
   
   if (flushMonths !== null && anodeMonths > 0) {
-    parts.push("Ask me why these maintenance tasks matter.");
+    parts.push("Ask me what happens if maintenance is skipped.");
   } else if (flushMonths !== null) {
-    parts.push("Ask me why flushing helps extend your unit's life!");
+    parts.push("Ask me what happens if sediment builds up.");
   } else if (anodeMonths > 0) {
-    parts.push("Curious what an anode rod does?");
+    parts.push("Ask me what happens if an anode rod fails.");
   }
   
   return parts.join(' ');
@@ -293,34 +293,35 @@ function generateResponse(
   anodeMonths: number,
   sedimentRate?: number
 ): string {
-  if (query.includes('flush') || query.includes('sediment') || query.includes('drain')) {
-    if (query.includes('why') || query.includes('what') || query.includes('need')) {
-      return `${MAINTENANCE_EXPLANATIONS.flush.why} Based on your water conditions${sedimentRate ? ` (sediment at ${sedimentRate.toFixed(2)}%/mo)` : ''}, I've calculated your optimal interval.`;
+  // Focus on consequences and financial risk
+  if (query.includes('flush') || query.includes('sediment') || query.includes('drain') || query.includes('saves')) {
+    if (query.includes('skip') || query.includes('ignore') || query.includes('delay') || query.includes('risk')) {
+      return "⚠️ Skipping flushes lets sediment harden, creating hotspots that crack your tank liner. Result: a flooded utility room and $1,500-2,500 emergency replacement vs. a $150 flush.";
     }
-    if (query.includes('skip') || query.includes('ignore') || query.includes('delay')) {
-      return "Skipping leads to efficiency loss, strange noises, and tank damage. The $100-150 flush prevents $800+ in early replacement!";
+    if (query.includes('saves') || query.includes('$') || query.includes('cost')) {
+      return "💰 A $150 flush prevents $1,500+ in early replacement costs. That's 10x ROI. Plus you avoid the water damage—$5,000+ if it floods your basement.";
     }
-    return MAINTENANCE_EXPLANATIONS.flush.what;
+    return `${MAINTENANCE_EXPLANATIONS.flush.why} Based on your water conditions${sedimentRate ? ` (sediment at ${sedimentRate.toFixed(2)}%/mo)` : ''}, I've calculated your optimal interval.`;
   }
 
-  if (query.includes('anode') || query.includes('rod') || query.includes('rust') || query.includes('corrosion')) {
-    if (query.includes('why') || query.includes('what')) {
-      return MAINTENANCE_EXPLANATIONS.anode.what + " " + MAINTENANCE_EXPLANATIONS.anode.why;
+  if (query.includes('anode') || query.includes('rod') || query.includes('rust') || query.includes('corrosion') || query.includes('fail')) {
+    if (query.includes('fail') || query.includes('what if') || query.includes('happens')) {
+      return "⚠️ The anode rod sacrifices itself so your tank doesn't rust. Once depleted, corrosion attacks the tank directly—within 1-2 years, you'll see leaks. A $30 rod prevents a $2,000+ replacement.";
     }
-    return `The anode rod protects against rust. You have ~${anodeMonths >= 12 ? `${(anodeMonths / 12).toFixed(1)} years` : `${anodeMonths} months`} of protection left.`;
+    return `The anode rod protects against rust. You have ~${anodeMonths >= 12 ? `${(anodeMonths / 12).toFixed(1)} years` : `${anodeMonths} months`} of protection left. When it's due, the $200 replacement saves $2,000+.`;
   }
 
-  if (query.includes('skip') || query.includes('ignore') || query.includes('necessary')) {
-    return "Preventive maintenance costs 10-20x less than emergency repairs. A $150 flush beats a $1,500+ replacement!";
+  if (query.includes('skip') || query.includes('ignore') || query.includes('necessary') || query.includes('risk')) {
+    return "⚠️ Skipping maintenance is gambling with your home. A $300/year maintenance plan prevents $3,000+ emergencies. Plus, tank failures cause water damage averaging $5,000-10,000.";
   }
 
-  if (query.includes('cost') || query.includes('price') || query.includes('expensive')) {
-    return "Flush: $100-150, anode: $150-250. Compare to $1,200-2,500 for replacement. Maintenance pays for itself!";
+  if (query.includes('cost') || query.includes('price') || query.includes('expensive') || query.includes('$')) {
+    return "💰 Flush: $150 (prevents $1,500+ replacement). Anode: $200 (prevents $2,000+ replacement). Your annual maintenance cost is 10% of what a failure costs.";
   }
 
   if (query.includes('how') || query.includes('myself') || query.includes('diy')) {
-    return "While DIY is possible, pros ensure proper drainage and spot early warnings. Set a reminder above!";
+    return "While DIY is possible, pros catch early warning signs you'd miss. They've prevented countless floods. Your monitoring is active—we'll remind you when it's time.";
   }
 
-  return "Regular maintenance extends your water heater's life significantly. Ask about flushing or anode rods!";
+  return "Ask me what happens if maintenance is skipped—understanding the risk helps you see why we monitor this carefully for you.";
 }

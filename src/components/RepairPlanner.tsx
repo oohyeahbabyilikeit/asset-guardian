@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Bell, Phone, MessageSquare, Droplets, Shield, Clock } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Bell, Phone, MessageSquare, Droplets, Shield, Clock, ShieldCheck, HelpCircle } from 'lucide-react';
 import { MaintenanceChatInterface } from './MaintenanceChatInterface';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
@@ -214,7 +214,28 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         </header>
 
         <div className="relative flex-1 p-3 max-w-md mx-auto w-full flex flex-col gap-3 overflow-hidden">
-          {/* Combined Maintenance & Reminder Card */}
+          {/* Health Score at Top */}
+          <div className="clean-card p-3 flex-shrink-0 bg-gradient-to-br from-green-500/10 to-transparent border-green-500/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Plumbing Health Score</p>
+                  <p className="font-bold text-foreground text-lg font-mono">{currentScore}<span className="text-muted-foreground text-sm">/100</span></p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-500"
+                style={{ width: `${currentScore}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Combined Maintenance & Monitoring Card */}
           <div className="clean-card p-4 flex-shrink-0">
             {/* Recommended Maintenance Section */}
             {hasUpcomingMaintenance && (
@@ -227,44 +248,54 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 <div className="space-y-2 mb-4">
                   {/* Tank Flush */}
                   {cappedMonthsToFlush !== null && flushStatus === 'optimal' && (
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                          <Droplets className="w-4 h-4 text-blue-400" />
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                            <Droplets className="w-4 h-4 text-blue-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-xs">Tank Flush</p>
+                            <p className="text-[10px] text-muted-foreground">Remove sediment</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground text-xs">Tank Flush</p>
-                          <p className="text-[10px] text-muted-foreground">Remove sediment</p>
+                        <div className="text-right">
+                          <p className="font-mono font-semibold text-foreground text-sm">
+                            {cappedMonthsToFlush >= 12 
+                              ? `${(cappedMonthsToFlush / 12).toFixed(1)} yrs` 
+                              : `${cappedMonthsToFlush} mo`}
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-mono font-semibold text-foreground text-sm">
-                          {cappedMonthsToFlush >= 12 
-                            ? `${(cappedMonthsToFlush / 12).toFixed(1)} yrs` 
-                            : `${cappedMonthsToFlush} mo`}
-                        </p>
-                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-1.5 pl-[42px]">
+                        Last performed: Jan 7, 2026 by Mike T.
+                      </p>
                     </div>
                   )}
 
                   {cappedMonthsToAnode > 0 && !anodeNeedsAttention && (
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                          <Shield className="w-4 h-4 text-amber-400" />
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                            <Shield className="w-4 h-4 text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-xs">Anode Rod Check</p>
+                            <p className="text-[10px] text-muted-foreground">Inspect anode</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground text-xs">Anode Rod Check</p>
-                          <p className="text-[10px] text-muted-foreground">Inspect anode</p>
+                        <div className="text-right">
+                          <p className="font-mono font-semibold text-foreground text-sm">
+                            {cappedMonthsToAnode >= 12 
+                              ? `${(cappedMonthsToAnode / 12).toFixed(1)} yrs` 
+                              : `${cappedMonthsToAnode} mo`}
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-mono font-semibold text-foreground text-sm">
-                          {cappedMonthsToAnode >= 12 
-                            ? `${(cappedMonthsToAnode / 12).toFixed(1)} yrs` 
-                            : `${cappedMonthsToAnode} mo`}
-                        </p>
-                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-1.5 pl-[42px]">
+                        Last performed: Jan 7, 2026 by Mike T.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -273,33 +304,26 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               </>
             )}
 
-            {/* Reminder Section */}
+            {/* Protection Status - Replaces "Set a Reminder" */}
             {reminderMode === 'none' && (
               <>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-foreground text-sm">Set a Reminder</h3>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                    <ShieldCheck className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground text-sm">Auto-Reminders Active</p>
+                    <p className="text-[10px] text-muted-foreground">We'll text you automatically when service is due. No action needed.</p>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setReminderMode('sms')}
-                    className="p-2 rounded-lg border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
-                  >
-                    <MessageSquare className="w-4 h-4 mx-auto mb-1 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <p className="font-medium text-[11px] text-foreground">SMS Reminder</p>
-                  </button>
-                  
-                  <button
-                    onClick={() => setReminderMode('contact')}
-                    className="p-2 rounded-lg border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
-                  >
-                    <Phone className="w-4 h-4 mx-auto mb-1 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <p className="font-medium text-[11px] text-foreground">Contact Me</p>
-                  </button>
-                </div>
+                <button
+                  onClick={() => setReminderMode('contact')}
+                  className="flex items-center justify-center gap-1.5 mt-2 w-full py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <HelpCircle className="w-3 h-3" />
+                  Need help sooner? Contact Plumber Support
+                </button>
               </>
             )}
 
