@@ -161,6 +161,8 @@ export function CommandCenter({
             estDamageCost={financial.estReplacementCost}
             metrics={opterraMetrics}
             recommendation={recommendation}
+            isLeaking={currentInputs.isLeaking}
+            visualRust={currentInputs.visualRust}
           />
         </div>
 
