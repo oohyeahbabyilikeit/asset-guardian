@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
-import { getRiskLevelInfo, type RiskLevel, type OpterraMetrics, projectFutureHealth } from '@/lib/opterraAlgorithm';
+import { getRiskLevelInfo, type RiskLevel, type OpterraMetrics, failProbToHealthScore, bioAgeToFailProb } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from 'recharts';
 
@@ -78,24 +78,38 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
     return 'text-emerald-400';
   };
 
-  // Generate projection data for the chart (5 years out)
+  // Generate projection data for the chart
+  // This properly models bioAge growth and its effect on health score
   const generateProjectionData = () => {
     if (!metrics) return [];
     
     const data = [];
     const currentBioAge = metrics.bioAge;
     const neglectedRate = metrics.agingRate;
-    const optimizedRate = metrics.optimizedRate || 1.0;
+    const optimizedRate = metrics.optimizedRate;
     
+    // Check if system is critical/unserviceable (no projection makes sense)
+    const isCritical = failureProbability === 'FAIL' || score < 20;
+    
+    // Project over 5 years, every 6 months
     for (let month = 0; month <= 60; month += 6) {
-      const neglected = projectFutureHealth(currentBioAge, neglectedRate, month);
-      const optimized = projectFutureHealth(currentBioAge, optimizedRate, month);
+      const yearsAhead = month / 12;
+      
+      // Neglected: bioAge grows at current aging rate
+      const neglectedBioAge = currentBioAge + (yearsAhead * neglectedRate);
+      const neglectedFailProb = bioAgeToFailProb(neglectedBioAge);
+      const neglectedHealth = isCritical ? 0 : failProbToHealthScore(neglectedFailProb);
+      
+      // Optimized: bioAge grows at optimized rate (after fixing issues)
+      const optimizedBioAge = currentBioAge + (yearsAhead * optimizedRate);
+      const optimizedFailProb = bioAgeToFailProb(optimizedBioAge);
+      const optimizedHealth = isCritical ? 0 : failProbToHealthScore(optimizedFailProb);
       
       data.push({
         month,
-        year: (month / 12).toFixed(1),
-        neglected: neglected.healthScore,
-        optimized: optimized.healthScore,
+        year: yearsAhead.toFixed(1),
+        neglected: Math.max(0, neglectedHealth),
+        optimized: Math.max(0, optimizedHealth),
       });
     }
     
@@ -233,89 +247,102 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                   <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
                     5-Year Health Projection
                   </span>
+                  <div className="flex items-center gap-2 text-[9px]">
+                    <span className="text-muted-foreground">Now: {metrics.agingRate.toFixed(1)}x</span>
+                    <span className="text-emerald-400">Optimized: {metrics.optimizedRate.toFixed(1)}x</span>
+                  </div>
                 </div>
                 
-                <div className="bg-secondary/20 rounded-lg p-2">
-                  <div className="h-32">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={projectionData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-                        <defs>
-                          <linearGradient id="optimizedGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="hsl(158 45% 42%)" stopOpacity={0.3} />
-                            <stop offset="100%" stopColor="hsl(158 45% 42%)" stopOpacity={0.05} />
-                          </linearGradient>
-                          <linearGradient id="neglectedGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="hsl(0 55% 48%)" stopOpacity={0.2} />
-                            <stop offset="100%" stopColor="hsl(0 55% 48%)" stopOpacity={0.02} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis 
-                          dataKey="year" 
-                          tick={{ fontSize: 9, fill: 'hsl(215 20% 60%)' }}
-                          axisLine={{ stroke: 'hsl(217 25% 22%)' }}
-                          tickLine={false}
-                          tickFormatter={(value) => `${value}y`}
-                        />
-                        <YAxis 
-                          domain={[0, 100]}
-                          tick={{ fontSize: 9, fill: 'hsl(215 20% 60%)' }}
-                          axisLine={false}
-                          tickLine={false}
-                          tickCount={3}
-                        />
-                        <ReferenceLine 
-                          y={50} 
-                          stroke="hsl(32 65% 48%)" 
-                          strokeDasharray="3 3" 
-                          strokeOpacity={0.5}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="optimized"
-                          fill="url(#optimizedGradient)"
-                          stroke="none"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="neglected"
-                          fill="url(#neglectedGradient)"
-                          stroke="none"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="neglected" 
-                          stroke="hsl(0 55% 48%)" 
-                          strokeWidth={2}
-                          dot={false}
-                          name="If neglected"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="optimized" 
-                          stroke="hsl(158 45% 42%)" 
-                          strokeWidth={2}
-                          dot={false}
-                          name="With maintenance"
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  {/* Legend */}
-                  <div className="flex items-center justify-center gap-4 mt-2 pt-2 border-t border-border/20">
-                    <div className="flex items-center gap-1.5">
-                      <TrendingDown className="w-3 h-3 text-red-400" />
-                      <span className="text-[9px] text-muted-foreground">If neglected</span>
+                {/* Show chart only for serviceable units */}
+                {failureProbability !== 'FAIL' && score >= 20 ? (
+                  <div className="bg-secondary/20 rounded-lg p-2">
+                    <div className="h-32">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={projectionData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+                          <defs>
+                            <linearGradient id="optimizedGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="hsl(158 45% 42%)" stopOpacity={0.3} />
+                              <stop offset="100%" stopColor="hsl(158 45% 42%)" stopOpacity={0.05} />
+                            </linearGradient>
+                            <linearGradient id="neglectedGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="hsl(0 55% 48%)" stopOpacity={0.2} />
+                              <stop offset="100%" stopColor="hsl(0 55% 48%)" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis 
+                            dataKey="year" 
+                            tick={{ fontSize: 9, fill: 'hsl(215 20% 60%)' }}
+                            axisLine={{ stroke: 'hsl(217 25% 22%)' }}
+                            tickLine={false}
+                            tickFormatter={(value) => `${value}y`}
+                          />
+                          <YAxis 
+                            domain={[0, 100]}
+                            tick={{ fontSize: 9, fill: 'hsl(215 20% 60%)' }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickCount={3}
+                          />
+                          <ReferenceLine 
+                            y={50} 
+                            stroke="hsl(32 65% 48%)" 
+                            strokeDasharray="3 3" 
+                            strokeOpacity={0.5}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="optimized"
+                            fill="url(#optimizedGradient)"
+                            stroke="none"
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="neglected"
+                            fill="url(#neglectedGradient)"
+                            stroke="none"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="neglected" 
+                            stroke="hsl(0 55% 48%)" 
+                            strokeWidth={2}
+                            dot={false}
+                            name="If neglected"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="optimized" 
+                            stroke="hsl(158 45% 42%)" 
+                            strokeWidth={2}
+                            dot={false}
+                            name="With maintenance"
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp className="w-3 h-3 text-emerald-400" />
-                      <span className="text-[9px] text-muted-foreground">With maintenance</span>
+                    
+                    {/* Legend */}
+                    <div className="flex items-center justify-center gap-4 mt-2 pt-2 border-t border-border/20">
+                      <div className="flex items-center gap-1.5">
+                        <TrendingDown className="w-3 h-3 text-red-400" />
+                        <span className="text-[9px] text-muted-foreground">If neglected</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <TrendingUp className="w-3 h-3 text-emerald-400" />
+                        <span className="text-[9px] text-muted-foreground">With maintenance</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                    <p className="text-[10px] text-red-400 text-center">
+                      System has reached end of serviceable life. Projections not applicable.
+                    </p>
+                  </div>
+                )}
                 
                 {/* Key insight */}
-                {metrics.lifeExtension > 0.5 && (
+                {metrics.lifeExtension > 0.5 && failureProbability !== 'FAIL' && (
                   <div className="flex items-start gap-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
                     <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-emerald-400">
