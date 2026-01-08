@@ -142,22 +142,30 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className={cn(
-        "command-card",
-        status === 'critical' && "border-red-500/30",
-        status === 'warning' && "border-amber-500/30"
+        "command-card overflow-hidden",
+        status === 'critical' && "border-red-500/40",
+        status === 'warning' && "border-amber-500/40"
       )}>
+        {/* Status gradient bar at top */}
+        <div className={cn(
+          "absolute top-0 left-0 right-0 h-1",
+          status === 'critical' && "bg-gradient-to-r from-red-500/60 via-red-400/80 to-red-500/60",
+          status === 'warning' && "bg-gradient-to-r from-amber-500/60 via-amber-400/80 to-amber-500/60",
+          status === 'optimal' && "bg-gradient-to-r from-emerald-500/60 via-emerald-400/80 to-emerald-500/60"
+        )} />
+        
         <CollapsibleTrigger className="w-full p-3 text-left">
           {/* Header with Score */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <div className={cn(
-                "w-5 h-5 rounded flex items-center justify-center",
-                status === 'critical' && "bg-red-500/15",
-                status === 'warning' && "bg-amber-500/15",
-                status === 'optimal' && "bg-emerald-500/15"
+                "w-6 h-6 rounded-lg flex items-center justify-center",
+                status === 'critical' && "bg-gradient-to-br from-red-500/25 to-red-600/15 border border-red-500/30",
+                status === 'warning' && "bg-gradient-to-br from-amber-500/25 to-amber-600/15 border border-amber-500/30",
+                status === 'optimal' && "bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 border border-emerald-500/30"
               )}>
                 <Activity className={cn(
-                  "w-3 h-3",
+                  "w-3.5 h-3.5",
                   status === 'critical' && "text-red-400",
                   status === 'warning' && "text-amber-400",
                   status === 'optimal' && "text-emerald-400"
@@ -181,29 +189,36 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
             </div>
           </div>
 
-          {/* Health Bar */}
-          <div className="relative h-3 rounded-full bg-secondary/50 overflow-hidden mb-2">
+          {/* Health Bar - Enhanced with glow */}
+          <div className="relative h-3.5 rounded-full bg-secondary/60 overflow-hidden mb-2">
+            {/* Background texture */}
+            <div className="absolute inset-0 opacity-30">
+              {[...Array(20)].map((_, i) => (
+                <div key={i} className="absolute w-px h-full bg-background/30" style={{ left: `${i * 5}%` }} />
+              ))}
+            </div>
+            
             <div 
               className={cn(
                 "absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out",
-                status === 'critical' && "bg-gradient-to-r from-red-600 to-red-400",
-                status === 'warning' && "bg-gradient-to-r from-amber-600 to-amber-400",
-                status === 'optimal' && "bg-gradient-to-r from-emerald-600 to-emerald-400"
+                status === 'critical' && "bg-gradient-to-r from-red-600 via-red-500 to-red-400",
+                status === 'warning' && "bg-gradient-to-r from-amber-600 via-amber-500 to-amber-400",
+                status === 'optimal' && "bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400"
               )}
               style={{ 
                 width: `${score}%`,
-                boxShadow: `0 0 12px ${getRingColor()}40`
+                boxShadow: `0 0 16px ${getRingColor()}50, inset 0 1px 0 rgba(255,255,255,0.2)`
               }}
             />
-            <div className="absolute inset-0 flex justify-between px-[1px]">
-              {[...Array(10)].map((_, i) => (
-                <div key={i} className="w-px h-full bg-background/20" />
-              ))}
-            </div>
           </div>
 
           {/* Status Label */}
-          <div className={cn("text-[10px] font-bold uppercase tracking-wider text-center", getStatusColor())}>
+          <div className={cn(
+            "text-[10px] font-bold uppercase tracking-wider text-center px-3 py-1 rounded-full w-fit mx-auto",
+            riskStatus === 'CRITICAL' || riskStatus === 'HIGH' ? "bg-red-500/15 text-red-400 border border-red-500/20" :
+            riskStatus === 'ELEVATED' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
+            "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+          )}>
             {riskStatus}
           </div>
         </CollapsibleTrigger>

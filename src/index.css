@@ -11,7 +11,7 @@
 
 @layer base {
   :root {
-    /* Dark Professional Theme - Muted & Sophisticated */
+    /* Dark Professional Theme with Color Accents */
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
 
@@ -21,49 +21,57 @@
     --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
 
-    /* Primary - Muted Coral/Rust for CTAs */
-    --primary: 24 70% 48%;
+    /* Primary - Warm Coral/Rust for CTAs */
+    --primary: 24 75% 50%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 217 33% 22%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217 33% 22%;
-    --muted-foreground: 215 20% 60%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217 33% 22%;
+    --accent: 200 80% 45%;
     --accent-foreground: 210 40% 98%;
 
-    /* Status Colors - Sophisticated & Muted */
-    --destructive: 0 65% 50%;
+    /* Status Colors - Vibrant but Professional */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --status-critical: 0 55% 48%;
-    --status-warning: 32 65% 48%;
-    --status-optimal: 158 45% 42%;
+    --status-critical: 0 72% 51%;
+    --status-warning: 38 92% 50%;
+    --status-optimal: 160 84% 39%;
 
     /* Borders & Inputs */
-    --border: 217 25% 22%;
+    --border: 217 25% 25%;
     --input: 217 25% 22%;
-    --ring: 24 70% 48%;
+    --ring: 24 75% 50%;
 
     --radius: 0.625rem;
+
+    /* Extended Color Palette */
+    --cyan: 192 91% 50%;
+    --blue: 217 91% 60%;
+    --purple: 270 75% 60%;
+    --pink: 330 80% 60%;
+    --teal: 174 72% 40%;
 
     /* Sidebar */
     --sidebar-background: 217 33% 17%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 24 70% 48%;
+    --sidebar-primary: 24 75% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 217 33% 22%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217 25% 22%;
-    --sidebar-ring: 24 70% 48%;
+    --sidebar-ring: 24 75% 50%;
 
-    /* Glow effects - Subtle */
-    --glow-critical: 0 55% 48%;
-    --glow-warning: 32 65% 48%;
-    --glow-optimal: 158 45% 42%;
-    --glow-primary: 24 70% 48%;
+    /* Glow effects - More Vibrant */
+    --glow-critical: 0 72% 51%;
+    --glow-warning: 38 92% 50%;
+    --glow-optimal: 160 84% 39%;
+    --glow-primary: 24 75% 50%;
+    --glow-accent: 200 80% 45%;
   }
 }
 
@@ -89,14 +97,15 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     COMMAND CARD SYSTEM - Clean Professional Cards
+     COMMAND CARD SYSTEM - Clean Professional Cards with Color Accents
      ═══════════════════════════════════════════════════════════════ */
   
   .command-card {
     @apply relative rounded-xl overflow-hidden;
-    background: hsl(217 33% 17% / 0.9);
-    border: 1px solid hsl(var(--border) / 0.4);
-    box-shadow: 0 2px 12px -4px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, hsl(217 33% 17% / 0.95), hsl(217 33% 14% / 0.9));
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
   }
 
   /* Card header styling */
@@ -110,17 +119,17 @@
     border-bottom: 1px solid hsl(var(--border) / 0.3);
   }
 
-  /* Icon container - simple and clean */
+  /* Icon container - with subtle gradient */
   .command-icon {
     @apply w-10 h-10 rounded-xl flex items-center justify-center shrink-0;
-    background: hsl(var(--secondary) / 0.6);
-    border: 1px solid hsl(var(--border) / 0.5);
+    background: linear-gradient(135deg, hsl(200 80% 45% / 0.15), hsl(200 80% 45% / 0.05));
+    border: 1px solid hsl(200 80% 45% / 0.25);
   }
 
   .command-icon-sm {
     @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
-    background: hsl(var(--secondary) / 0.5);
-    border: 1px solid hsl(var(--border) / 0.4);
+    background: linear-gradient(135deg, hsl(200 80% 45% / 0.12), hsl(200 80% 45% / 0.04));
+    border: 1px solid hsl(200 80% 45% / 0.2);
   }
 
   .command-icon-warning {
@@ -201,13 +210,14 @@
     animation: border-pulse-warning 3s ease-in-out infinite;
   }
 
-  /* Clean Card Style - Professional */
+  /* Clean Card Style - Professional with subtle accent */
   .clean-card {
     @apply rounded-xl p-5;
-    background: hsl(217 33% 17% / 0.9);
+    background: linear-gradient(145deg, hsl(217 33% 18% / 0.95), hsl(217 33% 15% / 0.9));
     backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border) / 0.3);
-    box-shadow: 0 4px 16px -8px rgba(0, 0, 0, 0.4);
+    border: 1px solid hsl(var(--border) / 0.4);
+    box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
   }
 
   /* Action Item Styles - Subtle borders */
