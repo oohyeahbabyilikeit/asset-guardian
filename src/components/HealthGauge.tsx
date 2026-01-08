@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock } from 'lucide-react';
+import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera } from 'lucide-react';
+import containmentBreachImg from '@/assets/containment-breach.png';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
 import { getRiskLevelInfo, type RiskLevel, type OpterraMetrics, type Recommendation, failProbToHealthScore, bioAgeToFailProb } from '@/lib/opterraAlgorithm';
@@ -14,6 +15,8 @@ interface HealthGaugeProps {
   estDamageCost?: number;
   metrics?: OpterraMetrics;
   recommendation?: Recommendation;
+  isLeaking?: boolean;
+  visualRust?: boolean;
 }
 
 interface StressFactorItemProps {
@@ -54,13 +57,16 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
   );
 }
 
-export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust }: HealthGaugeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { score, status, failureProbability } = healthScore;
   const riskInfo = getRiskLevelInfo(riskLevel);
   
   // Unit is economically unsound to maintain if algorithm recommends replacement
   const isReplacementRequired = recommendation?.action === 'REPLACE';
+  
+  // Determine if there's a breach condition
+  const isBreach = isLeaking || visualRust;
 
   const getRingColor = () => {
     if (status === 'critical') return 'hsl(0 55% 48%)';
@@ -160,12 +166,14 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
             <div className="flex items-center gap-1.5">
               <div className={cn(
                 "w-6 h-6 rounded-lg flex items-center justify-center",
+                isBreach ? "bg-gradient-to-br from-red-500/25 to-red-600/15 border border-red-500/30" :
                 status === 'critical' && "bg-gradient-to-br from-red-500/25 to-red-600/15 border border-red-500/30",
                 status === 'warning' && "bg-gradient-to-br from-amber-500/25 to-amber-600/15 border border-amber-500/30",
                 status === 'optimal' && "bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 border border-emerald-500/30"
               )}>
                 <Activity className={cn(
                   "w-3.5 h-3.5",
+                  isBreach ? "text-red-400" :
                   status === 'critical' && "text-red-400",
                   status === 'warning' && "text-amber-400",
                   status === 'optimal' && "text-emerald-400"
@@ -174,6 +182,11 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
               <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
                 System Health
               </span>
+              {isBreach && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse">
+                  BREACH
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
@@ -221,6 +234,26 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
           )}>
             {riskStatus}
           </div>
+
+          {/* Breach Evidence Photo - Always visible when breach detected */}
+          {isBreach && (
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Camera className="w-3 h-3 text-red-400" />
+                <span className="text-[9px] font-semibold text-red-400 uppercase tracking-wide">
+                  Evidence: {isLeaking ? 'Active Leak' : 'Corrosion'} Detected
+                </span>
+              </div>
+              <div className="relative rounded-lg overflow-hidden border border-red-500/30 bg-red-500/5">
+                <img 
+                  src={containmentBreachImg} 
+                  alt="Evidence of tank breach" 
+                  className="w-full h-32 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-red-900/40 to-transparent pointer-events-none" />
+              </div>
+            </div>
+          )}
         </CollapsibleTrigger>
 
         <CollapsibleContent>
