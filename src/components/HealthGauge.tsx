@@ -45,12 +45,12 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
 
   return (
     <div className={cn(
-      "command-card p-5",
+      "command-card p-4",
       status === 'critical' && "border-red-500/30",
       status === 'warning' && "border-amber-500/30"
     )}>
       {/* Header */}
-      <div className="flex items-center gap-2.5 mb-5">
+      <div className="flex items-center gap-2 mb-3">
         <div className={cn(
           "command-icon-sm",
           status === 'critical' && "command-icon-critical",
@@ -58,43 +58,43 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
           status === 'optimal' && "command-icon-success"
         )}>
           <Activity className={cn(
-            "w-4 h-4",
+            "w-3.5 h-3.5",
             status === 'critical' && "text-red-400",
             status === 'warning' && "text-amber-400",
             status === 'optimal' && "text-emerald-400"
           )} />
         </div>
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
           System Diagnostics
         </span>
       </div>
 
       {/* Hero Score Ring - Centered */}
-      <div className="flex flex-col items-center mb-5">
+      <div className="flex flex-col items-center mb-3">
         <div className={cn("relative rounded-full", getGlowClass())}>
-          <div className="w-28 h-28 rounded-full border-[6px] border-secondary/40 flex items-center justify-center bg-card/80">
+          <div className="w-20 h-20 rounded-full border-[5px] border-secondary/40 flex items-center justify-center bg-card/80">
             <div className="text-center">
-              <span className="block text-4xl font-bold text-foreground font-data">
+              <span className="block text-3xl font-bold text-foreground font-data">
                 {score}
               </span>
-              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">/ 100</span>
+              <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide">/ 100</span>
             </div>
           </div>
           
           {/* Colored Progress Ring */}
           <svg 
-            className="absolute top-0 left-0 w-28 h-28 -rotate-90"
-            style={{ filter: `drop-shadow(0 0 10px ${getRingColor()})` }}
+            className="absolute top-0 left-0 w-20 h-20 -rotate-90"
+            style={{ filter: `drop-shadow(0 0 8px ${getRingColor()})` }}
           >
             <circle 
-              cx="56" 
-              cy="56" 
-              r="50" 
+              cx="40" 
+              cy="40" 
+              r="35" 
               fill="none" 
               stroke={getRingColor()} 
-              strokeWidth="6" 
-              strokeDasharray={314} 
-              strokeDashoffset={314 - (score / 100) * 314} 
+              strokeWidth="5" 
+              strokeDasharray={220} 
+              strokeDashoffset={220 - (score / 100) * 220} 
               strokeLinecap="round"
               className="transition-all duration-1000 ease-out"
             />
@@ -102,17 +102,17 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
         </div>
 
         {/* Status Badge - Single Line */}
-        <div className={cn("mt-3 text-sm font-bold uppercase tracking-wider", getStatusColor())}>
+        <div className={cn("mt-2 text-xs font-bold uppercase tracking-wider", getStatusColor())}>
           {riskStatus}
         </div>
       </div>
 
       {/* Primary Alert - Full Width Banner */}
       {score < 50 && primaryStressor && (
-        <div className="mb-4 py-2.5 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <span className="text-xs font-semibold text-red-400">
+        <div className="mb-3 py-2 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
+          <div className="flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+            <span className="text-[11px] font-semibold text-red-400">
               {primaryStressor}
             </span>
           </div>
@@ -120,25 +120,25 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
       )}
 
       {/* Location Context - Simplified */}
-      <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-secondary/30">
+      <div className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg bg-secondary/30">
         <div className={cn(
-          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+          "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
           riskLevel >= 3 
             ? "bg-red-500/15 border border-red-500/20" 
             : "bg-amber-500/15 border border-amber-500/20"
         )}>
           <MapPin className={cn(
-            "w-4 h-4",
+            "w-3.5 h-3.5",
             riskLevel >= 3 ? "text-red-400" : "text-amber-400"
           )} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-foreground">
               {location}
             </span>
             <span className={cn(
-              "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
+              "text-[9px] font-bold uppercase px-1 py-0.5 rounded",
               riskLevel >= 3 
                 ? "bg-red-500/20 text-red-400" 
                 : "bg-amber-500/20 text-amber-400"
@@ -146,7 +146,7 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
               {riskInfo.label}
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[10px] text-muted-foreground mt-0.5">
             {riskLevel >= 3 && estDamageCost 
               ? `Leak risk: ~$${estDamageCost.toLocaleString()} damage potential`
               : riskInfo.description}
@@ -155,7 +155,7 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
       </div>
       
       {/* Disclaimer */}
-      <p className="text-[9px] text-muted-foreground/50 text-center mt-4">
+      <p className="text-[8px] text-muted-foreground/50 text-center mt-3">
         Statistics based on industry data for similar units.
       </p>
     </div>
