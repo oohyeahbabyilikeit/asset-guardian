@@ -462,8 +462,8 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
         {/* Collapsed: Show location context */}
         {!isOpen && (
           <div className="px-3 pb-3">
-            {/* Primary Alert */}
-            {score < 50 && primaryStressor && (
+            {/* Primary Alert - Hide when breach is already showing */}
+            {score < 50 && primaryStressor && !isBreach && (
               <div className="mb-2 py-1.5 px-2 rounded bg-red-500/10 border border-red-500/20">
                 <div className="flex items-center gap-1.5">
                   <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />
