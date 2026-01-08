@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3, ChevronDown, ChevronUp, Droplets, Gauge, ThermometerSun, Zap, Activity } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, Droplets, Gauge, ThermometerSun, Zap, Activity, TrendingUp } from 'lucide-react';
 import { AssetData } from '@/data/mockAsset';
 import { ForensicInputs } from '@/lib/opterraAlgorithm';
 import { cn } from '@/lib/utils';
@@ -10,11 +10,11 @@ interface IndustryBenchmarksProps {
   inputs: ForensicInputs;
   onLearnMore: (topic: string) => void;
   agingRate?: number;
-  bioAge?: number;  // Biological age from algorithm
+  bioAge?: number;
   recommendation?: { action: 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS' | 'URGENT' };
 }
 
-// Aging Speedometer Component - muted colors, only colorize for warnings
+// Aging Speedometer Component
 function AgingSpeedometer({ agingRate }: { agingRate: number }) {
   const displayRate = parseFloat(agingRate.toFixed(1));
   
@@ -25,14 +25,13 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
   const normalizedRate = (clampedRate - minRate) / (maxRate - minRate);
   const needleAngle = -90 + (normalizedRate * 180);
   
-  // Only colorize for warnings/critical
   const isWarning = displayRate > 1.0;
   const isCritical = displayRate > 1.5;
   
   const getColor = () => {
     if (isCritical) return 'hsl(0 84% 60%)';
     if (isWarning) return 'hsl(45 93% 47%)';
-    return 'hsl(var(--muted-foreground))';
+    return 'hsl(160 84% 39%)';
   };
   
   const getStatusText = () => {
@@ -45,37 +44,44 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
   return (
     <div className="flex flex-col items-center">
       <svg width="80" height="46" viewBox="0 0 100 56" className="overflow-visible">
-        {/* Background arc - muted */}
+        {/* Background arc with gradient zones */}
+        <defs>
+          <linearGradient id="arcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="hsl(160 84% 39%)" stopOpacity="0.3" />
+            <stop offset="40%" stopColor="hsl(45 93% 47%)" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="hsl(0 84% 60%)" stopOpacity="0.3" />
+          </linearGradient>
+        </defs>
         <path
           d="M 10 52 A 40 40 0 0 1 90 52"
           fill="none"
-          stroke="hsl(var(--secondary))"
+          stroke="url(#arcGradient)"
           strokeWidth="6"
           strokeLinecap="round"
         />
-        {/* Subtle zone indicators - very muted */}
+        {/* Zone segments */}
         <path
-          d="M 10 52 A 40 40 0 0 1 22 22"
+          d="M 10 52 A 40 40 0 0 1 30 18"
           fill="none"
-          stroke="hsl(var(--muted-foreground))"
+          stroke="hsl(160 84% 39%)"
           strokeWidth="6"
           strokeLinecap="round"
-          className="opacity-15"
+          className="opacity-40"
         />
         <path
-          d="M 22 22 A 40 40 0 0 1 50 12"
+          d="M 30 18 A 40 40 0 0 1 70 18"
           fill="none"
-          stroke="hsl(var(--muted-foreground))"
+          stroke="hsl(45 93% 47%)"
           strokeWidth="6"
-          className="opacity-20"
+          className="opacity-40"
         />
         <path
-          d="M 50 12 A 40 40 0 0 1 90 52"
+          d="M 70 18 A 40 40 0 0 1 90 52"
           fill="none"
-          stroke="hsl(var(--muted-foreground))"
+          stroke="hsl(0 84% 60%)"
           strokeWidth="6"
           strokeLinecap="round"
-          className="opacity-25"
+          className="opacity-40"
         />
         <g 
           style={{ 
@@ -92,14 +98,14 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
             stroke={getColor()}
             strokeWidth="2.5"
             strokeLinecap="round"
-            style={{ filter: isWarning ? `drop-shadow(0 0 4px ${getColor()})` : 'none' }}
+            style={{ filter: `drop-shadow(0 0 6px ${getColor()})` }}
           />
           <circle 
             cx="50" 
             cy="52" 
             r="4" 
             fill={getColor()}
-            style={{ filter: isWarning ? `drop-shadow(0 0 6px ${getColor()})` : 'none' }}
+            style={{ filter: `drop-shadow(0 0 8px ${getColor()})` }}
           />
         </g>
       </svg>
@@ -108,7 +114,7 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
         <span 
           className={cn(
             "text-lg font-black font-data",
-            isCritical ? "text-red-400" : isWarning ? "text-amber-400" : "text-foreground"
+            isCritical ? "text-red-400" : isWarning ? "text-amber-400" : "text-emerald-400"
           )}
         >
           {displayRate.toFixed(1)}x
@@ -116,7 +122,7 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
         <span 
           className={cn(
             "text-[9px] font-semibold uppercase tracking-wider",
-            isCritical ? "text-red-400" : isWarning ? "text-amber-400" : "text-muted-foreground"
+            isCritical ? "text-red-400" : isWarning ? "text-amber-400" : "text-emerald-400"
           )}
         >
           {getStatusText()}
@@ -130,13 +136,11 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
   const [expandedFactor, setExpandedFactor] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(true);
   
-  // Check if replacement is recommended
   const isReplacementRequired = recommendation?.action === 'REPLACE';
 
   const averageLifespan = inputs.fuelType === 'GAS' ? 12 : 13;
-  // Use bioAge (effective wear) instead of paperAge for chart alignment
   const effectiveAge = bioAge ?? asset.paperAge;
-  const lifespanProgress = Math.min((effectiveAge / averageLifespan) * 100, 120); // Allow overflow to 120%
+  const lifespanProgress = Math.min((effectiveAge / averageLifespan) * 100, 120);
 
   const factors = [
     {
@@ -146,7 +150,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
       threshold: '> 80 PSI',
       current: `${inputs.housePsi} PSI`,
       isAbove: inputs.housePsi > 80,
-      isCritical: inputs.housePsi > 80, // Violates state plumbing code
+      isCritical: inputs.housePsi > 80,
       explanation: 'Pressure above 80 PSI violates plumbing code in most states. It stresses tank components, accelerates wear, and can void warranties.'
     },
     {
@@ -170,7 +174,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
       threshold: 'Closed system',
       current: inputs.hasExpTank ? 'Managed' : (inputs.isClosedLoop || inputs.hasPrv ? 'Unmanaged' : 'N/A'),
       isAbove: !inputs.hasExpTank && (inputs.isClosedLoop || inputs.hasPrv),
-      isCritical: !inputs.hasExpTank && (inputs.isClosedLoop || inputs.hasPrv), // Violates state plumbing code
+      isCritical: !inputs.hasExpTank && (inputs.isClosedLoop || inputs.hasPrv),
       explanation: 'Missing expansion tank in a closed system violates plumbing code in most states. Thermal cycling causes dangerous pressure spikes that stress the tank.'
     },
     {
@@ -190,11 +194,14 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="command-card">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="command-card overflow-hidden">
+      {/* Accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500/50 via-blue-500/50 to-cyan-500/50" />
+      
       {/* Header */}
       <CollapsibleTrigger className="w-full command-header-sm cursor-pointer hover:bg-secondary/30 transition-colors">
-        <div className="command-icon-sm">
-          <BarChart3 className="w-4 h-4 text-blue-400" />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-purple-500/20 to-blue-500/10 border border-purple-500/30">
+          <BarChart3 className="w-4 h-4 text-purple-400" />
         </div>
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-1 text-left">
           How Water Heaters Age
@@ -207,14 +214,14 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
 
       {/* Content */}
       <CollapsibleContent className="p-4 space-y-4">
-        {/* Lifespan Progress Bar - simplified monochrome */}
+        {/* Lifespan Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
             <span className="text-xs text-muted-foreground font-medium">Lifespan Progress</span>
             <div className="flex items-center gap-2">
               <span className={cn(
                 "text-xs font-bold",
-                lifespanProgress >= 100 ? "text-red-400" : "text-foreground"
+                lifespanProgress >= 100 ? "text-red-400" : lifespanProgress >= 75 ? "text-amber-400" : "text-emerald-400"
               )}>
                 {effectiveAge >= 20 ? '20+' : effectiveAge.toFixed(1)} yrs
               </span>
@@ -223,44 +230,52 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
           </div>
           
           <div className="relative">
-            <div className="h-2.5 bg-secondary/40 rounded-full overflow-hidden border border-border/30">
-              {/* Simple filled bar - color based on status */}
+            <div className="h-3 bg-secondary/50 rounded-full overflow-hidden border border-border/30">
+              {/* Gradient progress bar */}
               <div 
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  lifespanProgress >= 100 ? "bg-red-500/50" :
-                  lifespanProgress >= 75 ? "bg-amber-500/30" :
-                  "bg-muted-foreground/25"
-                )}
-                style={{ width: `${Math.min(lifespanProgress, 100)}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{ 
+                  width: `${Math.min(lifespanProgress, 100)}%`,
+                  background: lifespanProgress >= 100 
+                    ? 'linear-gradient(90deg, hsl(0 72% 51% / 0.7), hsl(0 72% 51% / 0.9))'
+                    : lifespanProgress >= 75 
+                      ? 'linear-gradient(90deg, hsl(38 92% 50% / 0.6), hsl(38 92% 50% / 0.8))'
+                      : 'linear-gradient(90deg, hsl(160 84% 39% / 0.5), hsl(160 84% 39% / 0.7))'
+                }}
               />
             </div>
-            {/* Marker for effective age */}
+            {/* Marker */}
             <div 
-              className="absolute top-0 h-2.5 flex items-center justify-center transition-all duration-500"
+              className="absolute top-0 h-3 flex items-center justify-center transition-all duration-500"
               style={{ left: `${Math.min(lifespanProgress, 100)}%`, transform: 'translateX(-50%)' }}
             >
               <div 
                 className={cn(
-                  "w-0.5 h-4 rounded-full shadow-lg",
-                  lifespanProgress >= 100 ? "bg-red-400" : "bg-foreground"
-                )} 
+                  "w-1 h-5 rounded-full shadow-lg",
+                  lifespanProgress >= 100 ? "bg-red-400" : lifespanProgress >= 75 ? "bg-amber-400" : "bg-emerald-400"
+                )}
+                style={{ boxShadow: `0 0 8px ${lifespanProgress >= 100 ? 'hsl(0 72% 51%)' : lifespanProgress >= 75 ? 'hsl(38 92% 50%)' : 'hsl(160 84% 39%)'}` }}
               />
             </div>
           </div>
         </div>
 
-        {/* Aging Rate - Inline */}
-        <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-secondary/30">
+        {/* Aging Rate */}
+        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-gradient-to-r from-secondary/40 to-secondary/20 border border-border/30">
           <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Aging Rate</span>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/15 to-blue-500/10 border border-cyan-500/25 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-cyan-400" />
+            </div>
+            <div>
+              <span className="text-xs font-medium text-foreground block">Aging Rate</span>
+              <span className="text-[10px] text-muted-foreground">Based on your conditions</span>
+            </div>
           </div>
           <AgingSpeedometer agingRate={agingRate} />
         </div>
 
         {/* Divider */}
-        <div className="border-t border-border/25" />
+        <div className="border-t border-border/30" />
 
         {/* Factors */}
         <div className="space-y-2.5">
@@ -273,39 +288,49 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
               <div key={factor.id} className="space-y-2">
                 <button
                   onClick={() => toggleFactor(factor.id)}
-                  className="w-full flex items-center gap-3 p-3 data-display hover:border-border/50 rounded-xl transition-all text-left group"
-                >
-                  {/* Icon - muted by default, only colorize for warnings */}
-                  <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center border shrink-0",
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left group border",
                     factor.isCritical 
-                      ? "bg-red-500/15 border-red-500/30" 
+                      ? "bg-red-500/5 border-red-500/20 hover:border-red-500/30" 
                       : factor.isAbove 
-                        ? "bg-amber-500/15 border-amber-500/30" 
-                        : "bg-secondary border-border/50"
+                        ? "bg-amber-500/5 border-amber-500/20 hover:border-amber-500/30" 
+                        : "bg-secondary/30 border-border/30 hover:border-border/50"
+                  )}
+                >
+                  {/* Icon */}
+                  <div className={cn(
+                    "w-9 h-9 rounded-lg flex items-center justify-center border shrink-0",
+                    factor.isCritical 
+                      ? "bg-gradient-to-br from-red-500/20 to-red-600/10 border-red-500/30" 
+                      : factor.isAbove 
+                        ? "bg-gradient-to-br from-amber-500/20 to-amber-600/10 border-amber-500/30" 
+                        : "bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 border-emerald-500/20"
                   )}>
                     <factor.icon className={cn(
                       "w-4 h-4",
-                      factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-muted-foreground'
+                      factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
                     )} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-sm text-foreground font-medium truncate">{factor.label}</span>
                       {factor.isCritical && (
-                        <span className="text-[8px] font-bold text-red-400 uppercase bg-red-500/10 px-1.5 py-0.5 rounded">Violation</span>
+                        <span className="text-[8px] font-bold text-red-400 uppercase bg-red-500/15 px-1.5 py-0.5 rounded border border-red-500/20">Violation</span>
                       )}
                     </div>
                     <span className="text-[10px] text-muted-foreground">({factor.threshold})</span>
                   </div>
-                  {/* Value - muted by default, only colorize for warnings */}
+                  {/* Value */}
                   <span className={cn(
                     "text-xs font-bold shrink-0",
-                    factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-muted-foreground'
+                    factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
                   )}>
                     {factor.current}
                   </span>
-                  <div className="command-trigger w-6 h-6">
+                  <div className={cn(
+                    "w-6 h-6 rounded-md flex items-center justify-center",
+                    "bg-secondary/50 border border-border/30"
+                  )}>
                     {expandedFactor === factor.id ? (
                       <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
                     ) : (
@@ -315,7 +340,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
                 </button>
                 
                 {expandedFactor === factor.id && (
-                  <div className="ml-11 p-3 rounded-lg bg-blue-500/5 border-l-2 border-blue-400/40">
+                  <div className="ml-12 p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/5 border-l-2 border-blue-400/50">
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {factor.explanation}
                     </p>
