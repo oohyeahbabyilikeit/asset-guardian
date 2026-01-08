@@ -459,57 +459,6 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
           </div>
         </CollapsibleContent>
 
-        {/* Collapsed: Show location context - Hide when breach is showing */}
-        {!isOpen && !isBreach && (
-          <div className="px-3 pb-3">
-            {/* Primary Alert */}
-            {score < 50 && primaryStressor && (
-              <div className="mb-2 py-1.5 px-2 rounded bg-red-500/10 border border-red-500/20">
-                <div className="flex items-center gap-1.5">
-                  <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />
-                  <span className="text-[10px] font-semibold text-red-400">
-                    {primaryStressor}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Location Context */}
-            <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-secondary/30">
-              <div className={cn(
-                "w-6 h-6 rounded flex items-center justify-center shrink-0",
-                riskLevel >= 3 
-                  ? "bg-red-500/15 border border-red-500/20" 
-                  : "bg-amber-500/15 border border-amber-500/20"
-              )}>
-                <MapPin className={cn(
-                  "w-3 h-3",
-                  riskLevel >= 3 ? "text-red-400" : "text-amber-400"
-                )} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-semibold text-foreground">
-                    {location}
-                  </span>
-                  <span className={cn(
-                    "text-[8px] font-bold uppercase px-1 py-0.5 rounded",
-                    riskLevel >= 3 
-                      ? "bg-red-500/20 text-red-400" 
-                      : "bg-amber-500/20 text-amber-400"
-                  )}>
-                    {riskInfo.label}
-                  </span>
-                </div>
-                <p className="text-[9px] text-muted-foreground">
-                  {riskLevel >= 3 && estDamageCost 
-                    ? `Leak risk: ~$${estDamageCost.toLocaleString()} damage`
-                    : riskInfo.description}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </Collapsible>
   );
