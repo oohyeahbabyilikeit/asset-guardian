@@ -618,7 +618,7 @@ export function ServiceHistory({
   flushStatus,
   serviceHistory = [] 
 }: ServiceHistoryProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   // Calculate anode depletion percentage (0-100, where 100 = fully depleted)
   const maxAnodeLife = hasSoftener ? 2.5 : 6; // Years
