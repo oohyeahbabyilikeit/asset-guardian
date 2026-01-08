@@ -690,11 +690,19 @@ export function ServiceHistory({
     <div className="command-card mx-4">
       {/* Header - Always visible */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
-        <div className="command-icon-sm command-icon-warning">
-          <Wrench className="w-4 h-4 text-amber-400" />
+        <div className={cn(
+          "command-icon-sm",
+          isBreach ? "bg-red-500/15 border border-red-500/30" : "command-icon-warning"
+        )}>
+          <Wrench className={cn("w-4 h-4", isBreach ? "text-red-400" : "text-amber-400")} />
         </div>
         <span className="font-semibold text-sm">Tank Health</span>
-        {!isReplacementRequired && (needsFlush || needsAnode) && (
+        {isBreach && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse">
+            BREACH
+          </span>
+        )}
+        {!isBreach && !isReplacementRequired && (needsFlush || needsAnode) && (
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-auto">
             SERVICE DUE
           </span>
