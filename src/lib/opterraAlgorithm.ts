@@ -1171,7 +1171,9 @@ export function calculateHardWaterTax(
   
   // C. Detergent & Soap Overspend
   // Battelle Institute: families in hard water use 2x-4x more soap
-  const detergentOverspend = Math.round(C.DEFAULT_HOUSEHOLD_SIZE * C.DETERGENT_ANNUAL_PER_PERSON);
+  // Use actual household size instead of default
+  const householdSize = data.peopleCount || C.DEFAULT_HOUSEHOLD_SIZE;
+  const detergentOverspend = Math.round(householdSize * C.DETERGENT_ANNUAL_PER_PERSON);
   
   // Total Annual Loss ("Hard Water Tax")
   const totalAnnualLoss = energyLoss + applianceDepreciation + detergentOverspend;
