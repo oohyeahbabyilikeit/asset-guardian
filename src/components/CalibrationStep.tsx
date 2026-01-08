@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Droplet, Waves, Sparkles, Users, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Droplet, Waves, Sparkles, Users, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,6 @@ import type { UsageType } from '@/lib/opterraAlgorithm';
 interface CalibrationStepProps {
   peopleCount: number;
   usageType: UsageType;
-  tankCapacity: number;
   onPeopleCountChange: (count: number) => void;
   onUsageTypeChange: (type: UsageType) => void;
   onComplete: () => void;
@@ -42,57 +41,15 @@ const usageOptions: UsageOption[] = [
   },
 ];
 
-// Calculate First Hour Rating demand vs capacity
-function calculateCapacityWarning(peopleCount: number, usageType: UsageType, tankCapacity: number) {
-  // Estimated gallons per person per use based on usage type
-  const gallonsPerPerson = {
-    light: 12,   // Quick 5-min shower
-    normal: 18,  // Standard 10-min shower
-    heavy: 30,   // Long 20-min shower
-  };
-  
-  // Peak morning demand (70% of household showers in 1 hour)
-  const peakUsage = Math.ceil(peopleCount * 0.7) * gallonsPerPerson[usageType];
-  
-  // First Hour Rating approximation (tank capacity + recovery)
-  // Gas tanks recover ~40 GPH, electric ~20 GPH
-  // We'll use conservative 30 GPH average recovery
-  const estimatedFHR = tankCapacity + 30;
-  
-  const deficit = peakUsage - estimatedFHR;
-  const deficitPercent = Math.round((deficit / estimatedFHR) * 100);
-  
-  if (deficitPercent > 20) {
-    return {
-      show: true,
-      severity: 'critical' as const,
-      deficitPercent,
-      message: `Your tank is ${deficitPercent}% undersized for your family's hot water demand.`,
-    };
-  } else if (deficitPercent > 0) {
-    return {
-      show: true,
-      severity: 'warning' as const,
-      deficitPercent,
-      message: `Your tank may run short during peak morning use.`,
-    };
-  }
-  
-  return { show: false, severity: 'optimal' as const, deficitPercent: 0, message: '' };
-}
-
 export function CalibrationStep({
   peopleCount,
   usageType,
-  tankCapacity,
   onPeopleCountChange,
   onUsageTypeChange,
   onComplete,
 }: CalibrationStepProps) {
   const [localPeopleCount, setLocalPeopleCount] = useState(peopleCount);
   const [localUsageType, setLocalUsageType] = useState<UsageType>(usageType);
-  
-  const capacityWarning = calculateCapacityWarning(localPeopleCount, localUsageType, tankCapacity);
   
   const handleContinue = () => {
     onPeopleCountChange(localPeopleCount);
@@ -185,37 +142,6 @@ export function CalibrationStep({
               ))}
             </div>
           </div>
-
-          {/* Capacity Warning Card */}
-          {capacityWarning.show && (
-            <div className={cn(
-              "p-4 rounded-xl border",
-              capacityWarning.severity === 'critical'
-                ? "bg-destructive/5 border-destructive/30"
-                : "bg-yellow-500/5 border-yellow-500/30"
-            )}>
-              <div className="flex items-start gap-3">
-                <AlertTriangle className={cn(
-                  "w-5 h-5 flex-shrink-0 mt-0.5",
-                  capacityWarning.severity === 'critical' ? "text-destructive" : "text-yellow-600"
-                )} />
-                <div className="space-y-2">
-                  <p className={cn(
-                    "text-sm font-medium",
-                    capacityWarning.severity === 'critical' ? "text-destructive" : "text-yellow-700"
-                  )}>
-                    Capacity Warning
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {capacityWarning.message}
-                  </p>
-                  <button className="text-sm font-medium text-primary hover:underline">
-                    See Tankless Options →
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* CTA */}
           <Button
