@@ -214,23 +214,14 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         </header>
 
         <div className="relative p-4 max-w-md mx-auto">
-          {/* Chat Interface */}
-          <div className="mb-6">
-            <MaintenanceChatInterface
-              flushMonths={cappedMonthsToFlush}
-              anodeMonths={cappedMonthsToAnode}
-              sedimentRate={sedimentRate}
-            />
-          </div>
-
           {/* Combined Maintenance & Reminder Card */}
           <div className="clean-card mb-6">
-            {/* Upcoming Maintenance Section */}
+            {/* Recommended Maintenance Section */}
             {hasUpcomingMaintenance && (
               <>
                 <div className="flex items-center gap-2 mb-4">
                   <Calendar className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-foreground">Upcoming Maintenance</h3>
+                  <h3 className="font-semibold text-foreground">Recommended Maintenance</h3>
                 </div>
                 
                 <div className="space-y-3 mb-5">
@@ -499,10 +490,14 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
             )}
           </div>
 
-          {/* Back Button */}
-          <Button onClick={onBack} variant="outline" className="w-full">
-            Return to Dashboard
-          </Button>
+          {/* Chat Interface - Now at bottom */}
+          <div className="mb-6">
+            <MaintenanceChatInterface
+              flushMonths={cappedMonthsToFlush}
+              anodeMonths={cappedMonthsToAnode}
+              sedimentRate={sedimentRate}
+            />
+          </div>
         </div>
       </div>
     );
