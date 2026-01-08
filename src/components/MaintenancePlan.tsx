@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, History, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
 import { ForensicInputs, calculateOpterraRisk, calculateHealth, failProbToHealthScore } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
-import { SmartMaintenanceCard, UpcomingTask } from './SmartMaintenanceCard';
+import { SmartMaintenanceCard, UpcomingTask, HealthSummary } from './SmartMaintenanceCard';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
@@ -48,13 +48,13 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   if (isCriticalOrReplace) {
     return (
       <div className="min-h-screen bg-background p-4">
-        <div className="max-w-md mx-auto space-y-6">
-          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+        <div className="max-w-md mx-auto space-y-6 pt-4">
+          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            Back
+            <span className="text-sm">Back</span>
           </button>
           
-          <div className="command-card p-6 border-destructive/30 bg-destructive/5">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
             <h2 className="text-lg font-semibold text-destructive mb-2">Maintenance Plan Unavailable</h2>
             <p className="text-muted-foreground text-sm mb-4">
               Your unit requires {recommendation.badge === 'CRITICAL' ? 'immediate attention' : 'replacement'} before a maintenance plan can be established.
@@ -120,8 +120,8 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   };
 
   const handleRemind = () => {
-    toast.success("We'll remind you when it's time!", {
-      description: 'Reminder set successfully'
+    toast.success("Reminder set!", {
+      description: "We'll notify you when maintenance is due"
     });
   };
 
@@ -150,6 +150,11 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     }
   };
 
+  const getEventIcon = (type: string) => {
+    if (type === 'flush') return Droplets;
+    return Shield;
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', { 
       month: 'short', 
@@ -162,92 +167,121 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={onBack} className="p-1 hover:bg-secondary rounded-lg transition-colors">
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
+          <button 
+            onClick={onBack} 
+            className="p-2 -ml-2 hover:bg-secondary rounded-xl transition-colors"
+          >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-lg font-semibold">Maintenance</h1>
+          <div>
+            <h1 className="text-lg font-semibold">Maintenance Plan</h1>
+            <p className="text-xs text-muted-foreground">Smart recommendations for your unit</p>
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-md mx-auto p-4 space-y-6 pb-8">
+      <div className="max-w-lg mx-auto p-4 space-y-5 pb-8">
+        
+        {/* Health Summary */}
+        <HealthSummary 
+          healthScore={currentScore}
+          totalSaved={totalSaved}
+          servicesCompleted={serviceHistory.length}
+        />
         
         {/* Primary Action Card */}
-        <SmartMaintenanceCard
-          taskType={flushIsNext ? 'flush' : 'anode'}
-          monthsUntilDue={flushIsNext ? cappedMonthsToFlush : cappedMonthsToAnode}
-          sedimentLbs={sedimentLbs}
-          waterHardnessGPG={currentInputs.hardnessGPG}
-          usageType={currentInputs.usageType}
-          onSchedule={handleSchedule}
-          onRemind={handleRemind}
-        />
+        <div>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+            Priority Maintenance
+          </h2>
+          <SmartMaintenanceCard
+            taskType={flushIsNext ? 'flush' : 'anode'}
+            monthsUntilDue={flushIsNext ? cappedMonthsToFlush : cappedMonthsToAnode}
+            sedimentLbs={sedimentLbs}
+            waterHardnessGPG={currentInputs.hardnessGPG}
+            usageType={currentInputs.usageType}
+            onSchedule={handleSchedule}
+            onRemind={handleRemind}
+          />
+        </div>
 
-        {/* Coming Up Next - Simple List */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide px-1">
-            Coming Up
-          </h3>
-          <div className="command-card p-4">
+        {/* Coming Up Next */}
+        <div>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+            Also Scheduled
+          </h2>
+          <div className="rounded-2xl border border-border bg-card p-4">
             <UpcomingTask 
-              label={flushIsNext ? 'Check Anode Rod' : 'Flush Tank'}
+              taskType={flushIsNext ? 'anode' : 'flush'}
               timeframe={`${Math.round(flushIsNext ? cappedMonthsToAnode : cappedMonthsToFlush)} months`}
             />
           </div>
         </div>
 
-        {/* Savings Summary - Simple */}
-        {totalSaved > 0 && (
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-green-400">Total Saved from Maintenance</span>
-              <span className="text-lg font-semibold text-green-400">${totalSaved.toLocaleString()}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Past Services - Collapsed by Default */}
+        {/* Service History */}
         <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-          <CollapsibleTrigger className="w-full flex items-center justify-between py-3 px-1 hover:bg-secondary/30 rounded-lg transition-colors">
-            <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">
-                Past Services ({serviceHistory.length})
-              </span>
+          <CollapsibleTrigger className="w-full">
+            <div className="flex items-center justify-between py-3 px-1 group">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                  Service History
+                </span>
+                {serviceHistory.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-secondary text-xs text-muted-foreground">
+                    {serviceHistory.length}
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                historyOpen && "rotate-180"
+              )} />
             </div>
-            <ChevronDown className={cn(
-              "w-4 h-4 text-muted-foreground transition-transform",
-              historyOpen && "rotate-180"
-            )} />
           </CollapsibleTrigger>
           
-          <CollapsibleContent className="space-y-2 pt-2">
+          <CollapsibleContent className="space-y-3 pt-2">
             {serviceHistory.length > 0 ? (
-              <div className="command-card divide-y divide-border">
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
                 {serviceHistory
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                   .slice(0, 5)
-                  .map((event) => (
-                    <div key={event.id} className="flex items-center justify-between p-3">
-                      <div>
-                        <p className="text-sm font-medium">{formatEventType(event.type)}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(event.date)}</p>
+                  .map((event, index) => {
+                    const EventIcon = getEventIcon(event.type);
+                    return (
+                      <div 
+                        key={event.id} 
+                        className={cn(
+                          "flex items-center gap-4 p-4",
+                          index !== 0 && "border-t border-border"
+                        )}
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center">
+                          <EventIcon className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{formatEventType(event.type)}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(event.date)}</p>
+                        </div>
+                        {event.cost !== undefined && event.cost > 0 && (
+                          <span className="text-sm font-medium text-muted-foreground">${event.cost}</span>
+                        )}
                       </div>
-                      {event.cost !== undefined && event.cost > 0 && (
-                        <span className="text-sm text-muted-foreground">${event.cost}</span>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             ) : (
-              <div className="command-card p-4 text-center">
+              <div className="rounded-2xl border border-dashed border-border bg-secondary/20 p-6 text-center">
+                <History className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No service history yet</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Log past services to track your maintenance</p>
               </div>
             )}
             
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="sm" 
               className="w-full gap-2"
               onClick={() => setShowAddEventModal(true)}
@@ -261,7 +295,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
 
       {/* Contact Modal */}
       <Dialog open={showContactModal} onOpenChange={setShowContactModal}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle>Schedule Service</DialogTitle>
           </DialogHeader>
@@ -273,6 +307,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
                 value={contactName} 
                 onChange={(e) => setContactName(e.target.value)}
                 placeholder="Your name"
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
@@ -282,9 +317,10 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
                 value={contactPhone} 
                 onChange={(e) => setContactPhone(e.target.value)}
                 placeholder="(555) 123-4567"
+                className="h-11"
               />
             </div>
-            <Button onClick={handleContactSubmit} className="w-full">
+            <Button onClick={handleContactSubmit} className="w-full h-11">
               Request Service
             </Button>
           </div>
@@ -293,7 +329,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
 
       {/* Add Event Modal */}
       <Dialog open={showAddEventModal} onOpenChange={setShowAddEventModal}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle>Log Past Service</DialogTitle>
           </DialogHeader>
@@ -301,7 +337,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
             <div className="space-y-2">
               <Label>Service Type</Label>
               <Select value={newEventType} onValueChange={(v: any) => setNewEventType(v)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -319,6 +355,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
                 type="date"
                 value={newEventDate}
                 onChange={(e) => setNewEventDate(e.target.value)}
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
@@ -329,6 +366,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
                 value={newEventCost}
                 onChange={(e) => setNewEventCost(e.target.value)}
                 placeholder="150"
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
@@ -341,7 +379,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
                 rows={2}
               />
             </div>
-            <Button onClick={handleAddEvent} className="w-full">
+            <Button onClick={handleAddEvent} className="w-full h-11">
               Add Service
             </Button>
           </div>
