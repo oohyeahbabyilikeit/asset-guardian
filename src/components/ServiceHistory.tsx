@@ -602,76 +602,31 @@ function WaterHeaterDiagram({
         </text>
       </g>
 
-      {/* BREACH VISUALIZATION - Water leak and warning */}
+      {/* BREACH VISUALIZATION - Subtle red glow and indicator */}
       {isBreach && (
         <>
-          {/* Animated water droplets leaking from tank */}
-          <g className="animate-pulse">
-            {/* Leak source area - crack on tank */}
-            <path
-              d={`M ${tankX + tankWidth - 5} ${tankY + tankHeight * 0.6} 
-                  Q ${tankX + tankWidth + 2} ${tankY + tankHeight * 0.62} ${tankX + tankWidth - 3} ${tankY + tankHeight * 0.65}
-                  Q ${tankX + tankWidth + 1} ${tankY + tankHeight * 0.68} ${tankX + tankWidth - 4} ${tankY + tankHeight * 0.72}`}
-              stroke="#ef4444"
-              strokeWidth="2"
-              fill="none"
-              strokeLinecap="round"
-            />
-            
-            {/* Water drops */}
-            <ellipse cx={tankX + tankWidth + 8} cy={tankY + tankHeight * 0.65} rx="4" ry="6" fill="#3b82f6" opacity="0.8">
-              <animate attributeName="cy" values={`${tankY + tankHeight * 0.65};${tankY + tankHeight + 15}`} dur="1s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.8;0" dur="1s" repeatCount="indefinite" />
-            </ellipse>
-            <ellipse cx={tankX + tankWidth + 12} cy={tankY + tankHeight * 0.7} rx="3" ry="5" fill="#3b82f6" opacity="0.7">
-              <animate attributeName="cy" values={`${tankY + tankHeight * 0.7};${tankY + tankHeight + 20}`} dur="1.2s" repeatCount="indefinite" begin="0.3s" />
-              <animate attributeName="opacity" values="0.7;0" dur="1.2s" repeatCount="indefinite" begin="0.3s" />
-            </ellipse>
-            <ellipse cx={tankX + tankWidth + 5} cy={tankY + tankHeight * 0.75} rx="2.5" ry="4" fill="#3b82f6" opacity="0.6">
-              <animate attributeName="cy" values={`${tankY + tankHeight * 0.75};${tankY + tankHeight + 25}`} dur="0.9s" repeatCount="indefinite" begin="0.6s" />
-              <animate attributeName="opacity" values="0.6;0" dur="0.9s" repeatCount="indefinite" begin="0.6s" />
-            </ellipse>
-            
-            {/* Water puddle at base */}
-            <ellipse 
-              cx={tankX + tankWidth / 2 + 20} 
-              cy={tankY + tankHeight + 25} 
-              rx="35" 
-              ry="8" 
-              fill="#3b82f6" 
-              opacity="0.4"
-            />
-            <ellipse 
-              cx={tankX + tankWidth / 2 + 20} 
-              cy={tankY + tankHeight + 25} 
-              rx="25" 
-              ry="5" 
-              fill="#60a5fa" 
-              opacity="0.5"
-            />
-          </g>
+          {/* Red glow overlay on tank */}
+          <rect 
+            x={tankX - 4} 
+            y={tankY - 2} 
+            width={tankWidth + 8} 
+            height={tankHeight + 6} 
+            rx="6"
+            fill="none"
+            stroke="#ef4444"
+            strokeWidth="2"
+            opacity="0.6"
+            className="animate-pulse"
+          />
           
-          {/* BREACH warning label */}
-          <g>
-            <rect
-              x={tankX + tankWidth + 15}
-              y={tankY + tankHeight * 0.55}
-              width="55"
-              height="22"
-              rx="4"
-              fill="#dc2626"
-              opacity="0.9"
+          {/* Small water drip at bottom */}
+          <g opacity="0.7">
+            <path
+              d={`M ${tankX + tankWidth / 2 + 15} ${tankY + tankHeight + 12} 
+                  Q ${tankX + tankWidth / 2 + 18} ${tankY + tankHeight + 18} ${tankX + tankWidth / 2 + 15} ${tankY + tankHeight + 22}
+                  Q ${tankX + tankWidth / 2 + 12} ${tankY + tankHeight + 18} ${tankX + tankWidth / 2 + 15} ${tankY + tankHeight + 12}`}
+              fill="#3b82f6"
             />
-            <text
-              x={tankX + tankWidth + 42}
-              y={tankY + tankHeight * 0.55 + 14}
-              fill="white"
-              fontSize="9"
-              fontWeight="bold"
-              textAnchor="middle"
-            >
-              ⚠ BREACH
-            </text>
           </g>
         </>
       )}
