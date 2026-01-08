@@ -650,7 +650,9 @@ export function ServiceHistory({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="command-card mx-4">
+      <div className="command-card mx-4 relative overflow-hidden">
+        {/* Top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/50 via-cyan-500/50 to-amber-500/50" />
         <CollapsibleTrigger asChild>
           <Button 
             variant="ghost" 

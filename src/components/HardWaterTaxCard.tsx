@@ -28,9 +28,16 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
 
   return (
     <div className={cn(
-      "command-card p-5",
+      "command-card p-5 relative overflow-hidden",
       isRecommend ? "border-amber-500/30" : "border-yellow-500/20"
     )}>
+      {/* Top accent bar */}
+      <div className={cn(
+        "absolute top-0 left-0 right-0 h-1",
+        isRecommend 
+          ? "bg-gradient-to-r from-amber-500/60 via-yellow-400/60 to-amber-500/60"
+          : "bg-gradient-to-r from-yellow-500/50 via-yellow-400/50 to-yellow-500/50"
+      )} />
       <div className="flex items-start gap-4">
         <div className={cn(
           "command-icon shrink-0",

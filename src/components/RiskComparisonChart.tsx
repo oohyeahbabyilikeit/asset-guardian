@@ -19,6 +19,8 @@ export function RiskComparisonChart({ biologicalAge, calendarAge }: RiskComparis
   return (
     <div className="mx-4">
       <div className="clean-card relative overflow-hidden tech-corners">
+        {/* Top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/50 via-cyan-500/50 to-amber-500/50" />
         {/* Tech grid overlay */}
         <div className="absolute inset-0 tech-grid-bg opacity-30 pointer-events-none" />
         
