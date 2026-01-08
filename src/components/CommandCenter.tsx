@@ -6,6 +6,7 @@ import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { ServiceHistory } from '@/components/ServiceHistory';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
 import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
+import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
 import { EducationalDrawer, type EducationalTopic } from '@/components/EducationalDrawer';
 import { type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
@@ -69,6 +70,7 @@ export function CommandCenter({
   const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor, sedimentRate, monthsToFlush, monthsToLockout, flushStatus } = opterraMetrics;
   const recommendation = opterraResult.verdict;
   const financial = opterraResult.financial;
+  const hardWaterTax = opterraResult.hardWaterTax;
 
   // Derive dynamic vitals from algorithm output
   // PRV implies closed loop (backpressure), so expansion tank is required if either condition is true
@@ -203,6 +205,13 @@ export function CommandCenter({
             financial={financial}
           />
         </div>
+
+        {/* Hard Water Tax Card - Only shows if recommendation !== 'NONE' */}
+        {hardWaterTax.recommendation !== 'NONE' && (
+          <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.25s' }}>
+            <HardWaterTaxCard hardWaterTax={hardWaterTax} />
+          </div>
+        )}
 
         {/* Action Dock */}
         <ActionDock
