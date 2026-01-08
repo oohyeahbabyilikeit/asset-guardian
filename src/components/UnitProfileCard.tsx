@@ -57,13 +57,16 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="command-card">
+      <div className="command-card overflow-hidden">
+        {/* Subtle accent gradient at top */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500/50 via-blue-500/50 to-cyan-500/50" />
+        
         {/* Header - Always visible */}
         <CollapsibleTrigger className="w-full">
           <div className="command-header hover:bg-secondary/20 transition-colors">
             <div className="flex items-center gap-4 flex-1">
-              <div className="command-icon">
-                <Info className="w-5 h-5 text-blue-400" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30">
+                <Info className="w-5 h-5 text-cyan-400" />
               </div>
               <div className="text-left flex-1">
                 <p className="text-base font-semibold text-foreground">{asset.brand} {asset.model}</p>
