@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { PlumberContactForm } from './PlumberContactForm';
 
 interface RepairPlannerProps {
   onBack: () => void;
@@ -52,6 +53,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [doNothingOpen, setDoNothingOpen] = useState(false);
   const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | null>(null);
+  const [showContactForm, setShowContactForm] = useState(false);
 
   // Calculate metrics
   const opterraResult = calculateOpterraRisk(currentInputs);
@@ -1006,7 +1008,13 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border">
         <div className="max-w-md mx-auto">
         <Button
-            onClick={() => onSchedule(selectedRepairs)}
+            onClick={() => {
+              if (isEconomicReplacement && selectedTimeline !== 'now') {
+                setShowContactForm(true);
+              } else {
+                onSchedule(selectedRepairs);
+              }
+            }}
             disabled={isEconomicReplacement ? false : (selectedRepairs.length === 0)}
             className="w-full h-14 text-base font-semibold"
           >
@@ -1018,6 +1026,15 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           </Button>
         </div>
       </div>
+
+      <PlumberContactForm
+        open={showContactForm}
+        onOpenChange={setShowContactForm}
+        onSubmit={(data) => {
+          toast.success(`Thanks ${data.name}! A plumber will call you soon.`);
+          setShowContactForm(false);
+        }}
+      />
     </div>
   );
 }
