@@ -233,7 +233,10 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
               riskStatus === 'ELEVATED' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
               "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
             )}>
-              {riskStatus}
+              {riskStatus === 'CRITICAL' ? "Replace Immediately" :
+               riskStatus === 'HIGH' ? "On Borrowed Time" :
+               riskStatus === 'ELEVATED' ? "On Borrowed Time" :
+               "Running Strong"}
             </div>
           )}
 
