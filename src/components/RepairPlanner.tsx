@@ -365,8 +365,9 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                   unitAge={currentInputs.calendarAge}
                   maintenanceHistory={mockServiceHistory}
                   projectedReplacementCost={projectedReplacementCost}
-                  monthlyBudgetRecommended={monthlyBudgetRecommended}
                   currentHealthScore={currentScore}
+                  metrics={healthMetrics}
+                  fuelType={currentInputs.fuelType}
                 />
               </TabsContent>
 

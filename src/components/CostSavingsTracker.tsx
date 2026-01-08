@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, PiggyBank, Sparkles, Shield, Droplets, Zap } from 'lucide-react';
+import { TrendingUp, PiggyBank, Sparkles, Shield, Zap, Info } from 'lucide-react';
+import { OpterraMetrics, ForensicInputs, FuelType, bioAgeToFailProb } from '@/lib/opterraAlgorithm';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ServiceEvent {
   id: string;
@@ -12,8 +14,10 @@ interface CostSavingsTrackerProps {
   unitAge: number;
   maintenanceHistory: ServiceEvent[];
   projectedReplacementCost: { min: number; max: number };
-  monthlyBudgetRecommended: number;
   currentHealthScore: number;
+  // NEW: OPTERRA integration
+  metrics?: OpterraMetrics;
+  fuelType?: FuelType;
 }
 
 function useAnimatedCounter(target: number, duration: number = 1200) {
@@ -42,26 +46,94 @@ function useAnimatedCounter(target: number, duration: number = 1200) {
   return current;
 }
 
+/**
+ * Calculate time-weighted maintenance credit
+ * Recent maintenance (< 1 year) gets full credit, older decays
+ */
+function getMaintenanceWeight(eventDate: string): number {
+  const yearsAgo = (Date.now() - new Date(eventDate).getTime()) / (365 * 24 * 60 * 60 * 1000);
+  if (yearsAgo < 1) return 1.0;
+  if (yearsAgo < 2) return 0.85;
+  if (yearsAgo < 3) return 0.7;
+  if (yearsAgo < 4) return 0.55;
+  return 0.4; // Minimum weight for historical credit
+}
+
+/**
+ * Calculate theoretical sediment if never flushed (for savings comparison)
+ */
+function calculateUnmaintainedSediment(unitAge: number, fuelType: FuelType, hardnessGPG: number = 10): number {
+  const sedFactor = fuelType === 'ELECTRIC' ? 0.08 : 0.044;
+  return unitAge * hardnessGPG * sedFactor;
+}
+
+/**
+ * Calculate failure probability without maintenance (worst case)
+ */
+function calculateUnmaintainedFailProb(unitAge: number, agingRateMultiplier: number = 1.5): number {
+  // Without maintenance, aging accelerates ~50% faster
+  const worstCaseBioAge = unitAge * agingRateMultiplier;
+  return bioAgeToFailProb(worstCaseBioAge);
+}
+
 export function CostSavingsTracker({
   unitAge,
   maintenanceHistory,
   projectedReplacementCost,
-  monthlyBudgetRecommended,
-  currentHealthScore
+  currentHealthScore,
+  metrics,
+  fuelType = 'GAS'
 }: CostSavingsTrackerProps) {
-  // Calculate savings based on maintenance performed
-  const avoidedEmergencyReplacement = unitAge >= 6 ? Math.round(projectedReplacementCost.min * 0.3) : 0;
-  const flushCount = maintenanceHistory.filter(e => e.type === 'flush').length;
-  const anodeCount = maintenanceHistory.filter(e => e.type === 'anode_replacement').length;
   
-  // Energy savings from clean tank (avg $15/month per flush)
-  const energySavings = flushCount * 15 * 12;
+  // Count maintenance events
+  const flushEvents = maintenanceHistory.filter(e => e.type === 'flush');
+  const anodeEvents = maintenanceHistory.filter(e => e.type === 'anode_replacement');
+  const flushCount = flushEvents.length;
+  const anodeCount = anodeEvents.length;
   
-  // Extended lifespan bonus (each anode replacement adds ~2 years = ~$800 value)
-  const lifespanBonus = anodeCount * 800;
+  // === OPTERRA-INTEGRATED CALCULATIONS ===
   
-  // Total savings calculation
-  const totalSavings = avoidedEmergencyReplacement + energySavings + lifespanBonus;
+  // 1. ENERGY EFFICIENCY SAVINGS (Sediment-Based)
+  // Uses actual sediment data from OPTERRA when available
+  const baseEnergyCost = fuelType === 'GAS' ? 350 : 450; // $/year
+  const currentSediment = metrics?.sedimentLbs ?? (flushCount > 0 ? 2 : unitAge * 0.5);
+  const theoreticalSediment = calculateUnmaintainedSediment(unitAge, fuelType);
+  const sedimentAvoided = Math.max(0, theoreticalSediment - currentSediment);
+  
+  // Each lb of sediment = ~1% efficiency loss
+  const efficiencyGainPercent = sedimentAvoided * 0.01;
+  
+  // Time-weighted energy savings (recent flushes count more)
+  const flushTimeWeight = flushEvents.reduce((sum, e) => sum + getMaintenanceWeight(e.date), 0) / Math.max(flushCount, 1);
+  const yearsOfSavings = Math.min(unitAge, flushCount * 2); // Assume each flush provides ~2 years of improved efficiency
+  const energySavings = Math.round(baseEnergyCost * efficiencyGainPercent * yearsOfSavings * flushTimeWeight);
+  
+  // 2. AVOIDED EMERGENCY REPLACEMENT (Failure Probability Based)
+  // Uses OPTERRA's actual failure probability vs. worst-case scenario
+  const currentFailProb = metrics?.failProb ?? (100 - currentHealthScore);
+  const worstCaseFailProb = calculateUnmaintainedFailProb(unitAge);
+  const failProbReduction = Math.max(0, worstCaseFailProb - currentFailProb);
+  
+  // Emergency costs = replacement + 30% emergency premium + potential damage
+  const emergencyPremium = 1.30;
+  const emergencyReplacementCost = projectedReplacementCost.max * emergencyPremium;
+  
+  // Risk-weighted avoided cost (probability reduction as a percentage)
+  const avoidedEmergency = Math.round((failProbReduction / 100) * emergencyReplacementCost);
+  
+  // 3. EXTENDED LIFESPAN BONUS (Aging Rate Based)
+  // Uses OPTERRA's life extension calculation when available
+  const lifeExtensionYears = metrics?.lifeExtension ?? (anodeCount * 1.5);
+  
+  // Value per year = replacement cost / expected life (13 years avg)
+  const yearlyValue = projectedReplacementCost.min / 13;
+  
+  // Time-weighted anode bonus (recent replacements count more)
+  const anodeTimeWeight = anodeEvents.reduce((sum, e) => sum + getMaintenanceWeight(e.date), 0) / Math.max(anodeCount, 1);
+  const lifespanBonus = Math.round(lifeExtensionYears * yearlyValue * anodeTimeWeight);
+  
+  // === TOTAL SAVINGS ===
+  const totalSavings = energySavings + avoidedEmergency + lifespanBonus;
   const animatedTotal = useAnimatedCounter(totalSavings);
   
   // Maintenance cost spent
@@ -70,33 +142,40 @@ export function CostSavingsTracker({
   // ROI calculation
   const roi = totalSpent > 0 ? Math.round((totalSavings / totalSpent) * 100) : 0;
 
+  // Confidence indicator based on data quality
+  const hasOpterraData = !!metrics;
+  const confidenceLevel = hasOpterraData ? 'High' : 'Estimated';
+
   const savingsBreakdown = [
     {
       icon: Shield,
-      label: 'Avoided Emergency',
-      value: avoidedEmergencyReplacement,
-      description: 'Protected vs. sudden failure',
+      label: 'Risk Reduction Value',
+      value: avoidedEmergency,
+      description: `${Math.round(failProbReduction)}% lower failure risk`,
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/20',
-      borderColor: 'border-emerald-500/30'
+      borderColor: 'border-emerald-500/30',
+      tooltip: 'Based on failure probability reduction from maintenance vs. neglected units'
     },
     {
       icon: Zap,
-      label: 'Energy Efficiency',
+      label: 'Energy Savings',
       value: energySavings,
-      description: 'From sediment-free operation',
+      description: `${sedimentAvoided.toFixed(1)} lbs sediment avoided`,
       color: 'text-amber-400',
       bgColor: 'bg-amber-500/20',
-      borderColor: 'border-amber-500/30'
+      borderColor: 'border-amber-500/30',
+      tooltip: `${fuelType === 'GAS' ? 'Gas' : 'Electric'} efficiency improved by ${(efficiencyGainPercent * 100).toFixed(0)}%`
     },
     {
       icon: TrendingUp,
-      label: 'Extended Lifespan',
+      label: 'Life Extension Value',
       value: lifespanBonus,
-      description: 'From anode replacements',
+      description: `+${lifeExtensionYears.toFixed(1)} years added`,
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/20',
-      borderColor: 'border-blue-500/30'
+      borderColor: 'border-blue-500/30',
+      tooltip: 'Value of extended unit lifespan from anode protection'
     }
   ];
 
@@ -113,7 +192,17 @@ export function CostSavingsTracker({
               <PiggyBank className="w-6 h-6 text-emerald-400" />
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Estimated Savings</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Estimated Savings</p>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="w-3 h-3 text-muted-foreground/60" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[200px]">
+                    <p className="text-xs">{confidenceLevel} confidence • Based on OPTERRA v6.6 analysis</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <p className="text-3xl font-bold text-emerald-400 font-mono">
                 ${animatedTotal.toLocaleString()}
               </p>
@@ -147,26 +236,32 @@ export function CostSavingsTracker({
       {/* Breakdown Cards */}
       <div className="space-y-2">
         {savingsBreakdown.map((item, index) => (
-          <div 
-            key={item.label}
-            className={`p-3 rounded-lg bg-muted/30 border ${item.borderColor} maintenance-card`}
-            style={{ '--index': index } as React.CSSProperties}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg ${item.bgColor} flex items-center justify-center`}>
-                  <item.icon className={`w-4 h-4 ${item.color}`} />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground text-sm">{item.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.description}</p>
+          <Tooltip key={item.label}>
+            <TooltipTrigger asChild>
+              <div 
+                className={`p-3 rounded-lg bg-muted/30 border ${item.borderColor} maintenance-card cursor-help`}
+                style={{ '--index': index } as React.CSSProperties}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg ${item.bgColor} flex items-center justify-center`}>
+                      <item.icon className={`w-4 h-4 ${item.color}`} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.description}</p>
+                    </div>
+                  </div>
+                  <p className={`font-mono font-bold text-sm ${item.color}`}>
+                    +${item.value.toLocaleString()}
+                  </p>
                 </div>
               </div>
-              <p className={`font-mono font-bold text-sm ${item.color}`}>
-                +${item.value.toLocaleString()}
-              </p>
-            </div>
-          </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">{item.tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
         ))}
       </div>
     </div>
