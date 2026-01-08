@@ -673,7 +673,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Estimated Replacement Cost</span>
-                  <span className="font-bold text-foreground">${financial.estReplacementCost.toLocaleString()}</span>
+                  <span className="font-bold text-foreground">${financial.estReplacementCostMin.toLocaleString()} - ${financial.estReplacementCostMax.toLocaleString()}</span>
                 </div>
                 
                 <div className="flex justify-between items-center">

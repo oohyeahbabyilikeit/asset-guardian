@@ -126,8 +126,10 @@ export type RecommendationBadge = 'CRITICAL' | 'REPLACE' | 'SERVICE' | 'MONITOR'
 export interface FinancialForecast {
   targetReplacementDate: string;  // "June 2028"
   monthsUntilTarget: number;
-  estReplacementCost: number;     // Future value (inflation adjusted)
-  monthlyBudget: number;          // Recommended savings
+  estReplacementCost: number;     // Mid-range estimate (for backwards compat)
+  estReplacementCostMin: number;  // Low end of contractor range
+  estReplacementCostMax: number;  // High end of contractor range
+  monthlyBudget: number;          // Recommended savings (based on max)
   budgetUrgency: 'LOW' | 'MED' | 'HIGH' | 'IMMEDIATE';
   recommendation: string;
 }
@@ -925,17 +927,26 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
   // 1. Establish Financial Targets
   // We plan for replacement at year 13 (typical end of financial life, not 25-year physics max)
   const TARGET_SERVICE_LIFE = 13;
-  const BASE_REPLACEMENT_COST = data.fuelType === 'GAS' ? 2400 : 2100;
+  
+  // Contractor pricing ranges (based on market data)
+  // Low: budget contractors, mid: standard, high: premium/specialized
+  const BASE_COST_LOW = data.fuelType === 'GAS' ? 1800 : 1600;
+  const BASE_COST_MID = data.fuelType === 'GAS' ? 2400 : 2100;
+  const BASE_COST_HIGH = data.fuelType === 'GAS' ? 3200 : 2800;
   
   // Add Granular Cost Adders based on location
-  let totalCost = BASE_REPLACEMENT_COST;
-  if (data.location === 'ATTIC' || data.location === 'UPPER_FLOOR') totalCost += 600;
-  if (data.location === 'CRAWLSPACE') totalCost += 400;
+  let costAdder = 0;
+  if (data.location === 'ATTIC' || data.location === 'UPPER_FLOOR') costAdder += 600;
+  if (data.location === 'CRAWLSPACE') costAdder += 400;
   
   // If system needs code upgrades (PRV/ExpTank), the *next* install will be more expensive
   const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
   const needsCodeUpgrade = (!data.hasPrv && data.housePsi > 80) || (!data.hasExpTank && isActuallyClosed);
-  if (needsCodeUpgrade) totalCost += 450;
+  if (needsCodeUpgrade) costAdder += 450;
+
+  const totalCostLow = BASE_COST_LOW + costAdder;
+  const totalCostMid = BASE_COST_MID + costAdder;
+  const totalCostHigh = BASE_COST_HIGH + costAdder;
 
   const INFLATION_RATE = 0.03;
 
@@ -955,18 +966,20 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
     adjustedYearsRemaining = 0;
   }
 
-  // 3. Calculate Future Cost (inflation adjusted)
-  // Cost = Base * (1 + Inflation)^Years
-  const futureCost = totalCost * Math.pow(1 + INFLATION_RATE, Math.max(0, adjustedYearsRemaining));
+  // 3. Calculate Future Cost (inflation adjusted) for all tiers
+  const inflationMultiplier = Math.pow(1 + INFLATION_RATE, Math.max(0, adjustedYearsRemaining));
+  const futureCostLow = totalCostLow * inflationMultiplier;
+  const futureCostMid = totalCostMid * inflationMultiplier;
+  const futureCostHigh = totalCostHigh * inflationMultiplier;
 
-  // 4. Calculate Monthly Budget
+  // 4. Calculate Monthly Budget (based on high estimate to be safe)
   const monthsUntilTarget = Math.max(0, Math.ceil(adjustedYearsRemaining * 12));
   let monthlyBudget = 0;
   
   if (monthsUntilTarget <= 0) {
-    monthlyBudget = Math.ceil(futureCost); // Lump sum needed
+    monthlyBudget = Math.ceil(futureCostHigh); // Lump sum needed
   } else {
-    monthlyBudget = Math.ceil(futureCost / monthsUntilTarget);
+    monthlyBudget = Math.ceil(futureCostHigh / monthsUntilTarget);
   }
 
   // 5. Determine Urgency & Messaging
@@ -975,17 +988,17 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
 
   if (monthsUntilTarget <= 0) {
     urgency = 'IMMEDIATE';
-    recommendation = `Unit is past its financial end-of-life. Immediate financing or replacement fund of $${Math.ceil(futureCost).toLocaleString()} required.`;
+    recommendation = `Unit is past its financial end-of-life. Budget $${Math.ceil(futureCostLow).toLocaleString()} - $${Math.ceil(futureCostHigh).toLocaleString()} for replacement.`;
   } else if (monthsUntilTarget < 12) {
     urgency = 'HIGH';
-    recommendation = `Replacement likely within 12 months. Aggressive savings of $${monthlyBudget}/mo required to pay cash.`;
+    recommendation = `Replacement likely within 12 months. Save $${monthlyBudget}/mo to cover the high end.`;
   } else if (monthsUntilTarget < 36) {
     urgency = 'MED';
     const targetYear = new Date(Date.now() + monthsUntilTarget * 30 * 24 * 60 * 60 * 1000).getFullYear();
     recommendation = `Plan to replace by ${targetYear}. Budget $${monthlyBudget}/mo to stay ahead.`;
   } else {
     urgency = 'LOW';
-    recommendation = `No immediate issues detected. A maintenance fund of $${monthlyBudget}/mo prepares for eventual replacement.`;
+    recommendation = `No immediate issues. A maintenance fund of $${monthlyBudget}/mo prepares for eventual replacement.`;
   }
 
   // Generate Target Date String
@@ -997,7 +1010,9 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
   return {
     targetReplacementDate: dateString,
     monthsUntilTarget,
-    estReplacementCost: Math.round(futureCost),
+    estReplacementCost: Math.round(futureCostMid),
+    estReplacementCostMin: Math.round(futureCostLow),
+    estReplacementCostMax: Math.round(futureCostHigh),
     monthlyBudget,
     budgetUrgency: urgency,
     recommendation
