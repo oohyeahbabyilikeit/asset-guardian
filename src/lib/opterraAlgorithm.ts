@@ -672,6 +672,24 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     };
   }
 
+  // 2C. Repair ROI Threshold: Unit is physically intact but too old/stressed for repairs to be economical
+  // Catches units like 12-year-old tanks with high biological wear where repair investment is wasted
+  const isEconomicallyFragile = data.calendarAge >= 10 && metrics.agingRate > 1.5;
+  const isAnodeDepleted = metrics.shieldLife < 1;
+  const hasHighBioAge = metrics.bioAge > data.calendarAge * 1.8;
+
+  if ((isEconomicallyFragile || (isAnodeDepleted && data.calendarAge >= 8) || (hasHighBioAge && data.calendarAge >= 8)) 
+      && metrics.failProb > 25) {
+    return {
+      action: 'REPLACE',
+      title: 'Repair Not Economical',
+      reason: `At ${data.calendarAge} years with ${metrics.bioAge.toFixed(1)} years of biological wear, repair costs outweigh remaining service life.`,
+      urgent: false,
+      badgeColor: 'orange',
+      badge: 'REPLACE'
+    };
+  }
+
   // ============================================
   // TIER 3: SERVICE ZONE (Unit is SAVEABLE)
   // If we reach here, the unit passed safety & economic checks
