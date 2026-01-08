@@ -1162,18 +1162,30 @@ export function calculateHardWaterTax(
   const sedimentPenalty = metrics.sedimentLbs * 0.01;
   const energyLoss = Math.round(C.BASE_ENERGY_COST * sedimentPenalty);
   
-  // B. Appliance Depreciation
-  // Hard water reduces lifespan by 30-50% depending on severity
-  const hardWaterLifespan = hardnessGPG > 15 ? 7 : hardnessGPG > 10 ? 9 : 11;
+  // B. Appliance Depreciation ("Asset Value Loss")
+  // Hard water reduces lifespan - concrete GPG-to-lifespan mapping
+  let hardWaterLifespan: number;
+  if (hardnessGPG < 10) {
+    hardWaterLifespan = 11;      // Minor reduction
+  } else if (hardnessGPG < 15) {
+    hardWaterLifespan = 9;       // Moderate reduction
+  } else if (hardnessGPG < 20) {
+    hardWaterLifespan = 8;       // Significant reduction
+  } else {
+    hardWaterLifespan = 7;       // Severe reduction (>20 GPG)
+  }
+  
   const normalCostPerYear = C.APPLIANCE_PACKAGE_VALUE / C.NORMAL_LIFESPAN; // ~$333
   const hardCostPerYear = C.APPLIANCE_PACKAGE_VALUE / hardWaterLifespan;
   const applianceDepreciation = Math.round(hardCostPerYear - normalCostPerYear);
   
   // C. Detergent & Soap Overspend
   // Battelle Institute: families in hard water use 2x-4x more soap
-  // Use actual household size instead of default
+  // Scale by actual household size AND usage intensity
   const householdSize = data.peopleCount || C.DEFAULT_HOUSEHOLD_SIZE;
-  const detergentOverspend = Math.round(householdSize * C.DETERGENT_ANNUAL_PER_PERSON);
+  const usageMultipliers = { light: 0.6, normal: 1.0, heavy: 1.8 };
+  const usageIntensity = usageMultipliers[data.usageType] || 1.0;
+  const detergentOverspend = Math.round(householdSize * C.DETERGENT_ANNUAL_PER_PERSON * usageIntensity);
   
   // Total Annual Loss ("Hard Water Tax")
   const totalAnnualLoss = energyLoss + applianceDepreciation + detergentOverspend;
