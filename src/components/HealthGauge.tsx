@@ -90,6 +90,68 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
     return 'text-emerald-400';
   };
 
+  // Intelligent status message based on actual conditions, not just score
+  const getIntelligentStatus = (): { message: string; severity: 'critical' | 'warning' | 'info' | 'good' } => {
+    // Critical conditions first
+    if (riskStatus === 'CRITICAL') {
+      return { message: 'Replace Immediately', severity: 'critical' };
+    }
+    if (riskStatus === 'HIGH') {
+      return { message: 'On Borrowed Time', severity: 'critical' };
+    }
+    if (riskStatus === 'ELEVATED') {
+      return { message: 'On Borrowed Time', severity: 'warning' };
+    }
+    
+    // Now check specific issues even if overall score looks okay
+    if (metrics) {
+      // Heavy sediment (>10 lbs is concerning, >15 is serious)
+      if (metrics.sedimentLbs >= 15) {
+        return { message: 'Sediment Buildup Critical', severity: 'warning' };
+      }
+      if (metrics.sedimentLbs >= 10) {
+        return { message: 'Flush Overdue', severity: 'warning' };
+      }
+      if (metrics.sedimentLbs >= 5) {
+        return { message: 'Sediment Building Up', severity: 'info' };
+      }
+      
+      // Anode rod depleted or nearly depleted
+      if (metrics.shieldLife <= 0) {
+        return { message: 'Anode Protection Gone', severity: 'warning' };
+      }
+      if (metrics.shieldLife < 1) {
+        return { message: 'Anode Nearly Depleted', severity: 'info' };
+      }
+      
+      // High aging rate indicates stress
+      if (metrics.agingRate >= 2.5) {
+        return { message: 'Aging Faster Than Normal', severity: 'info' };
+      }
+      if (metrics.agingRate >= 1.8) {
+        return { message: 'Some Stress Detected', severity: 'info' };
+      }
+      
+      // Flush is due soon
+      if (metrics.flushStatus === 'due' || metrics.flushStatus === 'lockout') {
+        return { message: 'Maintenance Overdue', severity: 'warning' };
+      }
+      if (metrics.flushStatus === 'schedule') {
+        return { message: 'Service Due Soon', severity: 'info' };
+      }
+      
+      // Bio age significantly higher than calendar age
+      if (metrics.bioAge >= 10) {
+        return { message: 'Wear Catching Up', severity: 'info' };
+      }
+    }
+    
+    // Actually running well
+    return { message: 'Running Strong', severity: 'good' };
+  };
+
+  const intelligentStatus = getIntelligentStatus();
+
   // Generate projection data for the chart
   // Models compound stress over time: neglected systems deteriorate faster as issues cascade
   const generateProjectionData = () => {
@@ -229,14 +291,12 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
           {!isBreach && (
             <div className={cn(
               "text-[10px] font-bold uppercase tracking-wider text-center px-3 py-1 rounded-full w-fit mx-auto",
-              riskStatus === 'CRITICAL' || riskStatus === 'HIGH' ? "bg-red-500/15 text-red-400 border border-red-500/20" :
-              riskStatus === 'ELEVATED' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
+              intelligentStatus.severity === 'critical' ? "bg-red-500/15 text-red-400 border border-red-500/20" :
+              intelligentStatus.severity === 'warning' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
+              intelligentStatus.severity === 'info' ? "bg-blue-500/15 text-blue-400 border border-blue-500/20" :
               "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
             )}>
-              {riskStatus === 'CRITICAL' ? "Replace Immediately" :
-               riskStatus === 'HIGH' ? "On Borrowed Time" :
-               riskStatus === 'ELEVATED' ? "On Borrowed Time" :
-               "Running Strong"}
+              {intelligentStatus.message}
             </div>
           )}
 
