@@ -134,10 +134,33 @@ export interface FinancialForecast {
   recommendation: string;
 }
 
+// Hard Water Tax Interface (NEW v6.7)
+export interface HardWaterTax {
+  hardnessGPG: number;
+  hasSoftener: boolean;
+  
+  // Annual Loss Breakdown
+  energyLoss: number;           // From sediment barrier
+  applianceDepreciation: number; // Accelerated aging
+  detergentOverspend: number;   // Excess soap usage
+  totalAnnualLoss: number;      // Sum of all losses
+  
+  // ROI Analysis
+  softenerAnnualCost: number;   // ~$250/year
+  netAnnualSavings: number;     // Loss - Softener Cost
+  paybackYears: number;         // Install cost / annual savings
+  
+  // Recommendation
+  recommendation: 'NONE' | 'CONSIDER' | 'RECOMMEND';
+  reason: string;
+  badgeColor: 'green' | 'yellow' | 'orange';
+}
+
 export interface OpterraResult {
   metrics: OpterraMetrics;
   verdict: Recommendation;
-  financial: FinancialForecast;  // NEW v6.4
+  financial: FinancialForecast;
+  hardWaterTax: HardWaterTax;  // NEW v6.7
 }
 
 // --- CONSTANTS & CONFIGURATION ---
@@ -1032,6 +1055,122 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
   };
 }
 
+// --- HARD WATER TAX CALCULATION (NEW v6.7) ---
+
+const HARD_WATER_CONSTANTS = {
+  // GPG Recommendation Thresholds
+  GPG_FLOOR: 7,           // Below this: Do NOT recommend (ROI too slow)
+  GPG_CONSIDER: 10,       // 7-10: "Consider" (soft sell)
+  GPG_RECOMMEND: 10,      // Above 10: Recommend (math proves ROI)
+  
+  // Softener Economics
+  SOFTENER_INSTALL_COST: 2500,
+  SOFTENER_LIFESPAN: 15,
+  ANNUAL_SALT_COST: 100,
+  ANNUAL_COST_OF_OWNERSHIP: 250, // ~$167 amortized + $83 salt/maintenance
+  
+  // Appliance Package Values
+  APPLIANCE_PACKAGE_VALUE: 4000, // Water heater + dishwasher + washer
+  NORMAL_LIFESPAN: 12,           // Years (soft water)
+  
+  // Detergent Multiplier
+  DETERGENT_ANNUAL_PER_PERSON: 150, // Conservative estimate
+  DEFAULT_HOUSEHOLD_SIZE: 2.5,
+  
+  // Base energy cost for water heating
+  BASE_ENERGY_COST: 400,
+};
+
+export function calculateHardWaterTax(
+  data: ForensicInputs,
+  metrics: OpterraMetrics
+): HardWaterTax {
+  const { hardnessGPG, hasSoftener } = data;
+  const C = HARD_WATER_CONSTANTS;
+  
+  // Skip if softener already installed
+  if (hasSoftener) {
+    return {
+      hardnessGPG,
+      hasSoftener: true,
+      energyLoss: 0,
+      applianceDepreciation: 0,
+      detergentOverspend: 0,
+      totalAnnualLoss: 0,
+      softenerAnnualCost: 0,
+      netAnnualSavings: 0,
+      paybackYears: 0,
+      recommendation: 'NONE',
+      reason: 'Water softener already installed.',
+      badgeColor: 'green'
+    };
+  }
+  
+  // A. Energy Loss (from sediment barrier)
+  // Sediment acts as insulator - ~1% efficiency loss per lb
+  const sedimentPenalty = metrics.sedimentLbs * 0.01;
+  const energyLoss = Math.round(C.BASE_ENERGY_COST * sedimentPenalty);
+  
+  // B. Appliance Depreciation
+  // Hard water reduces lifespan by 30-50% depending on severity
+  const hardWaterLifespan = hardnessGPG > 15 ? 7 : hardnessGPG > 10 ? 9 : 11;
+  const normalCostPerYear = C.APPLIANCE_PACKAGE_VALUE / C.NORMAL_LIFESPAN; // ~$333
+  const hardCostPerYear = C.APPLIANCE_PACKAGE_VALUE / hardWaterLifespan;
+  const applianceDepreciation = Math.round(hardCostPerYear - normalCostPerYear);
+  
+  // C. Detergent & Soap Overspend
+  // Battelle Institute: families in hard water use 2x-4x more soap
+  const detergentOverspend = Math.round(C.DEFAULT_HOUSEHOLD_SIZE * C.DETERGENT_ANNUAL_PER_PERSON);
+  
+  // Total Annual Loss ("Hard Water Tax")
+  const totalAnnualLoss = energyLoss + applianceDepreciation + detergentOverspend;
+  
+  // ROI Calculation
+  const softenerAnnualCost = C.ANNUAL_COST_OF_OWNERSHIP;
+  const netAnnualSavings = totalAnnualLoss - softenerAnnualCost;
+  const paybackYears = netAnnualSavings > 0 
+    ? Math.round((C.SOFTENER_INSTALL_COST / netAnnualSavings) * 10) / 10 
+    : 99;
+  
+  // Determine Recommendation
+  let recommendation: 'NONE' | 'CONSIDER' | 'RECOMMEND' = 'NONE';
+  let reason = '';
+  let badgeColor: 'green' | 'yellow' | 'orange' = 'green';
+  
+  if (hardnessGPG < C.GPG_FLOOR) {
+    recommendation = 'NONE';
+    reason = 'Water hardness is low. Softener not cost-effective.';
+    badgeColor = 'green';
+  } else if (hardnessGPG >= C.GPG_FLOOR && hardnessGPG < C.GPG_RECOMMEND) {
+    recommendation = 'CONSIDER';
+    reason = `Moderate hardness (${hardnessGPG} GPG). Consider for skin/hair comfort.`;
+    badgeColor = 'yellow';
+  } else if (totalAnnualLoss > softenerAnnualCost && hardnessGPG >= C.GPG_RECOMMEND) {
+    recommendation = 'RECOMMEND';
+    reason = `High hardness (${hardnessGPG} GPG) costs $${totalAnnualLoss}/yr. Softener pays for itself.`;
+    badgeColor = 'orange';
+  } else {
+    recommendation = 'CONSIDER';
+    reason = 'Hard water detected. Softener may improve comfort and appliance life.';
+    badgeColor = 'yellow';
+  }
+  
+  return {
+    hardnessGPG,
+    hasSoftener: false,
+    energyLoss,
+    applianceDepreciation,
+    detergentOverspend,
+    totalAnnualLoss,
+    softenerAnnualCost,
+    netAnnualSavings,
+    paybackYears,
+    recommendation,
+    reason,
+    badgeColor
+  };
+}
+
 // --- MAIN ENTRY POINT ---
 
 export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
@@ -1039,8 +1178,9 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   const rawVerdict = getRawRecommendation(metrics, data);
   const verdict = optimizeEconomicDecision(rawVerdict, data, metrics);
   const financial = calculateFinancialForecast(data, metrics);
+  const hardWaterTax = calculateHardWaterTax(data, metrics);
   
-  return { metrics, verdict, financial };
+  return { metrics, verdict, financial, hardWaterTax };
 }
 
 // Exported wrapper for backward compatibility
