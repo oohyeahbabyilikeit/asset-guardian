@@ -49,23 +49,12 @@ export function ActionDock({
       {/* Gradient fade above dock */}
       <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       
-      <div className="max-w-md mx-auto flex gap-3">
-        {/* Emergency Button */}
-        <button 
-          onClick={onPanicMode}
-          className="bg-red-950/60 hover:bg-red-900/70 text-red-400 hover:text-red-300 p-4 rounded-xl border border-red-800/50 transition-all"
-          style={{
-            boxShadow: '0 0 20px -4px rgba(239, 68, 68, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
-          }}
-        >
-          <AlertTriangle className="w-6 h-6" />
-        </button>
-
+      <div className="max-w-md mx-auto">
         {/* Primary Action with glow - enhanced for critical */}
         <Button
           onClick={onFixPressure}
           size="lg"
-          className={`flex-1 min-w-0 font-bold py-4 h-auto rounded-xl active:scale-[0.98] transition-all text-base ${
+          className={`w-full font-bold py-4 h-auto rounded-xl active:scale-[0.98] transition-all text-base ${
             isCritical 
               ? 'bg-red-600 hover:bg-red-500 text-white animate-pulse' 
               : 'bg-primary hover:bg-primary/90 text-primary-foreground'
