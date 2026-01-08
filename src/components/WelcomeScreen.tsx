@@ -22,8 +22,8 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
         <div className="max-w-md mx-auto w-full space-y-8">
           {/* Icon */}
           <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <BookOpen className="w-10 h-10 text-primary" />
+            <div className="w-16 h-16 rounded-xl bg-primary/8 border border-primary/15 flex items-center justify-center">
+              <BookOpen className="w-8 h-8 text-primary" />
             </div>
           </div>
 
@@ -44,25 +44,19 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
             </h2>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 flex-shrink-0 mt-2" />
                 <span className="text-sm text-muted-foreground">
                   How your unit compares to industry norms
                 </span>
               </li>
               <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 flex-shrink-0 mt-2" />
                 <span className="text-sm text-muted-foreground">
                   Factors that affect equipment lifespan
                 </span>
               </li>
               <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 flex-shrink-0 mt-2" />
                 <span className="text-sm text-muted-foreground">
                   Options other homeowners consider
                 </span>
@@ -80,10 +74,7 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
           <Button
             onClick={onBegin}
             size="lg"
-            className="w-full h-14 text-base font-semibold rounded-xl"
-            style={{
-              boxShadow: '0 4px 24px -4px hsl(var(--primary) / 0.4)',
-            }}
+            className="w-full h-12 text-base font-medium rounded-lg"
           >
             Begin Assessment
             <ChevronRight className="w-5 h-5 ml-2" />

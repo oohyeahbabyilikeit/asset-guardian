@@ -16,9 +16,9 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
   const riskInfo = getRiskLevelInfo(riskLevel);
 
   const getRingColor = () => {
-    if (status === 'critical') return '#EF4444';
-    if (status === 'warning') return '#F59E0B';
-    return '#22C55E';
+    if (status === 'critical') return 'hsl(0 55% 48%)';
+    if (status === 'warning') return 'hsl(32 65% 48%)';
+    return 'hsl(158 45% 42%)';
   };
 
   const getGlowClass = () => {
