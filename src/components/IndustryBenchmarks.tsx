@@ -135,6 +135,7 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
 export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0, bioAge, recommendation }: IndustryBenchmarksProps) {
   const [expandedFactor, setExpandedFactor] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(true);
+  const [factorsOpen, setFactorsOpen] = useState(false);
   
   const isReplacementRequired = recommendation?.action === 'REPLACE';
 
@@ -274,16 +275,19 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
           <AgingSpeedometer agingRate={agingRate} />
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-border/30" />
-
-        {/* Factors */}
-        <div className="space-y-2.5">
-          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
-            {isReplacementRequired ? 'Factors that shortened lifespan' : 'Factors that can shorten lifespan'}
-          </span>
+        {/* Factors - Collapsible */}
+        <Collapsible open={factorsOpen} onOpenChange={setFactorsOpen}>
+          <CollapsibleTrigger className="w-full flex items-center justify-between py-2 px-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/30">
+            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+              {isReplacementRequired ? 'Factors that shortened lifespan' : 'Factors that can shorten lifespan'}
+            </span>
+            <ChevronDown className={cn(
+              "w-4 h-4 text-muted-foreground transition-transform duration-200",
+              factorsOpen && "rotate-180"
+            )} />
+          </CollapsibleTrigger>
           
-          <div className="space-y-2">
+          <CollapsibleContent className="pt-3 space-y-2">
             {factors.map((factor) => (
               <div key={factor.id} className="space-y-2">
                 <button
@@ -354,8 +358,8 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
                 )}
               </div>
             ))}
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
       </CollapsibleContent>
     </Collapsible>
   );
