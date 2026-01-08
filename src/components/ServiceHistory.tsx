@@ -44,7 +44,7 @@ function WaterHeaterDiagram({
 }) {
   // SVG dimensions
   const width = 200;
-  const height = 320;
+  const height = 300;
   const tankWidth = 100;
   const tankHeight = 200;
   const tankX = (width - tankWidth) / 2;
@@ -59,7 +59,7 @@ function WaterHeaterDiagram({
   return (
     <svg 
       viewBox={`0 0 ${width} ${height}`} 
-      className="w-full h-auto max-h-[320px]"
+      className="w-full h-auto max-h-[280px]"
       style={{ filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }}
     >
       <defs>
