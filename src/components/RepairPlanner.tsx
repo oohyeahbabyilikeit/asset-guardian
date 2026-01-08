@@ -199,111 +199,105 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
     const hasUpcomingMaintenance = (cappedMonthsToFlush !== null && flushStatus === 'optimal') || cappedMonthsToAnode > 0;
     
     return (
-      <div className="min-h-screen bg-background">
+      <div className="h-screen bg-background flex flex-col overflow-hidden">
         <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
         <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
 
-        <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-4 px-4">
+        <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-3 px-4 flex-shrink-0">
           <div className="flex items-center justify-between max-w-md mx-auto">
             <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="font-bold text-foreground">Maintenance Plan</h1>
+            <h1 className="font-bold text-foreground text-sm">Maintenance Plan</h1>
             <div className="w-10" />
           </div>
         </header>
 
-        <div className="relative p-4 max-w-md mx-auto">
+        <div className="relative flex-1 p-3 max-w-md mx-auto w-full flex flex-col gap-3 overflow-hidden">
           {/* Combined Maintenance & Reminder Card */}
-          <div className="clean-card mb-6">
+          <div className="clean-card p-4 flex-shrink-0">
             {/* Recommended Maintenance Section */}
             {hasUpcomingMaintenance && (
               <>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <Calendar className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-foreground">Recommended Maintenance</h3>
+                  <h3 className="font-semibold text-foreground text-sm">Recommended Maintenance</h3>
                 </div>
                 
-                <div className="space-y-3 mb-5">
+                <div className="space-y-2 mb-4">
                   {/* Tank Flush */}
                   {cappedMonthsToFlush !== null && flushStatus === 'optimal' && (
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                          <Droplets className="w-5 h-5 text-blue-400" />
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                          <Droplets className="w-4 h-4 text-blue-400" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground text-sm">Tank Flush</p>
-                          <p className="text-xs text-muted-foreground">Remove sediment buildup</p>
+                          <p className="font-medium text-foreground text-xs">Tank Flush</p>
+                          <p className="text-[10px] text-muted-foreground">Remove sediment</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-mono font-semibold text-foreground">
+                        <p className="font-mono font-semibold text-foreground text-sm">
                           {cappedMonthsToFlush >= 12 
                             ? `${(cappedMonthsToFlush / 12).toFixed(1)} yrs` 
                             : `${cappedMonthsToFlush} mo`}
                         </p>
-                        <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
                       </div>
                     </div>
                   )}
 
-                  {/* Anode Replacement */}
                   {cappedMonthsToAnode > 0 && !anodeNeedsAttention && (
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                          <Shield className="w-5 h-5 text-amber-400" />
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                          <Shield className="w-4 h-4 text-amber-400" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground text-sm">Anode Rod Check</p>
-                          <p className="text-xs text-muted-foreground">Inspect sacrificial anode</p>
+                          <p className="font-medium text-foreground text-xs">Anode Rod Check</p>
+                          <p className="text-[10px] text-muted-foreground">Inspect anode</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-mono font-semibold text-foreground">
+                        <p className="font-mono font-semibold text-foreground text-sm">
                           {cappedMonthsToAnode >= 12 
                             ? `${(cappedMonthsToAnode / 12).toFixed(1)} yrs` 
                             : `${cappedMonthsToAnode} mo`}
                         </p>
-                        <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="border-t border-border/50 pt-4" />
+                <div className="border-t border-border/50 pt-3" />
               </>
             )}
 
             {/* Reminder Section */}
             {reminderMode === 'none' && (
               <>
-                <div className="flex items-center gap-2 mb-3">
-                  <Bell className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-foreground">Set a Reminder</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-foreground text-sm">Set a Reminder</h3>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Don't forget your maintenance! Choose how you'd like to be reminded.
-                </p>
                 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setReminderMode('sms')}
-                    className="p-3 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
+                    className="p-2 rounded-lg border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
                   >
-                    <MessageSquare className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <p className="font-medium text-xs text-foreground">SMS Reminder</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Get a text when due</p>
+                    <MessageSquare className="w-4 h-4 mx-auto mb-1 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <p className="font-medium text-[11px] text-foreground">SMS Reminder</p>
                   </button>
                   
                   <button
                     onClick={() => setReminderMode('contact')}
-                    className="p-3 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
+                    className="p-2 rounded-lg border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
                   >
-                    <Phone className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <p className="font-medium text-xs text-foreground">Contact Me</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Have a plumber call</p>
+                    <Phone className="w-4 h-4 mx-auto mb-1 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <p className="font-medium text-[11px] text-foreground">Contact Me</p>
                   </button>
                 </div>
               </>
