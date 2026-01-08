@@ -179,22 +179,6 @@ export function CommandCenter({
         </div>
 
         {/* ACTION PHASE: What Homeowners Consider */}
-        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.1s' }}>
-          <ServiceHistory 
-            calendarAge={currentInputs.calendarAge}
-            sedimentLbs={sedimentLbs}
-            shieldLife={shieldLife}
-            hasSoftener={currentInputs.hasSoftener}
-            tankCapacityGallons={parseInt(currentAsset.specs.capacity) || 50}
-            failProb={failProb}
-            sedimentRate={sedimentRate}
-            monthsToFlush={monthsToFlush}
-            monthsToLockout={monthsToLockout}
-            flushStatus={flushStatus}
-          />
-        </div>
-
-        {/* ACTION PHASE: What Homeowners Consider */}
         <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.2s' }}>
           <RecommendationBanner 
             recommendation={recommendation} 
