@@ -1,4 +1,10 @@
-import { Calendar, Droplets, Shield, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar, Droplets, Shield, CheckCircle2, AlertCircle, Clock, Bell, BellRing, Phone, Mail, MessageSquare } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface MaintenanceTask {
   id: string;
@@ -16,6 +22,8 @@ interface MaintenanceCalendarProps {
   lastFlushDate?: string;
   lastAnodeDate?: string;
   onScheduleEarly?: (type: string) => void;
+  remindersEnabled?: boolean;
+  onRemindersChange?: (enabled: boolean, contact?: string) => void;
 }
 
 function getTaskConfig(type: string) {
@@ -96,8 +104,35 @@ export function MaintenanceCalendar({
   monthsToAnode,
   lastFlushDate,
   lastAnodeDate,
-  onScheduleEarly
+  onScheduleEarly,
+  remindersEnabled = false,
+  onRemindersChange
 }: MaintenanceCalendarProps) {
+  const [showReminderSetup, setShowReminderSetup] = useState(false);
+  const [reminderMethod, setReminderMethod] = useState<'sms' | 'email'>('sms');
+  const [contactInfo, setContactInfo] = useState('');
+  const [localRemindersEnabled, setLocalRemindersEnabled] = useState(remindersEnabled);
+
+  const handleReminderToggle = (enabled: boolean) => {
+    if (enabled && !localRemindersEnabled) {
+      setShowReminderSetup(true);
+    } else if (!enabled) {
+      setLocalRemindersEnabled(false);
+      onRemindersChange?.(false);
+      toast.info('Reminders disabled');
+    }
+  };
+
+  const handleReminderSubmit = () => {
+    if (!contactInfo.trim()) {
+      toast.error(`Please enter your ${reminderMethod === 'sms' ? 'phone number' : 'email'}`);
+      return;
+    }
+    setLocalRemindersEnabled(true);
+    setShowReminderSetup(false);
+    onRemindersChange?.(true, contactInfo);
+    toast.success(`Reminders enabled! We'll ${reminderMethod === 'sms' ? 'text' : 'email'} you before maintenance is due.`);
+  };
   // Build task list
   const tasks: MaintenanceTask[] = [];
   
@@ -248,6 +283,102 @@ export function MaintenanceCalendar({
           <p className="text-[10px]">No upcoming maintenance scheduled</p>
         </div>
       )}
+
+      {/* Reminder Opt-in Section */}
+      <div className="clean-card p-4 bg-gradient-to-br from-primary/5 to-transparent border-primary/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localRemindersEnabled ? 'bg-primary/20' : 'bg-muted/50'}`}>
+              {localRemindersEnabled ? (
+                <BellRing className="w-5 h-5 text-primary" />
+              ) : (
+                <Bell className="w-5 h-5 text-muted-foreground" />
+              )}
+            </div>
+            <div>
+              <p className="font-semibold text-foreground text-sm">Maintenance Reminders</p>
+              <p className="text-[10px] text-muted-foreground">
+                {localRemindersEnabled ? 'You\'ll be notified before service is due' : 'Get notified when maintenance is due'}
+              </p>
+            </div>
+          </div>
+          <Switch 
+            checked={localRemindersEnabled} 
+            onCheckedChange={handleReminderToggle}
+          />
+        </div>
+
+        {/* Reminder Setup Form */}
+        {showReminderSetup && (
+          <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setReminderMethod('sms')}
+                className={`flex-1 flex items-center justify-center gap-2 p-2.5 rounded-lg border transition-all ${
+                  reminderMethod === 'sms' 
+                    ? 'bg-primary/20 border-primary/40 text-foreground' 
+                    : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/30'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-xs font-medium">Text</span>
+              </button>
+              <button
+                onClick={() => setReminderMethod('email')}
+                className={`flex-1 flex items-center justify-center gap-2 p-2.5 rounded-lg border transition-all ${
+                  reminderMethod === 'email' 
+                    ? 'bg-primary/20 border-primary/40 text-foreground' 
+                    : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/30'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span className="text-xs font-medium">Email</span>
+              </button>
+            </div>
+            
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                {reminderMethod === 'sms' ? 'Phone Number' : 'Email Address'}
+              </Label>
+              <Input
+                type={reminderMethod === 'sms' ? 'tel' : 'email'}
+                placeholder={reminderMethod === 'sms' ? '(555) 123-4567' : 'you@example.com'}
+                value={contactInfo}
+                onChange={(e) => setContactInfo(e.target.value)}
+                className="mt-1 h-9 text-sm"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReminderSetup(false)}
+                className="flex-1 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleReminderSubmit}
+                className="flex-1 text-xs"
+              >
+                Enable Reminders
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Active Reminder Status */}
+        {localRemindersEnabled && !showReminderSetup && (
+          <div className="mt-3 pt-3 border-t border-border/30">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Reminders active • We'll notify you 2 weeks before each service</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
