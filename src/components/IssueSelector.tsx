@@ -186,13 +186,20 @@ export function IssueSelector({ onBack, onSimulate, currentInputs }: IssueSelect
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Eliminates all current failure risk</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="w-3.5 h-3.5 flex items-center justify-center text-green-400">↓</span>
-                    <span>Lower utility bills with modern efficiency</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="w-3.5 h-3.5 flex items-center justify-center text-green-400">+</span>
-                    <span>More hot water, faster recovery</span>
+                  {/* Code compliance section */}
+                  <div className="mt-2 pt-2 border-t border-red-500/20">
+                    <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wide mb-1.5">Includes Required by State Law & Warranty:</p>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="w-3.5 h-3.5 flex items-center justify-center text-red-400">•</span>
+                      <span>PRV installation (pressure regulation)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="w-3.5 h-3.5 flex items-center justify-center text-red-400">•</span>
+                      <span>Expansion tank (thermal protection)</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1.5 italic">
+                      State plumbing code and manufacturer warranties require these components for all new installations.
+                    </p>
                   </div>
                 </div>
               </div>
