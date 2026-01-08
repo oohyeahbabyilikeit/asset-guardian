@@ -1,7 +1,14 @@
 /**
- * OPTERRA v6.6 Risk Calculation Engine
+ * OPTERRA v6.9 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
+ * 
+ * CHANGES v6.9:
+ * - USAGE CALIBRATION: peopleCount and usageType now affect ALL calculations:
+ *   - Anode rod depletion accelerated by usage intensity (sqrt dampening)
+ *   - Thermal cycling stress scales with hot water draw frequency
+ *   - Tank undersizing penalty for small tanks serving large households
+ * - NEW STRESS FACTORS: Added usageIntensity and undersizing to stressFactors output
  * 
  * CHANGES v6.6:
  * - PHYSICS FIX: Implemented "Duty Cycle" logic (0.25 dampener) for Thermal Expansion.
@@ -90,6 +97,9 @@ export interface OpterraMetrics {
     circ: number;
     loop: number;
     sediment: number;
+    // NEW v6.9: Usage-based stress factors
+    usageIntensity: number;   // Combined people + usage type factor
+    undersizing: number;      // Tank too small for household penalty
   };
   riskLevel: RiskLevel;
   
@@ -358,6 +368,27 @@ function getPressureProfile(data: ForensicInputs): { effectivePsi: number; isTra
 
 export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   
+  // ============================================
+  // USAGE INTENSITY CALCULATION (NEW v6.9)
+  // Unified factor applied across all calculations
+  // ============================================
+  const usageMultipliers = { light: 0.6, normal: 1.0, heavy: 1.8 };
+  const usageMultiplier = usageMultipliers[data.usageType] || 1.0;
+  
+  // Occupancy factor (normalized to average 2.5-person household)
+  const occupancyFactor = Math.max(1, data.peopleCount / 2.5);
+  
+  // Combined usage intensity (1.0 = baseline 2.5-person normal use)
+  // Range: 0.6 (1-person light) to ~5.8 (8-person heavy)
+  const usageIntensity = usageMultiplier * occupancyFactor;
+  
+  // Tank undersizing penalty - small tank serving large household cycles more frequently
+  // Rule of thumb: ~15 gallons per person for adequate recovery
+  const expectedCapacity = data.peopleCount * 15;
+  const sizingRatio = expectedCapacity / Math.max(data.tankCapacity, 30);
+  // Penalty kicks in when tank is undersized by >20%
+  const undersizingPenalty = sizingRatio > 1.2 ? 1 + (sizingRatio - 1) * 0.25 : 1.0;
+  
   // 1. ANODE SHIELD LIFE (Quality Credit - use warranty as baseline)
   // A 12-year warranty tank has ~2x the sacrificial metal mass of a 6-year tank
   const baseAnodeLife = data.warrantyYears > 0 ? data.warrantyYears : 6;
@@ -366,6 +397,10 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   let anodeDecayRate = 1.0;
   if (data.hasSoftener) anodeDecayRate += 1.4;  // Conductivity accelerates consumption
   if (data.hasCircPump) anodeDecayRate += 0.5;  // Erosion/amperage
+  
+  // NEW v6.9: Usage intensity accelerates electrochemical reactions
+  // More hot water draws = more anode consumption (sqrt dampening for realism)
+  anodeDecayRate *= Math.pow(usageIntensity, 0.5);
   
   // Effective shield duration (how long the anode protects the steel)
   const effectiveShieldDuration = baseAnodeLife / anodeDecayRate;
@@ -385,16 +420,8 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Softened water removes 95%+ of minerals; remaining sediment is primarily anode byproduct
   const effectiveHardness = data.hasSoftener ? 0.5 : data.hardnessGPG;
   
-  // USAGE CALIBRATION (NEW v6.8)
-  // Usage multiplier based on household size and shower habits
-  const usageMultipliers = { light: 0.6, normal: 1.0, heavy: 1.8 };
-  const usageMultiplier = usageMultipliers[data.usageType] || 1.0;
-  
-  // Occupancy factor (normalized to average 2.5-person household)
-  const occupancyFactor = Math.max(1, data.peopleCount / 2.5);
-  
-  // Combined volume factor
-  const volumeFactor = usageMultiplier * occupancyFactor;
+  // Volume factor now uses the pre-calculated usageIntensity
+  const volumeFactor = usageIntensity;
   
   // SERVICE HISTORY: Residual Sediment Model (v6.7)
   // Flushing removes ~50% of sediment (conservative estimate for DIY flushes)
@@ -467,7 +494,8 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const sedimentStress = 1.0 + ((sedimentLbs * sedimentLbs) / 300);
 
   // Combine mechanical stresses - these hurt the tank from Day 1
-  const mechanicalStress = pressureStress * sedimentStress;
+  // NEW v6.9: Include undersizing penalty (more cycling = more fatigue)
+  const mechanicalStress = pressureStress * sedimentStress * undersizingPenalty;
 
 
   // === CHEMICAL STRESS (Corrosion - Anode CAN Prevent) ===
@@ -486,7 +514,10 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   
   // Split the factor between mechanical (expansion) and chemical (rust)
   // sqrt(1.5) = 1.22x multiplier for each component.
-  const tempMechanical = Math.sqrt(tempStressRaw);  // 50% mechanical (expansion cycles)
+  // NEW v6.9: Thermal cycling scales with usage - more hot water draws = more expansion cycles
+  // A heavy-use 6-person family might cycle 8-10x/day vs 2-3x for light use
+  const thermalCycleMultiplier = 1 + (usageIntensity - 1) * 0.12;
+  const tempMechanical = Math.sqrt(tempStressRaw) * thermalCycleMultiplier;  // 50% mechanical (expansion cycles)
   const tempChemical = Math.sqrt(tempStressRaw);    // 50% chemical (rust acceleration)
 
   // D. Circulation (Erosion-Corrosion & Duty Cycle) - 100% chemical
@@ -609,7 +640,10 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
       tempChemical: parseFloat(tempChemical.toFixed(2)),
       circ: circStress,
       loop: loopPenalty,
-      sediment: parseFloat(sedimentStress.toFixed(2))
+      sediment: parseFloat(sedimentStress.toFixed(2)),
+      // NEW v6.9: Usage-based stress factors
+      usageIntensity: parseFloat(usageIntensity.toFixed(2)),
+      undersizing: parseFloat(undersizingPenalty.toFixed(2))
     },
     riskLevel: getLocationRisk(data.location, data.isFinishedArea),
     sedimentRate: parseFloat(sedimentRate.toFixed(2)),
