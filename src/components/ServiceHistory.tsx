@@ -649,29 +649,36 @@ export function ServiceHistory({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="mx-4 overflow-hidden border-border/50 bg-card/50">
+      <div className="command-card hover-glow mx-4">
+        {/* Tech grid overlay */}
+        <div className="absolute inset-0 tech-grid-bg opacity-20 pointer-events-none" />
+        
         <CollapsibleTrigger asChild>
           <Button 
             variant="ghost" 
-            className="w-full flex items-center justify-between p-4 h-auto hover:bg-muted/50"
+            className="w-full flex items-center justify-between command-header hover:bg-white/[0.02] transition-colors relative z-10"
           >
-            <div className="flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-primary" />
-              <span className="font-semibold text-sm">Tank Health</span>
+            <div className="flex items-center gap-3">
+              <div className="command-icon-sm command-icon-warning">
+                <Wrench className="w-4 h-4 text-amber-400" />
+              </div>
+              <span className="font-semibold text-sm tracking-tight">Tank Health</span>
             </div>
             <div className="flex items-center gap-2">
               {(needsFlush || needsAnode) && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
                   SERVICE DUE
                 </span>
               )}
-              {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              <div className="command-trigger">
+                {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </div>
             </div>
           </Button>
         </CollapsibleTrigger>
         
         <CollapsibleContent>
-          <div className="px-4 pb-4 space-y-4 border-t border-border/50 pt-4">
+          <div className="command-content space-y-4 border-t border-border/20 relative z-10">
             {/* Professional Water Heater Diagram */}
             <div className="flex flex-col items-center">
               <WaterHeaterDiagram 
@@ -684,36 +691,38 @@ export function ServiceHistory({
               
               {/* Stats Row */}
               <div className="flex justify-center gap-8 mt-4 w-full">
-                <div className="text-center">
+                <div className="text-center data-display px-4 py-2">
                   <div className={cn(
                     "text-lg font-bold font-data",
                     anodeStatus === 'critical' ? "text-red-400" : 
-                    anodeStatus === 'warning' ? "text-amber-400" : "text-green-400"
+                    anodeStatus === 'warning' ? "text-amber-400" : "text-emerald-400"
                   )}>
                     {shieldLife > 0 ? `${shieldLife.toFixed(1)} yr` : 'DEPLETED'}
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Anode Life</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Anode Life</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center data-display px-4 py-2">
                   <div className={cn(
                     "text-lg font-bold font-data",
                     sedimentStatus === 'critical' ? "text-red-400" : 
-                    sedimentStatus === 'warning' ? "text-amber-400" : "text-green-400"
+                    sedimentStatus === 'warning' ? "text-amber-400" : "text-emerald-400"
                   )}>
                     {sedimentLbs.toFixed(1)} lbs
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Sediment</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Sediment</div>
                 </div>
               </div>
             </div>
 
             {/* Sediment Projection Card */}
-            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-primary" />
+            <div className="data-display-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="command-icon-sm">
+                  <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                </div>
                 <span className="text-xs font-semibold">Sediment Forecast</span>
               </div>
-              <div className="text-xs text-muted-foreground space-y-1">
+              <div className="text-xs text-muted-foreground space-y-1.5">
                 <div className="flex justify-between">
                   <span>Current:</span>
                   <span className="font-mono font-medium text-foreground">{sedimentLbs.toFixed(1)} lbs</span>
@@ -723,11 +732,11 @@ export function ServiceHistory({
                   <span className="font-mono text-foreground">+{sedimentRate.toFixed(2)} lbs/yr</span>
                 </div>
                 {flushStatus === 'optimal' && monthsToFlush !== null && (
-                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
                     <span>Schedule flush in:</span>
                     <span className={cn(
                       "font-mono font-medium",
-                      monthsToFlush <= 6 ? "text-amber-400" : "text-green-400"
+                      monthsToFlush <= 6 ? "text-amber-400" : "text-emerald-400"
                     )}>
                       {monthsToFlush >= 12 
                         ? `${(monthsToFlush / 12).toFixed(1)} yrs` 
@@ -736,19 +745,19 @@ export function ServiceHistory({
                   </div>
                 )}
                 {flushStatus === 'schedule' && monthsToFlush !== null && (
-                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
                     <span className="text-amber-400">⚠ Flush recommended in:</span>
                     <span className="font-mono font-medium text-amber-400">{monthsToFlush} mo</span>
                   </div>
                 )}
                 {flushStatus === 'due' && (
-                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
                     <span className="text-amber-400 font-medium">🔧 Flush now</span>
                     <span className="font-mono text-amber-400">5-15 lb zone</span>
                   </div>
                 )}
                 {flushStatus === 'lockout' && (
-                  <div className="flex justify-between pt-1 border-t border-border/50 mt-1">
+                  <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
                     <span className="text-red-400 font-medium">🚫 Flush unsafe</span>
                     <span className="font-mono text-red-400">&gt;15 lbs hardened</span>
                   </div>
@@ -758,21 +767,23 @@ export function ServiceHistory({
 
             {/* Service Recommendations */}
             {(needsFlush || needsAnode) && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-semibold text-amber-400">Recommended Service</span>
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">Recommended Service</span>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {needsFlush && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Droplets className="w-3 h-3" />
+                    <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                      <Droplets className="w-3.5 h-3.5 text-amber-400" />
                       <span>Tank flush to remove {sedimentLbs.toFixed(1)} lbs of sediment</span>
                     </div>
                   )}
                   {needsAnode && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Shield className="w-3 h-3" />
+                    <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                      <Shield className="w-3.5 h-3.5 text-amber-400" />
                       <span>Anode rod replacement (tank still viable)</span>
                     </div>
                   )}
@@ -782,10 +793,10 @@ export function ServiceHistory({
 
             {/* Service History */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-muted-foreground">Service History</span>
-                <Button variant="ghost" size="sm" className="h-6 text-xs text-primary">
-                  <Plus className="w-3 h-3 mr-1" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Service History</span>
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10">
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
                   Add
                 </Button>
               </div>
@@ -793,41 +804,41 @@ export function ServiceHistory({
               {serviceHistory.length > 0 ? (
                 <div className="space-y-2">
                   {serviceHistory.map((event) => (
-                    <div key={event.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                    <div key={event.id} className="flex items-center gap-3 p-3 rounded-xl data-display">
                       <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center",
-                        event.type === 'anode_replacement' ? 'bg-blue-500/20' : 
-                        event.type === 'flush' ? 'bg-amber-500/20' : 'bg-green-500/20'
+                        "w-9 h-9 rounded-lg flex items-center justify-center border",
+                        event.type === 'anode_replacement' ? 'bg-blue-500/15 border-blue-500/25' : 
+                        event.type === 'flush' ? 'bg-amber-500/15 border-amber-500/25' : 'bg-emerald-500/15 border-emerald-500/25'
                       )}>
                         {event.type === 'anode_replacement' ? (
                           <Shield className="w-4 h-4 text-blue-400" />
                         ) : event.type === 'flush' ? (
                           <Droplets className="w-4 h-4 text-amber-400" />
                         ) : (
-                          <Wrench className="w-4 h-4 text-green-400" />
+                          <Wrench className="w-4 h-4 text-emerald-400" />
                         )}
                       </div>
                       <div className="flex-1">
-                        <p className="text-xs font-medium text-foreground">
+                        <p className="text-sm font-medium text-foreground">
                           {event.type === 'anode_replacement' ? 'Anode Replaced' :
                            event.type === 'flush' ? 'Tank Flushed' : 'Inspection'}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">{event.date}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium">{event.date}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4 text-xs text-muted-foreground">
-                  <Calendar className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                  <p>No service records</p>
-                  <p className="text-[10px]">Add maintenance history for better tracking</p>
+                <div className="text-center py-6 data-display rounded-xl">
+                  <Calendar className="w-7 h-7 mx-auto mb-2 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground font-medium">No service records</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Add maintenance history for better tracking</p>
                 </div>
               )}
             </div>
           </div>
         </CollapsibleContent>
-      </Card>
+      </div>
     </Collapsible>
   );
 }
