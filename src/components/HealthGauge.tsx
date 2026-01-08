@@ -25,7 +25,11 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
   };
 
   return (
-    <div className="clean-card relative overflow-hidden tech-corners">
+    <div className={cn(
+      "command-card tech-corners p-5 relative overflow-hidden",
+      status === 'critical' && "animate-border-pulse-critical",
+      status === 'warning' && "animate-border-pulse-warning"
+    )}>
       {/* Tech grid overlay */}
       <div className="absolute inset-0 tech-grid-bg opacity-30 pointer-events-none" />
       
@@ -39,16 +43,23 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
       {/* Radial glow background */}
       <div className={cn(
         "absolute inset-0 pointer-events-none",
-        status === 'critical' && "bg-gradient-radial from-red-950/30 to-transparent",
-        status === 'warning' && "bg-gradient-radial from-amber-950/30 to-transparent",
-        status === 'optimal' && "bg-gradient-radial from-green-950/30 to-transparent"
+        status === 'critical' && "bg-gradient-radial from-red-950/20 to-transparent",
+        status === 'warning' && "bg-gradient-radial from-amber-950/20 to-transparent",
+        status === 'optimal' && "bg-gradient-radial from-green-950/20 to-transparent"
       )} />
 
-      <div className="relative flex flex-col items-center text-center">
+      <div className="relative flex flex-col items-center text-center z-10">
         {/* Header */}
-        <div className="flex items-center gap-2 mb-3 self-start">
-          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="flex items-center gap-2.5 mb-4 self-start">
+          <div className={cn(
+            "command-icon-sm",
+            status === 'critical' && "command-icon-critical",
+            status === 'warning' && "command-icon-warning",
+            status === 'optimal' && "command-icon-success"
+          )}>
+            <Activity className="w-4 h-4" />
+          </div>
+          <span className="command-title">
             System Diagnostics
           </span>
         </div>
@@ -57,31 +68,31 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
         <div className="flex items-center justify-center gap-6 w-full mb-4">
           {/* Score Ring */}
           <div className={cn("relative rounded-full", getGlowClass())}>
-            <div className="w-24 h-24 rounded-full border-[5px] border-secondary flex items-center justify-center bg-card">
+            <div className="w-28 h-28 rounded-full border-[6px] border-secondary/60 flex items-center justify-center bg-card/80 backdrop-blur-sm">
               <div className="text-center">
-                <span className="block text-2xl font-black text-foreground tracking-tight font-data">
+                <span className="block text-3xl font-black text-foreground tracking-tight font-data">
                   {score}
                 </span>
-                <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">/ 100</span>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">/ 100</span>
               </div>
             </div>
             
             {/* Colored Progress Ring */}
             <svg 
-              className="absolute top-0 left-0 w-24 h-24 -rotate-90"
+              className="absolute top-0 left-0 w-28 h-28 -rotate-90"
               style={{
-                filter: `drop-shadow(0 0 8px ${getRingColor()})`,
+                filter: `drop-shadow(0 0 12px ${getRingColor()})`,
               }}
             >
               <circle 
-                cx="48" 
-                cy="48" 
-                r="42" 
+                cx="56" 
+                cy="56" 
+                r="50" 
                 fill="none" 
                 stroke={getRingColor()} 
-                strokeWidth="5" 
-                strokeDasharray={264} 
-                strokeDashoffset={264 - (score / 100) * 264} 
+                strokeWidth="6" 
+                strokeDasharray={314} 
+                strokeDashoffset={314 - (score / 100) * 314} 
                 strokeLinecap="round"
                 className="transition-all duration-1000 ease-out"
               />
@@ -89,16 +100,16 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
           </div>
 
           {/* Stats Column */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {/* Failure Probability */}
-            <div className="data-box data-box-critical py-2 px-3">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <TrendingUp className="w-3 h-3 text-red-400" />
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="data-box data-box-critical py-3 px-4">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-3.5 h-3.5 text-red-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Failure Rate
                 </span>
               </div>
-              <div className="text-lg font-black text-red-400 font-data">
+              <div className="text-xl font-black text-red-400 font-data">
                 {failureProbability === 'FAIL' 
                   ? 'FAIL' 
                   : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
@@ -107,17 +118,17 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
 
             {/* Location Risk Level */}
             <div className={cn(
-              "data-box py-2 px-3",
+              "data-box py-3 px-4",
               riskLevel >= 3 ? "data-box-critical" : "data-box-warning"
             )}>
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <AlertTriangle className={cn("w-3 h-3", riskLevel >= 3 ? "text-red-400" : "text-amber-400")} />
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className={cn("w-3.5 h-3.5", riskLevel >= 3 ? "text-red-400" : "text-amber-400")} />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Location Risk
                 </span>
               </div>
               <div className={cn(
-                "text-lg font-black font-data",
+                "text-xl font-black font-data",
                 riskLevel >= 3 ? "text-red-400" : "text-amber-400"
               )}>
                 {riskInfo.label}
@@ -127,20 +138,27 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
         </div>
 
         {/* Location Context */}
-        <div className="w-full p-2.5 rounded-lg bg-secondary/30 border border-border">
-          <div className="flex items-start gap-2 text-left">
-            <MapPin className={cn(
-              "w-3.5 h-3.5 mt-0.5 shrink-0",
-              riskLevel >= 3 ? "text-red-400" : "text-amber-400"
-            )} />
+        <div className="w-full data-display-lg">
+          <div className="flex items-start gap-3 text-left">
+            <div className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+              riskLevel >= 3 
+                ? "bg-red-500/10 border border-red-500/20" 
+                : "bg-amber-500/10 border border-amber-500/20"
+            )}>
+              <MapPin className={cn(
+                "w-4 h-4",
+                riskLevel >= 3 ? "text-red-400" : "text-amber-400"
+              )} />
+            </div>
             <div className="flex-1 min-w-0">
               <span className={cn(
-                "text-[9px] font-bold uppercase tracking-wider font-data",
+                "text-xs font-bold uppercase tracking-wider font-data",
                 riskLevel >= 3 ? "text-red-400" : "text-amber-400"
               )}>
                 {location} Installation
               </span>
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {riskInfo.description}
               </p>
             </div>
@@ -149,7 +167,7 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
       </div>
       
       {/* Disclaimer */}
-      <p className="text-[8px] text-muted-foreground/60 text-center mt-2">
+      <p className="text-[9px] text-muted-foreground/50 text-center mt-3 relative z-10">
         Statistics based on industry data for similar units.
       </p>
     </div>
