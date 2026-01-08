@@ -19,9 +19,10 @@ export function ActionDock({
   monthsToFlush,
   flushStatus
 }: ActionDockProps) {
-  // Check if service is due soon (within 6 months) or overdue
-  const isServiceDueSoon = monthsToFlush !== null && monthsToFlush !== undefined && monthsToFlush <= 6 && monthsToFlush > 0;
-  const isServiceOverdue = flushStatus === 'due' || flushStatus === 'lockout' || (monthsToFlush !== null && monthsToFlush !== undefined && monthsToFlush <= 0);
+  // Check if service is due NOW based on sediment weight (flushStatus from algorithm)
+  const isServiceOverdue = flushStatus === 'due' || flushStatus === 'lockout';
+  // Check if service should be scheduled soon (algorithm says within 12 months, or monthsToFlush <= 6)
+  const isServiceDueSoon = flushStatus === 'schedule' || (monthsToFlush !== null && monthsToFlush !== undefined && monthsToFlush <= 6 && monthsToFlush > 0);
   const needsServiceAttention = isServiceDueSoon || isServiceOverdue;
   
   // Determine which handler to use - maintenance plan for service-related CTAs
