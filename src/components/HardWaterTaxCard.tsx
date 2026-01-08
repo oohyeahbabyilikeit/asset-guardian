@@ -71,22 +71,22 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
             }
           </p>
 
-          {/* Breakdown Grid */}
+          {/* Breakdown Grid - muted icons */}
           <div className="grid grid-cols-3 gap-2 mb-3">
             <div className="data-display text-center">
-              <Flame className="w-3.5 h-3.5 mx-auto mb-1 text-red-400" />
+              <Flame className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground">Energy</p>
-              <p className="text-xs font-semibold font-data">${energyLoss}</p>
+              <p className="text-xs font-semibold font-data text-foreground">${energyLoss}</p>
             </div>
             <div className="data-display text-center">
-              <TrendingDown className="w-3.5 h-3.5 mx-auto mb-1 text-purple-400" />
+              <TrendingDown className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground">Appliance</p>
-              <p className="text-xs font-semibold font-data">${applianceDepreciation}</p>
+              <p className="text-xs font-semibold font-data text-foreground">${applianceDepreciation}</p>
             </div>
             <div className="data-display text-center">
-              <Droplets className="w-3.5 h-3.5 mx-auto mb-1 text-blue-400" />
+              <Droplets className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground">Soap</p>
-              <p className="text-xs font-semibold font-data">${detergentOverspend}</p>
+              <p className="text-xs font-semibold font-data text-foreground">${detergentOverspend}</p>
             </div>
           </div>
 

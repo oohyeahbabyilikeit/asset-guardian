@@ -13,7 +13,7 @@ interface IndustryBenchmarksProps {
   recommendation?: { action: 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS' | 'URGENT' };
 }
 
-// Aging Speedometer Component
+// Aging Speedometer Component - muted colors, only colorize for warnings
 function AgingSpeedometer({ agingRate }: { agingRate: number }) {
   const displayRate = parseFloat(agingRate.toFixed(1));
   
@@ -24,10 +24,14 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
   const normalizedRate = (clampedRate - minRate) / (maxRate - minRate);
   const needleAngle = -90 + (normalizedRate * 180);
   
+  // Only colorize for warnings/critical
+  const isWarning = displayRate > 1.0;
+  const isCritical = displayRate > 1.5;
+  
   const getColor = () => {
-    if (displayRate <= 1.0) return 'hsl(142 71% 45%)';
-    if (displayRate <= 1.5) return 'hsl(45 93% 47%)';
-    return 'hsl(0 84% 60%)';
+    if (isCritical) return 'hsl(0 84% 60%)';
+    if (isWarning) return 'hsl(45 93% 47%)';
+    return 'hsl(var(--muted-foreground))';
   };
   
   const getStatusText = () => {
@@ -40,6 +44,7 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
   return (
     <div className="flex flex-col items-center">
       <svg width="80" height="46" viewBox="0 0 100 56" className="overflow-visible">
+        {/* Background arc - muted */}
         <path
           d="M 10 52 A 40 40 0 0 1 90 52"
           fill="none"
@@ -47,25 +52,29 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
           strokeWidth="6"
           strokeLinecap="round"
         />
+        {/* Subtle zone indicators - very muted */}
         <path
           d="M 10 52 A 40 40 0 0 1 22 22"
           fill="none"
-          stroke="hsl(142 71% 45% / 0.4)"
+          stroke="hsl(var(--muted-foreground))"
           strokeWidth="6"
           strokeLinecap="round"
+          className="opacity-15"
         />
         <path
           d="M 22 22 A 40 40 0 0 1 50 12"
           fill="none"
-          stroke="hsl(45 93% 47% / 0.4)"
+          stroke="hsl(var(--muted-foreground))"
           strokeWidth="6"
+          className="opacity-20"
         />
         <path
           d="M 50 12 A 40 40 0 0 1 90 52"
           fill="none"
-          stroke="hsl(0 84% 60% / 0.4)"
+          stroke="hsl(var(--muted-foreground))"
           strokeWidth="6"
           strokeLinecap="round"
+          className="opacity-25"
         />
         <g 
           style={{ 
@@ -82,28 +91,32 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
             stroke={getColor()}
             strokeWidth="2.5"
             strokeLinecap="round"
-            style={{ filter: `drop-shadow(0 0 4px ${getColor()})` }}
+            style={{ filter: isWarning ? `drop-shadow(0 0 4px ${getColor()})` : 'none' }}
           />
           <circle 
             cx="50" 
             cy="52" 
             r="4" 
             fill={getColor()}
-            style={{ filter: `drop-shadow(0 0 6px ${getColor()})` }}
+            style={{ filter: isWarning ? `drop-shadow(0 0 6px ${getColor()})` : 'none' }}
           />
         </g>
       </svg>
       
       <div className="flex flex-col items-center">
         <span 
-          className="text-lg font-black font-data"
-          style={{ color: getColor() }}
+          className={cn(
+            "text-lg font-black font-data",
+            isCritical ? "text-red-400" : isWarning ? "text-amber-400" : "text-foreground"
+          )}
         >
           {displayRate.toFixed(1)}x
         </span>
         <span 
-          className="text-[9px] font-semibold uppercase tracking-wider"
-          style={{ color: getColor() }}
+          className={cn(
+            "text-[9px] font-semibold uppercase tracking-wider",
+            isCritical ? "text-red-400" : isWarning ? "text-amber-400" : "text-muted-foreground"
+          )}
         >
           {getStatusText()}
         </span>
@@ -188,7 +201,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
 
       {/* Content */}
       <div className="p-4 space-y-4">
-        {/* Lifespan Progress Bar */}
+        {/* Lifespan Progress Bar - simplified monochrome */}
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
             <span className="text-xs text-muted-foreground font-medium">Lifespan Progress</span>
@@ -205,9 +218,15 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
           
           <div className="relative">
             <div className="h-2.5 bg-secondary/40 rounded-full overflow-hidden border border-border/30">
+              {/* Simple filled bar - color based on status */}
               <div 
-                className="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 rounded-full transition-all duration-500"
-                style={{ width: '100%' }}
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  lifespanProgress >= 100 ? "bg-red-500/50" :
+                  lifespanProgress >= 75 ? "bg-amber-500/30" :
+                  "bg-muted-foreground/25"
+                )}
+                style={{ width: `${Math.min(lifespanProgress, 100)}%` }}
               />
             </div>
             {/* Marker for effective age */}
@@ -220,7 +239,6 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
                   "w-0.5 h-4 rounded-full shadow-lg",
                   lifespanProgress >= 100 ? "bg-red-400" : "bg-foreground"
                 )} 
-                style={{ boxShadow: lifespanProgress >= 100 ? '0 0 12px rgba(239,68,68,0.7)' : '0 0 8px rgba(255,255,255,0.5)' }} 
               />
             </div>
           </div>
@@ -251,17 +269,18 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
                   onClick={() => toggleFactor(factor.id)}
                   className="w-full flex items-center gap-3 p-3 data-display hover:border-border/50 rounded-xl transition-all text-left group"
                 >
+                  {/* Icon - muted by default, only colorize for warnings */}
                   <div className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center border shrink-0",
                     factor.isCritical 
                       ? "bg-red-500/15 border-red-500/30" 
                       : factor.isAbove 
                         ? "bg-amber-500/15 border-amber-500/30" 
-                        : "bg-emerald-500/10 border-emerald-500/25"
+                        : "bg-secondary border-border/50"
                   )}>
                     <factor.icon className={cn(
                       "w-4 h-4",
-                      factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
+                      factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-muted-foreground'
                     )} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -273,9 +292,10 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
                     </div>
                     <span className="text-[10px] text-muted-foreground">({factor.threshold})</span>
                   </div>
+                  {/* Value - muted by default, only colorize for warnings */}
                   <span className={cn(
                     "text-xs font-bold shrink-0",
-                    factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-emerald-400'
+                    factor.isCritical ? 'text-red-400' : factor.isAbove ? 'text-amber-400' : 'text-muted-foreground'
                   )}>
                     {factor.current}
                   </span>
