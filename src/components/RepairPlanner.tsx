@@ -194,68 +194,6 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
       </header>
 
       <div className="relative p-4 max-w-md mx-auto pb-32">
-        {/* Sticky Impact Preview - Only show for non-economic replacement */}
-        {!isEconomicReplacement && (
-          <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-4 bg-background/95 backdrop-blur-sm">
-            <div className="clean-card border-primary/30">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-3 text-center">Impact Preview</p>
-              
-              <div className="flex items-center justify-center gap-4">
-                {/* Current Score */}
-                <div className="text-center">
-                  <div className={`w-16 h-16 rounded-xl border-2 ${getStatusBg(currentStatus)} flex flex-col items-center justify-center`}>
-                    <span className={`text-xl font-bold font-data ${getStatusColor(currentStatus)}`}>{currentScore}</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">Now</p>
-                </div>
-
-                {/* Arrow */}
-                <div className="flex flex-col items-center">
-                  <div className={`text-xl transition-colors duration-300 ${selectedRepairs.length > 0 ? 'text-primary' : 'text-muted-foreground/30'}`}>→</div>
-                  {selectedRepairs.length > 0 && scoreImprovement > 0 && (
-                    <span className="text-xs text-green-400 font-medium">+{scoreImprovement}</span>
-                  )}
-                </div>
-
-                {/* Projected Score */}
-                <div className="text-center">
-                  <div 
-                    className={`w-16 h-16 rounded-xl border-2 transition-all duration-300 ${getStatusBg(projectedStatus)} flex flex-col items-center justify-center`}
-                    style={{
-                      boxShadow: selectedRepairs.length > 0 && projectedStatus === 'optimal' 
-                        ? '0 0 20px -4px rgba(34, 197, 94, 0.4)' 
-                        : undefined
-                    }}
-                  >
-                    <span className={`text-xl font-bold font-data transition-colors duration-300 ${getStatusColor(projectedStatus)}`}>
-                      {animatedNewScore}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">After</p>
-                </div>
-              </div>
-
-              {selectedRepairs.length > 0 && !isReplacementSelected && (
-                <div className="flex items-center justify-center gap-4 mt-3 text-xs">
-                  <span className="text-muted-foreground">
-                    <TrendingDown className="w-3 h-3 inline mr-1" />
-                    Aging: <span className="text-green-400">{result.newAgingFactor.toFixed(1)}x</span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    Risk: <span className="text-green-400">{result.newFailureProb.toFixed(1)}%</span>
-                  </span>
-                </div>
-              )}
-
-              {isReplacementSelected && (
-                <div className="flex items-center justify-center gap-2 mt-3">
-                  <Sparkles className="w-3.5 h-3.5 text-green-400" />
-                  <span className="text-xs text-green-400 font-medium">All risks eliminated with new unit</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Replacement Banner - Enhanced for Safety Replacement */}
         {isSafetyReplacement && (
