@@ -58,6 +58,15 @@ export interface VitalsData {
     functional: boolean; // false if present but psi > 75
     status: 'critical' | 'warning' | 'optimal';
   };
+  // NEW v6.9: Usage impact metrics
+  usageImpact: {
+    usageIntensity: number;    // Combined people + usage factor (1.0 = baseline)
+    undersizing: number;       // Tank sizing penalty (1.0 = adequate, >1.0 = undersized)
+    peopleCount: number;
+    usageType: 'light' | 'normal' | 'heavy';
+    tankCapacity: number;
+    status: 'critical' | 'warning' | 'optimal';
+  };
 }
 
 export interface AuditFinding {

@@ -87,6 +87,14 @@ export function CommandCenter({
     currentInputs.hasPrv && !prvFunctional ? 'warning' : // Installed but failed (high pressure)
     'critical'; // Needed but not installed
   
+  // Usage impact status - warn if usage intensity > 1.5 or undersizing > 1.2
+  const usageIntensity = opterraMetrics.stressFactors.usageIntensity;
+  const undersizing = opterraMetrics.stressFactors.undersizing;
+  const usageStatus: 'critical' | 'warning' | 'optimal' = 
+    undersizing > 1.3 || usageIntensity > 2.5 ? 'critical' :
+    undersizing > 1.1 || usageIntensity > 1.5 ? 'warning' : 
+    'optimal';
+
   const dynamicVitals: VitalsData = {
     pressure: {
       current: currentInputs.housePsi,
@@ -122,6 +130,14 @@ export function CommandCenter({
       required: prvRequired,
       functional: prvFunctional,
       status: prvStatus,
+    },
+    usageImpact: {
+      usageIntensity: usageIntensity,
+      undersizing: undersizing,
+      peopleCount: currentInputs.peopleCount,
+      usageType: currentInputs.usageType,
+      tankCapacity: currentInputs.tankCapacity,
+      status: usageStatus,
     },
   };
 
