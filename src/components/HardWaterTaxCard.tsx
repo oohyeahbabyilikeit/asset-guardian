@@ -28,96 +28,102 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
 
   return (
     <div className={cn(
-      "command-card p-5",
+      "command-card overflow-hidden",
       isRecommend ? "border-amber-500/30" : "border-yellow-500/20"
     )}>
-      <div className="flex items-start gap-4">
-        <div className={cn(
-          "command-icon shrink-0",
-          isRecommend ? "command-icon-warning" : "bg-yellow-500/10 border border-yellow-500/20"
-        )}>
-          <AlertTriangle className={cn(
-            "w-5 h-5",
-            isRecommend ? "text-amber-400" : "text-yellow-400"
-          )} />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className={cn(
-              "font-semibold text-sm",
-              isRecommend ? "text-amber-400" : "text-yellow-400"
-            )}>
-              {isRecommend ? 'SOFTENER RECOMMENDED' : 'CONSIDER SOFTENER'}
-            </span>
-            <span className={cn(
-              "text-[10px] font-medium px-2 py-0.5 rounded-full border",
+      {/* Accent bar */}
+      <div className={cn(
+        "h-1",
+        isRecommend 
+          ? "bg-gradient-to-r from-amber-500/50 via-orange-500/50 to-amber-500/50" 
+          : "bg-gradient-to-r from-yellow-500/30 via-yellow-400/30 to-yellow-500/30"
+      )} />
+      
+      <div className="p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
               isRecommend 
-                ? "bg-amber-500/10 text-amber-400 border-amber-500/20" 
-                : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                ? "bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30" 
+                : "bg-yellow-500/10 border border-yellow-500/20"
             )}>
-              {hardnessGPG} GPG
-            </span>
-          </div>
-          
-          <p className="text-sm font-medium text-foreground mb-1">
-            Hard Water Tax: <span className="font-data text-amber-300">${totalAnnualLoss}</span>/year
-          </p>
-          
-          <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-            {isRecommend 
-              ? `High hardness is costing you money. A softener pays for itself.`
-              : `Moderate hardness detected. Consider for comfort and efficiency.`
-            }
-          </p>
-
-          {/* Breakdown Grid - muted icons */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="data-display text-center">
-              <Flame className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-[10px] text-muted-foreground">Energy</p>
-              <p className="text-xs font-semibold font-data text-foreground">${energyLoss}</p>
+              <Droplets className={cn(
+                "w-5 h-5",
+                isRecommend ? "text-amber-400" : "text-yellow-400"
+              )} />
             </div>
-            <div className="data-display text-center">
-              <TrendingDown className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-[10px] text-muted-foreground">Appliance</p>
-              <p className="text-xs font-semibold font-data text-foreground">${applianceDepreciation}</p>
-            </div>
-            <div className="data-display text-center">
-              <Droplets className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-[10px] text-muted-foreground">Soap</p>
-              <p className="text-xs font-semibold font-data text-foreground">${detergentOverspend}</p>
+            <div>
+              <h3 className={cn(
+                "font-semibold text-sm",
+                isRecommend ? "text-amber-400" : "text-yellow-400"
+              )}>
+                {isRecommend ? 'Softener Recommended' : 'Consider Softener'}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {isRecommend 
+                  ? 'High hardness is costing you money'
+                  : 'Moderate hardness detected'
+                }
+              </p>
             </div>
           </div>
-
-          {/* ROI Comparison */}
-          <div className="bg-secondary/30 rounded-lg p-3 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Annual Hard Water Loss</span>
-              <span className="font-data font-medium text-amber-400">${totalAnnualLoss}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Softener Cost (amortized)</span>
-              <span className="font-data font-medium text-muted-foreground">${softenerAnnualCost}</span>
-            </div>
-            {netAnnualSavings > 0 && (
-              <div className="flex items-center justify-between text-xs pt-2 border-t border-border/30">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400 font-medium">Net Savings</span>
-                </div>
-                <span className="font-data font-bold text-emerald-400">${netAnnualSavings}/yr</span>
-              </div>
-            )}
+          <div className={cn(
+            "text-xs font-bold px-3 py-1.5 rounded-full",
+            isRecommend 
+              ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" 
+              : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+          )}>
+            {hardnessGPG} GPG
           </div>
-
-          {/* Payback Period */}
-          {netAnnualSavings > 0 && paybackYears < 20 && (
-            <p className="text-[10px] text-muted-foreground mt-2 text-center">
-              Payback period: ~{paybackYears} years • ~$20/mo over softener lifetime
-            </p>
-          )}
         </div>
+
+        {/* Main Cost Display */}
+        <div className="text-center py-3 bg-secondary/20 rounded-xl border border-border/30">
+          <p className="text-xs text-muted-foreground mb-1">Annual Hard Water Tax</p>
+          <p className="text-2xl font-bold text-amber-400 font-data">${totalAnnualLoss}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">per year in hidden costs</p>
+        </div>
+
+        {/* Cost Breakdown */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center p-3 bg-secondary/30 rounded-lg">
+            <Flame className="w-4 h-4 mx-auto mb-2 text-orange-400/70" />
+            <p className="text-sm font-bold font-data text-foreground">${energyLoss}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Energy Loss</p>
+          </div>
+          <div className="text-center p-3 bg-secondary/30 rounded-lg">
+            <TrendingDown className="w-4 h-4 mx-auto mb-2 text-red-400/70" />
+            <p className="text-sm font-bold font-data text-foreground">${applianceDepreciation}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Appliance Wear</p>
+          </div>
+          <div className="text-center p-3 bg-secondary/30 rounded-lg">
+            <Droplets className="w-4 h-4 mx-auto mb-2 text-blue-400/70" />
+            <p className="text-sm font-bold font-data text-foreground">${detergentOverspend}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Extra Soap</p>
+          </div>
+        </div>
+
+        {/* ROI Summary */}
+        {netAnnualSavings > 0 && (
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-medium text-emerald-400">With a Softener</span>
+              </div>
+              <span className="text-lg font-bold font-data text-emerald-400">+${netAnnualSavings}/yr</span>
+            </div>
+            
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Softener cost: ~${softenerAnnualCost}/yr amortized</span>
+              {paybackYears < 20 && (
+                <span>Pays for itself in ~{paybackYears} yrs</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
