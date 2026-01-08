@@ -1,11 +1,10 @@
-import { AlertTriangle, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Recommendation, ActionType } from '@/lib/opterraAlgorithm';
+import { Recommendation } from '@/lib/opterraAlgorithm';
 
 interface ActionDockProps {
   onPanicMode: () => void;
-  onFixPressure: () => void;
-  onViewReport: () => void;
+  onServiceRequest: () => void;
   onMaintenancePlan?: () => void;
   recommendation?: Recommendation;
   monthsToFlush?: number | null;
@@ -14,8 +13,7 @@ interface ActionDockProps {
 
 export function ActionDock({ 
   onPanicMode, 
-  onFixPressure, 
-  onViewReport,
+  onServiceRequest,
   onMaintenancePlan,
   recommendation,
   monthsToFlush,
@@ -25,6 +23,19 @@ export function ActionDock({
   const isServiceDueSoon = monthsToFlush !== null && monthsToFlush !== undefined && monthsToFlush <= 6 && monthsToFlush > 0;
   const isServiceOverdue = flushStatus === 'due' || flushStatus === 'lockout' || (monthsToFlush !== null && monthsToFlush !== undefined && monthsToFlush <= 0);
   const needsServiceAttention = isServiceDueSoon || isServiceOverdue;
+  
+  // Determine which handler to use - maintenance plan for service-related CTAs
+  const shouldGoToMaintenance = needsServiceAttention || 
+    recommendation?.action === 'PASS' || 
+    recommendation?.badge === 'OPTIMAL';
+  
+  const handlePrimaryClick = () => {
+    if (shouldGoToMaintenance && onMaintenancePlan) {
+      onMaintenancePlan();
+    } else {
+      onServiceRequest();
+    }
+  };
   
   // Dynamic CTA based on urgency tier
   const getButtonLabel = () => {
@@ -80,7 +91,7 @@ export function ActionDock({
       <div className="max-w-md mx-auto">
         {/* Primary Action with glow - enhanced for critical */}
         <Button
-          onClick={onFixPressure}
+          onClick={handlePrimaryClick}
           size="lg"
           className={`w-full font-bold py-4 h-auto rounded-xl active:scale-[0.98] transition-all text-base ${
             isCritical 
@@ -102,16 +113,8 @@ export function ActionDock({
         </Button>
       </div>
       
-      {/* Secondary links */}
-      <div className="max-w-md mx-auto mt-3 flex items-center justify-center gap-4">
-        {onMaintenancePlan && recommendation?.action !== 'REPLACE' && recommendation?.badge !== 'CRITICAL' && (
-          <button 
-            onClick={onMaintenancePlan}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
-          >
-            View Maintenance Plan
-          </button>
-        )}
+      {/* Secondary link - Emergency only */}
+      <div className="max-w-md mx-auto mt-3 flex items-center justify-center">
         <button 
           onClick={onPanicMode}
           className="text-sm text-red-400 hover:text-red-300 transition-colors underline-offset-4 hover:underline"
