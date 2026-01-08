@@ -2,11 +2,46 @@ import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, PiggyBank, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
-import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { PlumberContactForm } from './PlumberContactForm';
+import { SafetyReplacementAlert } from './SafetyReplacementAlert';
+
+// Helper function to convert metrics to stress factor format for SafetyReplacementAlert
+function convertMetricsToStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
+  const factors: { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] = [];
+  
+  const getLevel = (value: number): 'low' | 'moderate' | 'elevated' | 'critical' => {
+    if (value >= 2.0) return 'critical';
+    if (value >= 1.5) return 'elevated';
+    if (value >= 1.2) return 'moderate';
+    return 'low';
+  };
+
+  if (metrics.stressFactors.pressure > 1.0) {
+    factors.push({ name: 'Water Pressure', level: getLevel(metrics.stressFactors.pressure), value: metrics.stressFactors.pressure, description: `Pressure stress factor of ${metrics.stressFactors.pressure.toFixed(2)}x` });
+  }
+  if (metrics.stressFactors.sediment > 1.0) {
+    factors.push({ name: 'Sediment Buildup', level: metrics.sedimentLbs > 15 ? 'critical' : metrics.sedimentLbs > 8 ? 'elevated' : 'moderate', value: metrics.stressFactors.sediment, description: `${metrics.sedimentLbs.toFixed(1)} lbs accumulated` });
+  }
+  if (metrics.stressFactors.temp > 1.0) {
+    factors.push({ name: 'Temperature Stress', level: getLevel(metrics.stressFactors.temp), value: metrics.stressFactors.temp, description: `Temperature stress factor of ${metrics.stressFactors.temp.toFixed(2)}x` });
+  }
+  if (metrics.stressFactors.loop > 1.0) {
+    factors.push({ name: 'Thermal Expansion', level: getLevel(metrics.stressFactors.loop), value: metrics.stressFactors.loop, description: 'Missing expansion tank causes pressure spikes' });
+  }
+  if (metrics.stressFactors.circ > 1.0) {
+    factors.push({ name: 'Recirculation Loop', level: getLevel(metrics.stressFactors.circ), value: metrics.stressFactors.circ, description: 'Continuous circulation increases wear' });
+  }
+  if (metrics.shieldLife <= 0) {
+    factors.push({ name: 'Anode Depletion', level: 'critical', value: 0, description: 'Sacrificial anode is fully depleted' });
+  } else if (metrics.shieldLife < 2) {
+    factors.push({ name: 'Anode Depletion', level: 'elevated', value: metrics.shieldLife, description: `Only ${metrics.shieldLife.toFixed(1)} years protection remaining` });
+  }
+  return factors;
+}
 
 interface RepairPlannerProps {
   onBack: () => void;
@@ -222,18 +257,18 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           </div>
         )}
 
-        {/* Replacement Banner - Different for Safety vs Economic */}
+        {/* Replacement Banner - Enhanced for Safety Replacement */}
         {isSafetyReplacement && (
-          <div className="mb-4 p-4 rounded-xl border-2 border-red-500/50 bg-red-500/10">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-red-400 text-sm mb-1">Replacement Required</p>
-                <p className="text-xs text-muted-foreground">
-                  {recommendation.reason} Individual repairs are not available for this unit.
-                </p>
-              </div>
-            </div>
+          <div className="mb-4">
+            <SafetyReplacementAlert
+              reason={recommendation.reason}
+              location={currentInputs.location}
+              stressFactors={convertMetricsToStressFactors(opterraResult.metrics)}
+              agingRate={agingRate}
+              bioAge={bioAge}
+              chronoAge={currentInputs.calendarAge}
+              breachDetected={currentInputs.isLeaking || currentInputs.visualRust}
+            />
           </div>
         )}
 

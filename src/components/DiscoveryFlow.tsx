@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { type AssetData } from '@/data/mockAsset';
-import { type ForensicInputs, calculateOpterraRisk, failProbToHealthScore, type ActionType } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, calculateOpterraRisk, failProbToHealthScore, type ActionType, type OpterraMetrics } from '@/lib/opterraAlgorithm';
 import { InteractiveWaterHeaterDiagram } from './InteractiveWaterHeaterDiagram';
+import { SafetyReplacementAlert } from './SafetyReplacementAlert';
 import containmentBreachImage from '@/assets/containment-breach.png';
+
 interface DiscoveryFlowProps {
   asset: AssetData;
   inputs: ForensicInputs;
@@ -40,14 +42,91 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
   );
 }
 
-// Urgent Alert Step - Shows first when replacement is needed
+// Helper function to convert algorithm stress factors to the format expected by SafetyReplacementAlert
+function convertStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
+  const factors: { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] = [];
+  
+  const getLevel = (value: number): 'low' | 'moderate' | 'elevated' | 'critical' => {
+    if (value >= 2.0) return 'critical';
+    if (value >= 1.5) return 'elevated';
+    if (value >= 1.2) return 'moderate';
+    return 'low';
+  };
+
+  if (metrics.stressFactors.pressure > 1.0) {
+    factors.push({
+      name: 'Water Pressure',
+      level: getLevel(metrics.stressFactors.pressure),
+      value: metrics.stressFactors.pressure,
+      description: `Pressure stress factor of ${metrics.stressFactors.pressure.toFixed(2)}x`
+    });
+  }
+
+  if (metrics.stressFactors.sediment > 1.0) {
+    factors.push({
+      name: 'Sediment Buildup',
+      level: metrics.sedimentLbs > 15 ? 'critical' : metrics.sedimentLbs > 8 ? 'elevated' : 'moderate',
+      value: metrics.stressFactors.sediment,
+      description: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment accumulated`
+    });
+  }
+
+  if (metrics.stressFactors.temp > 1.0) {
+    factors.push({
+      name: 'Temperature Stress',
+      level: getLevel(metrics.stressFactors.temp),
+      value: metrics.stressFactors.temp,
+      description: `Temperature stress factor of ${metrics.stressFactors.temp.toFixed(2)}x`
+    });
+  }
+
+  if (metrics.stressFactors.loop > 1.0) {
+    factors.push({
+      name: 'Thermal Expansion (Closed Loop)',
+      level: getLevel(metrics.stressFactors.loop),
+      value: metrics.stressFactors.loop,
+      description: 'Missing expansion tank causes pressure spikes'
+    });
+  }
+
+  if (metrics.stressFactors.circ > 1.0) {
+    factors.push({
+      name: 'Recirculation Loop',
+      level: getLevel(metrics.stressFactors.circ),
+      value: metrics.stressFactors.circ,
+      description: 'Continuous circulation increases wear'
+    });
+  }
+
+  if (metrics.shieldLife <= 0) {
+    factors.push({
+      name: 'Anode Depletion',
+      level: 'critical',
+      value: 0,
+      description: 'Sacrificial anode is fully depleted'
+    });
+  } else if (metrics.shieldLife < 2) {
+    factors.push({
+      name: 'Anode Depletion',
+      level: 'elevated',
+      value: metrics.shieldLife,
+      description: `Only ${metrics.shieldLife.toFixed(1)} years of protection remaining`
+    });
+  }
+
+  return factors;
+}
+
+// Urgent Alert Step - Shows first when replacement is needed (Enhanced with SafetyReplacementAlert)
 function UrgentAlertStep({ 
   action, 
   title, 
   reason, 
   healthScore,
   isLeaking,
-  hasVisualRust 
+  hasVisualRust,
+  metrics,
+  inputs
 }: { 
   action: ActionType;
   title: string;
@@ -55,59 +134,77 @@ function UrgentAlertStep({
   healthScore: number;
   isLeaking?: boolean;
   hasVisualRust?: boolean;
+  metrics?: OpterraMetrics;
+  inputs?: ForensicInputs;
 }) {
   const isReplace = action === 'REPLACE';
   const isBreach = isLeaking;
+  const isCritical = isReplace && (isBreach || hasVisualRust);
   
+  // If we have metrics and inputs, show the enhanced safety replacement alert for critical cases
+  if (isCritical && metrics && inputs) {
+    const stressFactors = convertStressFactors(metrics);
+    
+    return (
+      <div className="space-y-4">
+        {/* Containment Breach Image for leaks */}
+        {isBreach && (
+          <div className="relative rounded-xl overflow-hidden border-2 border-red-500/50 mb-2">
+            <img 
+              src={containmentBreachImage} 
+              alt="Water heater leak damage" 
+              className="w-full h-32 object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          </div>
+        )}
+
+        <SafetyReplacementAlert
+          reason={reason}
+          location={inputs.location}
+          stressFactors={stressFactors}
+          agingRate={metrics.stressFactors.total}
+          bioAge={metrics.bioAge}
+          chronoAge={inputs.calendarAge}
+          breachDetected={isBreach || hasVisualRust}
+        />
+      </div>
+    );
+  }
+  
+  // Fallback to original UI for non-critical cases
   return (
     <div className="space-y-6">
-      {/* Containment Breach Image for leaks */}
-      {isBreach && (
-        <div className="relative rounded-xl overflow-hidden border-2 border-red-500/50">
-          <img 
-            src={containmentBreachImage} 
-            alt="Water heater leak damage" 
-            className="w-full h-40 object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+      {/* Alert Icon */}
+      <div className="flex justify-center">
+        <div className={cn(
+          "w-20 h-20 rounded-full flex items-center justify-center",
+          isReplace ? "bg-red-500/15" : "bg-amber-500/15"
+        )}>
+          <AlertOctagon className={cn(
+            "w-10 h-10",
+            isReplace ? "text-red-500" : "text-amber-500"
+          )} />
         </div>
-      )}
-
-      {/* Alert Icon - only show if not breach */}
-      {!isBreach && (
-        <div className="flex justify-center">
-          <div className={cn(
-            "w-20 h-20 rounded-full flex items-center justify-center",
-            isReplace ? "bg-red-500/15" : "bg-amber-500/15"
-          )}>
-            <AlertOctagon className={cn(
-              "w-10 h-10",
-              isReplace ? "text-red-500" : "text-amber-500"
-            )} />
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Alert Title */}
       <div className="text-center space-y-2">
         <h2 className={cn(
           "text-2xl font-bold",
-          isBreach || isReplace ? "text-red-500" : "text-amber-500"
+          isReplace ? "text-red-500" : "text-amber-500"
         )}>
-          {isBreach ? "Active Leak Detected" : title}
+          {title}
         </h2>
         <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-          {isBreach 
-            ? "Your water heater requires immediate attention. An active leak can cause significant water damage."
-            : reason
-          }
+          {reason}
         </p>
       </div>
 
       {/* Health Score */}
       <Card className={cn(
         "p-4 border-2",
-        isBreach || isReplace ? "border-red-500/50 bg-red-500/5" : "border-amber-500/50 bg-amber-500/5"
+        isReplace ? "border-red-500/50 bg-red-500/5" : "border-amber-500/50 bg-amber-500/5"
       )}>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Health Score</span>
@@ -133,19 +230,7 @@ function UrgentAlertStep({
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Key Issues</p>
         <div className="space-y-2">
-          {isLeaking && (
-            <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <XCircle className="w-5 h-5 text-red-500 shrink-0" />
-              <span className="text-sm font-medium text-red-400">Active leak requiring immediate action</span>
-            </div>
-          )}
-          {hasVisualRust && (
-            <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-              <span className="text-sm font-medium text-red-400">Visible rust or corrosion detected</span>
-            </div>
-          )}
-          {action === 'REPLACE' && !isLeaking && (
+          {action === 'REPLACE' && (
             <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
               <span className="text-sm font-medium text-amber-400">Unit has exceeded recommended service life</span>
@@ -161,9 +246,7 @@ function UrgentAlertStep({
           <div>
             <p className="text-sm font-medium text-foreground mb-1">What This Means</p>
             <p className="text-sm text-muted-foreground">
-              {isBreach 
-                ? "Stop using the unit if safe to do so. Contact a licensed plumber immediately. Continue to see the full assessment."
-                : action === 'REPLACE'
+              {action === 'REPLACE'
                 ? "Based on age, condition, and stress factors, replacement is more cost-effective than continued repairs. Continue to see the full assessment."
                 : "Your unit would benefit from professional service. Continue to learn what's affecting your water heater."
               }
@@ -702,6 +785,8 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
               healthScore={healthScore}
               isLeaking={inputs.isLeaking}
               hasVisualRust={inputs.visualRust}
+              metrics={metrics}
+              inputs={inputs}
             />
           )}
 
