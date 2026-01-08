@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera } from 'lucide-react';
+import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2 } from 'lucide-react';
 import containmentBreachImg from '@/assets/containment-breach.png';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
@@ -350,6 +350,16 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                     icon={Shield} 
                     label="Closed Loop" 
                     value={metrics.stressFactors.loop} 
+                  />
+                  <StressFactorItem 
+                    icon={Users} 
+                    label="Usage Intensity" 
+                    value={metrics.stressFactors.usageIntensity} 
+                  />
+                  <StressFactorItem 
+                    icon={Maximize2} 
+                    label="Tank Sizing" 
+                    value={metrics.stressFactors.undersizing} 
                   />
                   <div className="border-t border-border/30 pt-1.5 mt-1.5">
                     <div className="flex items-center justify-between">
