@@ -136,11 +136,15 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
     {
       id: 'hardness',
       icon: Droplets,
-      label: 'Hard water',
+      label: inputs.hasSoftener ? 'Hard water (mitigated)' : 'Hard water',
       threshold: '> 7 gpg',
-      current: `${inputs.hardnessGPG} gpg`,
-      isAbove: inputs.hardnessGPG > 7,
-      explanation: 'Hard water causes mineral buildup (scale) on heating elements and tank walls, reducing efficiency and accelerating wear.'
+      current: inputs.hasSoftener 
+        ? `${inputs.hardnessGPG} gpg (softener installed)` 
+        : `${inputs.hardnessGPG} gpg`,
+      isAbove: inputs.hasSoftener ? false : inputs.hardnessGPG > 7,
+      explanation: inputs.hasSoftener 
+        ? 'Your water softener mitigates scale buildup from hard water. Maintain salt levels and service regularly to keep protection active.'
+        : 'Hard water causes mineral buildup (scale) on heating elements and tank walls, reducing efficiency and accelerating wear.'
     },
     {
       id: 'thermal',
