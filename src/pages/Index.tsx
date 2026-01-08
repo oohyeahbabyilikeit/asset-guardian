@@ -65,14 +65,15 @@ const Index = () => {
         const opterraResult = calculateOpterraRisk(currentInputs);
         const recommendation = opterraResult.verdict;
         const isHealthy = recommendation.action === 'PASS';
+        const isCritical = recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE';
         
         return (
           <CommandCenter
             onPanicMode={() => setCurrentScreen('panic')}
-            onServiceRequest={() => setCurrentScreen(isHealthy ? 'maintenance-plan' : 'repair-planner')}
+            onServiceRequest={() => setCurrentScreen(isCritical ? 'repair-planner' : (isHealthy ? 'maintenance-plan' : 'repair-planner'))}
             onViewReport={() => setCurrentScreen('report')}
             onTestHarness={() => setCurrentScreen('test-harness')}
-            onMaintenancePlan={() => setCurrentScreen('maintenance-plan')}
+            onMaintenancePlan={() => !isCritical && setCurrentScreen('maintenance-plan')}
             currentAsset={currentAsset}
             currentInputs={currentInputs}
             onInputsChange={setCurrentInputs}
