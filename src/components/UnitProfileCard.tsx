@@ -7,6 +7,15 @@ interface UnitProfileCardProps {
   inputs: ForensicInputs;
 }
 
+// Approximate dimensions based on tank capacity
+function getDimensions(capacity: string): string {
+  const gallons = parseInt(capacity) || 50;
+  if (gallons <= 40) return '18" × 48"';
+  if (gallons <= 50) return '20" × 54"';
+  if (gallons <= 65) return '22" × 58"';
+  return '24" × 60"';
+}
+
 export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
   const equipment = [
     { 
@@ -42,6 +51,10 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
     'CRAWLSPACE': 'Crawlspace',
   }[inputs.location] || inputs.location;
 
+  // Calculate warranty remaining
+  const warrantyRemaining = Math.max(0, inputs.warrantyYears - inputs.calendarAge);
+  const warrantyStatus = warrantyRemaining <= 0 ? 'expired' : warrantyRemaining <= 1 ? 'expiring' : 'active';
+
   return (
     <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/50 overflow-hidden">
       {/* Header */}
@@ -56,23 +69,55 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
 
       {/* Content */}
       <div className="p-5 space-y-5">
-        {/* Basic Info Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Brand & Model Header */}
+        <div className="space-y-1">
+          <p className="text-lg font-bold text-foreground">{asset.brand}</p>
+          <p className="text-sm text-muted-foreground">{asset.model}</p>
+        </div>
+
+        {/* Serial & Model Numbers */}
+        <div className="grid grid-cols-2 gap-4 p-3 bg-muted/30 rounded-lg border border-border/30">
+          <div className="space-y-0.5">
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Serial Number</span>
+            <p className="font-mono text-xs text-foreground">{asset.serialNumber}</p>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Model Number</span>
+            <p className="font-mono text-xs text-foreground">{asset.model.replace(/\s+/g, '-').toUpperCase()}</p>
+          </div>
+        </div>
+
+        {/* Specs Grid */}
+        <div className="grid grid-cols-3 gap-4">
           <div className="space-y-1">
             <span className="text-muted-foreground text-xs block">Age</span>
-            <p className="font-semibold text-foreground text-lg">{asset.paperAge} years</p>
-          </div>
-          <div className="space-y-1">
-            <span className="text-muted-foreground text-xs block">Type</span>
-            <p className="font-semibold text-foreground text-lg capitalize">{asset.specs.fuelType}</p>
-          </div>
-          <div className="space-y-1">
-            <span className="text-muted-foreground text-xs block">Location</span>
-            <p className="font-semibold text-foreground text-lg">{locationLabel}</p>
+            <p className="font-semibold text-foreground">{asset.paperAge} yrs</p>
           </div>
           <div className="space-y-1">
             <span className="text-muted-foreground text-xs block">Capacity</span>
-            <p className="font-semibold text-foreground text-lg">{asset.specs.capacity}</p>
+            <p className="font-semibold text-foreground">{asset.specs.capacity}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-xs block">Fuel Type</span>
+            <p className="font-semibold text-foreground capitalize">{asset.specs.fuelType}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-xs block">Location</span>
+            <p className="font-semibold text-foreground">{locationLabel}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-xs block">Dimensions</span>
+            <p className="font-semibold text-foreground">{getDimensions(asset.specs.capacity)}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-xs block">Warranty</span>
+            <p className={`font-semibold ${
+              warrantyStatus === 'expired' ? 'text-status-critical' : 
+              warrantyStatus === 'expiring' ? 'text-status-warning' : 
+              'text-foreground'
+            }`}>
+              {warrantyRemaining > 0 ? `${warrantyRemaining} yrs left` : 'Expired'}
+            </p>
           </div>
         </div>
 
