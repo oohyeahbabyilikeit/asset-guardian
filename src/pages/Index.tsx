@@ -10,7 +10,7 @@ import { RepairPlanner } from '@/components/RepairPlanner';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
-import { demoAsset, demoForensicInputs, getRandomScenario, type AssetData } from '@/data/mockAsset';
+import { demoAsset, demoForensicInputs, demoServiceHistory, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
 
@@ -26,7 +26,7 @@ const Index = () => {
   const [currentInputs, setCurrentInputs] = useState<ForensicInputs>(demoForensicInputs);
   
   // Shared service history state
-  const [serviceHistory, setServiceHistory] = useState<ServiceEvent[]>([]);
+  const [serviceHistory, setServiceHistory] = useState<ServiceEvent[]>(demoServiceHistory);
   
   // When service history changes, update the relevant inputs
   useEffect(() => {
@@ -45,7 +45,7 @@ const Index = () => {
     setCurrentAsset(newScenario.asset);
     setCurrentInputs(newScenario.inputs);
     setScenarioName(newScenario.name);
-    setServiceHistory([]); // Reset service history on new scenario
+    setServiceHistory(newScenario.serviceHistory || []); // Load scenario's service history
   }, []);
   
   const handleAddServiceEvent = useCallback((event: ServiceEvent) => {
