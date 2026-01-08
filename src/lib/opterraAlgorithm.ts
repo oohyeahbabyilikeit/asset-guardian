@@ -1124,8 +1124,8 @@ const HARD_WATER_CONSTANTS = {
   APPLIANCE_PACKAGE_VALUE: 4000, // Water heater + dishwasher + washer
   NORMAL_LIFESPAN: 12,           // Years (soft water)
   
-  // Detergent Multiplier
-  DETERGENT_ANNUAL_PER_PERSON: 150, // Conservative estimate
+  // Detergent Multiplier (conservative estimate)
+  DETERGENT_ANNUAL_PER_PERSON: 75, // $75/person/year extra in hard water
   DEFAULT_HOUSEHOLD_SIZE: 2.5,
   
   // Base energy cost for water heating
