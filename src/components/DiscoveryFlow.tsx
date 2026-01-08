@@ -378,8 +378,12 @@ function BenchmarksStep({ inputs, bioAge }: { inputs: ForensicInputs; bioAge: nu
     },
     { 
       label: 'Water Hardness', 
-      impact: inputs.hardnessGPG > 15 ? 'high' : inputs.hardnessGPG > 10 ? 'moderate' : 'low',
-      detail: `${inputs.hardnessGPG} GPG`
+      impact: inputs.hasSoftener 
+        ? 'low'
+        : inputs.hardnessGPG > 15 ? 'high' : inputs.hardnessGPG > 10 ? 'moderate' : 'low',
+      detail: inputs.hasSoftener 
+        ? `${inputs.hardnessGPG} GPG (softener installed)` 
+        : `${inputs.hardnessGPG} GPG`
     },
     { 
       label: 'Thermal Expansion', 
