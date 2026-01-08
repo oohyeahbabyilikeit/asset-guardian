@@ -60,17 +60,19 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
       <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/50 overflow-hidden">
         {/* Header - Always visible */}
         <CollapsibleTrigger className="w-full">
-          <div className="px-4 py-3 flex items-center justify-between hover:bg-muted/20 transition-colors">
-            <div className="flex items-center gap-3">
-              <Info className="w-3.5 h-3.5 text-blue-400" />
+          <div className="px-5 py-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <Info className="w-5 h-5 text-blue-400" />
+              </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-foreground">{asset.brand} {asset.model}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-base font-bold text-foreground">{asset.brand} {asset.model}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
                   {asset.specs.capacity} • {asset.paperAge} yrs old • {locationLabel}
                 </p>
               </div>
             </div>
-            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </div>
         </CollapsibleTrigger>
 
