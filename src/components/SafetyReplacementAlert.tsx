@@ -13,7 +13,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { 
   STRESS_FACTOR_EXPLANATIONS, 
   DAMAGE_TYPE_INFO,
-  getDamageTypeFromReason
+  DAMAGE_SCENARIOS,
+  getDamageTypeFromReason,
+  getLocationKey
 } from '@/data/damageScenarios';
 
 interface StressFactor {
@@ -92,11 +94,14 @@ function getContextualRecommendation(stressor: StressFactor, factorKey: string |
 
 export function SafetyReplacementAlert({
   reason,
+  location,
   stressFactors,
   agingRate,
   breachDetected = false,
   className = ''
 }: SafetyReplacementAlertProps) {
+  const locationKey = getLocationKey(location);
+  const damageScenario = DAMAGE_SCENARIOS[locationKey];
   const damageType = getDamageTypeFromReason(reason);
   const damageInfo = DAMAGE_TYPE_INFO[damageType];
 
@@ -134,6 +139,9 @@ export function SafetyReplacementAlert({
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
                 {damageInfo.description}
+              </p>
+              <p className="text-sm text-amber-600 mt-2">
+                {damageScenario.description}
               </p>
               {breachDetected && (
                 <p className="text-sm text-destructive mt-2 flex items-center gap-2">
