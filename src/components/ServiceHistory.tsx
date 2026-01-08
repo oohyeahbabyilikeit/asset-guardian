@@ -48,7 +48,7 @@ function WaterHeaterDiagram({
   const tankWidth = 100;
   const tankHeight = 200;
   const tankX = (width - tankWidth) / 2;
-  const tankY = 60;
+  const tankY = 35;
   
   // Calculated values
   const sedimentHeight = Math.max(8, (sedimentPercent / 100) * (tankHeight * 0.5));
@@ -676,7 +676,7 @@ export function ServiceHistory({
         </CollapsibleTrigger>
         
         <CollapsibleContent>
-          <div className="p-5 space-y-4 border-t border-border/30">
+          <div className="pt-2 px-5 pb-5 space-y-4 border-t border-border/30">
             {/* Professional Water Heater Diagram */}
             <div className="flex flex-col items-center">
               <WaterHeaterDiagram 
