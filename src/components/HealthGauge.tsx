@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, TrendingUp, MapPin, AlertTriangle, Activity } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ShieldAlert, MapPin, AlertTriangle, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
 import { getRiskLevelInfo, type RiskLevel } from '@/lib/opterraAlgorithm';
@@ -7,9 +7,11 @@ interface HealthGaugeProps {
   healthScore: HealthScoreType;
   location: string;
   riskLevel: RiskLevel;
+  primaryStressor?: string;  // Primary alert for critical scores
+  estDamageCost?: number;    // Estimated damage cost from financial engine
 }
 
-export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost }: HealthGaugeProps) {
   const { score, status, failureProbability } = healthScore;
   const riskInfo = getRiskLevelInfo(riskLevel);
 
@@ -23,6 +25,17 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
     if (status === 'critical') return 'animate-critical-pulse';
     return '';
   };
+
+  // Convert failureProbability to medical terminology
+  const getRiskStatus = () => {
+    if (failureProbability === 'FAIL') return 'CRITICAL';
+    const prob = typeof failureProbability === 'number' ? failureProbability : 0;
+    if (prob >= 60) return 'HIGH';
+    if (prob >= 30) return 'ELEVATED';
+    return 'NORMAL';
+  };
+
+  const riskStatus = getRiskStatus();
 
   return (
     <div className={cn(
@@ -89,18 +102,28 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
 
           {/* Stats Column */}
           <div className="flex flex-col gap-2">
-            {/* Failure Probability */}
-            <div className="data-box data-box-critical py-2 px-3">
+            {/* Risk Status (Medical Terminology) */}
+            <div className={cn(
+              "data-box py-2 px-3",
+              riskStatus === 'CRITICAL' || riskStatus === 'HIGH' ? "data-box-critical" : 
+              riskStatus === 'ELEVATED' ? "data-box-warning" : ""
+            )}>
               <div className="flex items-center gap-1.5 mb-0.5">
-                <TrendingUp className="w-3 h-3 text-red-400" />
+                <ShieldAlert className={cn(
+                  "w-3 h-3",
+                  riskStatus === 'CRITICAL' || riskStatus === 'HIGH' ? "text-red-400" :
+                  riskStatus === 'ELEVATED' ? "text-amber-400" : "text-emerald-400"
+                )} />
                 <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Failure Rate
+                  Risk Status
                 </span>
               </div>
-              <div className="text-base font-bold text-red-400 font-data">
-                {failureProbability === 'FAIL' 
-                  ? 'FAIL' 
-                  : `${typeof failureProbability === 'number' ? failureProbability.toFixed(1) : failureProbability}%`}
+              <div className={cn(
+                "text-base font-bold font-data",
+                riskStatus === 'CRITICAL' || riskStatus === 'HIGH' ? "text-red-400" :
+                riskStatus === 'ELEVATED' ? "text-amber-400" : "text-emerald-400"
+              )}>
+                {riskStatus}
               </div>
             </div>
 
@@ -125,6 +148,18 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
           </div>
         </div>
 
+        {/* Primary Alert - Surfaces the "why" immediately */}
+        {score < 50 && primaryStressor && (
+          <div className="w-full mt-2 py-2 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <span className="text-xs font-semibold text-red-400">
+                Primary Alert: {primaryStressor}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Location Context */}
         <div className="w-full data-display-lg py-2 px-3">
           <div className="flex items-start gap-2 text-left">
@@ -147,7 +182,9 @@ export function HealthGauge({ healthScore, location, riskLevel }: HealthGaugePro
                 {location} Installation
               </span>
               <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
-                {riskInfo.description}
+                {riskLevel >= 3 && estDamageCost 
+                  ? `Leak risk: ~$${estDamageCost.toLocaleString()} damage potential`
+                  : riskInfo.description}
               </p>
             </div>
           </div>

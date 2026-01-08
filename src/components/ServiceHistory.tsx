@@ -25,6 +25,7 @@ interface ServiceHistoryProps {
   monthsToLockout: number | null;
   flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout';
   serviceHistory?: ServiceEvent[];
+  autoExpand?: boolean;  // Auto-expand when score is critical
 }
 
 // Enhanced Water Heater SVG Diagram Component
@@ -616,9 +617,11 @@ export function ServiceHistory({
   monthsToFlush,
   monthsToLockout,
   flushStatus,
-  serviceHistory = [] 
+  serviceHistory = [],
+  autoExpand = false
 }: ServiceHistoryProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  // Auto-expand when critical score (surfaces the diagnosis)
+  const [isOpen, setIsOpen] = useState(autoExpand);
 
   // Calculate anode depletion percentage (0-100, where 100 = fully depleted)
   const maxAnodeLife = hasSoftener ? 2.5 : 6; // Years
