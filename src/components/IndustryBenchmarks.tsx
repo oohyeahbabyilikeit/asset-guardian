@@ -3,6 +3,7 @@ import { BarChart3, ChevronDown, ChevronUp, Droplets, Gauge, ThermometerSun, Zap
 import { AssetData } from '@/data/mockAsset';
 import { ForensicInputs } from '@/lib/opterraAlgorithm';
 import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface IndustryBenchmarksProps {
   asset: AssetData;
@@ -127,6 +128,7 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
 
 export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0, bioAge, recommendation }: IndustryBenchmarksProps) {
   const [expandedFactor, setExpandedFactor] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(true);
   
   // Check if replacement is recommended
   const isReplacementRequired = recommendation?.action === 'REPLACE';
@@ -188,19 +190,23 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
   };
 
   return (
-    <div className="command-card">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="command-card">
       {/* Header */}
-      <div className="command-header-sm">
+      <CollapsibleTrigger className="w-full command-header-sm cursor-pointer hover:bg-secondary/30 transition-colors">
         <div className="command-icon-sm">
           <BarChart3 className="w-4 h-4 text-blue-400" />
         </div>
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-1 text-left">
           How Water Heaters Age
         </h2>
-      </div>
+        <ChevronDown className={cn(
+          "w-4 h-4 text-muted-foreground transition-transform duration-200",
+          isOpen && "rotate-180"
+        )} />
+      </CollapsibleTrigger>
 
       {/* Content */}
-      <div className="p-4 space-y-4">
+      <CollapsibleContent className="p-4 space-y-4">
         {/* Lifespan Progress Bar - simplified monochrome */}
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
@@ -325,7 +331,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
             ))}
           </div>
         </div>
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
