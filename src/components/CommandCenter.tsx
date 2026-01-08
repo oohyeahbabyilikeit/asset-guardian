@@ -198,18 +198,6 @@ export function CommandCenter({
           recommendation={recommendation}
         />
         </div>
-
-        {/* ACTION PHASE: What Homeowners Consider */}
-        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.2s' }}>
-          <RecommendationBanner 
-            recommendation={recommendation} 
-            agingRate={agingRate}
-            lifeExtension={lifeExtension}
-            primaryStressor={primaryStressor}
-            financial={financial}
-          />
-        </div>
-
         {/* Hard Water Tax Card - Only shows if recommendation !== 'NONE' */}
         {hardWaterTax.recommendation !== 'NONE' && (
           <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.25s' }}>
