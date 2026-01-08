@@ -30,21 +30,23 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
   return (
     <div className="flex items-center justify-between py-1.5">
       <div className="flex items-center gap-2">
+        {/* Icon - muted by default, only colorize for warnings */}
         <Icon className={cn(
           "w-3.5 h-3.5",
           isNeutral ? "text-muted-foreground" :
           isHigh ? "text-red-400" : 
           isElevated ? "text-amber-400" : 
-          "text-emerald-400"
+          "text-muted-foreground"
         )} />
         <span className="text-xs text-muted-foreground">{label}</span>
       </div>
+      {/* Value - muted by default, only colorize for warnings */}
       <span className={cn(
         "text-xs font-mono font-medium",
         isNeutral ? "text-muted-foreground" :
         isHigh ? "text-red-400" : 
         isElevated ? "text-amber-400" : 
-        "text-emerald-400"
+        "text-muted-foreground"
       )}>
         {value.toFixed(2)}x
       </span>
@@ -245,11 +247,12 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                   <div className="border-t border-border/30 pt-1.5 mt-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-foreground">Combined Aging Rate</span>
+                      {/* Only colorize for warnings */}
                       <span className={cn(
                         "text-xs font-mono font-bold",
                         metrics.agingRate > 2 ? "text-red-400" :
                         metrics.agingRate > 1.3 ? "text-amber-400" :
-                        "text-emerald-400"
+                        "text-foreground"
                       )}>
                         {metrics.agingRate.toFixed(2)}x
                       </span>

@@ -143,35 +143,31 @@ export function RecommendationBanner({
         <div className={cn(
           "command-card p-5",
           recommendation.badgeColor === 'red' && "border-red-500/30",
-          recommendation.badgeColor === 'orange' && "border-amber-500/30"
+          recommendation.badgeColor === 'orange' && "border-amber-500/20"
         )}>
           <div className="flex items-start gap-4">
+            {/* Icon - only colorize for critical/high urgency */}
             <div className={cn(
               "command-icon shrink-0",
               recommendation.badgeColor === 'red' && "command-icon-critical",
               recommendation.badgeColor === 'orange' && "command-icon-warning",
-              recommendation.badgeColor === 'yellow' && "command-icon-warning",
-              recommendation.badgeColor === 'blue' && "",
-              recommendation.badgeColor === 'green' && "command-icon-success"
+              (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange') && ""
             )}>
               <Icon className={cn(
                 "w-5 h-5",
                 recommendation.badgeColor === 'red' && "text-red-400",
                 recommendation.badgeColor === 'orange' && "text-amber-400",
-                recommendation.badgeColor === 'yellow' && "text-yellow-400",
-                recommendation.badgeColor === 'blue' && "text-blue-400",
-                recommendation.badgeColor === 'green' && "text-emerald-400"
+                (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange') && "text-muted-foreground"
               )} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
+                {/* Label - only colorize for critical/high */}
                 <span className={cn(
                   "font-semibold text-sm",
                   recommendation.badgeColor === 'red' && "text-red-400",
                   recommendation.badgeColor === 'orange' && "text-amber-400",
-                  recommendation.badgeColor === 'yellow' && "text-yellow-400",
-                  recommendation.badgeColor === 'blue' && "text-blue-400",
-                  recommendation.badgeColor === 'green' && "text-emerald-400"
+                  (recommendation.badgeColor !== 'red' && recommendation.badgeColor !== 'orange') && "text-muted-foreground"
                 )}>
                   {educationalAction}
                 </span>
