@@ -691,6 +691,11 @@ export function ServiceHistory({
                 sedimentLbs={sedimentLbs}
               />
               
+              {/* Sediment Disclaimer */}
+              <p className="text-[10px] text-muted-foreground text-center mt-2 italic">
+                Estimates assume ~50% sediment removal per flush. Neglected tanks may retain more.
+              </p>
+              
               {/* Stats Row */}
               <div className="flex justify-center gap-8 mt-4 w-full">
                 <div className="text-center data-display px-4 py-2">

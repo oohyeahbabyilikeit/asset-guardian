@@ -188,7 +188,7 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
             <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
               <div className="text-xs text-muted-foreground">Sediment Load</div>
               <div className="text-lg font-bold font-mono">{sedimentLbs.toFixed(1)} lbs</div>
-              <div className="text-[10px] text-muted-foreground">estimated buildup</div>
+              <div className="text-[10px] text-muted-foreground">estimated buildup*</div>
             </div>
             <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
               <div className="text-xs text-muted-foreground">Stress Factor</div>
@@ -196,6 +196,9 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
               <div className="text-[10px] text-muted-foreground">combined multiplier</div>
             </div>
           </div>
+          <p className="text-[10px] text-muted-foreground mt-3 italic">
+            *Sediment estimates assume ~50% removal per flush. Neglected tanks may retain more sediment.
+          </p>
         </section>
         
         <EvidenceLockerSection findings={auditFindings} />

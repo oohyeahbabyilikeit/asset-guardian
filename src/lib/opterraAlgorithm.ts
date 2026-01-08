@@ -160,6 +160,7 @@ const CONSTANTS = {
   // Sediment Accumulation
   SEDIMENT_FACTOR_GAS: 0.044, 
   SEDIMENT_FACTOR_ELEC: 0.08,
+  FLUSH_EFFICIENCY: 0.5,  // 50% sediment removal per flush (conservative estimate)
   
   // Limits
   MAX_STRESS_CAP: 12.0,    
@@ -355,9 +356,21 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Softened water removes 95%+ of minerals; remaining sediment is primarily anode byproduct
   const effectiveHardness = data.hasSoftener ? 0.5 : data.hardnessGPG;
   
-  // SERVICE HISTORY: If tank was flushed, use time since flush; otherwise use tank age
-  const sedimentAge = data.lastFlushYearsAgo ?? data.calendarAge;
-  const sedimentLbs = sedimentAge * effectiveHardness * sedFactor;
+  // SERVICE HISTORY: Residual Sediment Model (v6.7)
+  // Flushing removes ~50% of sediment (conservative estimate for DIY flushes)
+  // Residual sediment remains and new sediment accumulates on top
+  let sedimentLbs: number;
+  if (data.lastFlushYearsAgo !== undefined && data.lastFlushYearsAgo !== null) {
+    // Tank was flushed - calculate residual + new accumulation
+    const ageAtFlush = data.calendarAge - data.lastFlushYearsAgo;
+    const sedimentAtFlush = ageAtFlush * effectiveHardness * sedFactor;
+    const residualLbs = sedimentAtFlush * (1 - CONSTANTS.FLUSH_EFFICIENCY);
+    const newAccumulationLbs = data.lastFlushYearsAgo * effectiveHardness * sedFactor;
+    sedimentLbs = residualLbs + newAccumulationLbs;
+  } else {
+    // Never flushed - full lifetime accumulation
+    sedimentLbs = data.calendarAge * effectiveHardness * sedFactor;
+  }
   
   // Sediment rate (lbs per year based on EFFECTIVE water hardness)
   // Guard against division by zero - use minimum rate of 0.1 lbs/year
