@@ -143,7 +143,7 @@ export function CommandCenter({
         <DashboardHeader onTestHarness={onTestHarness} onRandomize={onRandomize} scenarioName={scenarioName} />
 
         {/* DISCOVERY PHASE 1: Your Unit Profile + System Diagnostics */}
-        <div className="px-4 animate-fade-in-up space-y-3">
+        <div className="px-4 pt-4 animate-fade-in-up space-y-3">
           <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
           <HealthGauge 
             healthScore={dynamicHealthScore} 
