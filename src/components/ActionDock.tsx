@@ -70,13 +70,13 @@ export function ActionDock({
         </Button>
       </div>
       
-      {/* Secondary link for report */}
+      {/* Emergency link */}
       <div className="max-w-md mx-auto mt-3">
         <button 
-          onClick={onViewReport}
-          className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+          onClick={onPanicMode}
+          className="w-full text-center text-sm text-red-400 hover:text-red-300 transition-colors underline-offset-4 hover:underline"
         >
-          Learn More About My Results
+          Emergency / Report Problem
         </button>
       </div>
     </div>
