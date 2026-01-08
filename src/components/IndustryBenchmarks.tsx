@@ -10,6 +10,7 @@ interface IndustryBenchmarksProps {
   onLearnMore: (topic: string) => void;
   agingRate?: number;
   bioAge?: number;  // Biological age from algorithm
+  recommendation?: { action: 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS' | 'URGENT' };
 }
 
 // Aging Speedometer Component
@@ -111,8 +112,11 @@ function AgingSpeedometer({ agingRate }: { agingRate: number }) {
   );
 }
 
-export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0, bioAge }: IndustryBenchmarksProps) {
+export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0, bioAge, recommendation }: IndustryBenchmarksProps) {
   const [expandedFactor, setExpandedFactor] = useState<string | null>(null);
+  
+  // Check if replacement is recommended
+  const isReplacementRequired = recommendation?.action === 'REPLACE';
 
   const averageLifespan = inputs.fuelType === 'GAS' ? 12 : 13;
   // Use bioAge (effective wear) instead of paperAge for chart alignment
@@ -229,7 +233,7 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
         {/* Factors */}
         <div className="space-y-2.5">
           <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
-            Factors that can shorten lifespan
+            {isReplacementRequired ? 'Factors that shortened lifespan' : 'Factors that can shorten lifespan'}
           </span>
           
           <div className="space-y-2">
