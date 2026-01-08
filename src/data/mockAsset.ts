@@ -172,6 +172,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 8, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 2, usageType: 'light', tankCapacity: 50,
     },
   },
   {
@@ -193,6 +194,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 12, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 3, usageType: 'normal', tankCapacity: 50,
     },
   },
   {
@@ -214,6 +216,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 10, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: false, hasPrv: false, location: 'BASEMENT' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 3, usageType: 'normal', tankCapacity: 40,
     },
   },
   {
@@ -236,6 +239,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 20, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: false, hasPrv: false, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 4, usageType: 'heavy', tankCapacity: 50,
     },
   },
 
@@ -259,6 +263,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 3, usageType: 'normal', tankCapacity: 50,
     },
   },
   {
@@ -280,6 +285,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 14, hasSoftener: false, hasCircPump: false, isClosedLoop: true,
       hasExpTank: false, hasPrv: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 4, usageType: 'normal', tankCapacity: 50,
     },
   },
   {
@@ -301,6 +307,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 15, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
       hasExpTank: true, hasPrv: true, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 3, usageType: 'normal', tankCapacity: 50,
     },
   },
 
@@ -324,6 +331,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 22, hasSoftener: false, hasCircPump: true, isClosedLoop: true,
       hasExpTank: false, hasPrv: false, location: 'BASEMENT' as LocationType, isFinishedArea: true,
       visualRust: true, tempSetting: 'HIGH' as TempSetting,
+      peopleCount: 5, usageType: 'heavy', tankCapacity: 40,
     },
   },
   {
@@ -345,6 +353,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 25, hasSoftener: true, hasCircPump: true, isClosedLoop: true,
       hasExpTank: false, hasPrv: false, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: true, tempSetting: 'HIGH' as TempSetting,
+      peopleCount: 4, usageType: 'heavy', tankCapacity: 40,
     },
   },
   {
@@ -366,6 +375,7 @@ const scenarios: DemoScenario[] = [
       hardnessGPG: 20, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
       hasExpTank: false, hasPrv: false, location: 'CRAWLSPACE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'HIGH' as TempSetting,
+      peopleCount: 2, usageType: 'normal', tankCapacity: 40,
     },
   },
 ];

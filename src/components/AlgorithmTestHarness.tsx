@@ -39,6 +39,9 @@ const DEFAULT_INPUTS: ForensicInputs = {
   tempSetting: 'NORMAL',
   lastAnodeReplaceYearsAgo: undefined,
   lastFlushYearsAgo: undefined,
+  peopleCount: 3,
+  usageType: 'normal',
+  tankCapacity: 50,
 };
 
 interface Issue {

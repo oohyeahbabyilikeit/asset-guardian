@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { HandshakeLoading } from '@/components/HandshakeLoading';
 import { CommandCenter } from '@/components/CommandCenter';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
+import { CalibrationStep } from '@/components/CalibrationStep';
 import { DiscoveryFlow } from '@/components/DiscoveryFlow';
 import { ForensicReport } from '@/components/ForensicReport';
 import { PanicMode } from '@/components/PanicMode';
@@ -11,10 +12,10 @@ import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, demoServiceHistory, getRandomScenario, type AssetData } from '@/data/mockAsset';
-import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, type UsageType, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
 
-type Screen = 'welcome' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'test-harness';
+type Screen = 'welcome' | 'calibration' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'test-harness';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
@@ -57,6 +58,10 @@ const Index = () => {
   };
 
   const handleWelcomeComplete = () => {
+    setCurrentScreen('calibration');
+  };
+
+  const handleCalibrationComplete = () => {
     setCurrentScreen('discovery');
   };
 
@@ -68,6 +73,18 @@ const Index = () => {
     switch (currentScreen) {
       case 'welcome':
         return <WelcomeScreen onBegin={handleWelcomeComplete} />;
+      
+      case 'calibration':
+        return (
+          <CalibrationStep
+            peopleCount={currentInputs.peopleCount}
+            usageType={currentInputs.usageType}
+            tankCapacity={currentInputs.tankCapacity}
+            onPeopleCountChange={(count) => setCurrentInputs(prev => ({ ...prev, peopleCount: count }))}
+            onUsageTypeChange={(type: UsageType) => setCurrentInputs(prev => ({ ...prev, usageType: type }))}
+            onComplete={handleCalibrationComplete}
+          />
+        );
       
       case 'discovery':
         return (
