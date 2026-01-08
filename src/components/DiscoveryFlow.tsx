@@ -598,8 +598,8 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
     yourValue: `${metrics.sedimentLbs.toFixed(1)} lbs`,
     benchmark: 'Flush recommended above 5 lbs',
     explanation: metrics.sedimentLbs <= 5
-      ? 'Sediment levels appear manageable. Annual flushing helps maintain efficiency.'
-      : 'Accumulated sediment can insulate heating elements and reduce efficiency.',
+      ? 'Sediment levels appear manageable. Annual flushing helps maintain efficiency. (Estimate assumes ~50% removal per flush.)'
+      : 'Accumulated sediment can insulate heating elements and reduce efficiency. (Estimate assumes ~50% removal per flush.)',
     status: metrics.sedimentLbs <= 5 ? 'good' : metrics.sedimentLbs <= 10 ? 'attention' : 'concern',
   });
 
