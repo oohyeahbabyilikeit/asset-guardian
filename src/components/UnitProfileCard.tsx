@@ -57,42 +57,37 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="command-card hover-glow tech-corners">
-        {/* Tech grid overlay */}
-        <div className="absolute inset-0 tech-grid-bg opacity-30 pointer-events-none" />
-        
+      <div className="command-card">
         {/* Header - Always visible */}
-        <CollapsibleTrigger className="w-full relative z-10">
-          <div className="command-header hover:bg-white/[0.02] transition-colors">
+        <CollapsibleTrigger className="w-full">
+          <div className="command-header hover:bg-secondary/20 transition-colors">
             <div className="flex items-center gap-4 flex-1">
               <div className="command-icon">
                 <Info className="w-5 h-5 text-blue-400" />
               </div>
               <div className="text-left flex-1">
-                <p className="text-base font-bold text-foreground tracking-tight">{asset.brand} {asset.model}</p>
-                <p className="text-sm text-muted-foreground mt-0.5 font-medium">
+                <p className="text-base font-semibold text-foreground">{asset.brand} {asset.model}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
                   {asset.specs.capacity} • {asset.paperAge} yrs old • {locationLabel}
                 </p>
               </div>
             </div>
-            <div className="command-trigger">
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-            </div>
+            <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </div>
         </CollapsibleTrigger>
 
         {/* Expanded Content */}
         <CollapsibleContent>
-          <div className="command-content border-t border-border/20 space-y-5 relative z-10">
+          <div className="p-5 border-t border-border/30 space-y-5">
             {/* Serial & Model Numbers */}
             <div className="grid grid-cols-2 gap-4 data-display-lg">
               <div className="space-y-1">
-                <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">Serial Number</span>
-                <p className="font-mono text-sm text-foreground font-medium">{asset.serialNumber}</p>
+                <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium">Serial Number</span>
+                <p className="font-mono text-sm text-foreground">{asset.serialNumber}</p>
               </div>
               <div className="space-y-1">
-                <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">Model Number</span>
-                <p className="font-mono text-sm text-foreground font-medium">{asset.model.replace(/\s+/g, '-').toUpperCase()}</p>
+                <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium">Model Number</span>
+                <p className="font-mono text-sm text-foreground">{asset.model.replace(/\s+/g, '-').toUpperCase()}</p>
               </div>
             </div>
 

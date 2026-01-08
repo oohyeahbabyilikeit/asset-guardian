@@ -109,27 +109,26 @@ export function RecommendationBanner({
     <div className={`mx-4 space-y-3 ${className}`}>
       {/* Accelerated Wear Banner (when stress is high but tank is serviceable) */}
       {showAcceleratedWear && (
-        <div className="command-card animate-border-pulse-warning p-5">
-          <div className="absolute inset-0 tech-grid-bg opacity-20 pointer-events-none" />
-          <div className="flex items-start gap-4 relative z-10">
-            <div className="command-icon-warning shrink-0">
+        <div className="command-card border-amber-500/30 p-5">
+          <div className="flex items-start gap-4">
+            <div className="command-icon command-icon-warning shrink-0">
               <Zap className="w-5 h-5 text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="font-bold text-sm uppercase tracking-wide text-amber-400">
+                <span className="font-semibold text-sm text-amber-400">
                   Accelerated Wear Detected
                 </span>
               </div>
-              <p className="text-sm text-amber-300/90 leading-relaxed">
-                Aging <span className="font-black text-amber-200 font-data">{agingRate}x</span> faster than design specs.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Aging <span className="font-bold text-amber-300 font-data">{agingRate}x</span> faster than design specs.
                 {primaryStressor && (
-                  <span className="block mt-1.5 text-amber-400/80">
+                  <span className="block mt-1.5 text-muted-foreground">
                     Root Cause: {primaryStressor}
                   </span>
                 )}
                 {hasLifeExtensionValue && (
-                  <span className="block mt-1.5 text-emerald-400 font-medium">
+                  <span className="block mt-1.5 text-emerald-400">
                     ✓ Fix to gain ~{lifeExtension.toFixed(1)} years of expected life
                   </span>
                 )}
@@ -143,19 +142,17 @@ export function RecommendationBanner({
       {!isHealthySystem && (
         <div className={cn(
           "command-card p-5",
-          recommendation.badgeColor === 'red' && "animate-border-pulse-critical",
-          recommendation.badgeColor === 'orange' && "animate-border-pulse-warning"
+          recommendation.badgeColor === 'red' && "border-red-500/30",
+          recommendation.badgeColor === 'orange' && "border-amber-500/30"
         )}>
-          <div className="absolute inset-0 tech-grid-bg opacity-20 pointer-events-none" />
-          <div className="flex items-start gap-4 relative z-10">
+          <div className="flex items-start gap-4">
             <div className={cn(
-              "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+              "command-icon shrink-0",
               recommendation.badgeColor === 'red' && "command-icon-critical",
               recommendation.badgeColor === 'orange' && "command-icon-warning",
               recommendation.badgeColor === 'yellow' && "command-icon-warning",
-              recommendation.badgeColor === 'blue' && "command-icon",
-              recommendation.badgeColor === 'green' && "command-icon-success",
-              !recommendation.badgeColor && "command-icon"
+              recommendation.badgeColor === 'blue' && "",
+              recommendation.badgeColor === 'green' && "command-icon-success"
             )}>
               <Icon className={cn(
                 "w-5 h-5",
@@ -169,7 +166,7 @@ export function RecommendationBanner({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className={cn(
-                  "font-bold text-sm uppercase tracking-wide",
+                  "font-semibold text-sm",
                   recommendation.badgeColor === 'red' && "text-red-400",
                   recommendation.badgeColor === 'orange' && "text-amber-400",
                   recommendation.badgeColor === 'yellow' && "text-yellow-400",
@@ -179,12 +176,12 @@ export function RecommendationBanner({
                   {educationalAction}
                 </span>
                 {recommendation.urgent && recommendation.action === 'REPLACE' && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
                     Urgent
                   </span>
                 )}
               </div>
-              <p className="text-sm font-semibold text-foreground/90 mb-1">
+              <p className="text-sm font-medium text-foreground mb-1">
                 {educationalTitle}
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -198,33 +195,32 @@ export function RecommendationBanner({
       {/* Financial Outlook Card */}
       {showFinancial && financial && (
         <div className="command-card p-5">
-          <div className="absolute inset-0 tech-grid-bg opacity-20 pointer-events-none" />
-          <div className="flex items-start gap-4 relative z-10">
+          <div className="flex items-start gap-4">
             <div className="command-icon shrink-0">
               <PiggyBank className="w-5 h-5 text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
-                <span className="font-bold text-sm uppercase tracking-wide text-blue-400">
+                <span className="font-semibold text-sm text-blue-400">
                   Financial Outlook
                 </span>
                 <span className={cn(
-                  "text-[10px] font-bold px-2 py-0.5 rounded-full border",
-                  financial.budgetUrgency === 'IMMEDIATE' ? 'bg-red-500/15 text-red-400 border-red-500/30' :
-                  financial.budgetUrgency === 'HIGH' ? 'bg-orange-500/15 text-orange-400 border-orange-500/30' :
-                  financial.budgetUrgency === 'MED' ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' :
-                  'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  "text-[10px] font-medium px-2 py-0.5 rounded-full border",
+                  financial.budgetUrgency === 'IMMEDIATE' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                  financial.budgetUrgency === 'HIGH' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                  financial.budgetUrgency === 'MED' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                  'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 )}>
                   {financial.budgetUrgency}
                 </span>
               </div>
               <div className="flex items-baseline gap-4 mb-2">
                 <div>
-                  <span className="text-2xl font-black text-blue-300 font-data">${financial.monthlyBudget}</span>
-                  <span className="text-sm text-blue-400/80 font-medium">/mo</span>
+                  <span className="text-2xl font-bold text-blue-300 font-data">${financial.monthlyBudget}</span>
+                  <span className="text-sm text-muted-foreground">/mo</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  → Replace by <span className="font-semibold text-blue-300">{financial.targetReplacementDate}</span>
+                  → Replace by <span className="font-medium text-foreground">{financial.targetReplacementDate}</span>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
