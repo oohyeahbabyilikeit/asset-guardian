@@ -7,12 +7,13 @@ import { ForensicReport } from '@/components/ForensicReport';
 import { PanicMode } from '@/components/PanicMode';
 import { ServiceRequest } from '@/components/ServiceRequest';
 import { RepairPlanner } from '@/components/RepairPlanner';
+import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, getRandomScenario, type AssetData } from '@/data/mockAsset';
-import { type ForensicInputs } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 
-type Screen = 'welcome' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'test-harness';
+type Screen = 'welcome' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'test-harness';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
@@ -60,12 +61,18 @@ const Index = () => {
         return <HandshakeLoading onComplete={handleLoadingComplete} />;
       
       case 'dashboard':
+        // Determine which flow to show based on recommendation
+        const opterraResult = calculateOpterraRisk(currentInputs);
+        const recommendation = opterraResult.verdict;
+        const isHealthy = recommendation.action === 'PASS';
+        
         return (
           <CommandCenter
             onPanicMode={() => setCurrentScreen('panic')}
-            onServiceRequest={() => setCurrentScreen('repair-planner')}
+            onServiceRequest={() => setCurrentScreen(isHealthy ? 'maintenance-plan' : 'repair-planner')}
             onViewReport={() => setCurrentScreen('report')}
             onTestHarness={() => setCurrentScreen('test-harness')}
+            onMaintenancePlan={() => setCurrentScreen('maintenance-plan')}
             currentAsset={currentAsset}
             currentInputs={currentInputs}
             onInputsChange={setCurrentInputs}
@@ -82,6 +89,15 @@ const Index = () => {
               setSelectedRepairs(repairs);
               setCurrentScreen('service');
             }}
+            currentInputs={currentInputs}
+          />
+        );
+      
+      case 'maintenance-plan':
+        return (
+          <MaintenancePlan
+            onBack={() => setCurrentScreen('dashboard')}
+            onScheduleService={() => setCurrentScreen('repair-planner')}
             currentInputs={currentInputs}
           />
         );
