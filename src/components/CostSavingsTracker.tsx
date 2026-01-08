@@ -169,42 +169,6 @@ export function CostSavingsTracker({
           </div>
         ))}
       </div>
-      
-      {/* Monthly Budget Recommendation */}
-      <div className="clean-card p-4 bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
-              <DollarSign className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground text-sm">Replacement Fund</p>
-              <p className="text-[10px] text-muted-foreground">
-                Save monthly for stress-free replacement
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="font-mono font-bold text-lg text-primary">
-              ${monthlyBudgetRecommended}<span className="text-xs text-muted-foreground">/mo</span>
-            </p>
-          </div>
-        </div>
-        
-        {/* Progress to replacement goal */}
-        <div className="mt-3 pt-3 border-t border-border/30">
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
-            <span>Progress to goal</span>
-            <span>${(totalSpent).toLocaleString()} of ${projectedReplacementCost.min.toLocaleString()}</span>
-          </div>
-          <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-700"
-              style={{ width: `${Math.min((totalSpent / projectedReplacementCost.min) * 100, 100)}%` }}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
