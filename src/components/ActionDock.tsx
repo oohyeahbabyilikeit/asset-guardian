@@ -6,6 +6,7 @@ interface ActionDockProps {
   onPanicMode: () => void;
   onFixPressure: () => void;
   onViewReport: () => void;
+  onMaintenancePlan?: () => void;
   recommendation?: Recommendation;
 }
 
@@ -13,6 +14,7 @@ export function ActionDock({
   onPanicMode, 
   onFixPressure, 
   onViewReport,
+  onMaintenancePlan,
   recommendation
 }: ActionDockProps) {
   // Dynamic CTA based on urgency tier
@@ -75,11 +77,19 @@ export function ActionDock({
         </Button>
       </div>
       
-      {/* Emergency link */}
-      <div className="max-w-md mx-auto mt-3">
+      {/* Secondary links */}
+      <div className="max-w-md mx-auto mt-3 flex items-center justify-center gap-4">
+        {onMaintenancePlan && (
+          <button 
+            onClick={onMaintenancePlan}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+          >
+            View Maintenance Plan
+          </button>
+        )}
         <button 
           onClick={onPanicMode}
-          className="w-full text-center text-sm text-red-400 hover:text-red-300 transition-colors underline-offset-4 hover:underline"
+          className="text-sm text-red-400 hover:text-red-300 transition-colors underline-offset-4 hover:underline"
         >
           Emergency / Report Problem
         </button>

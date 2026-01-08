@@ -15,6 +15,7 @@ interface CommandCenterProps {
   onServiceRequest: () => void;
   onViewReport: () => void;
   onTestHarness?: () => void;
+  onMaintenancePlan?: () => void;
   currentAsset: AssetData;
   currentInputs: ForensicInputs;
   onInputsChange: (inputs: ForensicInputs) => void;
@@ -50,6 +51,7 @@ export function CommandCenter({
   onServiceRequest, 
   onViewReport,
   onTestHarness,
+  onMaintenancePlan,
   currentAsset,
   currentInputs,
   onInputsChange,
@@ -203,6 +205,7 @@ export function CommandCenter({
           onPanicMode={onPanicMode}
           onFixPressure={onServiceRequest}
           onViewReport={onViewReport}
+          onMaintenancePlan={onMaintenancePlan}
           recommendation={recommendation}
         />
       </div>
