@@ -1,10 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Bell, Phone, MessageSquare, Droplets, Shield, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
-import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, calculateHealth } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 interface RepairPlannerProps {
   onBack: () => void;
@@ -127,8 +131,72 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
   const currentStatus = failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal';
   const projectedStatus = selectedRepairs.length > 0 ? result.newStatus : currentStatus;
 
-  // Handle "No Repairs Needed" state
+  // Calculate maintenance timeline for optimal state
+  const healthMetrics = useMemo(() => calculateHealth(currentInputs), [currentInputs]);
+  const { shieldLife, monthsToFlush, flushStatus, sedimentRate } = healthMetrics;
+  
+  // Cap maintenance timelines at 3 years (36 months)
+  const MAX_MONTHS = 36;
+  const cappedMonthsToFlush = monthsToFlush !== null ? Math.min(monthsToFlush, MAX_MONTHS) : null;
+  
+  // Calculate months until anode needs replacement (when shieldLife < 1 year)
+  const monthsToAnodeReplacement = shieldLife > 1 ? Math.round((shieldLife - 1) * 12) : 0;
+  const cappedMonthsToAnode = Math.min(monthsToAnodeReplacement, MAX_MONTHS);
+  const anodeNeedsAttention = shieldLife < 1;
+
+  // State for reminder form
+  const [reminderMode, setReminderMode] = useState<'none' | 'sms' | 'contact'>('none');
+  const [reminderForm, setReminderForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    unitDetails: '',
+    maintenanceType: [] as string[],
+    preferredTime: '',
+    notes: ''
+  });
+
+  const handleReminderSubmit = () => {
+    if (reminderMode === 'sms') {
+      if (!reminderForm.phone) {
+        toast.error('Please enter your phone number');
+        return;
+      }
+      toast.success('SMS reminder set! We\'ll text you when maintenance is due.');
+    } else {
+      if (!reminderForm.name || !reminderForm.phone) {
+        toast.error('Please enter your name and phone number');
+        return;
+      }
+      toast.success('Contact request submitted! A plumber will reach out soon.');
+    }
+    setReminderMode('none');
+    setReminderForm({
+      name: '',
+      phone: '',
+      email: '',
+      address: '',
+      unitDetails: '',
+      maintenanceType: [],
+      preferredTime: '',
+      notes: ''
+    });
+  };
+
+  const toggleMaintenanceType = (type: string) => {
+    setReminderForm(prev => ({
+      ...prev,
+      maintenanceType: prev.maintenanceType.includes(type)
+        ? prev.maintenanceType.filter(t => t !== type)
+        : [...prev.maintenanceType, type]
+    }));
+  };
+
+  // Handle "No Repairs Needed" state with maintenance timeline
   if (recommendation.action === 'PASS' && availableRepairs.length === 0) {
+    const hasUpcomingMaintenance = (cappedMonthsToFlush !== null && flushStatus === 'optimal') || cappedMonthsToAnode > 0;
+    
     return (
       <div className="min-h-screen bg-background">
         <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
@@ -139,18 +207,294 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
             <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="font-bold text-foreground">System Status</h1>
+            <h1 className="font-bold text-foreground">Maintenance Plan</h1>
             <div className="w-10" />
           </div>
         </header>
 
-        <div className="relative p-6 max-w-md mx-auto text-center py-16">
-          <CheckCircle2 className="w-16 h-16 text-blue-400 mx-auto mb-6" />
-          <h2 className="text-xl font-bold text-foreground mb-3">Assessment Complete</h2>
-          <p className="text-muted-foreground mb-8">
-            No urgent repairs identified at this time. Regular professional inspection and routine maintenance are always recommended.
-          </p>
-          <Button onClick={onBack} variant="outline" className="w-full max-w-xs">
+        <div className="relative p-4 max-w-md mx-auto">
+          {/* Status Card */}
+          <div className="clean-card border-green-500/30 bg-green-500/5 text-center mb-6">
+            <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-foreground mb-2">All Clear!</h2>
+            <p className="text-sm text-muted-foreground">
+              No urgent repairs needed. Here's your upcoming maintenance schedule.
+            </p>
+          </div>
+
+          {/* Upcoming Maintenance Timeline */}
+          {hasUpcomingMaintenance && (
+            <div className="clean-card mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Calendar className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-foreground">Upcoming Maintenance</h3>
+              </div>
+              
+              <div className="space-y-3">
+                {/* Tank Flush */}
+                {cappedMonthsToFlush !== null && flushStatus === 'optimal' && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <Droplets className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Tank Flush</p>
+                        <p className="text-xs text-muted-foreground">Remove sediment buildup</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-semibold text-foreground">
+                        {cappedMonthsToFlush >= 12 
+                          ? `${(cappedMonthsToFlush / 12).toFixed(1)} yrs` 
+                          : `${cappedMonthsToFlush} mo`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Anode Replacement */}
+                {cappedMonthsToAnode > 0 && !anodeNeedsAttention && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Anode Rod Check</p>
+                        <p className="text-xs text-muted-foreground">Inspect sacrificial anode</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-semibold text-foreground">
+                        {cappedMonthsToAnode >= 12 
+                          ? `${(cappedMonthsToAnode / 12).toFixed(1)} yrs` 
+                          : `${cappedMonthsToAnode} mo`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground uppercase">Schedule in</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Reminder Options */}
+          {reminderMode === 'none' && (
+            <div className="clean-card mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Bell className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-foreground">Set a Reminder</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Don't forget your maintenance! Choose how you'd like to be reminded.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setReminderMode('sms')}
+                  className="p-4 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
+                >
+                  <MessageSquare className="w-6 h-6 mx-auto mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <p className="font-medium text-sm text-foreground">SMS Reminder</p>
+                  <p className="text-xs text-muted-foreground mt-1">Get a text when due</p>
+                </button>
+                
+                <button
+                  onClick={() => setReminderMode('contact')}
+                  className="p-4 rounded-xl border border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-center group"
+                >
+                  <Phone className="w-6 h-6 mx-auto mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <p className="font-medium text-sm text-foreground">Contact Me</p>
+                  <p className="text-xs text-muted-foreground mt-1">Have a plumber call</p>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* SMS Reminder Form */}
+          {reminderMode === 'sms' && (
+            <div className="clean-card mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-foreground">SMS Reminder</h3>
+                </div>
+                <button 
+                  onClick={() => setReminderMode('none')}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="sms-phone" className="text-xs">Phone Number *</Label>
+                  <Input
+                    id="sms-phone"
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    value={reminderForm.phone}
+                    onChange={(e) => setReminderForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-xs mb-2 block">Remind me about:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Tank Flush', 'Anode Check', 'Annual Inspection'].map(type => (
+                      <button
+                        key={type}
+                        onClick={() => toggleMaintenanceType(type)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          reminderForm.maintenanceType.includes(type)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <Button onClick={handleReminderSubmit} className="w-full">
+                  <Bell className="w-4 h-4 mr-2" />
+                  Set Reminder
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Contact Request Form */}
+          {reminderMode === 'contact' && (
+            <div className="clean-card mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-foreground">Request a Call</h3>
+                </div>
+                <button 
+                  onClick={() => setReminderMode('none')}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="contact-name" className="text-xs">Name *</Label>
+                    <Input
+                      id="contact-name"
+                      placeholder="John Smith"
+                      value={reminderForm.name}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contact-phone" className="text-xs">Phone *</Label>
+                    <Input
+                      id="contact-phone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={reminderForm.phone}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="contact-email" className="text-xs">Email</Label>
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    placeholder="john@example.com"
+                    value={reminderForm.email}
+                    onChange={(e) => setReminderForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="contact-address" className="text-xs">Address</Label>
+                  <Input
+                    id="contact-address"
+                    placeholder="123 Main St, City, State"
+                    value={reminderForm.address}
+                    onChange={(e) => setReminderForm(prev => ({ ...prev, address: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="contact-unit" className="text-xs">Water Heater Details</Label>
+                  <Input
+                    id="contact-unit"
+                    placeholder="e.g., 50 gal gas, located in garage"
+                    value={reminderForm.unitDetails}
+                    onChange={(e) => setReminderForm(prev => ({ ...prev, unitDetails: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-xs mb-2 block">Service Needed:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Tank Flush', 'Anode Replacement', 'Full Inspection', 'Repair Quote', 'Other'].map(type => (
+                      <button
+                        key={type}
+                        onClick={() => toggleMaintenanceType(type)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          reminderForm.maintenanceType.includes(type)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="contact-time" className="text-xs">Preferred Contact Time</Label>
+                  <Input
+                    id="contact-time"
+                    placeholder="e.g., Weekday mornings"
+                    value={reminderForm.preferredTime}
+                    onChange={(e) => setReminderForm(prev => ({ ...prev, preferredTime: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="contact-notes" className="text-xs">Additional Notes</Label>
+                  <Textarea
+                    id="contact-notes"
+                    placeholder="Any other details..."
+                    value={reminderForm.notes}
+                    onChange={(e) => setReminderForm(prev => ({ ...prev, notes: e.target.value }))}
+                    className="mt-1 min-h-[80px]"
+                  />
+                </div>
+                
+                <Button onClick={handleReminderSubmit} className="w-full">
+                  <Phone className="w-4 h-4 mr-2" />
+                  Request Contact
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Back Button */}
+          <Button onClick={onBack} variant="outline" className="w-full">
             Return to Dashboard
           </Button>
         </div>
