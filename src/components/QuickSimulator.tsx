@@ -22,7 +22,9 @@ export function QuickSimulator({ inputs, onInputsChange }: QuickSimulatorProps) 
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="mx-4 overflow-hidden border-primary/20">
+      <Card className="mx-4 overflow-hidden border-primary/20 relative">
+        {/* Top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/60 via-cyan-500/50 to-primary/60" />
         <CollapsibleTrigger asChild>
           <Button 
             variant="ghost" 
