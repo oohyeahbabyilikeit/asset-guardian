@@ -597,4 +597,38 @@
   .animate-bubble-rise {
     animation: bubble-rise 2s ease-out infinite;
   }
+
+  /* Maintenance Card Stagger Animation */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .maintenance-card {
+    animation: fadeInUp 0.4s ease-out forwards;
+    animation-delay: calc(var(--index, 0) * 0.08s);
+    opacity: 0;
+  }
+
+  /* Tab transition */
+  @keyframes tabFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .tab-content-enter {
+    animation: tabFadeIn 0.3s ease-out forwards;
+  }
 }

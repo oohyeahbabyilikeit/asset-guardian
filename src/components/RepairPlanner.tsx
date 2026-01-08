@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Bell, Phone, MessageSquare, Droplets, Shield, Clock, ShieldCheck, HelpCircle, DollarSign, PiggyBank, TrendingUp, Target } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, CheckCircle2, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Bell, Phone, MessageSquare, Droplets, Shield, Clock, ShieldCheck, HelpCircle, DollarSign, PiggyBank, TrendingUp, Target, BarChart3, History } from 'lucide-react';
 import { MaintenanceChatInterface } from './MaintenanceChatInterface';
+import { CostSavingsTracker } from './CostSavingsTracker';
+import { MaintenanceCalendar } from './MaintenanceCalendar';
+import { ServiceHistoryLog, ServiceEvent } from './ServiceHistoryLog';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
 import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, calculateHealth } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -203,10 +207,60 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
     }));
   };
 
+  // Mock service history data
+  const mockServiceHistory: ServiceEvent[] = [
+    {
+      id: '1',
+      type: 'flush',
+      date: '2026-01-07',
+      technicianName: 'Mike T.',
+      cost: 175,
+      healthScoreBefore: 82,
+      healthScoreAfter: 89,
+      notes: 'Routine tank flush completed. Removed approximately 2.5 lbs of sediment.',
+      findings: ['Moderate sediment buildup', 'Tank interior in good condition']
+    },
+    {
+      id: '2',
+      type: 'anode_replacement',
+      date: '2025-06-15',
+      technicianName: 'Mike T.',
+      cost: 225,
+      healthScoreBefore: 75,
+      healthScoreAfter: 88,
+      notes: 'Anode rod was 70% depleted. Replaced with magnesium anode.',
+      findings: ['Original anode heavily corroded', 'Tank showing early signs of protection loss']
+    },
+    {
+      id: '3',
+      type: 'inspection',
+      date: '2024-12-10',
+      technicianName: 'Sarah K.',
+      cost: 95,
+      healthScoreBefore: 85,
+      healthScoreAfter: 85,
+      notes: 'Annual inspection completed. All systems functioning normally.',
+      findings: ['T&P valve operational', 'No visible leaks', 'Thermostat calibrated correctly']
+    },
+    {
+      id: '4',
+      type: 'flush',
+      date: '2024-06-20',
+      technicianName: 'Mike T.',
+      cost: 150,
+      notes: 'Scheduled maintenance flush.',
+    }
+  ];
+
+  // Calculate values for cost tracker
+  const rawReplacementCost = financial?.estReplacementCost;
+  const projectedReplacementCost = typeof rawReplacementCost === 'number' 
+    ? { min: rawReplacementCost, max: rawReplacementCost * 1.5 } 
+    : rawReplacementCost || { min: 2500, max: 4500 };
+  const monthlyBudgetRecommended = financial?.monthlyBudget || Math.round(projectedReplacementCost.min / 36);
+
   // Handle "No Repairs Needed" state with maintenance timeline
   if (recommendation.action === 'PASS' && availableRepairs.length === 0) {
-    const hasUpcomingMaintenance = (cappedMonthsToFlush !== null && flushStatus === 'optimal') || cappedMonthsToAnode > 0;
-    
     return (
       <div className="h-screen bg-background flex flex-col overflow-hidden">
         <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
@@ -222,308 +276,189 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           </div>
         </header>
 
-        <div className="relative flex-1 p-3 max-w-md mx-auto w-full flex flex-col gap-3 overflow-hidden">
-          {/* Health Score at Top */}
-          <div className="clean-card p-3 flex-shrink-0 bg-gradient-to-br from-green-500/10 to-transparent border-green-500/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4 text-green-400" />
+        <div className="relative flex-1 overflow-y-auto">
+          <div className="p-3 max-w-md mx-auto w-full space-y-3">
+            {/* Health Score Header */}
+            <div className="clean-card p-4 bg-gradient-to-br from-green-500/10 via-card to-transparent border-green-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                    <ShieldCheck className="w-6 h-6 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Your Protection Plan</p>
+                    <p className="font-bold text-foreground text-2xl font-mono">{currentScore}<span className="text-muted-foreground text-sm">/100</span></p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Plumbing Health Score</p>
-                  <p className="font-bold text-foreground text-lg font-mono">{currentScore}<span className="text-muted-foreground text-sm">/100</span></p>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-emerald-400 font-mono">
+                    ${mockServiceHistory.reduce((sum, e) => {
+                      const healthGain = (e.healthScoreAfter || 0) - (e.healthScoreBefore || 0);
+                      return sum + (healthGain > 0 ? healthGain * 50 : 0);
+                    }, 0).toLocaleString()}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">Total Saved</p>
                 </div>
               </div>
+              <div className="mt-3 h-2 bg-muted/50 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-700"
+                  style={{ width: `${currentScore}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
+                Monitored since {new Date(Date.now() - currentInputs.calendarAge * 365 * 24 * 60 * 60 * 1000).getFullYear()} • {mockServiceHistory.length} services completed
+              </p>
             </div>
-            <div className="mt-2 h-1.5 bg-muted/50 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-500"
-                style={{ width: `${currentScore}%` }}
-              />
-            </div>
-          </div>
 
-          {/* Combined Maintenance & Monitoring Card */}
-          <div className="clean-card p-4 flex-shrink-0">
-            {/* Recommended Maintenance Section */}
-            {hasUpcomingMaintenance && (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-foreground text-sm">Recommended Maintenance</h3>
-                </div>
+            {/* Tabbed Interface */}
+            <Tabs defaultValue="calendar" className="w-full">
+              <TabsList className="grid w-full grid-cols-4 h-10 bg-muted/50 p-1">
+                <TabsTrigger value="calendar" className="text-[10px] data-[state=active]:bg-background">
+                  <Calendar className="w-3.5 h-3.5 mr-1" />
+                  Schedule
+                </TabsTrigger>
+                <TabsTrigger value="savings" className="text-[10px] data-[state=active]:bg-background">
+                  <PiggyBank className="w-3.5 h-3.5 mr-1" />
+                  Savings
+                </TabsTrigger>
+                <TabsTrigger value="history" className="text-[10px] data-[state=active]:bg-background">
+                  <History className="w-3.5 h-3.5 mr-1" />
+                  History
+                </TabsTrigger>
+                <TabsTrigger value="chat" className="text-[10px] data-[state=active]:bg-background">
+                  <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                  Ask
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="calendar" className="mt-3 tab-content-enter">
+                <MaintenanceCalendar
+                  monthsToFlush={cappedMonthsToFlush}
+                  monthsToAnode={cappedMonthsToAnode}
+                  lastFlushDate="Jan 7, 2026"
+                  lastAnodeDate="Jun 15, 2025"
+                  onScheduleEarly={(type) => {
+                    setReminderMode('contact');
+                    toast.info(`Scheduling early ${type} service...`);
+                  }}
+                />
                 
-                <div className="space-y-2 mb-4">
-                  {/* Tank Flush */}
-                  {cappedMonthsToFlush !== null && flushStatus === 'optimal' && (
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                            <Droplets className="w-4 h-4 text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground text-xs">Tank Flush</p>
-                            <p className="text-[10px] text-muted-foreground">Remove sediment</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-mono font-semibold text-foreground text-sm">
-                            {cappedMonthsToFlush >= 12 
-                              ? `${(cappedMonthsToFlush / 12).toFixed(1)} yrs` 
-                              : `${cappedMonthsToFlush} mo`}
-                          </p>
-                        </div>
+                {/* Protection Status */}
+                {reminderMode === 'none' && (
+                  <div className="mt-4 clean-card p-3 bg-gradient-to-br from-green-500/5 to-transparent border-green-500/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-5 h-5 text-green-400" />
                       </div>
-                      <p className="text-[9px] text-muted-foreground mt-1.5 pl-[42px]">
-                        Last performed: Jan 7, 2026 by Mike T.
-                      </p>
-                    </div>
-                  )}
-
-                  {cappedMonthsToAnode > 0 && !anodeNeedsAttention && (
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-amber-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground text-xs">Anode Rod Check</p>
-                            <p className="text-[10px] text-muted-foreground">Inspect anode</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-mono font-semibold text-foreground text-sm">
-                            {cappedMonthsToAnode >= 12 
-                              ? `${(cappedMonthsToAnode / 12).toFixed(1)} yrs` 
-                              : `${cappedMonthsToAnode} mo`}
-                          </p>
-                        </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-foreground text-sm">Auto-Reminders Active</p>
+                        <p className="text-[10px] text-muted-foreground">We'll notify you when service is due</p>
                       </div>
-                      <p className="text-[9px] text-muted-foreground mt-1.5 pl-[42px]">
-                        Last performed: Jan 7, 2026 by Mike T.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t border-border/50 pt-3" />
-              </>
-            )}
-
-            {/* Protection Status - Replaces "Set a Reminder" */}
-            {reminderMode === 'none' && (
-              <>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                    <ShieldCheck className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground text-sm">Auto-Reminders Active</p>
-                    <p className="text-[10px] text-muted-foreground">We'll text you automatically when service is due. No action needed.</p>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={() => setReminderMode('contact')}
-                  className="flex items-center justify-center gap-1.5 mt-2 w-full py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <HelpCircle className="w-3 h-3" />
-                  Need help sooner? Contact Plumber Support
-                </button>
-              </>
-            )}
-
-            {/* SMS Reminder Form - Inline */}
-            {reminderMode === 'sms' && (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-foreground">SMS Reminder</h3>
-                  </div>
-                  <button 
-                    onClick={() => setReminderMode('none')}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="sms-phone" className="text-xs">Phone Number *</Label>
-                    <Input
-                      id="sms-phone"
-                      type="tel"
-                      placeholder="(555) 123-4567"
-                      value={reminderForm.phone}
-                      onChange={(e) => setReminderForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs mb-2 block">Remind me about:</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Tank Flush', 'Anode Check', 'Annual Inspection'].map(type => (
-                        <button
-                          key={type}
-                          onClick={() => toggleMaintenanceType(type)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                            reminderForm.maintenanceType.includes(type)
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
                     </div>
                   </div>
-                  
-                  <Button onClick={handleReminderSubmit} className="w-full">
-                    <Bell className="w-4 h-4 mr-2" />
-                    Set Reminder
-                  </Button>
-                </div>
-              </>
-            )}
+                )}
+              </TabsContent>
 
-            {/* Contact Request Form - Inline */}
+              <TabsContent value="savings" className="mt-3 tab-content-enter">
+                <CostSavingsTracker
+                  unitAge={currentInputs.calendarAge}
+                  maintenanceHistory={mockServiceHistory}
+                  projectedReplacementCost={projectedReplacementCost}
+                  monthlyBudgetRecommended={monthlyBudgetRecommended}
+                  currentHealthScore={currentScore}
+                />
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-3 tab-content-enter">
+                <ServiceHistoryLog
+                  events={mockServiceHistory}
+                  onAddEvent={() => toast.info('Add service coming soon!')}
+                  onExportPDF={() => toast.success('PDF export coming soon!')}
+                />
+              </TabsContent>
+
+              <TabsContent value="chat" className="mt-3 tab-content-enter">
+                <MaintenanceChatInterface
+                  flushMonths={cappedMonthsToFlush}
+                  anodeMonths={cappedMonthsToAnode}
+                  sedimentRate={sedimentRate}
+                />
+              </TabsContent>
+            </Tabs>
+            
+            {/* Contact Form Modal for scheduling */}
             {reminderMode === 'contact' && (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-foreground">Request a Call</h3>
+              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="clean-card p-5 max-w-md w-full max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-primary" />
+                      <h3 className="font-semibold text-foreground">Schedule Service</h3>
+                    </div>
+                    <button 
+                      onClick={() => setReminderMode('none')}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => setReminderMode('none')}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="contact-name" className="text-xs">Name *</Label>
+                        <Input
+                          id="contact-name"
+                          placeholder="John Smith"
+                          value={reminderForm.name}
+                          onChange={(e) => setReminderForm(prev => ({ ...prev, name: e.target.value }))}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="contact-phone" className="text-xs">Phone *</Label>
+                        <Input
+                          id="contact-phone"
+                          type="tel"
+                          placeholder="(555) 123-4567"
+                          value={reminderForm.phone}
+                          onChange={(e) => setReminderForm(prev => ({ ...prev, phone: e.target.value }))}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    
                     <div>
-                      <Label htmlFor="contact-name" className="text-xs">Name *</Label>
-                      <Input
-                        id="contact-name"
-                        placeholder="John Smith"
-                        value={reminderForm.name}
-                        onChange={(e) => setReminderForm(prev => ({ ...prev, name: e.target.value }))}
-                        className="mt-1"
-                      />
+                      <Label className="text-xs mb-2 block">Service Needed:</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {['Tank Flush', 'Anode Check', 'Full Inspection'].map(type => (
+                          <button
+                            key={type}
+                            onClick={() => toggleMaintenanceType(type)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              reminderForm.maintenanceType.includes(type)
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                            }`}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="contact-phone" className="text-xs">Phone *</Label>
-                      <Input
-                        id="contact-phone"
-                        type="tel"
-                        placeholder="(555) 123-4567"
-                        value={reminderForm.phone}
-                        onChange={(e) => setReminderForm(prev => ({ ...prev, phone: e.target.value }))}
-                        className="mt-1"
-                      />
-                    </div>
+                    
+                    <Button onClick={() => {
+                      handleReminderSubmit();
+                      toast.success('Service request submitted!');
+                    }} className="w-full">
+                      <Phone className="w-4 h-4 mr-2" />
+                      Request Service
+                    </Button>
                   </div>
-                  
-                  <div>
-                    <Label htmlFor="contact-email" className="text-xs">Email</Label>
-                    <Input
-                      id="contact-email"
-                      type="email"
-                      placeholder="john@example.com"
-                      value={reminderForm.email}
-                      onChange={(e) => setReminderForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="contact-address" className="text-xs">Address</Label>
-                    <Input
-                      id="contact-address"
-                      placeholder="123 Main St, City, State"
-                      value={reminderForm.address}
-                      onChange={(e) => setReminderForm(prev => ({ ...prev, address: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="contact-unit" className="text-xs">Water Heater Details</Label>
-                    <Input
-                      id="contact-unit"
-                      placeholder="e.g., 50 gal gas, located in garage"
-                      value={reminderForm.unitDetails}
-                      onChange={(e) => setReminderForm(prev => ({ ...prev, unitDetails: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs mb-2 block">Service Needed:</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Tank Flush', 'Anode Replacement', 'Full Inspection', 'Repair Quote', 'Other'].map(type => (
-                        <button
-                          key={type}
-                          onClick={() => toggleMaintenanceType(type)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                            reminderForm.maintenanceType.includes(type)
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="contact-time" className="text-xs">Preferred Contact Time</Label>
-                    <Input
-                      id="contact-time"
-                      placeholder="e.g., Weekday mornings"
-                      value={reminderForm.preferredTime}
-                      onChange={(e) => setReminderForm(prev => ({ ...prev, preferredTime: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="contact-notes" className="text-xs">Additional Notes</Label>
-                    <Textarea
-                      id="contact-notes"
-                      placeholder="Any other details..."
-                      value={reminderForm.notes}
-                      onChange={(e) => setReminderForm(prev => ({ ...prev, notes: e.target.value }))}
-                      className="mt-1 min-h-[80px]"
-                    />
-                  </div>
-                  
-                  <Button onClick={handleReminderSubmit} className="w-full">
-                    <Phone className="w-4 h-4 mr-2" />
-                    Request Contact
-                  </Button>
                 </div>
-              </>
+              </div>
             )}
-          </div>
-
-          {/* Chat Interface - Now at bottom */}
-          <div className="mb-6">
-            <MaintenanceChatInterface
-              flushMonths={cappedMonthsToFlush}
-              anodeMonths={cappedMonthsToAnode}
-              sedimentRate={sedimentRate}
-            />
           </div>
         </div>
       </div>
