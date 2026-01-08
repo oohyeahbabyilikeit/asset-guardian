@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, TrendingDown, AlertTriangle, Calendar, Sparkles } from 'lucide-react';
+import { ArrowLeft, TrendingDown, AlertTriangle, Calendar, Sparkles, DollarSign, TrendingUp, Target, PiggyBank } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, simulateRepairs, SimulatedResult } from '@/data/repairOptions';
 import { formatCurrency } from '@/data/mockAsset';
@@ -80,6 +80,8 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
   // Calculate health score dynamically from CURRENT inputs
   const opterraResult = calculateOpterraRisk(currentInputs);
   const { bioAge, failProb } = opterraResult.metrics;
+  const recommendation = opterraResult.verdict;
+  const financial = opterraResult.financial;
   
   const dynamicHealthScore = {
     score: failProbToHealthScore(failProb),
@@ -101,6 +103,10 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
   const animatedFailureProb = useAnimatedNumber(result.newFailureProb);
 
   const isFullReplacement = selectedRepairs.some(r => r.isFullReplacement);
+  
+  // Distinguish between safety replacement and economic replacement
+  const isSafetyReplacement = isFullReplacement && recommendation.badge === 'CRITICAL';
+  const isEconomicReplacement = isFullReplacement && recommendation.badge !== 'CRITICAL';
 
   const getStatusColor = (status: 'critical' | 'warning' | 'optimal') => {
     switch (status) {
@@ -171,57 +177,114 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
       </header>
 
       <div className="relative p-6 max-w-md mx-auto pb-32">
-        {/* For Full Replacement: Show Risk Mitigation + Benefits instead of score animation */}
+        {/* For Full Replacement: Show different content for safety vs economic */}
         {isFullReplacement ? (
           <>
-            {/* Risk Eliminated Banner */}
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30 mb-4">
-                <span className="text-green-400 text-lg">✓</span>
-                <span className="text-green-400 font-semibold">All Current Risks Eliminated</span>
-              </div>
-              <p className="text-muted-foreground text-sm">
-                Replacement removes all degradation and failure risk from your current unit.
-              </p>
-            </div>
+            {/* Safety Replacement Banner */}
+            {isSafetyReplacement && (
+              <>
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30 mb-4">
+                    <span className="text-green-400 text-lg">✓</span>
+                    <span className="text-green-400 font-semibold">All Current Risks Eliminated</span>
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    Replacement removes all degradation and failure risk from your current unit.
+                  </p>
+                </div>
 
-            {/* Real-World Risks Being Eliminated */}
-            <div className="clean-card mb-4 border-red-500/30 bg-red-500/5">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-medium text-foreground">Risks You're Eliminating</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <span className="text-red-400 mt-0.5">✕</span>
-                  <div>
-                    <span className="text-sm text-foreground font-medium">Emergency Service Fees</span>
-                    <p className="text-xs text-muted-foreground">After-hours and weekend calls cost 2-3x normal rates</p>
+                {/* Real-World Risks Being Eliminated - Safety Focus */}
+                <div className="clean-card mb-4 border-red-500/30 bg-red-500/5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-medium text-foreground">Risks You're Eliminating</span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-red-400 mt-0.5">✕</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">Emergency Service Fees</span>
+                        <p className="text-xs text-muted-foreground">After-hours and weekend calls cost 2-3x normal rates</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-red-400 mt-0.5">✕</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">Water Damage to Home</span>
+                        <p className="text-xs text-muted-foreground">Average tank failure causes $5,000-$15,000 in damage</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-red-400 mt-0.5">✕</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">Damaged Belongings</span>
+                        <p className="text-xs text-muted-foreground">Flooded storage, ruined furniture, personal items</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-red-400 mt-0.5">✕</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">Days Without Hot Water</span>
+                        <p className="text-xs text-muted-foreground">Emergency replacements can take 3-5 days to schedule</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-red-400 mt-0.5">✕</span>
-                  <div>
-                    <span className="text-sm text-foreground font-medium">Water Damage to Home</span>
-                    <p className="text-xs text-muted-foreground">Average tank failure causes $5,000-$15,000 in damage</p>
+              </>
+            )}
+
+            {/* Economic Replacement Banner */}
+            {isEconomicReplacement && (
+              <>
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/30 mb-4">
+                    <Target className="w-4 h-4 text-primary" />
+                    <span className="text-primary font-semibold">Smart Financial Decision</span>
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    Upgrading now saves money compared to ongoing repairs on an aging unit.
+                  </p>
+                </div>
+
+                {/* Financial Benefits - Economic Focus */}
+                <div className="clean-card mb-4 border-primary/30 bg-primary/5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <PiggyBank className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-foreground">Financial Benefits</span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-primary mt-0.5">✓</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">Avoid Declining Repair ROI</span>
+                        <p className="text-xs text-muted-foreground">Repairs on aging units provide diminishing returns</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-primary mt-0.5">✓</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">Schedule on Your Terms</span>
+                        <p className="text-xs text-muted-foreground">No emergency pricing or rushed decisions</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-primary mt-0.5">✓</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">Estimated Cost: ${financial.estReplacementCost.toLocaleString()}</span>
+                        <p className="text-xs text-muted-foreground">Plan ahead with predictable costs</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-primary mt-0.5">✓</span>
+                      <div>
+                        <span className="text-sm text-foreground font-medium">10-20% Lower Utility Bills</span>
+                        <p className="text-xs text-muted-foreground">Modern units are significantly more efficient</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-red-400 mt-0.5">✕</span>
-                  <div>
-                    <span className="text-sm text-foreground font-medium">Damaged Belongings</span>
-                    <p className="text-xs text-muted-foreground">Flooded storage, ruined furniture, personal items</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-red-400 mt-0.5">✕</span>
-                  <div>
-                    <span className="text-sm text-foreground font-medium">Days Without Hot Water</span>
-                    <p className="text-xs text-muted-foreground">Emergency replacements can take 3-5 days to schedule</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </>
         ) : (
           <>
@@ -352,8 +415,8 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
           </div>
         )}
 
-        {/* New System Benefits - Only show for replacement */}
-        {isFullReplacement && (
+        {/* New System Benefits - Only show for safety replacement */}
+        {isSafetyReplacement && (
           <div className="clean-card mb-4 border-green-500/30 bg-green-500/5">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-4 h-4 text-green-400" />
@@ -392,6 +455,46 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
           </div>
         )}
 
+        {/* Efficiency & Warranty Benefits - Show for economic replacement */}
+        {isEconomicReplacement && (
+          <div className="clean-card mb-4 border-green-500/30 bg-green-500/5">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-green-400" />
+              <span className="text-sm font-medium text-foreground">What You'll Gain</span>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-green-400 mt-0.5">✓</span>
+                <div>
+                  <span className="text-sm text-foreground font-medium">Full 6-12 Year Warranty</span>
+                  <p className="text-xs text-muted-foreground">Complete manufacturer coverage, parts and labor</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-green-400 mt-0.5">✓</span>
+                <div>
+                  <span className="text-sm text-foreground font-medium">Fresh Anode Protection</span>
+                  <p className="text-xs text-muted-foreground">New sacrificial anode starts at 100% effectiveness</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-green-400 mt-0.5">✓</span>
+                <div>
+                  <span className="text-sm text-foreground font-medium">Zero Sediment Buildup</span>
+                  <p className="text-xs text-muted-foreground">Clean tank operates at peak efficiency</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-green-400 mt-0.5">✓</span>
+                <div>
+                  <span className="text-sm text-foreground font-medium">Reset to 1.0x Aging Rate</span>
+                  <p className="text-xs text-muted-foreground">Your current unit ages at {(bioAge / currentInputs.calendarAge).toFixed(1)}x normal</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Selected Items Summary */}
         <div className="clean-card mb-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
@@ -424,7 +527,11 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
             onClick={onSchedule}
             className="w-full h-14 text-base font-semibold"
           >
-            {isFullReplacement ? 'Request Replacement Quote' : 'Schedule These Repairs'}
+            {isEconomicReplacement 
+              ? 'Get Upgrade Options' 
+              : isFullReplacement 
+                ? 'Request Replacement Quote' 
+                : 'Schedule These Repairs'}
           </Button>
         </div>
       </div>
