@@ -734,11 +734,14 @@ export function ServiceHistory({
                     <span>Schedule flush in:</span>
                     <span className={cn(
                       "font-mono font-medium",
-                      monthsToFlush <= 6 ? "text-amber-400" : "text-emerald-400"
+                      Math.min(monthsToFlush, 36) <= 6 ? "text-amber-400" : "text-emerald-400"
                     )}>
-                      {monthsToFlush >= 12 
-                        ? `${(monthsToFlush / 12).toFixed(1)} yrs` 
-                        : `${monthsToFlush} mo`}
+                      {(() => {
+                        const capped = Math.min(monthsToFlush, 36);
+                        return capped >= 12 
+                          ? `${(capped / 12).toFixed(1)} yrs` 
+                          : `${capped} mo`;
+                      })()}
                     </span>
                   </div>
                 )}
