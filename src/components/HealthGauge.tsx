@@ -79,37 +79,52 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
   };
 
   // Generate projection data for the chart
-  // This properly models bioAge growth and its effect on health score
+  // Models compound stress over time: neglected systems deteriorate faster as issues cascade
   const generateProjectionData = () => {
     if (!metrics) return [];
     
     const data = [];
     const currentBioAge = metrics.bioAge;
-    const neglectedRate = metrics.agingRate;
-    const optimizedRate = metrics.optimizedRate;
+    const shieldLife = metrics.shieldLife; // Years until anode depletes
+    const baseAgingRate = metrics.agingRate;
     
-    // Check if system is critical/unserviceable (no projection makes sense)
-    const isCritical = failureProbability === 'FAIL' || score < 20;
-    
-    // Project over 5 years, every 6 months
+    // Project over 5 years (60 months) in 6-month intervals
     for (let month = 0; month <= 60; month += 6) {
       const yearsAhead = month / 12;
       
-      // Neglected: bioAge grows at current aging rate
-      const neglectedBioAge = currentBioAge + (yearsAhead * neglectedRate);
-      const neglectedFailProb = bioAgeToFailProb(neglectedBioAge);
-      const neglectedHealth = isCritical ? 0 : failProbToHealthScore(neglectedFailProb);
+      // === NEGLECTED SCENARIO ===
+      // Stress compounds as issues worsen over time
+      let neglectedRate = baseAgingRate;
       
-      // Optimized: bioAge grows at optimized rate (after fixing issues)
-      const optimizedBioAge = currentBioAge + (yearsAhead * optimizedRate);
+      // After anode depletes, corrosion stress jumps significantly
+      const yearsAfterAnodeDepletes = Math.max(0, yearsAhead - shieldLife);
+      if (yearsAfterAnodeDepletes > 0) {
+        // +40% stress per year without anode protection
+        neglectedRate *= (1 + 0.4 * yearsAfterAnodeDepletes);
+      }
+      
+      // Sediment builds ~15% per year if not flushed, compounding
+      neglectedRate *= Math.pow(1.15, yearsAhead);
+      
+      // Calculate cumulative bio-age growth using average rate over the period
+      const avgNeglectedRate = (baseAgingRate + neglectedRate) / 2;
+      const neglectedBioAge = currentBioAge + (yearsAhead * avgNeglectedRate);
+      const neglectedFailProb = bioAgeToFailProb(neglectedBioAge);
+      const neglectedHealth = failProbToHealthScore(neglectedFailProb);
+      
+      // === MAINTAINED SCENARIO ===
+      // Issues fixed immediately, annual maintenance keeps stress minimal
+      // Pressure normalized, expansion tank installed, annual flushes
+      const maintainedRate = 1.05; // Near-baseline aging with proper care
+      const optimizedBioAge = currentBioAge + (yearsAhead * maintainedRate);
       const optimizedFailProb = bioAgeToFailProb(optimizedBioAge);
-      const optimizedHealth = isCritical ? 0 : failProbToHealthScore(optimizedFailProb);
+      const optimizedHealth = failProbToHealthScore(optimizedFailProb);
       
       data.push({
         month,
         year: yearsAhead.toFixed(1),
-        neglected: Math.max(0, neglectedHealth),
-        optimized: Math.max(0, optimizedHealth),
+        neglected: Math.max(0, Math.round(neglectedHealth)),
+        optimized: Math.max(0, Math.round(optimizedHealth)),
       });
     }
     
