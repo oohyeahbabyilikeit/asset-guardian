@@ -1,18 +1,9 @@
 import { useState } from 'react';
 import { History, Droplets, Shield, Wrench, CheckCircle2, Plus, Download, ChevronDown, User, Calendar, DollarSign, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ServiceEvent } from '@/types/serviceHistory';
 
-export interface ServiceEvent {
-  id: string;
-  type: 'flush' | 'anode_replacement' | 'inspection' | 'repair';
-  date: string;
-  technicianName?: string;
-  notes?: string;
-  cost: number;
-  healthScoreBefore?: number;
-  healthScoreAfter?: number;
-  findings?: string[];
-}
+export type { ServiceEvent };
 
 interface ServiceHistoryLogProps {
   events: ServiceEvent[];

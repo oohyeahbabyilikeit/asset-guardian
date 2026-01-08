@@ -4,13 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-
-interface ServiceEvent {
-  id: string;
-  type: 'anode_replacement' | 'flush' | 'inspection';
-  date: string;
-  notes?: string;
-}
+import { ServiceEvent } from '@/types/serviceHistory';
 
 interface ServiceHistoryProps {
   calendarAge: number;

@@ -9,6 +9,7 @@ import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
 import { EducationalDrawer, type EducationalTopic } from '@/components/EducationalDrawer';
 import { type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
+import { ServiceEvent } from '@/types/serviceHistory';
 
 interface CommandCenterProps {
   onPanicMode: () => void;
@@ -21,6 +22,7 @@ interface CommandCenterProps {
   onInputsChange: (inputs: ForensicInputs) => void;
   onRandomize: () => void;
   scenarioName: string;
+  serviceHistory?: ServiceEvent[];
 }
 
 // Derive status from thresholds
@@ -56,7 +58,8 @@ export function CommandCenter({
   currentInputs,
   onInputsChange,
   onRandomize,
-  scenarioName
+  scenarioName,
+  serviceHistory = []
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
 
@@ -174,6 +177,7 @@ export function CommandCenter({
           flushStatus={flushStatus}
           autoExpand={dynamicHealthScore.score < 50}
           recommendation={recommendation}
+          serviceHistory={serviceHistory}
         />
         </div>
 
