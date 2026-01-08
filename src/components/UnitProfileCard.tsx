@@ -51,6 +51,13 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
     'CRAWLSPACE': 'Crawlspace',
   }[inputs.location] || inputs.location;
 
+  // Map usage type to readable string
+  const usageLabel = {
+    'light': 'Light',
+    'normal': 'Normal',
+    'heavy': 'Heavy',
+  }[inputs.usageType] || inputs.usageType;
+
   // Calculate warranty remaining
   const warrantyRemaining = Math.max(0, inputs.warrantyYears - inputs.calendarAge);
   const warrantyStatus = warrantyRemaining <= 0 ? 'expired' : warrantyRemaining <= 1 ? 'expiring' : 'active';
@@ -124,6 +131,24 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
                   'text-emerald-400'
                 }`}>
                   {warrantyRemaining > 0 ? `${warrantyRemaining} yrs left` : 'Expired'}
+                </p>
+              </div>
+            </div>
+
+            {/* Household Usage */}
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
+              <div className="space-y-1">
+                <span className="text-muted-foreground text-xs block font-medium">Household Size</span>
+                <p className="font-semibold text-foreground">{inputs.peopleCount} {inputs.peopleCount === 1 ? 'person' : 'people'}</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-muted-foreground text-xs block font-medium">Usage Pattern</span>
+                <p className={`font-semibold ${
+                  inputs.usageType === 'heavy' ? 'text-amber-400' : 
+                  inputs.usageType === 'light' ? 'text-emerald-400' : 
+                  'text-foreground'
+                }`}>
+                  {usageLabel}
                 </p>
               </div>
             </div>
