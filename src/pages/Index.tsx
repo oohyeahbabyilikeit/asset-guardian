@@ -110,7 +110,7 @@ const Index = () => {
             onServiceRequest={() => setCurrentScreen(isCritical ? 'repair-planner' : (isHealthy ? 'maintenance-plan' : 'repair-planner'))}
             onViewReport={() => setCurrentScreen('report')}
             onTestHarness={() => setCurrentScreen('test-harness')}
-            onMaintenancePlan={() => !isCritical && setCurrentScreen('maintenance-plan')}
+            onMaintenancePlan={() => setCurrentScreen(isCritical ? 'repair-planner' : 'maintenance-plan')}
             currentAsset={currentAsset}
             currentInputs={currentInputs}
             onInputsChange={setCurrentInputs}
