@@ -19,9 +19,14 @@ export function ActionDock({
   const getButtonLabel = () => {
     if (!recommendation) return 'See What Others Do';
     
-    // Tier 0/1 (Critical) - Safety focus
-    if (recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE') {
+    // Tier 0/1 (Critical Safety) - Safety focus
+    if (recommendation.badge === 'CRITICAL' as const) {
       return 'View Safety Recommendations';
+    }
+    
+    // Tier 2C (Economic Replacement) - Planning focus, not alarming
+    if (recommendation.action === 'REPLACE') {
+      return 'Plan Your Upgrade';
     }
     
     // Tier 2/3 (Service) - Service focus
@@ -37,8 +42,8 @@ export function ActionDock({
     return 'Explore My Options';
   };
   
-  // Add urgency styling for critical cases
-  const isCritical = recommendation?.badge === 'CRITICAL' || recommendation?.action === 'REPLACE';
+  // Only apply urgent red styling to actual safety issues, not economic replacements
+  const isCritical = recommendation?.badge === ('CRITICAL' as const);
   
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"
