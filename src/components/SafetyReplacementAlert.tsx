@@ -44,6 +44,52 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Droplets
 };
 
+// Generate contextual recommendation based on actual stress factor values
+function getContextualRecommendation(stressor: StressFactor, factorKey: string | null): string {
+  if (!factorKey) return '';
+  
+  const { level, value, description } = stressor;
+  
+  switch (factorKey) {
+    case 'pressure':
+      if (level === 'critical') {
+        return `Your water pressure has been dangerously high (${value.toFixed(1)}x stress). Install a Pressure Reducing Valve (PRV) set to 55-60 PSI to prevent the same damage to your new unit.`;
+      }
+      return `Elevated pressure stress (${value.toFixed(1)}x) contributed to wear. A PRV would protect your new unit.`;
+    
+    case 'sediment':
+      if (description.includes('lbs')) {
+        const lbs = parseFloat(description.match(/[\d.]+/)?.[0] || '0');
+        if (lbs > 15) {
+          return `${lbs.toFixed(0)} lbs of sediment accumulated over time. Schedule annual flushes for your new unit to prevent this buildup.`;
+        }
+        return `Sediment buildup (${lbs.toFixed(0)} lbs) reduced efficiency. Regular flushing will protect your new unit.`;
+      }
+      return 'Schedule annual tank flushes to prevent sediment buildup.';
+    
+    case 'temperature':
+      return `High temperature settings accelerated wear. Set your new unit to 120°F for optimal efficiency and longevity.`;
+    
+    case 'thermalExpansion':
+      return `Missing expansion tank caused pressure spikes with every heating cycle. Ensure an expansion tank is installed with your replacement.`;
+    
+    case 'recirculation':
+      return `Continuous recirculation (${value.toFixed(1)}x wear) shortened lifespan. Add a timer or demand pump to reduce stress on your new unit.`;
+    
+    case 'anodeDepletion':
+      if (level === 'critical') {
+        return `The anode rod was completely depleted, leaving the tank unprotected. Replace the anode every 3-5 years on your new unit.`;
+      }
+      return `Low anode protection accelerated corrosion. Monitor and replace the anode rod regularly.`;
+    
+    case 'hardWater':
+      return `Hard water accelerated all wear factors. Consider a water softener to protect your new unit and extend its life significantly.`;
+    
+    default:
+      return '';
+  }
+}
+
 export function SafetyReplacementAlert({
   reason,
   stressFactors,
@@ -59,7 +105,6 @@ export function SafetyReplacementAlert({
     sf => sf.level === 'elevated' || sf.level === 'critical'
   );
 
-  // Get remediation advice for significant stressors
   const getStressFactorKey = (name: string): keyof typeof STRESS_FACTOR_EXPLANATIONS | null => {
     const lowerName = name.toLowerCase();
     if (lowerName.includes('pressure')) return 'pressure';
@@ -153,17 +198,17 @@ export function SafetyReplacementAlert({
                 <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-3">
                   Protecting Your Next Unit
                 </h4>
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {significantStressors.map((stressor, i) => {
                     const factorKey = getStressFactorKey(stressor.name);
-                    const factorInfo = factorKey ? STRESS_FACTOR_EXPLANATIONS[factorKey] : null;
+                    const recommendation = getContextualRecommendation(stressor, factorKey);
                     
-                    if (!factorInfo) return null;
+                    if (!recommendation) return null;
 
                     return (
                       <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="text-emerald-600 mt-1">•</span>
-                        <span>{factorInfo.remedy}</span>
+                        <span className="text-emerald-600 mt-0.5 shrink-0">•</span>
+                        <span>{recommendation}</span>
                       </li>
                     );
                   })}
