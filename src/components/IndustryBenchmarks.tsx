@@ -218,7 +218,10 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
         {/* Lifespan Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
-            <span className="text-xs text-muted-foreground font-medium">Lifespan Progress</span>
+            <div className="flex flex-col">
+              <span className="text-xs text-muted-foreground font-medium">Wear Age</span>
+              <span className="text-[10px] text-muted-foreground/70">Based on stress & usage</span>
+            </div>
             <div className="flex items-center gap-2">
               <span className={cn(
                 "text-xs font-bold",
