@@ -79,7 +79,6 @@ const Index = () => {
           <CalibrationStep
             peopleCount={currentInputs.peopleCount}
             usageType={currentInputs.usageType}
-            tankCapacity={currentInputs.tankCapacity}
             onPeopleCountChange={(count) => setCurrentInputs(prev => ({ ...prev, peopleCount: count }))}
             onUsageTypeChange={(type: UsageType) => setCurrentInputs(prev => ({ ...prev, usageType: type }))}
             onComplete={handleCalibrationComplete}
