@@ -82,9 +82,9 @@ function useAnimatedNumber(target: number, duration: number = 400) {
 
 export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlannerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [doNothingOpen, setDoNothingOpen] = useState(false);
-  const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | null>(null);
+  const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'chances' | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [doNothingOpen, setDoNothingOpen] = useState(false);
 
   // Calculate metrics
   const opterraResult = calculateOpterraRisk(currentInputs);
@@ -343,68 +343,76 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 </div>
               </button>
 
-              {/* Continue Monitoring Option - Collapsible */}
-              <Collapsible open={doNothingOpen} onOpenChange={setDoNothingOpen}>
-                <CollapsibleTrigger asChild>
-                  <button className="w-full clean-card border-zinc-700/50 bg-zinc-900/30">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Info className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium text-muted-foreground">I'll take my chances</span>
-                      </div>
-                      {doNothingOpen ? (
-                        <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="clean-card border-red-500/30 bg-red-500/5 -mt-2">
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="w-4 h-4 text-red-400" />
-                      <span className="text-sm font-medium text-foreground">Projected Decline</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      Without replacement, here's what to expect:
-                    </p>
-                    <div className="space-y-3">
-                      {[
-                        { months: 6, ...projection6 },
-                        { months: 12, ...projection12 },
-                        { months: 24, ...projection24 },
-                      ].map((projection) => (
-                        <div key={projection.months} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">In {projection.months} months</span>
+              {/* Option 3: I'll Take My Chances */}
+              <button
+                onClick={() => {
+                  setSelectedTimeline('chances');
+                  setSelectedIds(new Set());
+                }}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                  selectedTimeline === 'chances'
+                    ? 'border-amber-500/50 bg-amber-500/10'
+                    : 'border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600/50'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    selectedTimeline === 'chances' ? 'border-amber-500 bg-amber-500 text-white' : 'border-muted-foreground/30'
+                  }`}>
+                    {selectedTimeline === 'chances' && <Check className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-muted-foreground mb-1">I'll Take My Chances</div>
+                    <p className="text-sm text-muted-foreground">Continue monitoring, no action now</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Show projections when "chances" is selected */}
+              {selectedTimeline === 'chances' && (
+                <div className="clean-card border-red-500/30 bg-red-500/5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-medium text-foreground">Projected Decline</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Without replacement, here's what to expect:
+                  </p>
+                  <div className="space-y-3">
+                    {[
+                      { months: 6, ...projection6 },
+                      { months: 12, ...projection12 },
+                      { months: 24, ...projection24 },
+                    ].map((projection) => (
+                      <div key={projection.months} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">In {projection.months} months</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className={`text-sm font-bold font-data ${projection.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                              {projection.healthScore}
+                            </span>
+                            <span className="text-xs text-muted-foreground"> score</span>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <span className={`text-sm font-bold font-data ${projection.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                                {projection.healthScore}
-                              </span>
-                              <span className="text-xs text-muted-foreground"> score</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-sm font-bold font-data text-red-400">
-                                {projection.failProb.toFixed(0)}%
-                              </span>
-                              <span className="text-xs text-muted-foreground"> risk</span>
-                            </div>
+                          <div className="text-right">
+                            <span className="text-sm font-bold font-data text-red-400">
+                              {projection.failProb.toFixed(0)}%
+                            </span>
+                            <span className="text-xs text-muted-foreground"> risk</span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-red-500/20">
-                      <p className="text-xs text-red-400">
-                        At {agingRate.toFixed(1)}x aging rate, failure risk increases significantly each year.
-                      </p>
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                  <div className="mt-4 pt-3 border-t border-red-500/20">
+                    <p className="text-xs text-red-400">
+                      At {agingRate.toFixed(1)}x aging rate, failure risk increases significantly each year.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -587,28 +595,38 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         )}
       </div>
 
-      {/* Fixed Bottom Action */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border">
-        <div className="max-w-md mx-auto">
-        <Button
-            onClick={() => {
-              if (isEconomicReplacement) {
-                setShowContactForm(true);
-              } else {
-                onSchedule(selectedRepairs);
-              }
-            }}
-            disabled={isEconomicReplacement ? false : (selectedRepairs.length === 0)}
-            className="w-full h-14 text-base font-semibold"
-          >
-            {isEconomicReplacement 
-              ? (selectedTimeline === 'now' ? 'Schedule Replacement' : 'Speak with a Plumber')
-              : isReplacementSelected 
-                ? 'Request Replacement Quote' 
-                : 'Schedule These Repairs'}
-          </Button>
+      {/* Fixed Bottom Action - Only show when an option is selected */}
+      {(isEconomicReplacement ? selectedTimeline !== null : selectedRepairs.length > 0) && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border">
+          <div className="max-w-md mx-auto">
+            <Button
+              onClick={() => {
+                if (isEconomicReplacement) {
+                  if (selectedTimeline === 'chances') {
+                    onBack();
+                  } else {
+                    setShowContactForm(true);
+                  }
+                } else {
+                  onSchedule(selectedRepairs);
+                }
+              }}
+              className="w-full h-14 text-base font-semibold"
+              variant={selectedTimeline === 'chances' ? 'outline' : 'default'}
+            >
+              {isEconomicReplacement 
+                ? (selectedTimeline === 'now' 
+                    ? 'Schedule Replacement' 
+                    : selectedTimeline === 'chances'
+                      ? 'Continue Monitoring'
+                      : 'Speak with a Plumber')
+                : isReplacementSelected 
+                  ? 'Request Replacement Quote' 
+                  : 'Schedule These Repairs'}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <PlumberContactForm
         open={showContactForm}
