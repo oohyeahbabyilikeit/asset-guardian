@@ -431,17 +431,11 @@ function ObservationsStep({
   const hasSeenAll = currentIndex >= observations.length - 1;
 
   return (
-    <div 
-      className="space-y-6"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
-    >
+    <div className="space-y-6">
       <div className="text-center space-y-2">
         <h2 className="text-xl font-semibold text-foreground">What We Measured</h2>
         <p className="text-sm text-muted-foreground">
-          {isPaused ? 'Paused — tap outside to resume' : `Observation ${currentIndex + 1} of ${observations.length}`}
+          Observation {currentIndex + 1} of {observations.length}
         </p>
       </div>
 
