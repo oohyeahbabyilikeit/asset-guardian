@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, AlertTriangle, Shield, Zap, Crown, ChevronDown, Calendar } from 'lucide-react';
+import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, Heart, MessageCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTieredPricing, DISPLAY_TIERS, TIER_CONFIG } from '@/hooks/useTieredPricing';
@@ -28,16 +28,17 @@ const TIER_DISPLAY: Record<QualityTier, {
   borderColor: string;
   selectedBorder: string;
   tagline: string;
+  badge?: string;
   features: string[];
 }> = {
   BUILDER: { 
     name: 'Good', 
     icon: Shield,
     accent: 'text-muted-foreground',
-    bgGradient: 'bg-card/30',
-    borderColor: 'border-border/50',
+    bgGradient: 'bg-card/50',
+    borderColor: 'border-border',
     selectedBorder: 'border-muted-foreground',
-    tagline: 'Basic protection',
+    tagline: 'Reliable basics',
     features: [
       'Standard tank lining',
       '6-year parts warranty',
@@ -48,10 +49,11 @@ const TIER_DISPLAY: Record<QualityTier, {
     name: 'Better', 
     icon: Zap,
     accent: 'text-primary',
-    bgGradient: 'bg-gradient-to-br from-primary/10 via-primary/5 to-transparent',
-    borderColor: 'border-primary/40',
+    bgGradient: 'bg-gradient-to-br from-primary/8 via-primary/4 to-transparent',
+    borderColor: 'border-primary/30',
     selectedBorder: 'border-primary',
-    tagline: 'Best value',
+    tagline: 'Best value for most homes',
+    badge: '★ Most Popular',
     features: [
       'Enhanced corrosion protection',
       '9-year parts warranty',
@@ -61,11 +63,12 @@ const TIER_DISPLAY: Record<QualityTier, {
   PROFESSIONAL: { 
     name: 'Best', 
     icon: Crown,
-    accent: 'text-amber-400',
-    bgGradient: 'bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent',
-    borderColor: 'border-amber-500/40',
+    accent: 'text-amber-500',
+    bgGradient: 'bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent',
+    borderColor: 'border-amber-500/30',
     selectedBorder: 'border-amber-500',
-    tagline: 'Maximum longevity',
+    tagline: 'Maximum peace of mind',
+    badge: '👑 Premium',
     features: [
       'Premium materials throughout',
       '12-year parts warranty',
@@ -76,10 +79,11 @@ const TIER_DISPLAY: Record<QualityTier, {
     name: 'Premium', 
     icon: Crown,
     accent: 'text-purple-400',
-    bgGradient: 'bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-transparent',
-    borderColor: 'border-purple-500/40',
+    bgGradient: 'bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent',
+    borderColor: 'border-purple-500/30',
     selectedBorder: 'border-purple-500',
     tagline: 'Commercial grade',
+    badge: '⚡ Pro',
     features: [
       'Commercial-grade build',
       '12-year full warranty',
@@ -98,7 +102,7 @@ export function ReplacementOptionsPage({
   monthlyBudget = 0,
 }: ReplacementOptionsPageProps) {
   const [selectedTier, setSelectedTier] = useState<QualityTier>('STANDARD');
-  const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'chances' | null>(null);
+  const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'thinking' | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
 
   const { tiers, allLoading } = useTieredPricing(
@@ -144,7 +148,7 @@ export function ReplacementOptionsPage({
           <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-foreground">Your Options</h1>
+          <h1 className="font-bold text-foreground">Let's Find the Right Fit</h1>
           <TierEducationDrawer 
             infrastructureIssues={infrastructureIssues}
             housePsi={currentInputs.housePsi}
@@ -154,7 +158,22 @@ export function ReplacementOptionsPage({
       </header>
 
       <div className="relative p-4 max-w-md mx-auto pb-32">
-        {/* Tier Cards - Full Width Stacked */}
+        {/* Friendly Intro */}
+        <div className="mb-5 p-4 rounded-xl bg-card/60 border border-border">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Heart className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-foreground leading-relaxed">
+                Based on what we found, here are three solid options. 
+                <span className="text-muted-foreground"> Each one protects your home — pick what feels right for your budget.</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tier Cards */}
         <div className="space-y-3 mb-6">
           {DISPLAY_TIERS.map((tier) => {
             const config = TIER_DISPLAY[tier];
@@ -177,41 +196,30 @@ export function ReplacementOptionsPage({
                   'w-full text-left rounded-2xl border-2 transition-all duration-200 overflow-hidden',
                   isSelected 
                     ? cn(config.selectedBorder, config.bgGradient)
-                    : cn(config.borderColor, config.bgGradient, 'hover:border-muted-foreground/60'),
-                  // Make Good tier visually smaller/muted
-                  isGood && !isSelected && 'opacity-75 hover:opacity-100'
+                    : cn(config.borderColor, 'bg-card/40 hover:bg-card/60'),
                 )}
                 style={{
                   boxShadow: isSelected && !isGood
                     ? isBest 
-                      ? '0 0 24px -4px rgba(251, 191, 36, 0.3)'
+                      ? '0 0 20px -4px rgba(245, 158, 11, 0.25)'
                       : isRecommended 
-                        ? '0 0 24px -4px hsl(var(--primary) / 0.3)'
+                        ? '0 0 20px -4px hsl(var(--primary) / 0.25)'
                         : undefined
                     : undefined,
                 }}
               >
-                {/* Recommended Badge */}
-                {isRecommended && (
+                {/* Badge */}
+                {config.badge && (
                   <div className={cn(
-                    "text-[10px] font-bold py-1.5 px-3 text-center tracking-wider",
-                    isSelected 
+                    "text-[10px] font-semibold py-1.5 px-3 text-center tracking-wide",
+                    isRecommended && (isSelected 
                       ? "bg-primary text-primary-foreground" 
-                      : "bg-primary/20 text-primary"
-                  )}>
-                    ★ RECOMMENDED — BEST VALUE
-                  </div>
-                )}
-
-                {/* Best Badge */}
-                {isBest && (
-                  <div className={cn(
-                    "text-[10px] font-bold py-1.5 px-3 text-center tracking-wider",
-                    isSelected 
+                      : "bg-primary/15 text-primary"),
+                    isBest && (isSelected 
                       ? "bg-amber-500 text-black" 
-                      : "bg-amber-500/20 text-amber-400"
+                      : "bg-amber-500/15 text-amber-500")
                   )}>
-                    👑 MAXIMUM PROTECTION
+                    {config.badge}
                   </div>
                 )}
 
@@ -221,7 +229,7 @@ export function ReplacementOptionsPage({
                     <div className="flex items-center gap-3">
                       {/* Selection Circle */}
                       <div className={cn(
-                        'w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                        'w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors',
                         isSelected 
                           ? isBest 
                             ? 'border-amber-500 bg-amber-500'
@@ -234,15 +242,17 @@ export function ReplacementOptionsPage({
                       {/* Tier Name */}
                       <div>
                         <div className="flex items-center gap-2">
-                          <TierIcon className={cn('w-5 h-5', config.accent)} />
+                          <TierIcon className={cn('w-5 h-5', isSelected ? config.accent : 'text-muted-foreground')} />
                           <span className={cn(
                             'font-bold',
-                            isGood ? 'text-base text-muted-foreground' : 'text-lg text-foreground'
+                            isGood ? 'text-base' : 'text-lg',
+                            isSelected ? 'text-foreground' : 'text-foreground/80'
                           )}>{config.name}</span>
                         </div>
-                        {!isGood && (
-                          <p className={cn('text-[10px] ml-7', config.accent)}>{config.tagline}</p>
-                        )}
+                        <p className={cn(
+                          'text-[11px] ml-7',
+                          isSelected ? config.accent : 'text-muted-foreground'
+                        )}>{config.tagline}</p>
                       </div>
                     </div>
 
@@ -255,9 +265,9 @@ export function ReplacementOptionsPage({
                           <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">Est.</p>
                           <span className={cn(
                             'font-bold leading-tight',
-                            isGood ? 'text-sm text-muted-foreground' : 'text-base',
-                            isSelected && !isGood && (isBest ? 'text-amber-400' : 'text-primary'),
-                            !isSelected && !isGood && 'text-foreground'
+                            isGood ? 'text-sm' : 'text-base',
+                            isSelected && !isGood && (isBest ? 'text-amber-500' : 'text-primary'),
+                            (!isSelected || isGood) && 'text-foreground'
                           )}>
                             {formatPriceRange(priceRange)}
                           </span>
@@ -277,9 +287,9 @@ export function ReplacementOptionsPage({
                       <li key={idx} className="flex items-center gap-2 text-sm">
                         <Check className={cn(
                           "w-3.5 h-3.5 flex-shrink-0",
-                          isGood ? 'text-muted-foreground' : isBest ? 'text-amber-400' : 'text-green-500'
+                          isBest ? 'text-amber-500' : isRecommended ? 'text-primary' : 'text-muted-foreground'
                         )} />
-                        <span className={isGood ? 'text-muted-foreground/70 text-xs' : 'text-muted-foreground'}>
+                        <span className="text-muted-foreground text-[13px]">
                           {feature}
                         </span>
                       </li>
@@ -290,22 +300,22 @@ export function ReplacementOptionsPage({
                       <li className="flex items-center gap-2 text-sm pt-1">
                         <Shield className={cn(
                           "w-3.5 h-3.5 flex-shrink-0",
-                          isBest ? 'text-amber-400' : 'text-primary'
+                          isBest ? 'text-amber-500' : 'text-primary'
                         )} />
                         <span className={cn(
-                          "font-medium",
-                          isBest ? 'text-amber-400' : 'text-primary'
+                          "font-medium text-[13px]",
+                          isBest ? 'text-amber-500' : 'text-primary'
                         )}>
-                          +{infraCount} infrastructure protection{infraCount > 1 ? 's' : ''} included
+                          +{infraCount} infrastructure fix{infraCount > 1 ? 'es' : ''} included
                         </span>
                       </li>
                     )}
 
-                    {/* Loss framing for Good tier */}
-                    {isGood && infraCount === 0 && (
-                      <li className="flex items-center gap-2 text-xs pt-1 text-amber-500/70">
-                        <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                        <span>No infrastructure protection</span>
+                    {/* Note for Good tier - softer language */}
+                    {isGood && infraCount === 0 && infrastructureIssues.length > 0 && (
+                      <li className="flex items-center gap-2 text-xs pt-1 text-muted-foreground/70">
+                        <Info className="w-3 h-3 flex-shrink-0" />
+                        <span>Infrastructure protection available in Better & Best</span>
                       </li>
                     )}
                   </ul>
@@ -317,39 +327,38 @@ export function ReplacementOptionsPage({
 
         {/* Timeline Selection */}
         <div className="space-y-2 mb-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">When would you like to proceed?</p>
+          <p className="text-xs text-muted-foreground mb-3 flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5" />
+            What works for your schedule?
+          </p>
           
-          {/* Schedule Now */}
+          {/* Ready Now */}
           <button
             onClick={() => setSelectedTimeline('now')}
             className={cn(
               'w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3',
               selectedTimeline === 'now'
-                ? isSafetyReplacement 
-                  ? 'border-destructive bg-destructive/10' 
-                  : 'border-primary bg-primary/10'
+                ? 'border-primary bg-primary/10'
                 : 'border-border bg-card/50 hover:border-muted-foreground/50'
             )}
           >
             <div className={cn(
               'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
               selectedTimeline === 'now' 
-                ? isSafetyReplacement 
-                  ? 'border-destructive bg-destructive' 
-                  : 'border-primary bg-primary' 
+                ? 'border-primary bg-primary' 
                 : 'border-muted-foreground/40'
             )}>
               {selectedTimeline === 'now' && <Check className="w-3 h-3 text-white" />}
             </div>
             <div className="flex-1">
-              <span className="font-semibold text-foreground">Schedule Now</span>
-              {isSafetyReplacement && (
-                <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
-                  URGENT
-                </span>
-              )}
+              <span className="font-semibold text-foreground">Ready when you are</span>
+              <p className="text-xs text-muted-foreground">Schedule within the next 2 weeks</p>
             </div>
-            <Calendar className="w-4 h-4 text-muted-foreground" />
+            {isSafetyReplacement && (
+              <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-primary/20 text-primary">
+                Recommended
+              </span>
+            )}
           </button>
           
           {/* Plan Ahead - Only for economic */}
@@ -370,46 +379,44 @@ export function ReplacementOptionsPage({
                 {selectedTimeline === 'later' && <Check className="w-3 h-3 text-white" />}
               </div>
               <div className="flex-1">
-                <span className="font-semibold text-foreground">Plan for 12 Months</span>
-                {monthlyBudget > 0 && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    (save ${monthlyBudget}/mo)
-                  </span>
-                )}
+                <span className="font-semibold text-foreground">I need a bit of time</span>
+                <p className="text-xs text-muted-foreground">
+                  Plan for the next 12 months
+                  {monthlyBudget > 0 && <span className="text-primary"> • Save ${monthlyBudget}/mo</span>}
+                </p>
               </div>
+              <Clock className="w-4 h-4 text-muted-foreground" />
             </button>
           )}
 
-          {/* Not Now */}
+          {/* Thinking About It */}
           <button
-            onClick={() => setSelectedTimeline('chances')}
+            onClick={() => setSelectedTimeline('thinking')}
             className={cn(
               'w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3',
-              selectedTimeline === 'chances'
-                ? 'border-amber-500/50 bg-amber-500/10'
+              selectedTimeline === 'thinking'
+                ? 'border-muted-foreground/50 bg-muted/30'
                 : 'border-border/50 bg-card/30 hover:border-muted-foreground/30'
             )}
           >
             <div className={cn(
               'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
-              selectedTimeline === 'chances' ? 'border-amber-500 bg-amber-500' : 'border-muted-foreground/30'
+              selectedTimeline === 'thinking' ? 'border-muted-foreground bg-muted-foreground' : 'border-muted-foreground/30'
             )}>
-              {selectedTimeline === 'chances' && <Check className="w-3 h-3 text-white" />}
+              {selectedTimeline === 'thinking' && <Check className="w-3 h-3 text-white" />}
             </div>
-            <span className="text-muted-foreground">
-              {isSafetyReplacement ? 'I understand the risks' : 'Not right now'}
-            </span>
+            <span className="text-muted-foreground">I'd like to think about it</span>
           </button>
 
-          {/* Risk warning */}
-          {selectedTimeline === 'chances' && (
-            <div className="mt-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+          {/* Gentle reminder for thinking */}
+          {selectedTimeline === 'thinking' && (
+            <div className="mt-2 p-3 rounded-lg bg-muted/30 border border-border">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground">
                   {isSafetyReplacement 
-                    ? 'Delaying increases risk of water damage and emergency replacement costs.'
-                    : `At ${agingRate.toFixed(1)}x aging, failure risk increases each month.`
+                    ? "No pressure! Just keep in mind that addressing this sooner helps avoid unexpected issues down the road."
+                    : `Your unit is aging at ${agingRate.toFixed(1)}x the normal rate. We're here whenever you're ready.`
                   }
                 </p>
               </div>
@@ -417,12 +424,12 @@ export function ReplacementOptionsPage({
           )}
         </div>
 
-        {/* Price summary */}
-        {!allLoading && selectedPriceRange && selectedTimeline && selectedTimeline !== 'chances' && (
-          <div className="p-4 rounded-xl bg-card border border-border">
+        {/* Price summary with reassurance */}
+        {!allLoading && selectedPriceRange && selectedTimeline && selectedTimeline !== 'thinking' && (
+          <div className="p-4 rounded-xl bg-card border border-border space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Selected Package</p>
+                <p className="text-sm text-muted-foreground">Your Selection</p>
                 <p className="font-semibold text-foreground">{TIER_DISPLAY[selectedTier].name}</p>
               </div>
               <div className="text-right">
@@ -430,11 +437,34 @@ export function ReplacementOptionsPage({
                 <p className="text-lg font-bold text-foreground">{formatPriceRange(selectedPriceRange)}</p>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground/60 mt-2 text-center">
-              Final price confirmed after site inspection
-            </p>
+            
+            {/* Reassurance section */}
+            <div className="pt-3 border-t border-border/50">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                  <span className="text-[10px] text-muted-foreground">No hidden fees</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                  <span className="text-[10px] text-muted-foreground">Price locked after visit</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                  <span className="text-[10px] text-muted-foreground">Change anytime</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Trust quote */}
+        <div className="mt-4 flex items-center gap-2 justify-center">
+          <MessageCircle className="w-3.5 h-3.5 text-muted-foreground/50" />
+          <p className="text-[11px] text-muted-foreground/60 italic">
+            "We only recommend what your home actually needs."
+          </p>
+        </div>
       </div>
 
       {/* Fixed Bottom CTA */}
@@ -443,7 +473,7 @@ export function ReplacementOptionsPage({
           <div className="max-w-md mx-auto">
             <Button
               onClick={() => {
-                if (selectedTimeline === 'chances') {
+                if (selectedTimeline === 'thinking') {
                   onBack();
                 } else {
                   setShowContactForm(true);
@@ -451,15 +481,14 @@ export function ReplacementOptionsPage({
               }}
               className={cn(
                 'w-full h-14 text-base font-semibold',
-                isSafetyReplacement && selectedTimeline === 'now' && 'bg-destructive hover:bg-destructive/90'
               )}
-              variant={selectedTimeline === 'chances' ? 'outline' : 'default'}
+              variant={selectedTimeline === 'thinking' ? 'outline' : 'default'}
             >
               {selectedTimeline === 'now' 
-                ? (isSafetyReplacement ? 'Schedule Urgent Replacement' : 'Get My Quote')
-                : selectedTimeline === 'chances'
-                  ? 'Go Back'
-                  : 'Speak with a Plumber'
+                ? "Let's Get This Sorted"
+                : selectedTimeline === 'thinking'
+                  ? 'Back to Dashboard'
+                  : 'Request a Quote — No Obligation'
               }
             </Button>
           </div>
