@@ -25,6 +25,7 @@ interface SoftenerCenterProps {
   onBack?: () => void;
   onServiceRequest?: () => void;
   onEmergency?: () => void;
+  onMaintenanceTips?: () => void;
 }
 
 export function SoftenerCenter({
@@ -36,6 +37,7 @@ export function SoftenerCenter({
   onBack,
   onServiceRequest,
   onEmergency,
+  onMaintenanceTips,
 }: SoftenerCenterProps) {
   const [saltLevelPercent, setSaltLevelPercent] = useState(65);
   
@@ -172,10 +174,11 @@ export function SoftenerCenter({
       </div>
 
       {/* Fixed bottom CTA */}
-      {(onServiceRequest && onEmergency) && (
+      {(onServiceRequest && onEmergency && onMaintenanceTips) && (
         <SoftenerActionDock
           onServiceRequest={onServiceRequest}
           onEmergency={onEmergency}
+          onMaintenanceTips={onMaintenanceTips}
           recommendation={recommendation}
           hasActiveServices={activeServices.length > 0}
         />
