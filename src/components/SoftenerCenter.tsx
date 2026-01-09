@@ -159,16 +159,10 @@ export function SoftenerCenter({
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Log Regen
-          </Button>
-          <Button variant="outline" className="gap-2">
-            <Settings className="h-4 w-4" />
-            Settings
-          </Button>
-        </div>
+        <Button variant="outline" className="w-full gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Log Regen
+        </Button>
       </div>
       </div>
     </div>
