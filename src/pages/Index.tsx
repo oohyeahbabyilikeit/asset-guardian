@@ -119,22 +119,31 @@ const Index = () => {
         return <HandshakeLoading onComplete={handleLoadingComplete} />;
       
       case 'dashboard':
+        // Calculate status for both assets
+        const opterraResult = calculateOpterraRisk(currentInputs);
+        const recommendation = opterraResult.verdict;
+        const isHealthy = recommendation.action === 'PASS';
+        const isCritical = recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE';
+        
+        // Determine water heater status from health
+        const whStatus: 'optimal' | 'warning' | 'critical' = 
+          isCritical ? 'critical' : isHealthy ? 'optimal' : 'warning';
+        
+        // TODO: Calculate softener status from softener algorithm
+        const softenerStatus: 'optimal' | 'warning' | 'critical' = 'optimal';
+        
         // Check if we're viewing softener
         if (assetType === 'softener') {
           return (
             <SoftenerCenter
               inputs={softenerInputs}
               onInputsChange={setSoftenerInputs}
-              onSwitchToWaterHeater={() => setAssetType('water-heater')}
+              onSwitchAsset={setAssetType}
+              waterHeaterStatus={whStatus}
+              softenerStatus={softenerStatus}
             />
           );
         }
-        
-        // Determine which flow to show based on recommendation
-        const opterraResult = calculateOpterraRisk(currentInputs);
-        const recommendation = opterraResult.verdict;
-        const isHealthy = recommendation.action === 'PASS';
-        const isCritical = recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE';
         
         return (
           <CommandCenter
@@ -150,7 +159,9 @@ const Index = () => {
             scenarioName={scenarioName}
             serviceHistory={serviceHistory}
             hasSoftener={currentInputs.hasSoftener}
-            onSwitchToSoftener={() => setAssetType('softener')}
+            onSwitchAsset={setAssetType}
+            waterHeaterStatus={whStatus}
+            softenerStatus={softenerStatus}
           />
         );
       

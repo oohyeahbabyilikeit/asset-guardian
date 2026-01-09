@@ -25,7 +25,9 @@ interface CommandCenterProps {
   scenarioName?: string;
   serviceHistory?: ServiceEvent[];
   hasSoftener?: boolean;
-  onSwitchToSoftener?: () => void;
+  onSwitchAsset?: (asset: 'water-heater' | 'softener') => void;
+  waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
+  softenerStatus?: 'optimal' | 'warning' | 'critical';
 }
 
 // Derive status from thresholds
@@ -64,7 +66,9 @@ export function CommandCenter({
   scenarioName,
   serviceHistory = [],
   hasSoftener,
-  onSwitchToSoftener,
+  onSwitchAsset,
+  waterHeaterStatus,
+  softenerStatus,
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
 
@@ -168,7 +172,16 @@ export function CommandCenter({
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
       
       <div className="relative">
-        <DashboardHeader onTestHarness={onTestHarness} onRandomize={onRandomize} scenarioName={scenarioName} />
+        <DashboardHeader 
+          onTestHarness={onTestHarness} 
+          onRandomize={onRandomize} 
+          scenarioName={scenarioName}
+          activeAsset="water-heater"
+          onSwitchAsset={onSwitchAsset}
+          waterHeaterStatus={waterHeaterStatus}
+          softenerStatus={softenerStatus}
+          hasSoftener={hasSoftener}
+        />
 
         {/* DISCOVERY PHASE 1: Your Unit Profile + System Diagnostics */}
         <div className="px-4 pt-4 animate-fade-in-up space-y-3">

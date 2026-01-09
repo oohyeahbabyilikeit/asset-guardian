@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Droplets, Settings, RefreshCw } from 'lucide-react';
+import { Droplets, Settings, RefreshCw } from 'lucide-react';
+import { DashboardHeader } from './DashboardHeader';
 import { SoftenerVisualization } from './SoftenerVisualization';
 import { SoftenerMetricsGrid } from './SoftenerMetricsGrid';
 import { SoftenerHealthGauge } from './SoftenerHealthGauge';
 import { SaltCalculator } from './SaltCalculator';
 import { SoftenerServiceMenu } from './SoftenerServiceMenu';
-import { AssetTypeSwitcher } from './AssetTypeSwitcher';
 import { 
   SoftenerInputs, 
   calculateSoftenerHealth,
@@ -18,14 +18,18 @@ import {
 interface SoftenerCenterProps {
   inputs: SoftenerInputs;
   onInputsChange?: (inputs: SoftenerInputs) => void;
-  onSwitchToWaterHeater: () => void;
+  onSwitchAsset?: (asset: 'water-heater' | 'softener') => void;
+  waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
+  softenerStatus?: 'optimal' | 'warning' | 'critical';
   onBack?: () => void;
 }
 
 export function SoftenerCenter({
   inputs,
   onInputsChange,
-  onSwitchToWaterHeater,
+  onSwitchAsset,
+  waterHeaterStatus,
+  softenerStatus,
   onBack,
 }: SoftenerCenterProps) {
   const [saltLevelPercent, setSaltLevelPercent] = useState(65);
@@ -53,30 +57,21 @@ export function SoftenerCenter({
     }));
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {onBack && (
-                <Button variant="ghost" size="icon" onClick={onBack}>
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              )}
-              <div className="flex items-center gap-2">
-                <Droplets className="h-5 w-5 text-primary" />
-                <span className="font-semibold text-foreground">Softener</span>
-              </div>
-            </div>
-            
-            <AssetTypeSwitcher 
-              activeAsset="softener" 
-              onSwitch={onSwitchToWaterHeater}
-            />
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-background pb-40 relative">
+      {/* Tech grid background */}
+      <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
+      
+      {/* Gradient overlay */}
+      <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
+      
+      <div className="relative">
+        <DashboardHeader 
+          activeAsset="softener"
+          onSwitchAsset={onSwitchAsset}
+          waterHeaterStatus={waterHeaterStatus}
+          softenerStatus={softenerStatus}
+          hasSoftener={true}
+        />
 
       {/* Content */}
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
@@ -174,6 +169,7 @@ export function SoftenerCenter({
             Settings
           </Button>
         </div>
+      </div>
       </div>
     </div>
   );
