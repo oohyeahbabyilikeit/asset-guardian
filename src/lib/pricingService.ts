@@ -149,7 +149,20 @@ export async function getUnitPrice(inputs: ForensicInputs): Promise<PriceResult>
       : 'BUILDER',
   };
 
-  return lookupPriceBySpecs(specs);
+  const result = await lookupPriceBySpecs(specs);
+  
+  // Ensure priceRange exists (backwards compat for cached data without ranges)
+  if (!result.priceRange) {
+    const retailPrice = result.retailPrice;
+    const rangeSpread = 0.12; // ±12% for missing range data
+    result.priceRange = {
+      low: Math.round(retailPrice * (1 - rangeSpread)),
+      high: Math.round(retailPrice * (1 + rangeSpread)),
+      median: retailPrice,
+    };
+  }
+  
+  return result;
 }
 
 // ======================
