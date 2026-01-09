@@ -3,7 +3,7 @@ import { HandshakeLoading } from '@/components/HandshakeLoading';
 import { CommandCenter } from '@/components/CommandCenter';
 import { SoftenerCenter } from '@/components/SoftenerCenter';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
-import { CalibrationStep } from '@/components/CalibrationStep';
+import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { DiscoveryFlow } from '@/components/DiscoveryFlow';
 import { ForensicReport } from '@/components/ForensicReport';
 import { PanicMode } from '@/components/PanicMode';
@@ -14,11 +14,12 @@ import { SoftenerMaintenancePlan } from '@/components/SoftenerMaintenancePlan';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, demoServiceHistory, getRandomScenario, type AssetData } from '@/data/mockAsset';
-import { type ForensicInputs, type UsageType, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
 import { SoftenerInputs, DEFAULT_SOFTENER_INPUTS } from '@/lib/softenerAlgorithm';
+import { OnboardingData, mapOnboardingToForensicInputs, mapOnboardingToSoftenerInputs } from '@/types/onboarding';
 
-type Screen = 'welcome' | 'calibration' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'softener-maintenance' | 'test-harness';
+type Screen = 'welcome' | 'onboarding' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'softener-maintenance' | 'test-harness';
 type AssetType = 'water-heater' | 'softener';
 
 const Index = () => {
@@ -80,10 +81,16 @@ const Index = () => {
   };
 
   const handleWelcomeComplete = () => {
-    setCurrentScreen('calibration');
+    setCurrentScreen('onboarding');
   };
 
-  const handleCalibrationComplete = () => {
+  const handleOnboardingComplete = (data: OnboardingData) => {
+    // Map onboarding data to algorithm inputs
+    const newForensicInputs = mapOnboardingToForensicInputs(data, currentInputs);
+    const newSoftenerInputs = mapOnboardingToSoftenerInputs(data, softenerInputs);
+    
+    setCurrentInputs(newForensicInputs);
+    setSoftenerInputs(newSoftenerInputs);
     setCurrentScreen('discovery');
   };
 
@@ -96,14 +103,15 @@ const Index = () => {
       case 'welcome':
         return <WelcomeScreen onBegin={handleWelcomeComplete} />;
       
-      case 'calibration':
+      case 'onboarding':
         return (
-          <CalibrationStep
-            peopleCount={currentInputs.peopleCount}
-            usageType={currentInputs.usageType}
-            onPeopleCountChange={(count) => setCurrentInputs(prev => ({ ...prev, peopleCount: count }))}
-            onUsageTypeChange={(type: UsageType) => setCurrentInputs(prev => ({ ...prev, usageType: type }))}
-            onComplete={handleCalibrationComplete}
+          <OnboardingFlow
+            initialData={{
+              peopleCount: currentInputs.peopleCount,
+              usageType: currentInputs.usageType,
+            }}
+            hasSoftener={currentInputs.hasSoftener}
+            onComplete={handleOnboardingComplete}
           />
         );
       
