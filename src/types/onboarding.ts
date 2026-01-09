@@ -113,11 +113,14 @@ export function mapOnboardingToSoftenerInputs(
     people: onboarding.peopleCount,
     ageYears: softenerAge,
     isCityWater: onboarding.waterSource === 'city',
-    // NEW v1.1: Visual proxies default to conservative values
+    // v1.1: Visual proxies default to conservative values
     // These will be updated by technician inspection or user input
     visualHeight: baseInputs.visualHeight,
     controlHead: baseInputs.controlHead,
     visualIron: onboarding.waterSource === 'well' && onboarding.symptoms.discoloredWater,
+    // v1.2: New fields — default to null/OK, technician will update
+    carbonAgeYears: null,       // Will come from technician inspection
+    saltLevelState: 'OK',       // Will come from visual inspection
     // hardnessGPG: will come from API
     // hasCarbonFilter: will come from technician inspection
   };
