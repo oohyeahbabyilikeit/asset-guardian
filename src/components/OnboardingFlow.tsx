@@ -98,9 +98,11 @@ export function OnboardingFlow({
             wasHereWhenMoved={data.softenerWasHereWhenMoved}
             installYearsAgo={data.softenerInstallYearsAgo}
             serviceFrequency={data.softenerServiceFrequency}
+            waterSource={data.waterSource}
             onWasHereChange={(wasHere) => updateData('softenerWasHereWhenMoved', wasHere)}
             onInstallYearsChange={(years) => updateData('softenerInstallYearsAgo', years)}
             onServiceFrequencyChange={(freq) => updateData('softenerServiceFrequency', freq)}
+            onWaterSourceChange={(source) => updateData('waterSource', source)}
             onNext={goNext}
           />
         );
