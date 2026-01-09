@@ -122,19 +122,19 @@ export function SoftenerCenter({
           action={recommendation.action}
           badge={recommendation.badge}
           reason={recommendation.reason}
+          saltLevelPercent={saltLevelPercent}
+          isCityWater={inputs.isCityWater}
+          hasCarbonFilter={inputs.hasCarbonFilter}
         />
 
-        {/* Interactive Diagram */}
-        <Card className="p-4 bg-card border-border">
-          <h3 className="font-semibold text-foreground mb-4">System Diagram</h3>
-          <SoftenerVisualization
-            resinHealth={metrics.resinHealth}
-            odometerCycles={metrics.odometer}
-            saltLevelPercent={saltLevelPercent}
-            hasCarbonFilter={inputs.hasCarbonFilter}
-            isCityWater={inputs.isCityWater}
-          />
-        </Card>
+        {/* System Diagram - Health-focused visualization */}
+        <SoftenerVisualization
+          resinHealth={metrics.resinHealth}
+          odometerCycles={metrics.odometer}
+          saltLevelPercent={saltLevelPercent}
+          hasCarbonFilter={inputs.hasCarbonFilter}
+          isCityWater={inputs.isCityWater}
+        />
 
         {/* Metrics Grid */}
         <SoftenerMetricsGrid
