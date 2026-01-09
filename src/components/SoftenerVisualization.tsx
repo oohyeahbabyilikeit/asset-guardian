@@ -150,13 +150,6 @@ export function SoftenerVisualization({
           strokeWidth="4"
         />
 
-        {/* Drain line */}
-        <path
-          d="M 100 245 L 100 270 L 180 270"
-          fill="none"
-          stroke="#78716c"
-          strokeWidth="6"
-        />
 
         {/* === CARBON FILTER (if present) === */}
         {hasCarbonFilter && (
