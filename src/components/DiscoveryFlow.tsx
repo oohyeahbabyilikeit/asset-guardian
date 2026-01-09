@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Droplets, Gauge, Shield, Thermometer, AlertTriangle, CheckCircle2, Info, Zap, AlertOctagon, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Droplets, Gauge, Shield, Thermometer, AlertTriangle, CheckCircle2, Info, Zap, AlertOctagon, XCircle, Flame, Battery } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs, calculateOpterraRisk, failProbToHealthScore, type ActionType, type OpterraMetrics } from '@/lib/opterraAlgorithm';
-import { InteractiveWaterHeaterDiagram } from './InteractiveWaterHeaterDiagram';
 import { SafetyReplacementAlert } from './SafetyReplacementAlert';
 import containmentBreachImage from '@/assets/containment-breach.png';
 
@@ -275,24 +274,72 @@ function UnitProfileStep({ asset, inputs, metrics }: { asset: AssetData; inputs:
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-foreground">Let's Look at Your Water Heater</h2>
-        <p className="text-sm text-muted-foreground">Explore the components that affect your unit's health</p>
+        <h2 className="text-xl font-semibold text-foreground">Your Water Heater Profile</h2>
+        <p className="text-sm text-muted-foreground">Here's what we know about your unit</p>
       </div>
 
-      {/* Interactive Educational Diagram */}
-      <InteractiveWaterHeaterDiagram
-        anodePercent={Math.round(anodePercent)}
-        sedimentLbs={metrics.sedimentLbs}
-        fuelType={inputs.fuelType}
-        hasExpansionTank={inputs.hasExpTank}
-        hasPRV={inputs.hasPrv}
-      />
-
-      {/* Age indicator */}
-      <div className="flex justify-center">
-        <div className="px-4 py-2 bg-card border border-border rounded-full text-sm font-semibold">
-          Your unit: {inputs.calendarAge} years old
+      {/* Age & Type Header */}
+      <Card className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center">
+              {inputs.fuelType === 'GAS' ? (
+                <Flame className="w-6 h-6 text-primary" />
+              ) : (
+                <Zap className="w-6 h-6 text-primary" />
+              )}
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{asset.brand}</p>
+              <p className="text-sm text-muted-foreground">{inputs.fuelType === 'GAS' ? 'Gas' : 'Electric'} • {asset.specs.capacity}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-foreground">{inputs.calendarAge}</p>
+            <p className="text-xs text-muted-foreground">years old</p>
+          </div>
         </div>
+      </Card>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className={cn(
+              "w-4 h-4",
+              anodePercent > 50 ? "text-green-500" : anodePercent > 25 ? "text-amber-500" : "text-red-500"
+            )} />
+            <span className="text-xs text-muted-foreground">Anode Protection</span>
+          </div>
+          <p className={cn(
+            "text-xl font-bold",
+            anodePercent > 50 ? "text-green-500" : anodePercent > 25 ? "text-amber-500" : "text-red-500"
+          )}>
+            {Math.round(anodePercent)}%
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {anodePercent > 50 ? "Good condition" : anodePercent > 25 ? "Getting low" : "Needs attention"}
+          </p>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Battery className={cn(
+              "w-4 h-4",
+              metrics.sedimentLbs < 5 ? "text-green-500" : metrics.sedimentLbs < 10 ? "text-amber-500" : "text-red-500"
+            )} />
+            <span className="text-xs text-muted-foreground">Sediment</span>
+          </div>
+          <p className={cn(
+            "text-xl font-bold",
+            metrics.sedimentLbs < 5 ? "text-green-500" : metrics.sedimentLbs < 10 ? "text-amber-500" : "text-red-500"
+          )}>
+            {metrics.sedimentLbs.toFixed(1)} lbs
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {metrics.sedimentLbs < 5 ? "Minimal buildup" : metrics.sedimentLbs < 10 ? "Moderate buildup" : "Heavy buildup"}
+          </p>
+        </Card>
       </div>
 
       {/* Unit specs */}
