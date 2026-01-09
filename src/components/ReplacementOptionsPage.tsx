@@ -24,12 +24,20 @@ const TIER_DISPLAY: Record<QualityTier, {
   name: string; 
   icon: typeof Shield;
   accent: string;
+  bgGradient: string;
+  borderColor: string;
+  selectedBorder: string;
+  tagline: string;
   features: string[];
 }> = {
   BUILDER: { 
     name: 'Good', 
     icon: Shield,
-    accent: 'text-slate-400',
+    accent: 'text-muted-foreground',
+    bgGradient: 'bg-card/30',
+    borderColor: 'border-border/50',
+    selectedBorder: 'border-muted-foreground',
+    tagline: 'Basic protection',
     features: [
       'Standard tank lining',
       '6-year parts warranty',
@@ -40,6 +48,10 @@ const TIER_DISPLAY: Record<QualityTier, {
     name: 'Better', 
     icon: Zap,
     accent: 'text-primary',
+    bgGradient: 'bg-gradient-to-br from-primary/10 via-primary/5 to-transparent',
+    borderColor: 'border-primary/40',
+    selectedBorder: 'border-primary',
+    tagline: 'Best value',
     features: [
       'Enhanced corrosion protection',
       '9-year parts warranty',
@@ -49,7 +61,11 @@ const TIER_DISPLAY: Record<QualityTier, {
   PROFESSIONAL: { 
     name: 'Best', 
     icon: Crown,
-    accent: 'text-blue-400',
+    accent: 'text-amber-400',
+    bgGradient: 'bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent',
+    borderColor: 'border-amber-500/40',
+    selectedBorder: 'border-amber-500',
+    tagline: 'Maximum longevity',
     features: [
       'Premium materials throughout',
       '12-year parts warranty',
@@ -60,6 +76,10 @@ const TIER_DISPLAY: Record<QualityTier, {
     name: 'Premium', 
     icon: Crown,
     accent: 'text-purple-400',
+    bgGradient: 'bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-transparent',
+    borderColor: 'border-purple-500/40',
+    selectedBorder: 'border-purple-500',
+    tagline: 'Commercial grade',
     features: [
       'Commercial-grade build',
       '12-year full warranty',
@@ -132,6 +152,9 @@ export function ReplacementOptionsPage({
             const displayPrice = getDisplayPrice(tier);
             const infraCount = tierData.includedIssues.length;
 
+            const isGood = tier === 'BUILDER';
+            const isBest = tier === 'PROFESSIONAL';
+
             return (
               <button
                 key={tier}
@@ -139,30 +162,46 @@ export function ReplacementOptionsPage({
                 className={cn(
                   'w-full text-left rounded-2xl border-2 transition-all duration-200 overflow-hidden',
                   isSelected 
-                    ? 'border-primary bg-primary/5'
-                    : isRecommended
-                      ? 'border-primary/40 bg-card/50 hover:border-primary/60'
-                      : 'border-border bg-card/50 hover:border-muted-foreground/50'
+                    ? cn(config.selectedBorder, config.bgGradient)
+                    : cn(config.borderColor, config.bgGradient, 'hover:border-muted-foreground/60'),
+                  // Make Good tier visually smaller/muted
+                  isGood && !isSelected && 'opacity-75 hover:opacity-100'
                 )}
                 style={{
-                  boxShadow: isSelected 
-                    ? '0 0 24px -4px hsl(var(--primary) / 0.25)'
+                  boxShadow: isSelected && !isGood
+                    ? isBest 
+                      ? '0 0 24px -4px rgba(251, 191, 36, 0.3)'
+                      : isRecommended 
+                        ? '0 0 24px -4px hsl(var(--primary) / 0.3)'
+                        : undefined
                     : undefined,
                 }}
               >
                 {/* Recommended Badge */}
                 {isRecommended && (
                   <div className={cn(
-                    "text-[10px] font-bold py-1 px-3 text-center tracking-wider",
+                    "text-[10px] font-bold py-1.5 px-3 text-center tracking-wider",
                     isSelected 
                       ? "bg-primary text-primary-foreground" 
-                      : "bg-primary/10 text-primary"
+                      : "bg-primary/20 text-primary"
                   )}>
-                    ★ RECOMMENDED
+                    ★ RECOMMENDED — BEST VALUE
                   </div>
                 )}
 
-                <div className="p-4">
+                {/* Best Badge */}
+                {isBest && (
+                  <div className={cn(
+                    "text-[10px] font-bold py-1.5 px-3 text-center tracking-wider",
+                    isSelected 
+                      ? "bg-amber-500 text-black" 
+                      : "bg-amber-500/20 text-amber-400"
+                  )}>
+                    👑 MAXIMUM PROTECTION
+                  </div>
+                )}
+
+                <div className={cn("p-4", isGood && "py-3")}>
                   {/* Header Row */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -170,16 +209,26 @@ export function ReplacementOptionsPage({
                       <div className={cn(
                         'w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0',
                         isSelected 
-                          ? 'border-primary bg-primary'
+                          ? isBest 
+                            ? 'border-amber-500 bg-amber-500'
+                            : 'border-primary bg-primary'
                           : 'border-muted-foreground/30'
                       )}>
                         {isSelected && <Check className="w-4 h-4 text-white" />}
                       </div>
 
                       {/* Tier Name */}
-                      <div className="flex items-center gap-2">
-                        <TierIcon className={cn('w-5 h-5', config.accent)} />
-                        <span className="text-lg font-bold text-foreground">{config.name}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <TierIcon className={cn('w-5 h-5', config.accent)} />
+                          <span className={cn(
+                            'font-bold',
+                            isGood ? 'text-base text-muted-foreground' : 'text-lg text-foreground'
+                          )}>{config.name}</span>
+                        </div>
+                        {!isGood && (
+                          <p className={cn('text-[10px] ml-7', config.accent)}>{config.tagline}</p>
+                        )}
                       </div>
                     </div>
 
@@ -190,8 +239,10 @@ export function ReplacementOptionsPage({
                       ) : displayPrice ? (
                         <div>
                           <span className={cn(
-                            'text-xl font-bold',
-                            isSelected ? 'text-primary' : 'text-foreground'
+                            'font-bold',
+                            isGood ? 'text-lg text-muted-foreground' : 'text-xl',
+                            isSelected && !isGood && (isBest ? 'text-amber-400' : 'text-primary'),
+                            !isSelected && !isGood && 'text-foreground'
                           )}>
                             ${displayPrice.toLocaleString()}
                           </span>
@@ -206,21 +257,40 @@ export function ReplacementOptionsPage({
                   </div>
 
                   {/* Features List */}
-                  <ul className="space-y-1.5 ml-9">
+                  <ul className={cn("space-y-1.5 ml-9", isGood && "space-y-1")}>
                     {config.features.map((feature, idx) => (
                       <li key={idx} className="flex items-center gap-2 text-sm">
-                        <Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                        <span className="text-muted-foreground">{feature}</span>
+                        <Check className={cn(
+                          "w-3.5 h-3.5 flex-shrink-0",
+                          isGood ? 'text-muted-foreground' : isBest ? 'text-amber-400' : 'text-green-500'
+                        )} />
+                        <span className={isGood ? 'text-muted-foreground/70 text-xs' : 'text-muted-foreground'}>
+                          {feature}
+                        </span>
                       </li>
                     ))}
                     
                     {/* Infrastructure items */}
                     {infraCount > 0 && (
                       <li className="flex items-center gap-2 text-sm pt-1">
-                        <Shield className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                        <span className="text-primary font-medium">
+                        <Shield className={cn(
+                          "w-3.5 h-3.5 flex-shrink-0",
+                          isBest ? 'text-amber-400' : 'text-primary'
+                        )} />
+                        <span className={cn(
+                          "font-medium",
+                          isBest ? 'text-amber-400' : 'text-primary'
+                        )}>
                           +{infraCount} infrastructure protection{infraCount > 1 ? 's' : ''} included
                         </span>
+                      </li>
+                    )}
+
+                    {/* Loss framing for Good tier */}
+                    {isGood && infraCount === 0 && (
+                      <li className="flex items-center gap-2 text-xs pt-1 text-amber-500/70">
+                        <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                        <span>No infrastructure protection</span>
                       </li>
                     )}
                   </ul>
