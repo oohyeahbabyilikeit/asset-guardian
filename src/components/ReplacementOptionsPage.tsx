@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, Heart, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, MessageCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTieredPricing, DISPLAY_TIERS, TIER_CONFIG } from '@/hooks/useTieredPricing';
@@ -142,13 +142,12 @@ export function ReplacementOptionsPage({
       <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
 
-      {/* Header */}
-      <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-4 px-4">
+      {/* Minimal Header */}
+      <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-3 px-4">
         <div className="flex items-center justify-between max-w-md mx-auto">
-          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-foreground">Let's Find the Right Fit</h1>
           <TierEducationDrawer 
             infrastructureIssues={infrastructureIssues}
             housePsi={currentInputs.housePsi}
@@ -157,20 +156,13 @@ export function ReplacementOptionsPage({
         </div>
       </header>
 
-      <div className="relative p-4 max-w-md mx-auto pb-32">
-        {/* Friendly Intro */}
-        <div className="mb-5 p-4 rounded-xl bg-card/60 border border-border">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Heart className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-foreground leading-relaxed">
-                Based on what we found, here are three solid options. 
-                <span className="text-muted-foreground"> Each one protects your home — pick what feels right for your budget.</span>
-              </p>
-            </div>
-          </div>
+      <div className="relative px-4 pt-3 pb-32 max-w-md mx-auto">
+        {/* Clean Intro */}
+        <div className="text-center mb-4">
+          <h1 className="text-xl font-semibold text-foreground">Let's Find the Right Fit</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Pick what works for your budget — all options protect your home.
+          </p>
         </div>
 
         {/* Tier Cards */}
