@@ -422,7 +422,7 @@ function ObservationsStep({
         }
         return prev + 1;
       });
-    }, 4000); // 4 seconds per card
+    }, 2500); // 2.5 seconds per card
 
     return () => clearInterval(timer);
   }, [isPaused, observations.length]);
