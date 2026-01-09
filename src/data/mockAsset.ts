@@ -1,7 +1,7 @@
 // Mock Asset Data for Opterra Home Asset Vault MVP
 // All data is configurable here for demo flexibility
 
-import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel } from '@/lib/opterraAlgorithm';
+import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel, VentType } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
 
 export interface AssetData {
@@ -182,6 +182,7 @@ const scenarios: DemoScenario[] = [
       hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
       peopleCount: 2, usageType: 'light', tankCapacity: 50,
+      ventType: 'DIRECT_VENT' as VentType,
     },
   },
   {
@@ -317,6 +318,7 @@ const scenarios: DemoScenario[] = [
       hasExpTank: true, hasPrv: true, location: 'ATTIC' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'NORMAL' as TempSetting,
       peopleCount: 3, usageType: 'normal', tankCapacity: 50,
+      ventType: 'POWER_VENT' as VentType,
     },
   },
 

@@ -1,7 +1,13 @@
 /**
- * OPTERRA v7.1 Risk Calculation Engine
+ * OPTERRA v7.2 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
+ * 
+ * CHANGES v7.2:
+ * - TIER MATCHING: Added quality tier detection (BUILDER/STANDARD/PROFESSIONAL/PREMIUM)
+ * - LIKE-FOR-LIKE: Replacement quotes now match original unit quality tier
+ * - VENTING COSTS: Added Power Vent (+$800) and Direct Vent (+$600) adders
+ * - UPGRADE OFFERS: Financial forecast now includes upgrade vs like-for-like options
  * 
  * CHANGES v7.1:
  * - ANODE FIX: Unified AGE_ANODE_LIMIT to 8 years (was 6 in algorithm, 8 in repair options)
@@ -14,22 +20,13 @@
  * - NEW: Added plumbingProtection ($10/GPG) line item to HardWaterTax for realistic ROI
  * 
  * CHANGES v6.9:
- * - USAGE CALIBRATION: peopleCount and usageType now affect ALL calculations:
- *   - Anode rod depletion accelerated by usage intensity (sqrt dampening)
- *   - Thermal cycling stress scales with hot water draw frequency
- *   - Tank undersizing penalty for small tanks serving large households
- * - NEW STRESS FACTORS: Added usageIntensity and undersizing to stressFactors output
+ * - USAGE CALIBRATION: peopleCount and usageType now affect ALL calculations
  * 
  * CHANGES v6.6:
  * - PHYSICS FIX: Implemented "Duty Cycle" logic (0.25 dampener) for Thermal Expansion.
- *   (Distinguishes between constant high pressure vs. transient thermal spikes).
- *   (Prevents false condemnation of young tanks).
- * - SAFETY: Added specific warnings for Attic units in the Repair workflow.
  * 
  * CHANGES v6.5:
  * - ARRHENIUS ADJUSTMENT: Lowered 'HOT' (140°F) penalty from 2.0x to 1.5x.
- * - PHYSICS: Retained 1.05x Soft-Start for Sediment (Quadratic Curve).
- * - FINANCIAL: Includes Financial Forecasting Engine.
  * 
  * CHANGES v6.4:
  * - PHYSICS FIX: Quadratic Sediment Stress (Soft Start curve)
@@ -50,6 +47,20 @@ export type TempSetting = 'LOW' | 'NORMAL' | 'HOT';
 export type LocationType = 'ATTIC' | 'UPPER_FLOOR' | 'MAIN_LIVING' | 'BASEMENT' | 'GARAGE' | 'EXTERIOR' | 'CRAWLSPACE';
 export type RiskLevel = 1 | 2 | 3 | 4;
 export type UsageType = 'light' | 'normal' | 'heavy';
+export type VentType = 'ATMOSPHERIC' | 'POWER_VENT' | 'DIRECT_VENT';
+
+// NEW v7.2: Quality Tier System
+export type QualityTier = 'BUILDER' | 'STANDARD' | 'PROFESSIONAL' | 'PREMIUM';
+
+export interface TierProfile {
+  tier: QualityTier;
+  tierLabel: string;
+  warrantyYears: number;
+  ventType: VentType;
+  features: string[];
+  baseCostGas: number;
+  baseCostElectric: number;
+}
 
 export interface ForensicInputs {
   calendarAge: number;     // Years
@@ -68,6 +79,9 @@ export interface ForensicInputs {
   peopleCount: number;     // 1-8+ people in household
   usageType: UsageType;    // light, normal, heavy (shower habits)
   tankCapacity: number;    // Gallons (from model # or user input)
+  
+  // NEW v7.2: Venting Type (affects replacement cost)
+  ventType?: VentType;     // Atmospheric, Power Vent, or Direct Vent
   
   // Equipment Flags
   hasSoftener: boolean;
@@ -148,7 +162,7 @@ export type RecommendationAction =
 
 export type RecommendationBadge = 'CRITICAL' | 'REPLACE' | 'SERVICE' | 'MONITOR' | 'OPTIMAL';
 
-// Financial Forecasting Interface (NEW v6.4)
+// Financial Forecasting Interface (NEW v6.4, UPDATED v7.2)
 export interface FinancialForecast {
   targetReplacementDate: string;  // "June 2028"
   monthsUntilTarget: number;
@@ -158,6 +172,13 @@ export interface FinancialForecast {
   monthlyBudget: number;          // Recommended savings (based on max)
   budgetUrgency: 'LOW' | 'MED' | 'HIGH' | 'IMMEDIATE';
   recommendation: string;
+  
+  // NEW v7.2: Tier-Aware Replacement Options
+  currentTier: TierProfile;       // Detected quality tier of existing unit
+  likeForLikeCost: number;        // Cost to replace with same tier
+  upgradeTier?: TierProfile;      // Optional upgrade tier
+  upgradeCost?: number;           // Cost of upgrade tier
+  upgradeValueProp?: string;      // Why upgrade is worth considering
 }
 
 // Hard Water Tax Interface (NEW v6.7)
@@ -191,6 +212,53 @@ export interface OpterraResult {
 }
 
 // --- CONSTANTS & CONFIGURATION ---
+
+// NEW v7.2: Quality Tier Pricing Database
+const TIER_PROFILES: Record<QualityTier, TierProfile> = {
+  BUILDER: {
+    tier: 'BUILDER',
+    tierLabel: 'Builder Grade',
+    warrantyYears: 6,
+    ventType: 'ATMOSPHERIC',
+    features: ['Basic glass-lined tank', 'Single anode rod', 'Standard thermostat'],
+    baseCostGas: 1400,
+    baseCostElectric: 1200,
+  },
+  STANDARD: {
+    tier: 'STANDARD',
+    tierLabel: 'Standard',
+    warrantyYears: 9,
+    ventType: 'ATMOSPHERIC',
+    features: ['Premium glass lining', 'Larger anode rod', 'Self-cleaning dip tube'],
+    baseCostGas: 1900,
+    baseCostElectric: 1600,
+  },
+  PROFESSIONAL: {
+    tier: 'PROFESSIONAL',
+    tierLabel: 'Professional',
+    warrantyYears: 12,
+    ventType: 'ATMOSPHERIC',
+    features: ['Dual anode rods', 'High-recovery burner', 'Brass drain valve', 'Commercial-grade thermostat'],
+    baseCostGas: 2600,
+    baseCostElectric: 2200,
+  },
+  PREMIUM: {
+    tier: 'PREMIUM',
+    tierLabel: 'Premium / Lifetime',
+    warrantyYears: 15,
+    ventType: 'ATMOSPHERIC',
+    features: ['Stainless steel tank OR Lifetime warranty', 'Powered anode', 'WiFi monitoring', 'Leak detection'],
+    baseCostGas: 3500,
+    baseCostElectric: 3000,
+  },
+};
+
+// Venting cost adders (labor + materials)
+const VENT_COST_ADDERS: Record<VentType, number> = {
+  ATMOSPHERIC: 0,
+  POWER_VENT: 800,    // Blower motor, PVC venting, electrical
+  DIRECT_VENT: 600,   // Concentric vent kit, wall termination
+};
 
 const CONSTANTS = {
   // Weibull Reliability Parameters
@@ -236,7 +304,7 @@ const CONSTANTS = {
   RISK_LOW: 1 as RiskLevel,      
   RISK_MED: 2 as RiskLevel,      
   RISK_HIGH: 3 as RiskLevel,     
-  RISK_EXTREME: 4 as RiskLevel,  
+  RISK_EXTREME: 4 as RiskLevel,
 };
 
 // --- HELPER FUNCTIONS ---
@@ -1017,10 +1085,81 @@ function optimizeEconomicDecision(
   return rec;
 }
 
-// --- FINANCIAL FORECASTING ENGINE (NEW v6.4) ---
+// --- FINANCIAL FORECASTING ENGINE (NEW v6.4, UPDATED v7.2) ---
+
+/**
+ * NEW v7.2: Detects the quality tier of the existing unit based on warranty and features.
+ * 
+ * Tier Mapping:
+ * - BUILDER (6-year): Basic contractor-grade, single anode
+ * - STANDARD (9-year): Mid-range, improved lining and anode
+ * - PROFESSIONAL (12-year): Commercial-grade, dual anodes, brass fittings
+ * - PREMIUM (15+ year): Stainless/plastic tank, powered anode, lifetime warranty
+ */
+export function detectQualityTier(data: ForensicInputs): TierProfile {
+  const { warrantyYears, ventType } = data;
+  
+  // Primary signal: warranty term
+  let detectedTier: QualityTier;
+  
+  if (warrantyYears >= 15) {
+    detectedTier = 'PREMIUM';
+  } else if (warrantyYears >= 10) {
+    detectedTier = 'PROFESSIONAL';
+  } else if (warrantyYears >= 8) {
+    detectedTier = 'STANDARD';
+  } else {
+    detectedTier = 'BUILDER';
+  }
+  
+  // Get base profile and overlay actual vent type
+  const baseProfile = { ...TIER_PROFILES[detectedTier] };
+  
+  // Override vent type if specified (affects cost calculation)
+  if (ventType) {
+    baseProfile.ventType = ventType;
+  }
+  
+  return baseProfile;
+}
+
+/**
+ * NEW v7.2: Get the next tier up for upgrade recommendation
+ */
+function getUpgradeTier(currentTier: QualityTier): TierProfile | undefined {
+  const tierOrder: QualityTier[] = ['BUILDER', 'STANDARD', 'PROFESSIONAL', 'PREMIUM'];
+  const currentIndex = tierOrder.indexOf(currentTier);
+  
+  if (currentIndex < tierOrder.length - 1) {
+    return TIER_PROFILES[tierOrder[currentIndex + 1]];
+  }
+  return undefined; // Already at premium
+}
+
+/**
+ * NEW v7.2: Calculate tier-aware replacement cost with venting
+ */
+function calculateTierCost(profile: TierProfile, data: ForensicInputs): number {
+  const baseCost = data.fuelType === 'GAS' ? profile.baseCostGas : profile.baseCostElectric;
+  const ventAdder = VENT_COST_ADDERS[data.ventType || profile.ventType];
+  
+  // Location adders
+  let locationAdder = 0;
+  if (data.location === 'ATTIC' || data.location === 'UPPER_FLOOR') locationAdder = 600;
+  else if (data.location === 'CRAWLSPACE') locationAdder = 400;
+  
+  // Code upgrade adders
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
+  const needsCodeUpgrade = (!data.hasPrv && data.housePsi > 80) || (!data.hasExpTank && isActuallyClosed);
+  const codeAdder = needsCodeUpgrade ? 450 : 0;
+  
+  return baseCost + ventAdder + locationAdder + codeAdder;
+}
 
 /**
  * Calculates a monthly savings plan based on Accelerated Aging.
+ * 
+ * UPDATED v7.2: Now includes tier-aware pricing for like-for-like and upgrade options.
  * 
  * Formula: (Target Life - Current Age) / Aging Rate = Real Time Remaining
  * 
@@ -1036,25 +1175,27 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
   // We plan for replacement at year 13 (typical end of financial life, not 25-year physics max)
   const TARGET_SERVICE_LIFE = 13;
   
-  // Contractor pricing ranges (based on market data)
-  // Low: budget contractors, mid: standard, high: premium/specialized
-  const BASE_COST_LOW = data.fuelType === 'GAS' ? 1800 : 1600;
-  const BASE_COST_MID = data.fuelType === 'GAS' ? 2400 : 2100;
-  const BASE_COST_HIGH = data.fuelType === 'GAS' ? 3200 : 2800;
+  // NEW v7.2: Detect quality tier and calculate tier-aware costs
+  const currentTier = detectQualityTier(data);
+  const likeForLikeCost = calculateTierCost(currentTier, data);
   
-  // Add Granular Cost Adders based on location
-  let costAdder = 0;
-  if (data.location === 'ATTIC' || data.location === 'UPPER_FLOOR') costAdder += 600;
-  if (data.location === 'CRAWLSPACE') costAdder += 400;
+  // Check for upgrade opportunity
+  const upgradeTierProfile = getUpgradeTier(currentTier.tier);
+  const upgradeCost = upgradeTierProfile ? calculateTierCost(upgradeTierProfile, data) : undefined;
   
-  // If system needs code upgrades (PRV/ExpTank), the *next* install will be more expensive
-  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
-  const needsCodeUpgrade = (!data.hasPrv && data.housePsi > 80) || (!data.hasExpTank && isActuallyClosed);
-  if (needsCodeUpgrade) costAdder += 450;
-
-  const totalCostLow = BASE_COST_LOW + costAdder;
-  const totalCostMid = BASE_COST_MID + costAdder;
-  const totalCostHigh = BASE_COST_HIGH + costAdder;
+  // Generate upgrade value proposition
+  let upgradeValueProp: string | undefined;
+  if (upgradeTierProfile && upgradeCost) {
+    const costDiff = upgradeCost - likeForLikeCost;
+    const warrantyDiff = upgradeTierProfile.warrantyYears - currentTier.warrantyYears;
+    upgradeValueProp = `Upgrade to ${upgradeTierProfile.tierLabel} for +$${costDiff} → ${warrantyDiff} extra years of protection`;
+  }
+  
+  // Use tier-aware costs for low/mid/high estimates
+  // Low: current tier, Mid: +10%, High: +25% (labor variance)
+  const totalCostLow = likeForLikeCost;
+  const totalCostMid = Math.round(likeForLikeCost * 1.1);
+  const totalCostHigh = Math.round(likeForLikeCost * 1.25);
 
   const INFLATION_RATE = 0.03;
 
@@ -1079,6 +1220,7 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
   const futureCostLow = totalCostLow * inflationMultiplier;
   const futureCostMid = totalCostMid * inflationMultiplier;
   const futureCostHigh = totalCostHigh * inflationMultiplier;
+  const futureUpgradeCost = upgradeCost ? upgradeCost * inflationMultiplier : undefined;
 
   // 4. Calculate Monthly Budget (based on high estimate to be safe)
   const monthsUntilTarget = Math.max(0, Math.ceil(adjustedYearsRemaining * 12));
@@ -1096,14 +1238,14 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
 
   if (monthsUntilTarget <= 0) {
     urgency = 'IMMEDIATE';
-    recommendation = `Unit is past its expected service life. Expect to budget $${Math.ceil(futureCostLow).toLocaleString()} - $${Math.ceil(futureCostHigh).toLocaleString()} for replacement.`;
+    recommendation = `Unit is past its expected service life. Expect to budget $${Math.ceil(futureCostLow).toLocaleString()} - $${Math.ceil(futureCostHigh).toLocaleString()} for like-for-like ${currentTier.tierLabel} replacement.`;
   } else if (monthsUntilTarget < 12) {
     urgency = 'HIGH';
-    recommendation = `Replacement likely within 12 months. If you'd like to budget ahead, that works out to about $${monthlyBudget}/month.`;
+    recommendation = `Replacement likely within 12 months. Your ${currentTier.tierLabel} unit will cost ~$${Math.round(likeForLikeCost).toLocaleString()} to replace.`;
   } else if (monthsUntilTarget < 36) {
     urgency = 'MED';
     const targetYear = new Date(Date.now() + monthsUntilTarget * 30 * 24 * 60 * 60 * 1000).getFullYear();
-    recommendation = `Plan to replace by ${targetYear}. If you'd like to budget ahead, that's roughly $${monthlyBudget}/month.`;
+    recommendation = `Plan to replace by ${targetYear}. Budget ~$${monthlyBudget}/month for a ${currentTier.tierLabel} replacement.`;
   } else {
     urgency = 'LOW';
     recommendation = `No rush—just something to keep in mind for future planning.`;
@@ -1123,7 +1265,13 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
     estReplacementCostMax: Math.round(futureCostHigh),
     monthlyBudget,
     budgetUrgency: urgency,
-    recommendation
+    recommendation,
+    // NEW v7.2: Tier-aware fields
+    currentTier,
+    likeForLikeCost: Math.round(likeForLikeCost),
+    upgradeTier: upgradeTierProfile,
+    upgradeCost: futureUpgradeCost ? Math.round(futureUpgradeCost) : undefined,
+    upgradeValueProp,
   };
 }
 
