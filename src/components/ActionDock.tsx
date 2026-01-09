@@ -47,8 +47,9 @@ export function ActionDock({
       return 'View Safety Recommendations';
     }
     
-    // Tier 2C (Economic Replacement) - Planning focus, not alarming
+    // Tier 2C (Economic Replacement) - Soft invitation to explore
     if (recommendation.action === 'REPLACE') {
+      return 'Show Me My Options';
       return 'Plan Your Upgrade';
     }
     
