@@ -113,18 +113,14 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
 
   const replacementRequired = recommendation.action === 'REPLACE';
   
-  // Distinguish between safety replacement and economic replacement
+  // Distinguish between safety replacement and economic replacement for UI messaging
   const isSafetyReplacement = replacementRequired && recommendation.badge === 'CRITICAL';
   const isEconomicReplacement = replacementRequired && recommendation.badge !== 'CRITICAL';
   
+  // Both safety and economic replacements now go through the same tiered pricing flow
+  const showReplacementFlow = replacementRequired;
+  
   const availableRepairs = getAvailableRepairs(currentInputs, opterraResult.metrics, recommendation);
-
-  // Auto-select replacement if required (safety only)
-  useEffect(() => {
-    if (isSafetyReplacement && !selectedIds.has('replace')) {
-      setSelectedIds(new Set(['replace']));
-    }
-  }, [isSafetyReplacement]);
 
   const fullReplacement = availableRepairs.find(r => r.isFullReplacement);
   const individualRepairs = availableRepairs.filter(r => !r.isFullReplacement);
@@ -202,7 +198,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="font-bold text-foreground">
-            {isEconomicReplacement ? 'Plan Your Upgrade' : 'Understanding Your Options'}
+            {isSafetyReplacement ? 'Your Replacement Options' : 'Plan Your Upgrade'}
           </h1>
           <div className="w-10" />
         </div>
@@ -210,7 +206,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
 
       <div className="relative p-4 max-w-md mx-auto pb-32">
 
-        {/* Replacement Banner - Enhanced for Safety Replacement */}
+        {/* Safety Replacement - Show educational alert first */}
         {isSafetyReplacement && (
           <div className="mb-4">
             <SafetyReplacementAlert
@@ -225,7 +221,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           </div>
         )}
 
-        {/* Economic Replacement - Proactive Planning Framing */}
+        {/* Economic Replacement - Show upgrade context */}
         {isEconomicReplacement && (
           <>
             {/* Upgrade Recommended Banner */}
@@ -262,7 +258,12 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 </div>
               </div>
             </div>
+          </>
+        )}
 
+        {/* UNIFIED REPLACEMENT FLOW - Same for both safety and economic */}
+        {showReplacementFlow && (
+          <>
             {/* Good / Better / Best Tiered Pricing */}
             <div className="mb-4">
               <TieredPricingDisplay
@@ -286,61 +287,83 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 }}
                 className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                   selectedTimeline === 'now'
-                    ? 'border-primary bg-primary/10'
+                    ? isSafetyReplacement ? 'border-red-500 bg-red-500/10' : 'border-primary bg-primary/10'
                     : 'border-border bg-card/50 hover:border-primary/50'
                 }`}
                 style={{
-                  boxShadow: selectedTimeline === 'now' ? '0 0 20px -4px hsl(var(--primary) / 0.4)' : undefined,
+                  boxShadow: selectedTimeline === 'now' 
+                    ? isSafetyReplacement 
+                      ? '0 0 20px -4px rgba(239, 68, 68, 0.4)' 
+                      : '0 0 20px -4px hsl(var(--primary) / 0.4)' 
+                    : undefined,
                 }}
               >
                 <div className="flex items-start gap-3">
                   <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    selectedTimeline === 'now' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                    selectedTimeline === 'now' 
+                      ? isSafetyReplacement 
+                        ? 'border-red-500 bg-red-500 text-white' 
+                        : 'border-primary bg-primary text-primary-foreground' 
+                      : 'border-muted-foreground/30'
                   }`}>
                     {selectedTimeline === 'now' && <Check className="w-4 h-4" />}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-foreground">Replace Now</span>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
-                        RECOMMENDED
+                      <span className="font-bold text-foreground">
+                        {isSafetyReplacement ? 'Schedule Replacement' : 'Replace Now'}
+                      </span>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                        isSafetyReplacement 
+                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                          : 'bg-green-500/20 text-green-400 border-green-500/30'
+                      }`}>
+                        {isSafetyReplacement ? 'URGENT' : 'RECOMMENDED'}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground">Schedule on your terms, avoid emergency pricing</p>
-                    <p className="text-xs text-green-400 mt-1.5">Best for peace of mind</p>
-                  </div>
-                </div>
-              </button>
-              
-              {/* Option 2: Replace Within 12 Months */}
-              <button
-                onClick={() => {
-                  setSelectedTimeline('later');
-                  setSelectedIds(new Set(['replace']));
-                }}
-                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                  selectedTimeline === 'later'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border bg-card/50 hover:border-primary/50'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    selectedTimeline === 'later' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
-                  }`}>
-                    {selectedTimeline === 'later' && <Check className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-foreground mb-1">Replace Within 12 Months</div>
-                    <p className="text-sm text-muted-foreground">Start saving now, schedule when ready</p>
-                    <p className="text-xs text-muted-foreground mt-1.5">
-                      Save <span className="text-primary font-medium">${financial.monthlyBudget}/mo</span> to prepare
+                    <p className="text-sm text-muted-foreground">
+                      {isSafetyReplacement 
+                        ? 'Address the issue before it causes damage' 
+                        : 'Schedule on your terms, avoid emergency pricing'}
+                    </p>
+                    <p className={`text-xs mt-1.5 ${isSafetyReplacement ? 'text-red-400' : 'text-green-400'}`}>
+                      {isSafetyReplacement ? 'Prevents potential water damage' : 'Best for peace of mind'}
                     </p>
                   </div>
                 </div>
               </button>
+              
+              {/* Option 2: Replace Within 12 Months - Only show for economic replacement */}
+              {!isSafetyReplacement && (
+                <button
+                  onClick={() => {
+                    setSelectedTimeline('later');
+                    setSelectedIds(new Set(['replace']));
+                  }}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                    selectedTimeline === 'later'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border bg-card/50 hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                      selectedTimeline === 'later' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                    }`}>
+                      {selectedTimeline === 'later' && <Check className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-foreground mb-1">Replace Within 12 Months</div>
+                      <p className="text-sm text-muted-foreground">Start saving now, schedule when ready</p>
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Save <span className="text-primary font-medium">${financial.monthlyBudget}/mo</span> to prepare
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              )}
 
-              {/* Option 3: I'll Take My Chances */}
+              {/* Option 3: I'll Take My Chances / Continue Monitoring */}
               <button
                 onClick={() => {
                   setSelectedTimeline('chances');
@@ -359,8 +382,14 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                     {selectedTimeline === 'chances' && <Check className="w-4 h-4" />}
                   </div>
                   <div className="flex-1">
-                    <div className="font-bold text-muted-foreground mb-1">I'll Take My Chances</div>
-                    <p className="text-sm text-muted-foreground">Continue monitoring, no action now</p>
+                    <div className="font-bold text-muted-foreground mb-1">
+                      {isSafetyReplacement ? 'I Understand the Risks' : "I'll Take My Chances"}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {isSafetyReplacement 
+                        ? 'Acknowledge the safety concern but delay action' 
+                        : 'Continue monitoring, no action now'}
+                    </p>
                   </div>
                 </div>
               </button>
@@ -370,80 +399,73 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 <div className="clean-card border-red-500/30 bg-red-500/5">
                   <div className="flex items-center gap-2 mb-3">
                     <AlertTriangle className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-medium text-foreground">Projected Decline</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {isSafetyReplacement ? 'Risk Warning' : 'Projected Decline'}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Without replacement, here's what to expect:
+                    {isSafetyReplacement 
+                      ? 'Delaying replacement increases the risk of:' 
+                      : 'Without replacement, here\'s what to expect:'}
                   </p>
-                  <div className="space-y-3">
-                    {[
-                      { months: 6, ...projection6 },
-                      { months: 12, ...projection12 },
-                      { months: 24, ...projection24 },
-                    ].map((projection) => (
-                      <div key={projection.months} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">In {projection.months} months</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className={`text-sm font-bold font-data ${projection.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                              {projection.healthScore}
-                            </span>
-                            <span className="text-xs text-muted-foreground"> score</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-bold font-data text-red-400">
-                              {projection.failProb.toFixed(0)}%
-                            </span>
-                            <span className="text-xs text-muted-foreground"> risk</span>
-                          </div>
-                        </div>
+                  {isSafetyReplacement ? (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        <span className="text-red-400">•</span>
+                        <span className="text-muted-foreground">
+                          Water damage to your {currentInputs.isFinishedArea ? 'finished space' : currentInputs.location.toLowerCase().replace('_', ' ')}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-red-400">•</span>
+                        <span className="text-muted-foreground">Emergency replacement at higher cost</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-red-400">•</span>
+                        <span className="text-muted-foreground">Potential mold and structural issues</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {[
+                        { months: 6, ...projection6 },
+                        { months: 12, ...projection12 },
+                        { months: 24, ...projection24 },
+                      ].map((projection) => (
+                        <div key={projection.months} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">In {projection.months} months</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <span className={`text-sm font-bold font-data ${projection.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                                {projection.healthScore}
+                              </span>
+                              <span className="text-xs text-muted-foreground"> score</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-bold font-data text-red-400">
+                                {projection.failProb.toFixed(0)}%
+                              </span>
+                              <span className="text-xs text-muted-foreground"> risk</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-4 pt-3 border-t border-red-500/20">
                     <p className="text-xs text-red-400">
-                      At {agingRate.toFixed(1)}x aging rate, failure risk increases significantly each year.
+                      {isSafetyReplacement 
+                        ? 'Current failure probability is elevated. Immediate attention recommended.'
+                        : `At ${agingRate.toFixed(1)}x aging rate, failure risk increases significantly each year.`}
                     </p>
                   </div>
                 </div>
               )}
             </div>
           </>
-        )}
-
-        {/* Full Replacement Option - Only for SAFETY replacement */}
-        {fullReplacement && isSafetyReplacement && (
-          <button
-            onClick={() => toggleRepair(fullReplacement.id)}
-            className={`w-full text-left mb-4 p-4 rounded-xl border-2 transition-all ${
-              isReplacementSelected
-                ? 'border-red-500 bg-red-500/10'
-                : 'border-red-500/50 bg-red-500/5 hover:border-red-500/70'
-            }`}
-            style={{
-              boxShadow: isReplacementSelected ? '0 0 20px -4px rgba(239, 68, 68, 0.4)' : undefined,
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                isReplacementSelected ? 'border-red-500 bg-red-500 text-white' : 'border-red-500/50'
-              }`}>
-                {isReplacementSelected && <Check className="w-4 h-4" />}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-foreground">{fullReplacement.name}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
-                    REQUIRED
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">{fullReplacement.description}</p>
-              </div>
-            </div>
-          </button>
         )}
 
         {/* Individual Repairs */}
@@ -592,13 +614,13 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         )}
       </div>
 
-      {/* Fixed Bottom Action - Only show when an option is selected */}
-      {(isEconomicReplacement ? selectedTimeline !== null : selectedRepairs.length > 0) && (
+      {/* Fixed Bottom Action - Show when timeline selected for replacement flow, or repairs selected for repair flow */}
+      {(showReplacementFlow ? selectedTimeline !== null : selectedRepairs.length > 0) && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border">
           <div className="max-w-md mx-auto">
             <Button
               onClick={() => {
-                if (isEconomicReplacement) {
+                if (showReplacementFlow) {
                   if (selectedTimeline === 'chances') {
                     onBack();
                   } else {
@@ -608,14 +630,18 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                   onSchedule(selectedRepairs);
                 }
               }}
-              className="w-full h-14 text-base font-semibold"
+              className={`w-full h-14 text-base font-semibold ${
+                isSafetyReplacement && selectedTimeline === 'now' 
+                  ? 'bg-red-600 hover:bg-red-500' 
+                  : ''
+              }`}
               variant={selectedTimeline === 'chances' ? 'outline' : 'default'}
             >
-              {isEconomicReplacement 
+              {showReplacementFlow 
                 ? (selectedTimeline === 'now' 
-                    ? 'Schedule Replacement' 
+                    ? (isSafetyReplacement ? 'Schedule Urgent Replacement' : 'Schedule Replacement')
                     : selectedTimeline === 'chances'
-                      ? 'Continue Monitoring'
+                      ? (isSafetyReplacement ? 'I Understand, Go Back' : 'Continue Monitoring')
                       : 'Speak with a Plumber')
                 : isReplacementSelected 
                   ? 'Request Replacement Quote' 
