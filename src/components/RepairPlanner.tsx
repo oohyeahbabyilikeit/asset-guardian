@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Target, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
 import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics, QualityTier } from '@/lib/opterraAlgorithm';
@@ -221,246 +221,142 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           </div>
         )}
 
-        {/* Economic Replacement - Show upgrade context */}
+        {/* Economic Replacement - Compact Context Banner */}
         {isEconomicReplacement && (
-          <>
-            {/* Upgrade Recommended Banner */}
-            <div className="mb-4 p-4 rounded-xl border-2 border-primary/30 bg-primary/5">
-              <div className="flex items-start gap-3">
-                <Target className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-primary text-sm mb-1">Upgrade Recommended</p>
-                  <p className="text-xs text-muted-foreground">
-                    {recommendation.reason}
-                  </p>
-                </div>
+          <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <TrendingDown className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground text-sm">Time to Upgrade</p>
+                <p className="text-xs text-muted-foreground">
+                  Aging at {agingRate.toFixed(1)}x normal rate • Bio-age: {Math.round(bioAge)} years
+                </p>
               </div>
             </div>
-
-            {/* Why Repairs Aren't Recommended */}
-            <div className="clean-card mb-4 border-amber-500/30 bg-amber-500/5">
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingDown className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-medium text-foreground">Why Repairs Aren't Recommended</span>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-start gap-2">
-                  <span className="text-amber-400">•</span>
-                  <span className="text-muted-foreground">Unit is aging at <strong className="text-foreground">{agingRate.toFixed(1)}x</strong> normal rate</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-amber-400">•</span>
-                  <span className="text-muted-foreground">Biological wear: <strong className="text-foreground">{Math.round(bioAge)} years</strong> on a {currentInputs.calendarAge}-year unit</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-amber-400">•</span>
-                  <span className="text-muted-foreground">Repairs would extend life by only <strong className="text-foreground">1-2 years</strong> at current wear rate</span>
-                </div>
-              </div>
-            </div>
-          </>
+          </div>
         )}
 
         {/* UNIFIED REPLACEMENT FLOW - Same for both safety and economic */}
         {showReplacementFlow && (
           <>
             {/* Good / Better / Best Tiered Pricing */}
-            <div className="mb-4">
+            <div className="mb-5">
               <TieredPricingDisplay
                 inputs={currentInputs}
                 detectedTier={financial.currentTier.tier}
                 selectedTier={selectedTier}
                 onTierSelect={setSelectedTier}
                 infrastructureIssues={infrastructureIssues}
+                isSafetyReplacement={isSafetyReplacement}
               />
             </div>
 
-            {/* Timeline Options */}
-            <div className="space-y-3 mb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Choose Your Timeline</p>
+            {/* Timeline Options - Simplified */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">When?</p>
               
-              {/* Option 1: Replace Now */}
+              {/* Replace Now */}
               <button
                 onClick={() => {
                   setSelectedTimeline('now');
                   setSelectedIds(new Set(['replace']));
                 }}
-                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
                   selectedTimeline === 'now'
-                    ? isSafetyReplacement ? 'border-red-500 bg-red-500/10' : 'border-primary bg-primary/10'
-                    : 'border-border bg-card/50 hover:border-primary/50'
-                }`}
-                style={{
-                  boxShadow: selectedTimeline === 'now' 
                     ? isSafetyReplacement 
-                      ? '0 0 20px -4px rgba(239, 68, 68, 0.4)' 
-                      : '0 0 20px -4px hsl(var(--primary) / 0.4)' 
-                    : undefined,
-                }}
+                      ? 'border-red-500 bg-red-500/10' 
+                      : 'border-primary bg-primary/10'
+                    : 'border-border bg-card/50 hover:border-muted-foreground/50'
+                }`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    selectedTimeline === 'now' 
-                      ? isSafetyReplacement 
-                        ? 'border-red-500 bg-red-500 text-white' 
-                        : 'border-primary bg-primary text-primary-foreground' 
-                      : 'border-muted-foreground/30'
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  selectedTimeline === 'now' 
+                    ? isSafetyReplacement 
+                      ? 'border-red-500 bg-red-500' 
+                      : 'border-primary bg-primary' 
+                    : 'border-muted-foreground/40'
+                }`}>
+                  {selectedTimeline === 'now' && <Check className="w-3 h-3 text-white" />}
+                </div>
+                <div className="flex-1">
+                  <span className="font-semibold text-foreground">
+                    {isSafetyReplacement ? 'Schedule Now' : 'Replace Now'}
+                  </span>
+                  <span className={`ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                    isSafetyReplacement 
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-green-500/20 text-green-400'
                   }`}>
-                    {selectedTimeline === 'now' && <Check className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-foreground">
-                        {isSafetyReplacement ? 'Schedule Replacement' : 'Replace Now'}
-                      </span>
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                        isSafetyReplacement 
-                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                          : 'bg-green-500/20 text-green-400 border-green-500/30'
-                      }`}>
-                        {isSafetyReplacement ? 'URGENT' : 'RECOMMENDED'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {isSafetyReplacement 
-                        ? 'Address the issue before it causes damage' 
-                        : 'Schedule on your terms, avoid emergency pricing'}
-                    </p>
-                    <p className={`text-xs mt-1.5 ${isSafetyReplacement ? 'text-red-400' : 'text-green-400'}`}>
-                      {isSafetyReplacement ? 'Prevents potential water damage' : 'Best for peace of mind'}
-                    </p>
-                  </div>
+                    {isSafetyReplacement ? 'URGENT' : 'BEST'}
+                  </span>
                 </div>
               </button>
               
-              {/* Option 2: Replace Within 12 Months - Only show for economic replacement */}
+              {/* Plan Ahead - Only for economic */}
               {!isSafetyReplacement && (
                 <button
                   onClick={() => {
                     setSelectedTimeline('later');
                     setSelectedIds(new Set(['replace']));
                   }}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                  className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
                     selectedTimeline === 'later'
                       ? 'border-primary bg-primary/10'
-                      : 'border-border bg-card/50 hover:border-primary/50'
+                      : 'border-border bg-card/50 hover:border-muted-foreground/50'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                      selectedTimeline === 'later' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
-                    }`}>
-                      {selectedTimeline === 'later' && <Check className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-bold text-foreground mb-1">Replace Within 12 Months</div>
-                      <p className="text-sm text-muted-foreground">Start saving now, schedule when ready</p>
-                      <p className="text-xs text-muted-foreground mt-1.5">
-                        Save <span className="text-primary font-medium">${financial.monthlyBudget}/mo</span> to prepare
-                      </p>
-                    </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    selectedTimeline === 'later' ? 'border-primary bg-primary' : 'border-muted-foreground/40'
+                  }`}>
+                    {selectedTimeline === 'later' && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-semibold text-foreground">Plan for 12 Months</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      (save ${financial.monthlyBudget}/mo)
+                    </span>
                   </div>
                 </button>
               )}
 
-              {/* Option 3: I'll Take My Chances / Continue Monitoring */}
+              {/* Skip / Take Chances */}
               <button
                 onClick={() => {
                   setSelectedTimeline('chances');
                   setSelectedIds(new Set());
                 }}
-                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
                   selectedTimeline === 'chances'
                     ? 'border-amber-500/50 bg-amber-500/10'
-                    : 'border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600/50'
+                    : 'border-border/50 bg-card/30 hover:border-muted-foreground/30'
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    selectedTimeline === 'chances' ? 'border-amber-500 bg-amber-500 text-white' : 'border-muted-foreground/30'
-                  }`}>
-                    {selectedTimeline === 'chances' && <Check className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-muted-foreground mb-1">
-                      {isSafetyReplacement ? 'I Understand the Risks' : "I'll Take My Chances"}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {isSafetyReplacement 
-                        ? 'Acknowledge the safety concern but delay action' 
-                        : 'Continue monitoring, no action now'}
-                    </p>
-                  </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  selectedTimeline === 'chances' ? 'border-amber-500 bg-amber-500' : 'border-muted-foreground/30'
+                }`}>
+                  {selectedTimeline === 'chances' && <Check className="w-3 h-3 text-white" />}
                 </div>
+                <span className="text-muted-foreground text-sm">
+                  {isSafetyReplacement ? 'I understand the risks' : 'Not right now'}
+                </span>
               </button>
 
-              {/* Show projections when "chances" is selected */}
+              {/* Collapsible risk info when "chances" selected */}
               {selectedTimeline === 'chances' && (
-                <div className="clean-card border-red-500/30 bg-red-500/5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-medium text-foreground">
-                      {isSafetyReplacement ? 'Risk Warning' : 'Projected Decline'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    {isSafetyReplacement 
-                      ? 'Delaying replacement increases the risk of:' 
-                      : 'Without replacement, here\'s what to expect:'}
-                  </p>
-                  {isSafetyReplacement ? (
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-start gap-2">
-                        <span className="text-red-400">•</span>
-                        <span className="text-muted-foreground">
-                          Water damage to your {currentInputs.isFinishedArea ? 'finished space' : currentInputs.location.toLowerCase().replace('_', ' ')}
+                <div className="mt-2 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-muted-foreground">
+                      {isSafetyReplacement ? (
+                        <span>Delaying increases risk of water damage and emergency costs.</span>
+                      ) : (
+                        <span>
+                          At {agingRate.toFixed(1)}x aging, expect ~{projection12.failProb.toFixed(0)}% failure risk in 12 months.
                         </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-red-400">•</span>
-                        <span className="text-muted-foreground">Emergency replacement at higher cost</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-red-400">•</span>
-                        <span className="text-muted-foreground">Potential mold and structural issues</span>
-                      </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {[
-                        { months: 6, ...projection6 },
-                        { months: 12, ...projection12 },
-                        { months: 24, ...projection24 },
-                      ].map((projection) => (
-                        <div key={projection.months} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">In {projection.months} months</span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <span className={`text-sm font-bold font-data ${projection.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                                {projection.healthScore}
-                              </span>
-                              <span className="text-xs text-muted-foreground"> score</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-sm font-bold font-data text-red-400">
-                                {projection.failProb.toFixed(0)}%
-                              </span>
-                              <span className="text-xs text-muted-foreground"> risk</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-4 pt-3 border-t border-red-500/20">
-                    <p className="text-xs text-red-400">
-                      {isSafetyReplacement 
-                        ? 'Current failure probability is elevated. Immediate attention recommended.'
-                        : `At ${agingRate.toFixed(1)}x aging rate, failure risk increases significantly each year.`}
-                    </p>
                   </div>
                 </div>
               )}
