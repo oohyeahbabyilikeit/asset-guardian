@@ -219,8 +219,7 @@ Add $150-300 for POWER_VENT, $100-200 for DIRECT_VENT.`;
 
     for (const preset of DEFAULT_INSTALL_PRESETS) {
       try {
-        const totalCost = preset.labor_cost_usd + preset.materials_cost_usd + preset.permit_cost_usd;
-
+        // Don't include total_install_cost_usd - it's a generated column
         const { error } = await supabase
           .from('contractor_install_presets')
           .upsert({
@@ -230,7 +229,6 @@ Add $150-300 for POWER_VENT, $100-200 for DIRECT_VENT.`;
             labor_cost_usd: preset.labor_cost_usd,
             materials_cost_usd: preset.materials_cost_usd,
             permit_cost_usd: preset.permit_cost_usd,
-            total_install_cost_usd: totalCost,
             estimated_hours: preset.estimated_hours,
             description: preset.description,
           }, {
@@ -241,6 +239,7 @@ Add $150-300 for POWER_VENT, $100-200 for DIRECT_VENT.`;
           console.error(`Failed to insert preset ${preset.vent_type}/${preset.complexity}:`, error);
           results.installPresets.failed++;
         } else {
+          const totalCost = preset.labor_cost_usd + preset.materials_cost_usd + preset.permit_cost_usd;
           console.log(`✓ Preset: ${preset.vent_type} / ${preset.complexity} = $${totalCost}`);
           results.installPresets.success++;
         }
