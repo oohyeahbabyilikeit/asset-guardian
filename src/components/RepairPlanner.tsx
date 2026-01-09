@@ -2,13 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Target, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
-import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics, QualityTier } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { PlumberContactForm } from './PlumberContactForm';
 import { SafetyReplacementAlert } from './SafetyReplacementAlert';
-import { PriceBreakdown } from './PriceBreakdown';
+import { TieredPricingDisplay } from './TieredPricingDisplay';
 import { usePricing } from '@/hooks/usePricing';
 // Helper function to convert metrics to stress factor format for SafetyReplacementAlert
 function convertMetricsToStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
@@ -86,10 +86,11 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
   const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'chances' | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
   const [doNothingOpen, setDoNothingOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<QualityTier>('STANDARD');
 
-  // Real-time pricing from database
-  const { quote, unitPrice, loading: priceLoading, error: priceError } = usePricing({
-    inputs: currentInputs,
+  // Real-time pricing from database (for single-tier timeline displays)
+  const { quote, loading: priceLoading } = usePricing({
+    inputs: { ...currentInputs, warrantyYears: selectedTier === 'BUILDER' ? 6 : selectedTier === 'STANDARD' ? 9 : 12 },
     complexity: 'STANDARD',
     enabled: true,
   });
@@ -255,32 +256,14 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               </div>
             </div>
 
-            {/* Your Replacement Options - Real Pricing Integration */}
-            {/* Your Replacement Options - Clean Pricing Card */}
-            <div className="clean-card mb-4 border-border bg-card">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-foreground">Replacement Estimate</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary border border-primary/30">
-                  {financial.currentTier.tierLabel}
-                </span>
-              </div>
-              
-              {/* Real-Time Price Breakdown */}
-              {priceLoading ? (
-                <div className="flex items-center gap-2 py-6 justify-center text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Getting current prices...</span>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <PriceBreakdown 
-                    quote={quote} 
-                    unitPrice={unitPrice} 
-                    loading={false} 
-                    error={priceError} 
-                  />
-                </div>
-              )}
+            {/* Good / Better / Best Tiered Pricing */}
+            <div className="mb-4">
+              <TieredPricingDisplay
+                inputs={currentInputs}
+                detectedTier={financial.currentTier.tier}
+                selectedTier={selectedTier}
+                onTierSelect={setSelectedTier}
+              />
             </div>
 
             {/* Timeline Options */}
