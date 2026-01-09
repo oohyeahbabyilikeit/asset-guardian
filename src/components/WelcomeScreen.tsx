@@ -24,21 +24,10 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
       {/* Content */}
       <div className="relative flex-1 flex flex-col justify-center p-6">
         <div className="max-w-md mx-auto w-full space-y-8">
-          {/* Icon */}
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-cyan-500/10 border border-primary/25 flex items-center justify-center shadow-lg shadow-primary/10">
-                <Calculator className="w-9 h-9 text-primary" />
-              </div>
-              {/* Decorative ring */}
-              <div className="absolute -inset-2 rounded-3xl border border-primary/10 pointer-events-none" />
-            </div>
-          </div>
-
           {/* Title */}
           <div className="text-center space-y-3">
             <h1 className="text-2xl font-bold text-foreground">
-              Your Water Heater Report Is Ready
+              We Checked Your Water Heater
             </h1>
             <p className="text-muted-foreground text-base leading-relaxed">
               Your plumber uses Opterra Home to check if your water heater is healthy. We only tell you to fix things when you really need to.
