@@ -41,7 +41,7 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
               Your Water Heater Report Is Ready
             </h1>
             <p className="text-muted-foreground text-base leading-relaxed">
-              Your plumber uses Cortex — physics-based software that tells you what's actually happening with your equipment. We only recommend action when the math says it matters.
+              Your plumber uses Opterra Home — physics-based software that tells you what's actually happening with your equipment. We only recommend action when the math says it matters.
             </p>
           </div>
 
@@ -70,7 +70,7 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
                     No Upsell Incentives
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Cortex doesn't earn more when you buy more. We recommend action only when safety, health, or economics justify it.
+                    Opterra Home doesn't earn more when you buy more. We recommend action only when safety, health, or economics justify it.
                   </span>
                 </div>
               </li>
