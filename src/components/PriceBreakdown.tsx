@@ -1,8 +1,8 @@
 // Price Breakdown Component
-// Displays real pricing with source badges and confidence indicators
+// Displays real pricing with ranges, source badges and confidence indicators
 
-import { TotalQuote, PriceResult } from '@/lib/pricingService';
-import { Loader2, CheckCircle, AlertCircle, Database, Sparkles } from 'lucide-react';
+import { TotalQuote, PriceResult, PriceRange } from '@/lib/pricingService';
+import { Loader2, CheckCircle, AlertCircle, Database, Sparkles, TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface PriceBreakdownProps {
@@ -11,6 +11,11 @@ interface PriceBreakdownProps {
   loading: boolean;
   error: string | null;
   compact?: boolean;
+}
+
+// Format price range as "$1,200 - $1,500"
+function formatRange(range: PriceRange): string {
+  return `$${range.low.toLocaleString()} - $${range.high.toLocaleString()}`;
 }
 
 export function PriceBreakdown({ quote, unitPrice, loading, error, compact = false }: PriceBreakdownProps) {
@@ -59,7 +64,14 @@ export function PriceBreakdown({ quote, unitPrice, loading, error, compact = fal
           {price?.manufacturer} {price?.model || `${price?.capacityGallons}G ${price?.fuelType}`}
         </span>
         <div className="flex items-center gap-2">
-          <span className="font-bold text-foreground">${quote?.grandTotal?.toLocaleString() || price?.retailPrice?.toLocaleString()}</span>
+          <span className="font-bold text-foreground">
+            {quote?.grandTotalRange 
+              ? formatRange(quote.grandTotalRange)
+              : price?.priceRange 
+                ? formatRange(price.priceRange)
+                : `$${price?.retailPrice?.toLocaleString()}`
+            }
+          </span>
           <PriceSourceBadge source={price?.source || 'unknown'} confidence={price?.confidence || 0} />
         </div>
       </div>
@@ -68,7 +80,7 @@ export function PriceBreakdown({ quote, unitPrice, loading, error, compact = fal
 
   return (
     <div className="space-y-3">
-      {/* Unit Price */}
+      {/* Unit Price Range */}
       <div className="flex justify-between items-start">
         <div>
           <span className="text-sm font-medium text-foreground">Water Heater Unit</span>
@@ -76,7 +88,14 @@ export function PriceBreakdown({ quote, unitPrice, loading, error, compact = fal
             {price?.manufacturer} {price?.model || `${price?.capacityGallons}G ${price?.tier}`}
           </p>
         </div>
-        <span className="font-bold text-foreground">${price?.retailPrice?.toLocaleString()}</span>
+        <div className="text-right">
+          <span className="font-bold text-foreground">
+            {price?.priceRange 
+              ? formatRange(price.priceRange)
+              : `$${price?.retailPrice?.toLocaleString()}`
+            }
+          </span>
+        </div>
       </div>
 
       {/* Installation Breakdown */}
@@ -95,10 +114,17 @@ export function PriceBreakdown({ quote, unitPrice, loading, error, compact = fal
             <span className="text-foreground">${quote.breakdown.permit.toLocaleString()}</span>
           </div>
 
-          {/* Total */}
+          {/* Total Range */}
           <div className="flex justify-between items-center pt-3 border-t border-border">
             <span className="font-bold text-foreground">Total Installed</span>
-            <span className="font-bold text-lg text-primary">${quote.grandTotal.toLocaleString()}</span>
+            <div className="text-right">
+              <span className="font-bold text-lg text-primary">
+                {formatRange(quote.grandTotalRange)}
+              </span>
+              <p className="text-xs text-muted-foreground">
+                typical: ${quote.grandTotal.toLocaleString()}
+              </p>
+            </div>
           </div>
         </>
       )}
@@ -106,23 +132,40 @@ export function PriceBreakdown({ quote, unitPrice, loading, error, compact = fal
       {/* Price Source Badge */}
       <div className="flex items-center justify-between pt-2">
         <PriceSourceBadge source={price?.source || 'unknown'} confidence={price?.confidence || 0} />
-        {price?.cached && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <Database className="w-3 h-3" />
-            Cached
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {price?.cached && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Database className="w-3 h-3" />
+              Cached
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Variance Reason */}
+      {price?.varianceReason && (
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 border border-border">
+          <TrendingUp className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            Price range: {price.varianceReason}
+          </p>
+        </div>
+      )}
 
       {/* Warning for low confidence */}
       {confidenceLevel === 'low' && (
         <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
           <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-amber-200/80">
-            This is an estimated price. Actual costs may vary based on local availability.
+            This is an estimated range. Actual costs may vary based on local availability and labor rates.
           </p>
         </div>
       )}
+
+      {/* Disclaimer */}
+      <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
+        Final price varies by location, access, and equipment selection
+      </p>
     </div>
   );
 }
