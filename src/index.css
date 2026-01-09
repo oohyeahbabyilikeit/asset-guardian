@@ -21,8 +21,8 @@
     --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
 
-    /* Primary - Warm Coral/Rust for CTAs */
-    --primary: 24 75% 50%;
+    /* Primary - Warm Coral/Rust for CTAs (darkened for WCAG AA contrast) */
+    --primary: 24 75% 45%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 217 33% 22%;
@@ -39,7 +39,7 @@
     --destructive-foreground: 0 0% 100%;
 
     --status-critical: 0 72% 51%;
-    --status-warning: 38 92% 50%;
+    --status-warning: 45 93% 47%; /* Shifted toward yellow to distinguish from coral CTA */
     --status-optimal: 160 84% 39%;
 
     /* Borders & Inputs */
@@ -68,9 +68,9 @@
 
     /* Glow effects - More Vibrant */
     --glow-critical: 0 72% 51%;
-    --glow-warning: 38 92% 50%;
+    --glow-warning: 45 93% 47%; /* Matches shifted warning color */
     --glow-optimal: 160 84% 39%;
-    --glow-primary: 24 75% 50%;
+    --glow-primary: 24 75% 45%; /* Matches darkened primary */
     --glow-accent: 200 80% 45%;
   }
 }
