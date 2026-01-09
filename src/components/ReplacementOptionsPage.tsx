@@ -109,15 +109,29 @@ export function ReplacementOptionsPage({
     infrastructureIssues
   );
 
-  const getDisplayPrice = (tier: QualityTier) => {
+  const getPriceRange = (tier: QualityTier) => {
     const tierData = tiers[tier];
-    return tierData.bundleTotal?.median 
-      || tierData.quote?.grandTotalRange?.median 
-      || tierData.quote?.grandTotal 
-      || null;
+    if (tierData.bundleTotal) {
+      return { low: tierData.bundleTotal.low, high: tierData.bundleTotal.high };
+    }
+    if (tierData.quote?.grandTotalRange) {
+      return { low: tierData.quote.grandTotalRange.low, high: tierData.quote.grandTotalRange.high };
+    }
+    if (tierData.quote?.grandTotal) {
+      return { low: tierData.quote.grandTotal, high: tierData.quote.grandTotal };
+    }
+    return null;
   };
 
-  const selectedPrice = getDisplayPrice(selectedTier);
+  const formatPriceRange = (range: { low: number; high: number }) => {
+    const formatK = (n: number) => {
+      if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
+      return `$${n.toLocaleString()}`;
+    };
+    return `${formatK(range.low)} – ${formatK(range.high)}`;
+  };
+
+  const selectedPriceRange = getPriceRange(selectedTier);
 
   return (
     <div className="min-h-screen bg-background">
@@ -149,7 +163,7 @@ export function ReplacementOptionsPage({
             const TierIcon = config.icon;
             const isSelected = selectedTier === tier;
             const isRecommended = tier === 'STANDARD';
-            const displayPrice = getDisplayPrice(tier);
+            const priceRange = getPriceRange(tier);
             const infraCount = tierData.includedIssues.length;
 
             const isGood = tier === 'BUILDER';
@@ -232,19 +246,20 @@ export function ReplacementOptionsPage({
                       </div>
                     </div>
 
-                    {/* Price + Warranty */}
+                    {/* Price Range + Warranty */}
                     <div className="text-right">
                       {tierData.loading ? (
-                        <Skeleton className="h-7 w-20" />
-                      ) : displayPrice ? (
+                        <Skeleton className="h-7 w-24" />
+                      ) : priceRange ? (
                         <div>
+                          <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">Est.</p>
                           <span className={cn(
-                            'font-bold',
-                            isGood ? 'text-lg text-muted-foreground' : 'text-xl',
+                            'font-bold leading-tight',
+                            isGood ? 'text-sm text-muted-foreground' : 'text-base',
                             isSelected && !isGood && (isBest ? 'text-amber-400' : 'text-primary'),
                             !isSelected && !isGood && 'text-foreground'
                           )}>
-                            ${displayPrice.toLocaleString()}
+                            {formatPriceRange(priceRange)}
                           </span>
                           <p className="text-[10px] text-muted-foreground">
                             {tierPricing.warranty}yr warranty
@@ -403,7 +418,7 @@ export function ReplacementOptionsPage({
         </div>
 
         {/* Price summary */}
-        {!allLoading && selectedPrice && selectedTimeline && selectedTimeline !== 'chances' && (
+        {!allLoading && selectedPriceRange && selectedTimeline && selectedTimeline !== 'chances' && (
           <div className="p-4 rounded-xl bg-card border border-border">
             <div className="flex items-center justify-between">
               <div>
@@ -411,10 +426,13 @@ export function ReplacementOptionsPage({
                 <p className="font-semibold text-foreground">{TIER_DISPLAY[selectedTier].name}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Estimated Total</p>
-                <p className="text-xl font-bold text-foreground">${selectedPrice.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estimated Range</p>
+                <p className="text-lg font-bold text-foreground">{formatPriceRange(selectedPriceRange)}</p>
               </div>
             </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-2 text-center">
+              Final price confirmed after site inspection
+            </p>
           </div>
         )}
       </div>
