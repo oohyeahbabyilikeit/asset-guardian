@@ -1,7 +1,14 @@
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
- * ║  SOFTENER FORENSIC ALGORITHM v1.1                                         ║
+ * ║  SOFTENER FORENSIC ALGORITHM v1.2                                         ║
  * ║  "The Odometer" — Predicting softener failure from usage, not age         ║
+ * ╠═══════════════════════════════════════════════════════════════════════════╣
+ * ║  CHANGES v1.2:                                                            ║
+ * ║  - CARBON EXPIRY: Weighted decay for saturated carbon (>5 years)          ║
+ * ║  - SALT SCALING: 6/9/15 lbs per regen based on tank size                  ║
+ * ║  - TOTALED RULE: Force replacement if repairs > $700                      ║
+ * ║  - BRINE FAILURE: Detect flooded salt tank (HIGH_WATER state)             ║
+ * ║  - CARBON REBED: New service item for expired carbon filters              ║
  * ╠═══════════════════════════════════════════════════════════════════════════╣
  * ║  CHANGES v1.1:                                                            ║
  * ║  - ANALOG TIMER FIX: Timer units regen every ~3.5 days regardless of use  ║
@@ -27,6 +34,8 @@
 export type VisualHeight = 'KNEE' | 'WAIST' | 'CHEST';
 export type ControlHead = 'DIGITAL' | 'ANALOG';
 
+export type SaltLevelState = 'OK' | 'LOW' | 'HIGH_WATER';
+
 export interface SoftenerInputs {
   ageYears: number;           // How old the unit is
   hardnessGPG: number;        // Water hardness (Grains Per Gallon)
@@ -39,6 +48,12 @@ export interface SoftenerInputs {
   controlHead: ControlHead;   // Efficiency Proxy: DIGITAL=metered, ANALOG=timer
   visualIron: boolean;        // Rust Staining? (Well water iron indicator)
   
+  // NEW v1.2: Carbon Filter Age (null if no filter or unknown)
+  carbonAgeYears: number | null;
+  
+  // NEW v1.2: Brine Tank Visual Check
+  saltLevelState: SaltLevelState;
+  
   // Legacy field (now derived from visualHeight)
   capacity: number;           // Grain capacity (default 32000)
 }
@@ -49,7 +64,8 @@ export type SoftenerAction =
   | 'RESIN_DETOX'
   | 'REBED_OR_REPLACE' 
   | 'REPLACE_UNIT'
-  | 'UPGRADE_EFFICIENCY';
+  | 'UPGRADE_EFFICIENCY'
+  | 'CARBON_REBED';           // NEW v1.2
 
 export type SoftenerBadge = 
   | 'HEALTHY' 
@@ -57,7 +73,10 @@ export type SoftenerBadge =
   | 'RESIN_DEGRADED'
   | 'RESIN_FAILURE' 
   | 'MECHANICAL_FAILURE'
-  | 'HIGH_WASTE';
+  | 'HIGH_WASTE'
+  | 'BRINE_FAILURE'           // NEW v1.2
+  | 'CARBON_EXPIRED'          // NEW v1.2
+  | 'TOTALED';                // NEW v1.2
 
 export interface SoftenerMetrics {
   odometer: number;           // Total regeneration cycles
@@ -114,8 +133,10 @@ const CONSTANTS = {
   WELL_WATER_DECAY: 12.0,         // Iron/sediment coating
   WELL_WATER_IRON_DECAY: 20.0,    // NEW v1.1: Iron staining = faster decay
 
-  // Clock C: Salt
-  SALT_PER_REGEN_LBS: 9,      // Average lbs per regeneration
+  // Clock C: Salt — v1.2 SCALED BY SIZE
+  SALT_KNEE: 6,               // NEW v1.2: 24k unit = 6 lbs/regen
+  SALT_WAIST: 9,              // NEW v1.2: 32k unit = 9 lbs/regen
+  SALT_CHEST: 15,             // NEW v1.2: 48k unit = 15 lbs/regen
   SALT_BAG_LBS: 40,           // Standard bag size
   ANALOG_WASTE_FACTOR: 1.3,   // NEW v1.1: Timers waste 30% more salt
 
@@ -137,7 +158,12 @@ const CONSTANTS = {
   VALVE_REBUILD_COST: 350,
   RESIN_DETOX_COST: 199,
   RESIN_REBED_COST: 600,
+  CARBON_REBED_COST: 300,         // NEW v1.2
   UNIT_REPLACEMENT_COST: 2500,
+  
+  // NEW v1.2: Financial Safety Caps
+  MAX_REPAIR_THRESHOLD: 700,      // If repairs > $700, force replacement
+  CARBON_LIFE_YEARS: 5,           // Carbon media saturates after 5 years
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -153,6 +179,8 @@ export const DEFAULT_SOFTENER_INPUTS: SoftenerInputs = {
   visualHeight: 'WAIST',
   controlHead: 'DIGITAL',
   visualIron: false,
+  carbonAgeYears: null,           // NEW v1.2
+  saltLevelState: 'OK',           // NEW v1.2
   capacity: 32000, // Legacy field, now derived from visualHeight
 };
 
@@ -166,6 +194,19 @@ function getRatedCapacity(visualHeight: VisualHeight): number {
     case 'WAIST': return CONSTANTS.CAPACITY_WAIST;
     case 'CHEST': return CONSTANTS.CAPACITY_CHEST;
     default: return CONSTANTS.CAPACITY_WAIST;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER: Salt Per Regen (v1.2 Scaled by Tank Size)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getSaltPerRegen(visualHeight: VisualHeight): number {
+  switch (visualHeight) {
+    case 'KNEE': return CONSTANTS.SALT_KNEE;
+    case 'WAIST': return CONSTANTS.SALT_WAIST;
+    case 'CHEST': return CONSTANTS.SALT_CHEST;
+    default: return CONSTANTS.SALT_WAIST;
   }
 }
 
@@ -250,11 +291,29 @@ function calculateResinHealth(data: SoftenerInputs): number {
   let decayRate: number;
 
   if (data.isCityWater) {
-    // Chlorine kills resin via oxidation (Mush). Carbon blocks Chlorine.
-    // No Carbon = 10% rot/year. With Carbon = 5% rot/year.
-    decayRate = data.hasCarbonFilter 
-      ? CONSTANTS.CITY_WATER_CARBON_DECAY 
-      : CONSTANTS.CITY_WATER_DECAY;
+    if (data.hasCarbonFilter) {
+      // v1.2: CARBON EXPIRY — Carbon only protects for first 5 years
+      const carbonLife = CONSTANTS.CARBON_LIFE_YEARS;
+      const carbonAge = data.carbonAgeYears ?? data.ageYears; // Assume same age as unit if unknown
+      
+      if (carbonAge <= carbonLife) {
+        // Fully Protected — Carbon is fresh
+        decayRate = CONSTANTS.CITY_WATER_CARBON_DECAY; // 5%
+      } else {
+        // Partially Protected — Weighted Average Decay
+        // A 10yr old unit was protected for 5 years, naked for 5 years.
+        const protectedYears = Math.min(carbonLife, data.ageYears);
+        const nakedYears = Math.max(0, data.ageYears - carbonLife);
+        
+        // Calculate total damage points then average
+        const totalDamage = (protectedYears * CONSTANTS.CITY_WATER_CARBON_DECAY) + 
+                           (nakedYears * CONSTANTS.CITY_WATER_DECAY);
+        decayRate = totalDamage / data.ageYears;
+      }
+    } else {
+      // No Carbon = 10% rot/year
+      decayRate = CONSTANTS.CITY_WATER_DECAY;
+    }
   } else {
     // Well Water - Check for iron staining
     // NEW v1.1: If Iron is present, it coats resin much faster
@@ -277,12 +336,15 @@ function calculateSaltUsage(data: SoftenerInputs, daysPerCycle: number): number 
   // Lbs per month = (30 days / days per cycle) × lbs per regen
   const regensPerMonth = 30 / daysPerCycle;
   
+  // v1.2: SALT SCALING — Use tank-size-appropriate salt amount
+  const saltPerRegen = getSaltPerRegen(data.visualHeight);
+  
   // NEW v1.1: Timers waste salt. Apply waste factor to analog units.
   const wasteFactor = data.controlHead === 'ANALOG' 
     ? CONSTANTS.ANALOG_WASTE_FACTOR 
     : 1.0;
   
-  const lbsPerMonth = regensPerMonth * CONSTANTS.SALT_PER_REGEN_LBS * wasteFactor;
+  const lbsPerMonth = regensPerMonth * saltPerRegen * wasteFactor;
   
   return lbsPerMonth;
 }
@@ -341,6 +403,16 @@ function generateRecommendation(
   // Precalculate daily load for efficiency check
   const dailyLoad = data.people * CONSTANTS.GALLONS_PER_PERSON_PER_DAY * data.hardnessGPG;
 
+  // v1.2: Rule 0 — BRINE FAILURE CHECK (Highest Priority Visual Failure)
+  // If the brine tank is full of water, the unit is not regenerating.
+  if (data.saltLevelState === 'HIGH_WATER') {
+    return {
+      action: 'VALVE_REBUILD',
+      badge: 'BRINE_FAILURE',
+      reason: 'Salt tank flooded. Injector clogged or brine piston failed.',
+    };
+  }
+
   // Rule A: Resin Failure (Mush/Iron) — HIGHEST PRIORITY
   if (metrics.resinHealth < 40) {
     action = 'REBED_OR_REPLACE';
@@ -371,12 +443,21 @@ function generateRecommendation(
     badge = 'RESIN_DEGRADED';
     reason = 'Iron buildup detected. Chemical detox needed.';
   }
+  // v1.2: Rule D2 — Carbon Expired (city water with old carbon)
+  else if (data.isCityWater && data.hasCarbonFilter) {
+    const carbonAge = data.carbonAgeYears ?? data.ageYears;
+    if (carbonAge >= CONSTANTS.CARBON_LIFE_YEARS) {
+      action = 'CARBON_REBED';
+      badge = 'CARBON_EXPIRED';
+      reason = `Carbon filter expired (${carbonAge} years). Chlorine now attacking resin.`;
+    }
+  }
   // Rule E: High Waste (The "Analog" Upgrade or Undersized)
   // NEW v1.1: Catch analog units that are wasting salt
-  else if (
+  if (action === 'MONITOR' && (
     metrics.regenIntervalDays < 3.0 || 
     (data.controlHead === 'ANALOG' && dailyLoad < 3000)
-  ) {
+  )) {
     action = 'UPGRADE_EFFICIENCY';
     badge = 'HIGH_WASTE';
     reason = data.controlHead === 'ANALOG'
@@ -397,9 +478,24 @@ function generateServiceMenu(
   recommendation: SoftenerRecommendation
 ): ServiceMenuItem[] {
   const menu: ServiceMenuItem[] = [];
+  let totalRepairCost = 0;
+
+  // v1.2: BRINE FAILURE (Highest Priority)
+  if (data.saltLevelState === 'HIGH_WATER') {
+    totalRepairCost += CONSTANTS.VALVE_REBUILD_COST;
+    menu.push({
+      id: 'brine-repair',
+      name: 'Brine System Repair',
+      trigger: 'Salt tank flooded (HIGH_WATER)',
+      price: CONSTANTS.VALVE_REBUILD_COST,
+      pitch: 'Your salt tank is flooded with water. The brine injector is clogged or the piston failed. Unit cannot regenerate until fixed.',
+      priority: 'critical',
+    });
+  }
 
   // Valve Rebuild
   if (metrics.odometer > CONSTANTS.SEAL_LIMIT && metrics.odometer < CONSTANTS.MOTOR_LIMIT) {
+    totalRepairCost += CONSTANTS.VALVE_REBUILD_COST;
     menu.push({
       id: 'valve-rebuild',
       name: 'Valve Rebuild',
@@ -413,6 +509,7 @@ function generateServiceMenu(
   // Resin Detox - ONLY for well water, and only if resin is salvageable (v1.1 Snake Oil Fix)
   // Below 50% = too degraded for detox to help, go straight to re-bed
   if (metrics.resinHealth >= 50 && metrics.resinHealth < 75 && !data.isCityWater) {
+    totalRepairCost += CONSTANTS.RESIN_DETOX_COST;
     menu.push({
       id: 'resin-detox',
       name: 'Resin Detox',
@@ -425,6 +522,7 @@ function generateServiceMenu(
 
   // Resin Rebed
   if (metrics.resinHealth < 50) {
+    totalRepairCost += CONSTANTS.RESIN_REBED_COST;
     menu.push({
       id: 'resin-rebed',
       name: 'Resin Re-Bed',
@@ -434,6 +532,20 @@ function generateServiceMenu(
         ? 'Chlorine has destroyed your resin (Mush). Fresh resin is the only fix.'
         : 'Iron fouling has exceeded what detox can fix. Fresh resin restores full performance.',
       priority: recommendation.action === 'REBED_OR_REPLACE' ? 'critical' : 'recommended',
+    });
+  }
+
+  // v1.2: Carbon Rebed (for expired carbon filters on city water)
+  const carbonAge = data.carbonAgeYears ?? data.ageYears;
+  if (data.isCityWater && data.hasCarbonFilter && carbonAge >= CONSTANTS.CARBON_LIFE_YEARS) {
+    totalRepairCost += CONSTANTS.CARBON_REBED_COST;
+    menu.push({
+      id: 'carbon-rebed',
+      name: 'Carbon Media Replacement',
+      trigger: `Carbon filter expired (${carbonAge} years)`,
+      price: CONSTANTS.CARBON_REBED_COST,
+      pitch: 'Your carbon filter has been protecting your resin, but it is now saturated. Fresh carbon restores chlorine protection.',
+      priority: recommendation.action === 'CARBON_REBED' ? 'critical' : 'recommended',
     });
   }
 
@@ -461,7 +573,19 @@ function generateServiceMenu(
     });
   }
 
-  // Unit Replacement
+  // v1.2: TOTALED RULE — If cumulative repairs exceed threshold, clear menu and force replacement
+  if (totalRepairCost > CONSTANTS.MAX_REPAIR_THRESHOLD) {
+    return [{
+      id: 'replacement-totaled',
+      name: 'Unit Replacement (Recommended)',
+      trigger: `Cumulative repairs ($${totalRepairCost}) exceed 50% of new unit value`,
+      price: CONSTANTS.UNIT_REPLACEMENT_COST,
+      pitch: `Your softener needs $${totalRepairCost} in repairs. A new high-efficiency unit costs $${CONSTANTS.UNIT_REPLACEMENT_COST}. Replacement is the smarter investment.`,
+      priority: 'critical',
+    }];
+  }
+
+  // Unit Replacement (for end-of-life units)
   if (metrics.odometer > CONSTANTS.MOTOR_LIMIT || metrics.resinHealth < 30) {
     menu.push({
       id: 'replacement',
@@ -488,11 +612,26 @@ export function estimateSoftenerLifespan(data: SoftenerInputs): {
   const odometer = calculateOdometer(data);
   
   // Resin death: when resinHealth hits 40%
+  // v1.2: Use weighted carbon decay calculation
   let resinDecayRate: number;
   if (data.isCityWater) {
-    resinDecayRate = data.hasCarbonFilter 
-      ? CONSTANTS.CITY_WATER_CARBON_DECAY 
-      : CONSTANTS.CITY_WATER_DECAY;
+    if (data.hasCarbonFilter) {
+      const carbonLife = CONSTANTS.CARBON_LIFE_YEARS;
+      const carbonAge = data.carbonAgeYears ?? data.ageYears;
+      
+      if (carbonAge <= carbonLife) {
+        resinDecayRate = CONSTANTS.CITY_WATER_CARBON_DECAY;
+      } else {
+        // Weighted average for remaining lifespan calculation
+        const protectedYears = Math.min(carbonLife, data.ageYears);
+        const nakedYears = Math.max(0, data.ageYears - carbonLife);
+        const totalDamage = (protectedYears * CONSTANTS.CITY_WATER_CARBON_DECAY) + 
+                           (nakedYears * CONSTANTS.CITY_WATER_DECAY);
+        resinDecayRate = totalDamage / data.ageYears;
+      }
+    } else {
+      resinDecayRate = CONSTANTS.CITY_WATER_DECAY;
+    }
   } else {
     resinDecayRate = data.visualIron 
       ? CONSTANTS.WELL_WATER_IRON_DECAY 
