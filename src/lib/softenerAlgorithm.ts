@@ -410,8 +410,9 @@ function generateServiceMenu(
     });
   }
 
-  // Resin Detox - ONLY for well water (v1.1 Snake Oil Fix)
-  if (metrics.resinHealth >= 40 && metrics.resinHealth < 75 && !data.isCityWater) {
+  // Resin Detox - ONLY for well water, and only if resin is salvageable (v1.1 Snake Oil Fix)
+  // Below 50% = too degraded for detox to help, go straight to re-bed
+  if (metrics.resinHealth >= 50 && metrics.resinHealth < 75 && !data.isCityWater) {
     menu.push({
       id: 'resin-detox',
       name: 'Resin Detox',
