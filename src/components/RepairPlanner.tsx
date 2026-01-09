@@ -1,49 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { ArrowLeft, Check, Wrench, AlertTriangle, Calendar, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
-import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics, QualityTier } from '@/lib/opterraAlgorithm';
-import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
+import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { toast } from 'sonner';
-import { PlumberContactForm } from './PlumberContactForm';
-import { SafetyReplacementAlert } from './SafetyReplacementAlert';
-import { TieredPricingDisplay } from './TieredPricingDisplay';
-import { usePricing } from '@/hooks/usePricing';
-// Helper function to convert metrics to stress factor format for SafetyReplacementAlert
-function convertMetricsToStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
-  const factors: { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] = [];
-  
-  const getLevel = (value: number): 'low' | 'moderate' | 'elevated' | 'critical' => {
-    if (value >= 2.0) return 'critical';
-    if (value >= 1.5) return 'elevated';
-    if (value >= 1.2) return 'moderate';
-    return 'low';
-  };
-
-  if (metrics.stressFactors.pressure > 1.0) {
-    factors.push({ name: 'Water Pressure', level: getLevel(metrics.stressFactors.pressure), value: metrics.stressFactors.pressure, description: `Pressure stress factor of ${metrics.stressFactors.pressure.toFixed(2)}x` });
-  }
-  if (metrics.stressFactors.sediment > 1.0) {
-    factors.push({ name: 'Sediment Buildup', level: metrics.sedimentLbs > 15 ? 'critical' : metrics.sedimentLbs > 8 ? 'elevated' : 'moderate', value: metrics.stressFactors.sediment, description: `${metrics.sedimentLbs.toFixed(1)} lbs accumulated` });
-  }
-  if (metrics.stressFactors.temp > 1.0) {
-    factors.push({ name: 'Temperature Stress', level: getLevel(metrics.stressFactors.temp), value: metrics.stressFactors.temp, description: `Temperature stress factor of ${metrics.stressFactors.temp.toFixed(2)}x` });
-  }
-  if (metrics.stressFactors.loop > 1.0) {
-    factors.push({ name: 'Thermal Expansion', level: getLevel(metrics.stressFactors.loop), value: metrics.stressFactors.loop, description: 'Missing expansion tank causes pressure spikes' });
-  }
-  if (metrics.stressFactors.circ > 1.0) {
-    factors.push({ name: 'Recirculation Loop', level: getLevel(metrics.stressFactors.circ), value: metrics.stressFactors.circ, description: 'Continuous circulation increases wear' });
-  }
-  if (metrics.shieldLife <= 0) {
-    factors.push({ name: 'Anode Depletion', level: 'critical', value: 0, description: 'Sacrificial anode is fully depleted' });
-  } else if (metrics.shieldLife < 2) {
-    factors.push({ name: 'Anode Depletion', level: 'elevated', value: metrics.shieldLife, description: `Only ${metrics.shieldLife.toFixed(1)} years protection remaining` });
-  }
-  return factors;
-}
 
 interface RepairPlannerProps {
   onBack: () => void;
@@ -84,65 +45,26 @@ function useAnimatedNumber(target: number, duration: number = 400) {
 
 export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlannerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'chances' | null>(null);
-  const [showContactForm, setShowContactForm] = useState(false);
   const [doNothingOpen, setDoNothingOpen] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<QualityTier>('STANDARD');
 
-  // Real-time pricing from database (for single-tier timeline displays)
-  const { quote, loading: priceLoading } = usePricing({
-    inputs: { ...currentInputs, warrantyYears: selectedTier === 'BUILDER' ? 6 : selectedTier === 'STANDARD' ? 9 : 12 },
-    complexity: 'STANDARD',
-    enabled: true,
-  });
-  // Calculate metrics
   const opterraResult = calculateOpterraRisk(currentInputs);
   const { bioAge, failProb, agingRate } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
-  const financial = opterraResult.financial;
-
-  // Detect infrastructure issues that should be bundled with replacement
-  const infrastructureIssues = useMemo(() => 
-    getInfrastructureIssues(currentInputs, opterraResult.metrics),
-    [currentInputs, opterraResult.metrics]
-  );
 
   const currentScore = failProbToHealthScore(failProb);
   const currentAgingFactor = bioAge / currentInputs.calendarAge;
   const currentFailureProb = Math.round(failProb * 10) / 10;
 
-  const replacementRequired = recommendation.action === 'REPLACE';
-  
-  // Distinguish between safety replacement and economic replacement for UI messaging
-  const isSafetyReplacement = replacementRequired && recommendation.badge === 'CRITICAL';
-  const isEconomicReplacement = replacementRequired && recommendation.badge !== 'CRITICAL';
-  
-  // Both safety and economic replacements now go through the same tiered pricing flow
-  const showReplacementFlow = replacementRequired;
-  
   const availableRepairs = getAvailableRepairs(currentInputs, opterraResult.metrics, recommendation);
-
-  const fullReplacement = availableRepairs.find(r => r.isFullReplacement);
   const individualRepairs = availableRepairs.filter(r => !r.isFullReplacement);
-  const isReplacementSelected = selectedIds.has('replace');
 
   const toggleRepair = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (id === 'replace') {
-        if (next.has('replace')) {
-          next.delete('replace');
-        } else {
-          next.clear();
-          next.add('replace');
-        }
+      if (next.has(id)) {
+        next.delete(id);
       } else {
-        next.delete('replace');
-        if (next.has(id)) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
+        next.add(id);
       }
       return next;
     });
@@ -150,222 +72,49 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
 
   const selectedRepairs = availableRepairs.filter(r => selectedIds.has(r.id));
 
-  // Simulate impact in real-time
   const result = useMemo(() => 
     simulateRepairs(currentScore, currentAgingFactor, currentFailureProb, selectedRepairs),
     [currentScore, currentAgingFactor, currentFailureProb, selectedRepairs]
   );
 
   const animatedNewScore = useAnimatedNumber(selectedRepairs.length > 0 ? result.newScore : currentScore);
-  const scoreImprovement = result.newScore - currentScore;
 
-  // Do Nothing projections
   const projection6 = projectFutureHealth(bioAge, agingRate, 6);
   const projection12 = projectFutureHealth(bioAge, agingRate, 12);
   const projection24 = projectFutureHealth(bioAge, agingRate, 24);
-
-  const getStatusColor = (status: 'critical' | 'warning' | 'optimal') => {
-    switch (status) {
-      case 'critical': return 'text-red-400';
-      case 'warning': return 'text-amber-400';
-      case 'optimal': return 'text-green-400';
-    }
-  };
-
-  const getStatusBg = (status: 'critical' | 'warning' | 'optimal') => {
-    switch (status) {
-      case 'critical': return 'bg-red-500/20 border-red-500/30';
-      case 'warning': return 'bg-amber-500/20 border-amber-500/30';
-      case 'optimal': return 'bg-green-500/20 border-green-500/30';
-    }
-  };
-
-  const currentStatus = failProb >= 20 ? 'critical' : failProb >= 10 ? 'warning' : 'optimal';
-  const projectedStatus = selectedRepairs.length > 0 ? result.newStatus : currentStatus;
-
-  // If unit is healthy (PASS), redirect should happen at parent level
-  // This component now focuses purely on repair/replacement flows
 
   return (
     <div className="min-h-screen bg-background">
       <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
 
-      {/* Header */}
       <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-4 px-4">
         <div className="flex items-center justify-between max-w-md mx-auto">
           <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-foreground">
-            {isSafetyReplacement ? 'Your Replacement Options' : 'Plan Your Upgrade'}
-          </h1>
+          <h1 className="font-bold text-foreground">Maintenance Options</h1>
           <div className="w-10" />
         </div>
       </header>
 
       <div className="relative p-4 max-w-md mx-auto pb-32">
-
-        {/* Safety Replacement - Show educational alert first */}
-        {isSafetyReplacement && (
-          <div className="mb-4">
-            <SafetyReplacementAlert
-              reason={recommendation.reason}
-              location={currentInputs.location}
-              stressFactors={convertMetricsToStressFactors(opterraResult.metrics)}
-              agingRate={agingRate}
-              bioAge={bioAge}
-              chronoAge={currentInputs.calendarAge}
-              breachDetected={currentInputs.isLeaking || currentInputs.visualRust}
-            />
-          </div>
-        )}
-
-        {/* Economic Replacement - Compact Context Banner */}
-        {isEconomicReplacement && (
-          <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                <TrendingDown className="w-5 h-5 text-amber-400" />
+        <div className="mb-4 p-4 rounded-xl bg-card border border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Current Health Score</p>
+              <p className="text-3xl font-bold text-foreground">{animatedNewScore}</p>
+            </div>
+            {selectedRepairs.length > 0 && (
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">After Repairs</p>
+                <p className="text-lg font-semibold text-green-500">+{result.newScore - currentScore} pts</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground text-sm">Time to Upgrade</p>
-                <p className="text-xs text-muted-foreground">
-                  Aging at {agingRate.toFixed(1)}x normal rate • Bio-age: {Math.round(bioAge)} years
-                </p>
-              </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* UNIFIED REPLACEMENT FLOW - Same for both safety and economic */}
-        {showReplacementFlow && (
-          <>
-            {/* Good / Better / Best Tiered Pricing */}
-            <div className="mb-5">
-              <TieredPricingDisplay
-                inputs={currentInputs}
-                detectedTier={financial.currentTier.tier}
-                selectedTier={selectedTier}
-                onTierSelect={setSelectedTier}
-                infrastructureIssues={infrastructureIssues}
-                isSafetyReplacement={isSafetyReplacement}
-              />
-            </div>
-
-            {/* Timeline Options - Simplified */}
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">When?</p>
-              
-              {/* Replace Now */}
-              <button
-                onClick={() => {
-                  setSelectedTimeline('now');
-                  setSelectedIds(new Set(['replace']));
-                }}
-                className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
-                  selectedTimeline === 'now'
-                    ? isSafetyReplacement 
-                      ? 'border-red-500 bg-red-500/10' 
-                      : 'border-primary bg-primary/10'
-                    : 'border-border bg-card/50 hover:border-muted-foreground/50'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                  selectedTimeline === 'now' 
-                    ? isSafetyReplacement 
-                      ? 'border-red-500 bg-red-500' 
-                      : 'border-primary bg-primary' 
-                    : 'border-muted-foreground/40'
-                }`}>
-                  {selectedTimeline === 'now' && <Check className="w-3 h-3 text-white" />}
-                </div>
-                <div className="flex-1">
-                  <span className="font-semibold text-foreground">
-                    {isSafetyReplacement ? 'Schedule Now' : 'Replace Now'}
-                  </span>
-                  <span className={`ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                    isSafetyReplacement 
-                      ? 'bg-red-500/20 text-red-400'
-                      : 'bg-green-500/20 text-green-400'
-                  }`}>
-                    {isSafetyReplacement ? 'URGENT' : 'BEST'}
-                  </span>
-                </div>
-              </button>
-              
-              {/* Plan Ahead - Only for economic */}
-              {!isSafetyReplacement && (
-                <button
-                  onClick={() => {
-                    setSelectedTimeline('later');
-                    setSelectedIds(new Set(['replace']));
-                  }}
-                  className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
-                    selectedTimeline === 'later'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border bg-card/50 hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    selectedTimeline === 'later' ? 'border-primary bg-primary' : 'border-muted-foreground/40'
-                  }`}>
-                    {selectedTimeline === 'later' && <Check className="w-3 h-3 text-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-semibold text-foreground">Plan for 12 Months</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      (save ${financial.monthlyBudget}/mo)
-                    </span>
-                  </div>
-                </button>
-              )}
-
-              {/* Skip / Take Chances */}
-              <button
-                onClick={() => {
-                  setSelectedTimeline('chances');
-                  setSelectedIds(new Set());
-                }}
-                className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
-                  selectedTimeline === 'chances'
-                    ? 'border-amber-500/50 bg-amber-500/10'
-                    : 'border-border/50 bg-card/30 hover:border-muted-foreground/30'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                  selectedTimeline === 'chances' ? 'border-amber-500 bg-amber-500' : 'border-muted-foreground/30'
-                }`}>
-                  {selectedTimeline === 'chances' && <Check className="w-3 h-3 text-white" />}
-                </div>
-                <span className="text-muted-foreground text-sm">
-                  {isSafetyReplacement ? 'I understand the risks' : 'Not right now'}
-                </span>
-              </button>
-
-              {/* Collapsible risk info when "chances" selected */}
-              {selectedTimeline === 'chances' && (
-                <div className="mt-2 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-muted-foreground">
-                      {isSafetyReplacement ? (
-                        <span>Delaying increases risk of water damage and emergency costs.</span>
-                      ) : (
-                        <span>
-                          At {agingRate.toFixed(1)}x aging, expect ~{projection12.failProb.toFixed(0)}% failure risk in 12 months.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Individual Repairs */}
-        {!replacementRequired && individualRepairs.length > 0 && (
+        {individualRepairs.length > 0 ? (
           <div className="space-y-3 mb-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Available Repairs</p>
             {individualRepairs.map((repair) => {
@@ -375,9 +124,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                   key={repair.id}
                   onClick={() => toggleRepair(repair.id)}
                   className={`w-full text-left p-4 rounded-xl border transition-all ${
-                    isSelected
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border bg-card/50 hover:border-muted-foreground/50'
+                    isSelected ? 'border-primary bg-primary/10' : 'border-border bg-card/50 hover:border-muted-foreground/50'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -410,12 +157,6 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                                   <span className="text-muted-foreground">Failure Risk</span>
                                   <span className="text-green-400">-{repair.impact.failureProbReduction}%</span>
                                 </div>
-                                <div className="pt-1.5 border-t border-border mt-1.5">
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Est. Lifespan Ext.</span>
-                                    <span className="text-primary font-medium">+{Math.round(repair.impact.agingFactorReduction / 10)}-{Math.round(repair.impact.agingFactorReduction / 6)} mo</span>
-                                  </div>
-                                </div>
                               </div>
                             </TooltipContent>
                           </Tooltip>
@@ -429,132 +170,77 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               );
             })}
           </div>
+        ) : (
+          <div className="p-6 rounded-xl bg-card border border-border text-center mb-4">
+            <p className="text-muted-foreground">No repairs available for your current unit status.</p>
+          </div>
         )}
 
-        {/* Continue Monitoring Projection - Collapsible */}
-        {!replacementRequired && (
-          <Collapsible open={doNothingOpen} onOpenChange={setDoNothingOpen}>
-            <CollapsibleTrigger asChild>
-              <button className="w-full clean-card border-zinc-700/50 bg-zinc-900/30 mb-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">If You Continue Monitoring</span>
-                  </div>
-                  {doNothingOpen ? (
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  )}
+        <Collapsible open={doNothingOpen} onOpenChange={setDoNothingOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="w-full clean-card border-zinc-700/50 bg-zinc-900/30 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">If You Continue Monitoring</span>
                 </div>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="clean-card border-zinc-700/50 bg-zinc-900/30 mb-4 -mt-2">
-                <p className="text-xs text-muted-foreground mb-4">
-                  Without maintenance, here's the projected timeline:
-                </p>
-                <div className="space-y-3">
-                  {[
-                    { months: 6, ...projection6 },
-                    { months: 12, ...projection12 },
-                    { months: 24, ...projection24 },
-                  ].map((projection) => (
-                    <div key={projection.months} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">In {projection.months} months</span>
+                {doNothingOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="clean-card border-zinc-700/50 bg-zinc-900/30 mb-4 -mt-2">
+              <p className="text-xs text-muted-foreground mb-4">Without maintenance, here's the projected timeline:</p>
+              <div className="space-y-3">
+                {[{ months: 6, ...projection6 }, { months: 12, ...projection12 }, { months: 24, ...projection24 }].map((projection) => (
+                  <div key={projection.months} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">In {projection.months} months</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <span className={`text-sm font-bold font-data ${projection.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>{projection.healthScore}</span>
+                        <span className="text-xs text-muted-foreground"> score</span>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <span className={`text-sm font-bold font-data ${projection.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                            {projection.healthScore}
-                          </span>
-                          <span className="text-xs text-muted-foreground"> score</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-sm font-bold font-data text-red-400">
-                            {projection.failProb.toFixed(0)}%
-                          </span>
-                          <span className="text-xs text-muted-foreground"> risk</span>
-                        </div>
+                      <div className="text-right">
+                        <span className="text-sm font-bold font-data text-red-400">{projection.failProb.toFixed(0)}%</span>
+                        <span className="text-xs text-muted-foreground"> risk</span>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
-        {/* Cost Estimate */}
         {selectedRepairs.length > 0 && (
           <div className="clean-card mb-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Estimated Cost</span>
-              <span className="font-semibold text-foreground">
-                ${result.totalCostMin.toLocaleString()} - ${result.totalCostMax.toLocaleString()}
-              </span>
+              <span className="font-semibold text-foreground">${result.totalCostMin.toLocaleString()} - ${result.totalCostMax.toLocaleString()}</span>
             </div>
           </div>
         )}
 
-        {/* Warning Note */}
-        {selectedRepairs.length > 0 && !isReplacementSelected && (
+        {selectedRepairs.length > 0 && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-200/80">
-              These repairs extend life but don't reset the {currentInputs.calendarAge}-year paper age.
-            </p>
+            <p className="text-xs text-amber-200/80">These repairs extend life but don't reset the {currentInputs.calendarAge}-year paper age.</p>
           </div>
         )}
       </div>
 
-      {/* Fixed Bottom Action - Show when timeline selected for replacement flow, or repairs selected for repair flow */}
-      {(showReplacementFlow ? selectedTimeline !== null : selectedRepairs.length > 0) && (
+      {selectedRepairs.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border">
           <div className="max-w-md mx-auto">
-            <Button
-              onClick={() => {
-                if (showReplacementFlow) {
-                  if (selectedTimeline === 'chances') {
-                    onBack();
-                  } else {
-                    setShowContactForm(true);
-                  }
-                } else {
-                  onSchedule(selectedRepairs);
-                }
-              }}
-              className={`w-full h-14 text-base font-semibold ${
-                isSafetyReplacement && selectedTimeline === 'now' 
-                  ? 'bg-red-600 hover:bg-red-500' 
-                  : ''
-              }`}
-              variant={selectedTimeline === 'chances' ? 'outline' : 'default'}
-            >
-              {showReplacementFlow 
-                ? (selectedTimeline === 'now' 
-                    ? (isSafetyReplacement ? 'Schedule Urgent Replacement' : 'Schedule Replacement')
-                    : selectedTimeline === 'chances'
-                      ? (isSafetyReplacement ? 'I Understand, Go Back' : 'Continue Monitoring')
-                      : 'Speak with a Plumber')
-                : isReplacementSelected 
-                  ? 'Request Replacement Quote' 
-                  : 'Schedule These Repairs'}
+            <Button onClick={() => onSchedule(selectedRepairs)} className="w-full h-14 text-base font-semibold">
+              Schedule These Repairs
             </Button>
           </div>
         </div>
       )}
-
-      <PlumberContactForm
-        open={showContactForm}
-        onOpenChange={setShowContactForm}
-        onSubmit={(data) => {
-          toast.success(`Thanks ${data.name}! A plumber will call you soon.`);
-          setShowContactForm(false);
-        }}
-      />
     </div>
   );
 }
