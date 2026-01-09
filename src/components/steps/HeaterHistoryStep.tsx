@@ -1,5 +1,5 @@
-import { Wrench, Droplets, ChevronRight, HelpCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+import { Wrench, Droplets, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HeaterHistoryStepProps {
@@ -37,14 +37,25 @@ export function HeaterHistoryStep({
   onAnodeChange,
   onNext,
 }: HeaterHistoryStepProps) {
+  const [flushAnswered, setFlushAnswered] = useState(false);
+  const [anodeAnswered, setAnodeAnswered] = useState(false);
+
+  // Auto-advance when both questions are answered
+  useEffect(() => {
+    if (flushAnswered && anodeAnswered) {
+      const timer = setTimeout(() => onNext(), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [flushAnswered, anodeAnswered, onNext]);
+
   // Find selected options
   const getSelectedFlush = () => {
-    if (lastFlushYearsAgo === null) return flushOptions[0];
+    if (!flushAnswered) return null;
     return flushOptions.find(o => o.value === lastFlushYearsAgo) || flushOptions[0];
   };
   
   const getSelectedAnode = () => {
-    if (lastAnodeReplaceYearsAgo === null) return anodeOptions[0];
+    if (!anodeAnswered) return null;
     return anodeOptions.find(o => o.value === lastAnodeReplaceYearsAgo) || anodeOptions[0];
   };
 
@@ -71,10 +82,13 @@ export function HeaterHistoryStep({
           {flushOptions.map((option, idx) => (
             <button
               key={idx}
-              onClick={() => onFlushChange(option.value)}
+              onClick={() => {
+                onFlushChange(option.value);
+                setFlushAnswered(true);
+              }}
               className={cn(
                 "flex items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 text-sm",
-                getSelectedFlush().label === option.label
+                getSelectedFlush()?.label === option.label
                   ? "border-primary bg-primary/5 text-foreground font-medium"
                   : "border-border bg-card hover:border-muted-foreground/50 text-muted-foreground"
               )}
@@ -96,10 +110,13 @@ export function HeaterHistoryStep({
           {anodeOptions.map((option, idx) => (
             <button
               key={idx}
-              onClick={() => onAnodeChange(option.value)}
+              onClick={() => {
+                onAnodeChange(option.value);
+                setAnodeAnswered(true);
+              }}
               className={cn(
                 "flex items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 text-sm",
-                getSelectedAnode().label === option.label
+                getSelectedAnode()?.label === option.label
                   ? "border-primary bg-primary/5 text-foreground font-medium"
                   : "border-border bg-card hover:border-muted-foreground/50 text-muted-foreground"
               )}
@@ -116,15 +133,6 @@ export function HeaterHistoryStep({
         </p>
       </div>
 
-      {/* CTA */}
-      <Button
-        onClick={onNext}
-        size="lg"
-        className="w-full h-12 text-base font-medium rounded-lg"
-      >
-        Continue
-        <ChevronRight className="w-5 h-5 ml-2" />
-      </Button>
     </div>
   );
 }

@@ -55,7 +55,10 @@ export function ResidencyStep({
           {residencyOptions.map((option) => (
             <button
               key={option.value}
-              onClick={() => onYearsChange(option.value)}
+              onClick={() => {
+                onYearsChange(option.value);
+                setTimeout(() => onNext(), 200);
+              }}
               className={cn(
                 "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200",
                 selectedOption.value === option.value
@@ -89,15 +92,6 @@ export function ResidencyStep({
         </div>
       </div>
 
-      {/* CTA */}
-      <Button
-        onClick={onNext}
-        size="lg"
-        className="w-full h-12 text-base font-medium rounded-lg"
-      >
-        Continue
-        <ChevronRight className="w-5 h-5 ml-2" />
-      </Button>
     </div>
   );
 }
