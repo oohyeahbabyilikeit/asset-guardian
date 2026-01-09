@@ -496,11 +496,8 @@ function ObservationsStep({
         </Card>
       </div>
 
-      {/* Navigation hint + Continue */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          Tap dots to jump • Hover to pause
-        </p>
+      {/* Continue button */}
+      <div className="flex items-center justify-end">
         <Button
           variant={hasSeenAll ? "default" : "ghost"}
           size="sm"
