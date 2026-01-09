@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Target } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Target, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
 import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
@@ -8,7 +8,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { toast } from 'sonner';
 import { PlumberContactForm } from './PlumberContactForm';
 import { SafetyReplacementAlert } from './SafetyReplacementAlert';
-
+import { PriceBreakdown } from './PriceBreakdown';
+import { usePricing } from '@/hooks/usePricing';
 // Helper function to convert metrics to stress factor format for SafetyReplacementAlert
 function convertMetricsToStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
   const factors: { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] = [];
@@ -86,6 +87,12 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
   const [showContactForm, setShowContactForm] = useState(false);
   const [doNothingOpen, setDoNothingOpen] = useState(false);
 
+  // Real-time pricing from database
+  const { quote, unitPrice, loading: priceLoading, error: priceError } = usePricing({
+    inputs: currentInputs,
+    complexity: 'STANDARD',
+    enabled: true,
+  });
   // Calculate metrics
   const opterraResult = calculateOpterraRisk(currentInputs);
   const { bioAge, failProb, agingRate } = opterraResult.metrics;
@@ -248,7 +255,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               </div>
             </div>
 
-            {/* Your Replacement Options - Tier Matching v7.2 */}
+            {/* Your Replacement Options - Real Pricing Integration */}
             <div className="clean-card mb-4 border-primary/30 bg-primary/5">
               <div className="flex items-center gap-2 mb-3">
                 <Info className="w-4 h-4 text-primary" />
@@ -266,32 +273,49 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 </span>
               </div>
               
-              {/* Like-for-Like Option */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="text-sm font-medium text-foreground">Match Current Quality</span>
-                    <p className="text-xs text-muted-foreground">{financial.currentTier.tierLabel} replacement</p>
-                  </div>
-                  <span className="font-bold text-foreground">${financial.likeForLikeCost.toLocaleString()}</span>
+              {/* Real-Time Price Breakdown */}
+              {priceLoading ? (
+                <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading real-time pricing...</span>
                 </div>
-                
-                {/* Upgrade Option (if available) */}
-                {financial.upgradeTier && (
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+              ) : quote ? (
+                <div className="space-y-3">
+                  <PriceBreakdown 
+                    quote={quote} 
+                    unitPrice={unitPrice} 
+                    loading={false} 
+                    error={priceError} 
+                  />
+                </div>
+              ) : (
+                /* Fallback to hardcoded if no real price available */
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground">Upgrade to {financial.upgradeTier.tierLabel}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">
-                          BETTER VALUE
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{financial.upgradeValueProp}</p>
+                      <span className="text-sm font-medium text-foreground">Match Current Quality</span>
+                      <p className="text-xs text-muted-foreground">{financial.currentTier.tierLabel} replacement</p>
                     </div>
-                    <span className="font-bold text-green-400">${financial.upgradeCost?.toLocaleString()}</span>
+                    <span className="font-bold text-foreground">${financial.likeForLikeCost.toLocaleString()}</span>
                   </div>
-                )}
-              </div>
+                  
+                  {/* Upgrade Option (if available) */}
+                  {financial.upgradeTier && (
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">Upgrade to {financial.upgradeTier.tierLabel}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">
+                            BETTER VALUE
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{financial.upgradeValueProp}</p>
+                      </div>
+                      <span className="font-bold text-green-400">${financial.upgradeCost?.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               
               <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50">
                 {financial.recommendation}

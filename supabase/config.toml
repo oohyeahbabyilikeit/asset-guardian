@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.install-presets]
 verify_jwt = false
+
+[functions.seed-prices]
+verify_jwt = false
