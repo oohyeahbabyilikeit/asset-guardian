@@ -88,12 +88,19 @@ export function SoftenerCenter({
             <div>
               <h2 className="font-semibold text-foreground">Water Softener</h2>
               <p className="text-sm text-muted-foreground">
-                {inputs.capacity.toLocaleString()} grain capacity
+                {metrics.effectiveCapacity.toLocaleString()} grain effective capacity
               </p>
             </div>
-            <Badge variant="outline">
-              {inputs.ageYears} years old
-            </Badge>
+            <div className="flex items-center gap-2">
+              {metrics.isAnalog && (
+                <Badge variant="secondary" className="text-xs">
+                  Timer
+                </Badge>
+              )}
+              <Badge variant="outline">
+                {inputs.ageYears} years old
+              </Badge>
+            </div>
           </div>
           
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -113,10 +120,28 @@ export function SoftenerCenter({
             </div>
           </div>
           
+          {/* v1.1: Analog timer warning */}
+          {metrics.isAnalog && (
+            <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-xs text-amber-400">
+                ⏱️ Analog timer regenerates every 3.5 days regardless of usage. Consider digital upgrade.
+              </p>
+            </div>
+          )}
+          
           {inputs.isCityWater && !inputs.hasCarbonFilter && (
             <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
               <p className="text-xs text-yellow-400">
                 ⚠️ No carbon filter detected. Chlorine is degrading resin faster.
+              </p>
+            </div>
+          )}
+          
+          {/* v1.1: Iron warning for well water */}
+          {!inputs.isCityWater && inputs.visualIron && (
+            <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+              <p className="text-xs text-orange-400">
+                🔶 Iron staining detected. Resin decay accelerated to 20%/year.
               </p>
             </div>
           )}
