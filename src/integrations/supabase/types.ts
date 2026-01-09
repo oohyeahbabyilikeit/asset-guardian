@@ -14,7 +14,135 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contractor_install_presets: {
+        Row: {
+          complexity: string
+          contractor_id: string
+          created_at: string
+          description: string | null
+          estimated_hours: number | null
+          id: string
+          labor_cost_usd: number
+          materials_cost_usd: number
+          permit_cost_usd: number
+          total_install_cost_usd: number | null
+          updated_at: string
+          vent_type: string
+        }
+        Insert: {
+          complexity: string
+          contractor_id: string
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          labor_cost_usd: number
+          materials_cost_usd?: number
+          permit_cost_usd?: number
+          total_install_cost_usd?: number | null
+          updated_at?: string
+          vent_type: string
+        }
+        Update: {
+          complexity?: string
+          contractor_id?: string
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          labor_cost_usd?: number
+          materials_cost_usd?: number
+          permit_cost_usd?: number
+          total_install_cost_usd?: number | null
+          updated_at?: string
+          vent_type?: string
+        }
+        Relationships: []
+      }
+      price_lookup_cache: {
+        Row: {
+          cached_at: string
+          expires_at: string
+          id: string
+          lookup_key: string
+          lookup_type: string
+          result_json: Json
+        }
+        Insert: {
+          cached_at?: string
+          expires_at?: string
+          id?: string
+          lookup_key: string
+          lookup_type: string
+          result_json: Json
+        }
+        Update: {
+          cached_at?: string
+          expires_at?: string
+          id?: string
+          lookup_key?: string
+          lookup_type?: string
+          result_json?: Json
+        }
+        Relationships: []
+      }
+      unit_prices: {
+        Row: {
+          capacity_gallons: number
+          confidence_score: number | null
+          created_at: string
+          fuel_type: string
+          id: string
+          lookup_date: string
+          manufacturer: string | null
+          model_number: string | null
+          price_source: string | null
+          quality_tier: string
+          retail_price_usd: number
+          source_url: string | null
+          updated_at: string
+          vent_type: string
+          warranty_years: number
+          wholesale_price_usd: number | null
+        }
+        Insert: {
+          capacity_gallons?: number
+          confidence_score?: number | null
+          created_at?: string
+          fuel_type?: string
+          id?: string
+          lookup_date?: string
+          manufacturer?: string | null
+          model_number?: string | null
+          price_source?: string | null
+          quality_tier?: string
+          retail_price_usd: number
+          source_url?: string | null
+          updated_at?: string
+          vent_type?: string
+          warranty_years?: number
+          wholesale_price_usd?: number | null
+        }
+        Update: {
+          capacity_gallons?: number
+          confidence_score?: number | null
+          created_at?: string
+          fuel_type?: string
+          id?: string
+          lookup_date?: string
+          manufacturer?: string | null
+          model_number?: string | null
+          price_source?: string | null
+          quality_tier?: string
+          retail_price_usd?: number
+          source_url?: string | null
+          updated_at?: string
+          vent_type?: string
+          warranty_years?: number
+          wholesale_price_usd?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
