@@ -177,14 +177,25 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-semibold">Maintenance Plan</h1>
-            <p className="text-xs text-muted-foreground">Smart recommendations for your unit</p>
+            <h1 className="text-lg font-semibold">Keeping Things Running</h1>
+            <p className="text-xs text-muted-foreground">Your personalized care plan</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-lg mx-auto p-4 space-y-5 pb-8">
+        
+        {/* Warm Intro - Celebrate their good standing */}
+        <div className="text-center py-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 mb-3">
+            <span className="text-3xl">✨</span>
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mb-1">Your system is in great shape</h2>
+          <p className="text-sm text-muted-foreground">
+            A little preventive care goes a long way. Here's how to keep it that way.
+          </p>
+        </div>
         
         {/* Health Summary */}
         <HealthSummary 
