@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, PiggyBank, Target } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calendar, ChevronDown, ChevronUp, Info, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
 import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
@@ -248,11 +248,11 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               </div>
             </div>
 
-            {/* Financial Planning Section */}
+            {/* What to Expect Section */}
             <div className="clean-card mb-4 border-primary/30 bg-primary/5">
               <div className="flex items-center gap-2 mb-3">
-                <PiggyBank className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">Financial Planning</span>
+                <Info className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">What to Expect</span>
               </div>
               
               <div className="space-y-3">
@@ -264,11 +264,6 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Target Replacement</span>
                   <span className="font-medium text-foreground">{financial.targetReplacementDate}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Monthly Savings Goal</span>
-                  <span className="font-medium text-primary">${financial.monthlyBudget}/mo</span>
                 </div>
               </div>
               
