@@ -1,7 +1,6 @@
-import { ArrowLeft, AlertTriangle, Droplets, Gauge, Thermometer, Layers, RefreshCw, Maximize2, Shield, ChevronRight, Home } from 'lucide-react';
+import { ArrowLeft, Droplets, Gauge, Thermometer, Layers, RefreshCw, Maximize2, Shield, ChevronRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import { 
   STRESS_FACTOR_EXPLANATIONS, 
   DAMAGE_TYPE_INFO,
@@ -45,7 +44,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 function getContextualRecommendation(stressor: StressFactor, factorKey: string | null): string {
   if (!factorKey) return '';
   
-  const { level, value, description } = stressor;
+  const { level } = stressor;
   
   switch (factorKey) {
     case 'pressure':
@@ -89,6 +88,21 @@ function getStressFactorKey(name: string): keyof typeof STRESS_FACTOR_EXPLANATIO
   return null;
 }
 
+// Calculate health score from bioAge (inverse relationship)
+function getHealthScore(bioAge: number): number {
+  // Bio age of 0-8 = healthy (100-60), 8-12 = declining (60-40), 12+ = critical (40-0)
+  if (bioAge <= 8) return Math.max(60, 100 - (bioAge * 5));
+  if (bioAge <= 12) return Math.max(40, 60 - ((bioAge - 8) * 5));
+  return Math.max(0, 40 - ((bioAge - 12) * 10));
+}
+
+function getStatusLabel(score: number): { label: string; color: string } {
+  if (score >= 70) return { label: 'Good Condition', color: 'text-emerald-400' };
+  if (score >= 50) return { label: 'Needs Attention', color: 'text-amber-400' };
+  if (score >= 30) return { label: 'On Borrowed Time', color: 'text-orange-400' };
+  return { label: 'Critical', color: 'text-destructive' };
+}
+
 export function SafetyAssessmentPage({
   onBack,
   onContinue,
@@ -114,102 +128,102 @@ export function SafetyAssessmentPage({
 
   const agingMultiple = agingRate.toFixed(1);
   const isSafetyCritical = !isEconomicReplacement;
+  
+  // Calculate health score for the mini gauge
+  const healthScore = getHealthScore(bioAge);
+  const status = getStatusLabel(healthScore);
+
+  // Get explanation text based on situation
+  const getExplanationText = () => {
+    if (isSafetyCritical) {
+      return `We've detected signs that make continuing to run this unit risky. Your safety comes first.`;
+    }
+    return `At ${Math.round(bioAge)} biological years, repairs would cost more than the life they'd add. The math just doesn't work in your favor anymore.`;
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
 
-      {/* Header */}
-      <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-4 px-4">
-        <div className="flex items-center justify-between max-w-md mx-auto">
-          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      {/* Minimal Header */}
+      <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-3 px-4">
+        <div className="flex items-center max-w-md mx-auto">
+          <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-foreground">
-            {isSafetyCritical ? 'Assessment' : 'Upgrade Analysis'}
-          </h1>
-          <div className="w-10" />
         </div>
       </header>
 
-      <div className="relative p-4 max-w-md mx-auto pb-32">
-        {/* Hero Section */}
-        <div className={`relative overflow-hidden rounded-2xl mb-6 ${
-          isSafetyCritical 
-            ? 'bg-gradient-to-br from-destructive/20 via-destructive/10 to-transparent border border-destructive/30'
-            : 'bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30'
-        }`}>
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className={`p-3 rounded-xl ${
-                isSafetyCritical ? 'bg-destructive/20' : 'bg-amber-500/20'
-              }`}>
-                <AlertTriangle className={`w-8 h-8 ${
-                  isSafetyCritical ? 'text-destructive' : 'text-amber-500'
-                }`} />
+      <div className="relative px-4 pt-6 pb-32 max-w-md mx-auto">
+        {/* Soft Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-semibold text-foreground">Here's what we found</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Let's walk through what's happening with your system
+          </p>
+        </div>
+
+        {/* Mini Health Gauge Mirror */}
+        <Card className="mb-6 overflow-hidden">
+          <CardContent className="p-4">
+            {/* Score and Status */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl font-bold text-foreground">{healthScore}</div>
+                <div className="text-sm text-muted-foreground">/100</div>
               </div>
-              <div className="flex-1">
-                <h2 className={`text-xl font-bold ${
-                  isSafetyCritical ? 'text-destructive' : 'text-amber-500'
-                }`}>
-                  {isSafetyCritical ? damageInfo.title : 'Time to Upgrade'}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {isSafetyCritical 
-                    ? damageInfo.description
-                    : `Your water heater is aging at ${agingMultiple}x the normal rate and has a ${Math.round(failProb)}% failure probability.`
-                  }
-                </p>
-              </div>
+              <span className={`text-sm font-medium ${status.color}`}>
+                {status.label}
+              </span>
+            </div>
+            
+            {/* Health Bar */}
+            <div className="h-2 bg-muted rounded-full overflow-hidden mb-4">
+              <div 
+                className={`h-full rounded-full transition-all ${
+                  healthScore >= 70 ? 'bg-emerald-500' :
+                  healthScore >= 50 ? 'bg-amber-500' :
+                  healthScore >= 30 ? 'bg-orange-500' :
+                  'bg-destructive'
+                }`}
+                style={{ width: `${healthScore}%` }}
+              />
             </div>
 
             {/* Key Stats */}
-            <div className="grid grid-cols-2 gap-3 mt-6">
-              <div className="bg-background/50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{Math.round(bioAge)}</p>
-                <p className="text-xs text-muted-foreground">Biological Age</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-muted/50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-foreground">{Math.round(bioAge)}</p>
+                <p className="text-xs text-muted-foreground">Bio Age (years)</p>
               </div>
-              <div className="bg-background/50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{agingMultiple}x</p>
+              <div className="bg-muted/50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-foreground">{agingMultiple}x</p>
                 <p className="text-xs text-muted-foreground">Aging Rate</p>
               </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
+
+        {/* Why Replacement Makes Sense */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-2">
+            Why replacement makes sense
+          </h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {getExplanationText()}
+          </p>
         </div>
 
-        {/* Location Risk */}
-        {isSafetyCritical && (
-          <Card className="mb-4 border-amber-500/30 bg-amber-500/5">
+        {/* What's Been Working Against Your Unit */}
+        {significantStressors.length > 0 && (
+          <Card className="mb-6">
             <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <Home className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-foreground text-sm">Location Risk</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {damageScenario.description}
-                  </p>
-                  {breachDetected && (
-                    <p className="text-sm text-destructive mt-2 flex items-center gap-2">
-                      <Droplets className="h-4 w-4" />
-                      Visual evidence documented
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Why This Is Happening */}
-        <Card className="mb-4">
-          <CardContent className="p-4">
-            <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-4">
-              Why This Is Happening
-            </h4>
-            
-            {significantStressors.length > 0 ? (
-              <ul className="space-y-4">
+              <h4 className="text-sm font-medium text-muted-foreground mb-4">
+                What's been working against your unit:
+              </h4>
+              
+              <ul className="space-y-3">
                 {significantStressors.map((stressor, i) => {
                   const factorKey = getStressFactorKey(stressor.name);
                   const factorInfo = factorKey ? STRESS_FACTOR_EXPLANATIONS[factorKey] : null;
@@ -218,7 +232,7 @@ export function SafetyAssessmentPage({
 
                   return (
                     <li key={i} className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${
+                      <div className={`p-1.5 rounded-lg ${
                         stressor.level === 'critical' ? 'bg-destructive/10' : 'bg-amber-500/10'
                       }`}>
                         <IconComponent className={`h-4 w-4 ${
@@ -229,7 +243,7 @@ export function SafetyAssessmentPage({
                         <span className="font-medium text-sm text-foreground">
                           {factorInfo?.label || stressor.name}
                         </span>
-                        <p className="text-sm text-muted-foreground mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {levelInfo?.description || stressor.description}
                         </p>
                       </div>
@@ -237,20 +251,16 @@ export function SafetyAssessmentPage({
                   );
                 })}
               </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Age and normal wear are the primary factors. After {chronoAge} years of service, the unit has reached its expected end of life.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* What We'll Address */}
         {significantStressors.length > 0 && (
-          <Card className="mb-4 border-primary/30 bg-primary/5">
+          <Card className="mb-4 border-primary/20 bg-primary/5">
             <CardContent className="p-4">
-              <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-3">
-                Protecting Your Next Unit
+              <h4 className="text-sm font-medium text-foreground mb-3">
+                What we'll address in your new unit:
               </h4>
               <ul className="space-y-2">
                 {significantStressors.slice(0, 4).map((stressor, i) => {
@@ -261,7 +271,7 @@ export function SafetyAssessmentPage({
 
                   return (
                     <li key={i} className="flex items-center gap-2 text-sm">
-                      <Shield className="w-4 h-4 text-primary flex-shrink-0" />
+                      <Check className="w-4 h-4 text-primary flex-shrink-0" />
                       <span className="text-foreground">{recommendation}</span>
                     </li>
                   );
@@ -277,11 +287,9 @@ export function SafetyAssessmentPage({
         <div className="max-w-md mx-auto">
           <Button
             onClick={onContinue}
-            className={`w-full h-14 text-base font-semibold ${
-              isSafetyCritical ? 'bg-destructive hover:bg-destructive/90' : ''
-            }`}
+            className="w-full h-14 text-base font-semibold"
           >
-            <span>View Your Options</span>
+            <span>Plan My Upgrade</span>
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
         </div>
