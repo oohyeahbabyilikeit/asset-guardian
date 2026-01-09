@@ -10,6 +10,20 @@ import type { ForensicInputs, QualityTier, VentType } from "./opterraAlgorithm";
 // Types
 // ======================
 
+// Variance factors for price range calculations
+const VARIANCE_FACTORS = {
+  // Installation variance
+  LABOR_VARIANCE: 0.15,      // ±15%
+  MATERIALS_VARIANCE: 0.10,  // ±10%
+  PERMIT_VARIANCE: 0.20,     // ±20%
+};
+
+export interface PriceRange {
+  low: number;
+  high: number;
+  median: number;
+}
+
 export interface PriceResult {
   retailPrice: number;
   wholesalePrice?: number;
@@ -23,6 +37,8 @@ export interface PriceResult {
   confidence: number;
   source: string;
   cached: boolean;
+  priceRange: PriceRange;
+  varianceReason?: string;
 }
 
 export interface InstallPreset {
@@ -35,12 +51,17 @@ export interface InstallPreset {
   totalCost?: number;
   description?: string;
   estimatedHours?: number;
+  // Range modifiers
+  laborVariance?: number;     // ±% for labor (default 15%)
+  materialsVariance?: number; // ±% for materials (default 10%)
+  permitVariance?: number;    // ±% for permits (default 20%)
 }
 
 export interface TotalQuote {
   unitPrice: PriceResult;
   installCost: InstallPreset;
   grandTotal: number;
+  grandTotalRange: PriceRange;
   breakdown: {
     unit: number;
     labor: number;
@@ -225,6 +246,27 @@ export async function generateQuote(
   const ventType = (inputs.ventType || 'ATMOSPHERIC') as VentType;
   const installCost = await getInstallCost(contractorId, ventType, complexity);
   
+  // Calculate installation cost range with variance
+  const calculateInstallRange = (preset: InstallPreset) => {
+    const laborVariance = preset.laborVariance || VARIANCE_FACTORS.LABOR_VARIANCE;
+    const materialsVariance = preset.materialsVariance || VARIANCE_FACTORS.MATERIALS_VARIANCE;
+    const permitVariance = preset.permitVariance || VARIANCE_FACTORS.PERMIT_VARIANCE;
+    
+    const installLow = 
+      preset.laborCost * (1 - laborVariance) +
+      preset.materialsCost * (1 - materialsVariance) +
+      preset.permitCost * (1 - permitVariance);
+      
+    const installHigh = 
+      preset.laborCost * (1 + laborVariance) +
+      preset.materialsCost * (1 + materialsVariance) +
+      preset.permitCost * (1 + permitVariance);
+      
+    const installMedian = preset.laborCost + preset.materialsCost + preset.permitCost;
+    
+    return { low: Math.round(installLow), high: Math.round(installHigh), median: installMedian };
+  };
+  
   if (!installCost) {
     // Use default estimates if no preset found
     const defaultInstall: InstallPreset = {
@@ -237,14 +279,23 @@ export async function generateQuote(
     };
     defaultInstall.totalCost = defaultInstall.laborCost + defaultInstall.materialsCost + defaultInstall.permitCost;
     
-    const grandTotal = unitPrice.retailPrice + defaultInstall.totalCost;
+    const installRange = calculateInstallRange(defaultInstall);
+    const grandTotal = unitPrice.priceRange.median + defaultInstall.totalCost;
+    
+    // Combine unit and install ranges
+    const grandTotalRange: PriceRange = {
+      low: Math.round(unitPrice.priceRange.low + installRange.low),
+      high: Math.round(unitPrice.priceRange.high + installRange.high),
+      median: grandTotal,
+    };
     
     return {
       unitPrice,
       installCost: defaultInstall,
       grandTotal,
+      grandTotalRange,
       breakdown: {
-        unit: unitPrice.retailPrice,
+        unit: unitPrice.priceRange.median,
         labor: defaultInstall.laborCost,
         materials: defaultInstall.materialsCost,
         permit: defaultInstall.permitCost,
@@ -252,14 +303,23 @@ export async function generateQuote(
     };
   }
   
-  const grandTotal = unitPrice.retailPrice + (installCost.totalCost || 0);
+  const installRange = calculateInstallRange(installCost);
+  const grandTotal = unitPrice.priceRange.median + (installCost.totalCost || installRange.median);
+  
+  // Combine unit and install ranges
+  const grandTotalRange: PriceRange = {
+    low: Math.round(unitPrice.priceRange.low + installRange.low),
+    high: Math.round(unitPrice.priceRange.high + installRange.high),
+    median: grandTotal,
+  };
   
   return {
     unitPrice,
     installCost,
     grandTotal,
+    grandTotalRange,
     breakdown: {
-      unit: unitPrice.retailPrice,
+      unit: unitPrice.priceRange.median,
       labor: installCost.laborCost,
       materials: installCost.materialsCost,
       permit: installCost.permitCost,

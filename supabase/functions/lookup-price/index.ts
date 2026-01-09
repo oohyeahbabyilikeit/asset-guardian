@@ -32,6 +32,13 @@ interface PriceResult {
   confidence: number;
   source: string;
   cached: boolean;
+  // Range fields
+  priceRange: {
+    low: number;
+    high: number;
+    median: number;
+  };
+  varianceReason?: string;
 }
 
 serve(async (req) => {
@@ -110,8 +117,11 @@ serve(async (req) => {
       
       if (daysSinceLookup < 30) {
         console.log("Using existing price from DB:", existingPrice.id);
+        const retailPrice = parseFloat(existingPrice.retail_price_usd);
+        // Estimate range from single price point: ±10% for DB records
+        const rangeSpread = 0.10;
         const result: PriceResult = {
-          retailPrice: parseFloat(existingPrice.retail_price_usd),
+          retailPrice,
           wholesalePrice: existingPrice.wholesale_price_usd ? parseFloat(existingPrice.wholesale_price_usd) : undefined,
           manufacturer: existingPrice.manufacturer || 'Unknown',
           model: existingPrice.model_number || undefined,
@@ -123,6 +133,11 @@ serve(async (req) => {
           confidence: existingPrice.confidence_score ? parseFloat(existingPrice.confidence_score) : 0.9,
           source: existingPrice.price_source || 'DATABASE',
           cached: true,
+          priceRange: {
+            low: Math.round(retailPrice * (1 - rangeSpread)),
+            high: Math.round(retailPrice * (1 + rangeSpread)),
+            median: retailPrice,
+          },
         };
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -130,40 +145,46 @@ serve(async (req) => {
       }
     }
 
-    // Call AI for price lookup
+    // Call AI for price lookup with range estimation
     const prompt = body.type === 'MODEL'
-      ? `Look up the current retail price for water heater model number: ${body.modelNumber}${body.manufacturer ? ` by ${body.manufacturer}` : ''}.
+      ? `Look up the current retail price RANGE for water heater model number: ${body.modelNumber}${body.manufacturer ? ` by ${body.manufacturer}` : ''}.
          
-         Return the following information in JSON format:
-         - retailPrice: current retail price in USD (number)
-         - wholesalePrice: estimated contractor/wholesale price in USD (number, typically 60-70% of retail)
+         Return the following information:
+         - retailPriceLow: LOW end of typical retail price range (number)
+         - retailPriceHigh: HIGH end of typical retail price range (number)
+         - retailPriceMedian: most likely price point (number)
+         - wholesalePrice: estimated contractor/wholesale price in USD (number, typically 60-70% of median retail)
          - manufacturer: brand name
          - tier: quality tier (BUILDER, STANDARD, PROFESSIONAL, or PREMIUM)
          - warrantyYears: warranty length in years
          - fuelType: GAS, ELECTRIC, or HYBRID
          - ventType: ATMOSPHERIC, POWER_VENT, or DIRECT_VENT
          - capacityGallons: tank capacity
-         - confidence: your confidence in this price accuracy (0.0-1.0)
+         - confidence: your confidence in this price range accuracy (0.0-1.0)
+         - varianceReason: brief explanation of why prices vary (e.g., "retailer markup differences", "regional availability")
          - source: where you found this information
          
          If you cannot find the exact model, estimate based on similar models from the same manufacturer and tier.`
-      : `Estimate the current retail price for a water heater with these specifications:
+      : `Estimate the current retail price RANGE for a water heater with these specifications:
          - Fuel Type: ${body.specs?.fuelType}
          - Capacity: ${body.specs?.capacityGallons} gallons
          - Venting: ${body.specs?.ventType}
          - Warranty: ${body.specs?.warrantyYears} years
          - Quality Tier: ${body.specs?.qualityTier}
          
-         Return the following information in JSON format:
-         - retailPrice: estimated retail price in USD (number)
-         - wholesalePrice: estimated contractor/wholesale price in USD (number, typically 60-70% of retail)
+         Return the following information:
+         - retailPriceLow: LOW end of typical retail price range (number)
+         - retailPriceHigh: HIGH end of typical retail price range (number)
+         - retailPriceMedian: most likely price point (number)
+         - wholesalePrice: estimated contractor/wholesale price in USD (number, typically 60-70% of median retail)
          - manufacturer: most likely brand for this tier (e.g., Rheem, Bradford White, AO Smith)
          - tier: ${body.specs?.qualityTier}
          - warrantyYears: ${body.specs?.warrantyYears}
          - fuelType: ${body.specs?.fuelType}
          - ventType: ${body.specs?.ventType}
          - capacityGallons: ${body.specs?.capacityGallons}
-         - confidence: your confidence in this price accuracy (0.0-1.0)
+         - confidence: your confidence in this price range accuracy (0.0-1.0)
+         - varianceReason: brief explanation of why prices vary (e.g., "brand options at this tier", "market conditions")
          - source: basis for estimate (e.g., "industry average for tier")`;
 
     console.log("Calling AI for price lookup...");
@@ -188,11 +209,13 @@ serve(async (req) => {
             type: "function",
             function: {
               name: "return_price",
-              description: "Return the water heater price information",
+              description: "Return the water heater price range information",
               parameters: {
                 type: "object",
                 properties: {
-                  retailPrice: { type: "number", description: "Retail price in USD" },
+                  retailPriceLow: { type: "number", description: "Low end of retail price range in USD" },
+                  retailPriceHigh: { type: "number", description: "High end of retail price range in USD" },
+                  retailPriceMedian: { type: "number", description: "Most likely retail price in USD" },
                   wholesalePrice: { type: "number", description: "Wholesale/contractor price in USD" },
                   manufacturer: { type: "string", description: "Brand name" },
                   tier: { type: "string", enum: ["BUILDER", "STANDARD", "PROFESSIONAL", "PREMIUM"] },
@@ -201,9 +224,10 @@ serve(async (req) => {
                   ventType: { type: "string", enum: ["ATMOSPHERIC", "POWER_VENT", "DIRECT_VENT"] },
                   capacityGallons: { type: "number" },
                   confidence: { type: "number", description: "Confidence 0-1" },
+                  varianceReason: { type: "string", description: "Why prices vary" },
                   source: { type: "string", description: "Source of price info" }
                 },
-                required: ["retailPrice", "manufacturer", "tier", "warrantyYears", "fuelType", "ventType", "capacityGallons", "confidence", "source"],
+                required: ["retailPriceLow", "retailPriceHigh", "retailPriceMedian", "manufacturer", "tier", "warrantyYears", "fuelType", "ventType", "capacityGallons", "confidence", "source"],
                 additionalProperties: false
               }
             }
@@ -242,8 +266,18 @@ serve(async (req) => {
 
     const priceData = JSON.parse(toolCall.function.arguments);
     
+    // Widen range based on confidence (lower confidence = wider range)
+    const confidenceSpread = 1 - priceData.confidence;
+    const spreadMultiplier = 1 + (confidenceSpread * 0.15); // Up to 15% extra spread for low confidence
+    
+    const priceRange = {
+      low: Math.round(priceData.retailPriceLow * (1 / spreadMultiplier)),
+      high: Math.round(priceData.retailPriceHigh * spreadMultiplier),
+      median: priceData.retailPriceMedian,
+    };
+    
     const result: PriceResult = {
-      retailPrice: priceData.retailPrice,
+      retailPrice: priceData.retailPriceMedian, // Use median as the "main" price for backwards compat
       wholesalePrice: priceData.wholesalePrice,
       manufacturer: priceData.manufacturer,
       model: body.modelNumber,
@@ -255,6 +289,8 @@ serve(async (req) => {
       confidence: priceData.confidence,
       source: 'AI_LOOKUP',
       cached: false,
+      priceRange,
+      varianceReason: priceData.varianceReason,
     };
 
     // Store in unit_prices table
