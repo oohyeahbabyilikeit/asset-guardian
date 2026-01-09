@@ -1,15 +1,12 @@
-import { useState } from 'react';
-import { ChevronRight, Droplets, Gauge, Shield, Thermometer, AlertTriangle, Zap, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, Droplets, Gauge, Shield, Thermometer, Zap, AlertOctagon, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { type AssetData } from '@/data/mockAsset';
-import { type ForensicInputs, calculateOpterraRisk, failProbToHealthScore, type OpterraMetrics } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, calculateOpterraRisk, type OpterraMetrics } from '@/lib/opterraAlgorithm';
 import { SafetyReplacementAlert } from './SafetyReplacementAlert';
 import containmentBreachImage from '@/assets/containment-breach.png';
 
 interface DiscoveryFlowProps {
-  asset: AssetData;
   inputs: ForensicInputs;
   onComplete: () => void;
 }
@@ -194,104 +191,11 @@ function KeyIssuesScreen({ issues }: { issues: Issue[] }) {
   );
 }
 
-// Health Summary Screen
-function HealthSummaryScreen({ 
-  score, 
-  status,
-  hasIssues
-}: { 
-  score: number; 
-  status: 'critical' | 'warning' | 'optimal';
-  hasIssues: boolean;
-}) {
-  const statusConfig = {
-    optimal: { label: 'Looking Good', color: 'text-green-500', bg: 'bg-green-500', icon: CheckCircle2 },
-    warning: { label: 'Needs Attention', color: 'text-amber-500', bg: 'bg-amber-500', icon: AlertTriangle },
-    critical: { label: 'Action Needed', color: 'text-red-500', bg: 'bg-red-500', icon: AlertOctagon },
-  };
-
-  const config = statusConfig[status];
-  const Icon = config.icon;
-
-  return (
-    <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-foreground">
-          {status === 'optimal' && !hasIssues ? "You're All Set" : "Your Assessment"}
-        </h2>
-      </div>
-
-      {/* Score display */}
-      <div className="flex justify-center py-4">
-        <div className="relative">
-          <div className={cn(
-            "w-32 h-32 rounded-full border-8 flex items-center justify-center",
-            status === 'critical' ? "border-red-500/30" :
-            status === 'warning' ? "border-amber-500/30" : "border-green-500/30"
-          )}>
-            <div className="text-center">
-              <span className={cn("text-4xl font-bold", config.color)}>{score}</span>
-              <span className="block text-xs text-muted-foreground">health score</span>
-            </div>
-          </div>
-          {/* Progress arc */}
-          <svg className="absolute inset-0 w-32 h-32 -rotate-90">
-            <circle
-              cx="64"
-              cy="64"
-              r="56"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="8"
-              strokeDasharray={352}
-              strokeDashoffset={352 - (score / 100) * 352}
-              strokeLinecap="round"
-              className={cn("transition-all duration-1000", config.color)}
-            />
-          </svg>
-        </div>
-      </div>
-
-      {/* Status badge */}
-      <div className="flex justify-center">
-        <div className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium",
-          status === 'critical' ? "bg-red-500/10 text-red-500" :
-          status === 'warning' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
-        )}>
-          <Icon className="w-4 h-4" />
-          {config.label}
-        </div>
-      </div>
-
-      {/* Quick message */}
-      <Card className="p-4 bg-muted/30">
-        <p className="text-sm text-center text-muted-foreground">
-          {status === 'optimal' && !hasIssues
-            ? "Your water heater is performing well. We'll help you keep it that way."
-            : status === 'optimal'
-            ? "Minor items to address, but overall your system is healthy."
-            : status === 'warning'
-            ? "Some maintenance items need attention. View your dashboard for recommendations."
-            : "We've identified issues that need prompt attention. Let's review your options."
-          }
-        </p>
-      </Card>
-    </div>
-  );
-}
-
-export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps) {
-  const [step, setStep] = useState(0);
-
+export function DiscoveryFlow({ inputs, onComplete }: DiscoveryFlowProps) {
   // Calculate metrics and verdict
   const result = calculateOpterraRisk(inputs);
   const metrics = result.metrics;
   const verdict = result.verdict;
-  const healthScore = failProbToHealthScore(metrics.failProb);
-  
-  // Determine status
-  const status = metrics.failProb > 50 ? 'critical' : metrics.failProb > 25 ? 'warning' : 'optimal';
   
   // Is this a critical case that needs immediate replacement?
   const isCritical = verdict.action === 'REPLACE' || inputs.isLeaking || inputs.visualRust;
@@ -404,74 +308,39 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
   }
 
   const hasIssues = issues.length > 0;
-  
-  // Determine flow:
-  // - Critical: Alert → Issues (if any beyond critical) → Summary
-  // - Has issues: Issues → Summary  
-  // - Healthy: Summary only
-  
-  let totalSteps: number;
-  if (isCritical) {
-    totalSteps = hasIssues ? 3 : 2; // Alert, Issues (optional), Summary
-  } else if (hasIssues) {
-    totalSteps = 2; // Issues, Summary
-  } else {
-    totalSteps = 1; // Just Summary
-  }
 
-  const handleNext = () => {
-    if (step < totalSteps - 1) {
-      setStep(step + 1);
-    } else {
-      onComplete();
-    }
-  };
-
-  // Determine what to show at current step
-  const renderCurrentStep = () => {
+  // Single screen - show issues or critical alert, then go to dashboard
+  const renderContent = () => {
     if (isCritical) {
-      // Critical flow
-      if (step === 0) {
-        return (
-          <CriticalAlertScreen
-            reason={verdict.reason}
-            isLeaking={inputs.isLeaking}
-            hasVisualRust={inputs.visualRust}
-            metrics={metrics}
-            inputs={inputs}
-          />
-        );
-      } else if (step === 1 && hasIssues) {
-        // Filter out the critical issues already shown in alert
-        const additionalIssues = issues.filter(i => i.id !== 'breach' && i.id !== 'rust');
-        if (additionalIssues.length > 0) {
-          return <KeyIssuesScreen issues={additionalIssues} />;
-        }
-        return <HealthSummaryScreen score={healthScore} status={status} hasIssues={hasIssues} />;
-      } else {
-        return <HealthSummaryScreen score={healthScore} status={status} hasIssues={hasIssues} />;
-      }
-    } else if (hasIssues) {
-      // Issues flow
-      if (step === 0) {
-        return <KeyIssuesScreen issues={issues} />;
-      } else {
-        return <HealthSummaryScreen score={healthScore} status={status} hasIssues={hasIssues} />;
-      }
-    } else {
-      // Healthy flow - just summary
-      return <HealthSummaryScreen score={healthScore} status={status} hasIssues={hasIssues} />;
+      return (
+        <CriticalAlertScreen
+          reason={verdict.reason}
+          isLeaking={inputs.isLeaking}
+          hasVisualRust={inputs.visualRust}
+          metrics={metrics}
+          inputs={inputs}
+        />
+      );
     }
-  };
-
-  const getButtonText = () => {
-    if (step === totalSteps - 1) {
-      return 'View Dashboard';
+    
+    if (hasIssues) {
+      return <KeyIssuesScreen issues={issues} />;
     }
-    if (isCritical && step === 0) {
-      return 'See Full Assessment';
-    }
-    return 'Continue';
+    
+    // No issues - show quick success message
+    return (
+      <div className="space-y-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
+          <CheckCircle2 className="w-8 h-8 text-green-500" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold text-foreground">Looking Good!</h2>
+          <p className="text-sm text-muted-foreground">
+            No immediate issues found. We'll help you keep it that way.
+          </p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -480,33 +349,15 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
       <div className="p-4 border-b border-border/50">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground tracking-wider uppercase">
-            {totalSteps > 1 ? `Step ${step + 1} of ${totalSteps}` : 'Assessment Complete'}
+            Assessment Complete
           </span>
-          <Button variant="ghost" size="sm" onClick={onComplete} className="text-xs">
-            Skip to Dashboard
-          </Button>
         </div>
       </div>
 
-      {/* Step indicator */}
-      {totalSteps > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                "w-2 h-2 rounded-full transition-all duration-300",
-                i === step ? "w-8 bg-primary" : i < step ? "bg-primary/60" : "bg-muted"
-              )}
-            />
-          ))}
-        </div>
-      )}
-
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-md mx-auto">
-          {renderCurrentStep()}
+      <div className="flex-1 overflow-auto p-6 flex flex-col justify-center">
+        <div className="max-w-md mx-auto w-full">
+          {renderContent()}
         </div>
       </div>
 
@@ -514,13 +365,13 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
       <div className="p-4 border-t border-border/50">
         <div className="max-w-md mx-auto">
           <Button 
-            onClick={handleNext} 
+            onClick={onComplete} 
             className={cn(
               "w-full gap-2",
-              isCritical && step === 0 && "bg-red-600 hover:bg-red-700"
+              isCritical && "bg-red-600 hover:bg-red-700"
             )}
           >
-            {getButtonText()}
+            View Dashboard
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>

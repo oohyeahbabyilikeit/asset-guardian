@@ -118,7 +118,6 @@ const Index = () => {
       case 'discovery':
         return (
           <DiscoveryFlow
-            asset={currentAsset}
             inputs={currentInputs}
             onComplete={handleDiscoveryComplete}
           />
