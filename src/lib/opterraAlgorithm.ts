@@ -1086,17 +1086,17 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
 
   if (monthsUntilTarget <= 0) {
     urgency = 'IMMEDIATE';
-    recommendation = `Unit is past its financial end-of-life. Budget $${Math.ceil(futureCostLow).toLocaleString()} - $${Math.ceil(futureCostHigh).toLocaleString()} for replacement.`;
+    recommendation = `Unit is past its expected service life. Expect to budget $${Math.ceil(futureCostLow).toLocaleString()} - $${Math.ceil(futureCostHigh).toLocaleString()} for replacement.`;
   } else if (monthsUntilTarget < 12) {
     urgency = 'HIGH';
-    recommendation = `Replacement likely within 12 months. Save $${monthlyBudget}/mo to cover the high end.`;
+    recommendation = `Replacement likely within 12 months. If you'd like to budget ahead, that works out to about $${monthlyBudget}/month.`;
   } else if (monthsUntilTarget < 36) {
     urgency = 'MED';
     const targetYear = new Date(Date.now() + monthsUntilTarget * 30 * 24 * 60 * 60 * 1000).getFullYear();
-    recommendation = `Plan to replace by ${targetYear}. Budget $${monthlyBudget}/mo to stay ahead.`;
+    recommendation = `Plan to replace by ${targetYear}. If you'd like to budget ahead, that's roughly $${monthlyBudget}/month.`;
   } else {
     urgency = 'LOW';
-    recommendation = `No immediate issues. A maintenance fund of $${monthlyBudget}/mo prepares for eventual replacement.`;
+    recommendation = `No rush—just something to keep in mind for future planning.`;
   }
 
   // Generate Target Date String
