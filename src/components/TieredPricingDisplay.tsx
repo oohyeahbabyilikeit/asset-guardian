@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Check, Star, Shield, AlertCircle, Sparkles } from 'lucide-react';
+import { Check, Star, Shield, AlertCircle, Sparkles, Wrench, AlertTriangle, Droplets } from 'lucide-react';
 import { useTieredPricing, DISPLAY_TIERS, TIER_CONFIG } from '@/hooks/useTieredPricing';
 import type { ForensicInputs, QualityTier } from '@/lib/opterraAlgorithm';
+import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { cn } from '@/lib/utils';
 
 interface TieredPricingDisplayProps {
@@ -14,12 +15,13 @@ interface TieredPricingDisplayProps {
   onTierSelect?: (tier: QualityTier) => void;
   selectedTier?: QualityTier;
   contractorId?: string;
+  infrastructureIssues?: InfrastructureIssue[];
 }
 
 const TIER_LABELS: Record<QualityTier, { name: string; description: string }> = {
-  BUILDER: { name: 'Good', description: 'Builder Grade' },
-  STANDARD: { name: 'Better', description: 'Standard Quality' },
-  PROFESSIONAL: { name: 'Best', description: 'Professional Grade' },
+  BUILDER: { name: 'Good', description: 'Code Compliant' },
+  STANDARD: { name: 'Better', description: 'Protected Install' },
+  PROFESSIONAL: { name: 'Best', description: 'Complete Package' },
   PREMIUM: { name: 'Premium', description: 'Top of the Line' },
 };
 
@@ -55,6 +57,18 @@ const TIER_ICONS: Record<QualityTier, typeof Star> = {
   PREMIUM: Sparkles,
 };
 
+const ISSUE_ICONS: Record<string, typeof Wrench> = {
+  exp_tank_required: Shield,
+  exp_tank_replace: Shield,
+  prv_failed: AlertTriangle,
+  prv_critical: AlertTriangle,
+  prv_recommended: Shield,
+  prv_longevity: Shield,
+  softener_service: Droplets,
+  softener_replace: Droplets,
+  softener_new: Droplets,
+};
+
 function formatPriceRange(low: number, high: number): string {
   const formatK = (n: number) => {
     if (n >= 1000) {
@@ -65,17 +79,35 @@ function formatPriceRange(low: number, high: number): string {
   return `${formatK(low)} – ${formatK(high)}`;
 }
 
+function getCategoryLabel(tier: QualityTier): string {
+  switch (tier) {
+    case 'BUILDER': return 'Code Fixes Included';
+    case 'STANDARD': return 'Code Fixes + Infrastructure';
+    case 'PROFESSIONAL': 
+    case 'PREMIUM': return 'Complete Protection Package';
+    default: return 'Included Work';
+  }
+}
+
 export function TieredPricingDisplay({
   inputs,
   detectedTier,
   onTierSelect,
   selectedTier,
   contractorId,
+  infrastructureIssues = [],
 }: TieredPricingDisplayProps) {
-  const { tiers, allLoading } = useTieredPricing(inputs, contractorId);
+  const { tiers, allLoading } = useTieredPricing(
+    inputs, 
+    contractorId, 
+    'STANDARD', 
+    true, 
+    infrastructureIssues
+  );
   const [hoveredTier, setHoveredTier] = useState<QualityTier | null>(null);
 
   const effectiveSelected = selectedTier || detectedTier || 'STANDARD';
+  const hasInfrastructureIssues = infrastructureIssues.length > 0;
 
   return (
     <div className="space-y-4">
@@ -163,7 +195,32 @@ export function TieredPricingDisplay({
                   ))}
                 </ul>
 
-                {/* Price */}
+                {/* Infrastructure Issues Included */}
+                {tierData.includedIssues.length > 0 && (
+                  <div className="pt-3 border-t border-border/50">
+                    <p className="text-xs font-medium text-primary mb-2">
+                      {getCategoryLabel(tier)}:
+                    </p>
+                    <ul className="space-y-1.5">
+                      {tierData.includedIssues.map((issue) => {
+                        const IssueIcon = ISSUE_ICONS[issue.id] || Wrench;
+                        return (
+                          <li key={issue.id} className="flex items-start gap-2 text-sm">
+                            <IssueIcon className={cn(
+                              "h-4 w-4 mt-0.5 flex-shrink-0",
+                              issue.category === 'VIOLATION' && "text-red-400",
+                              issue.category === 'INFRASTRUCTURE' && "text-amber-400",
+                              issue.category === 'OPTIMIZATION' && "text-blue-400"
+                            )} />
+                            <span className="text-foreground">{issue.name}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Price - Now shows bundle total when issues exist */}
                 <div className="pt-2 border-t">
                   {tierData.loading ? (
                     <div className="space-y-2">
@@ -174,6 +231,23 @@ export function TieredPricingDisplay({
                     <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="h-4 w-4" />
                       <span>Price unavailable</span>
+                    </div>
+                  ) : tierData.bundleTotal ? (
+                    <div>
+                      <p className="text-xl font-bold text-foreground">
+                        {formatPriceRange(
+                          tierData.bundleTotal.low,
+                          tierData.bundleTotal.high
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Typical: ${tierData.bundleTotal.median.toLocaleString()} installed
+                      </p>
+                      {tierData.issuesCost.high > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Includes {formatPriceRange(tierData.issuesCost.low, tierData.issuesCost.high)} in bundled work
+                        </p>
+                      )}
                     </div>
                   ) : tierData.quote?.grandTotalRange ? (
                     <div>

@@ -3,6 +3,7 @@ import { ArrowLeft, Check, Sparkles, Wrench, AlertTriangle, TrendingDown, Calend
 import { Button } from '@/components/ui/button';
 import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
 import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, OpterraMetrics, QualityTier } from '@/lib/opterraAlgorithm';
+import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
@@ -99,6 +100,12 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
   const { bioAge, failProb, agingRate } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
   const financial = opterraResult.financial;
+
+  // Detect infrastructure issues that should be bundled with replacement
+  const infrastructureIssues = useMemo(() => 
+    getInfrastructureIssues(currentInputs, opterraResult.metrics),
+    [currentInputs, opterraResult.metrics]
+  );
 
   const currentScore = failProbToHealthScore(failProb);
   const currentAgingFactor = bioAge / currentInputs.calendarAge;
@@ -263,6 +270,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                 detectedTier={financial.currentTier.tier}
                 selectedTier={selectedTier}
                 onTierSelect={setSelectedTier}
+                infrastructureIssues={infrastructureIssues}
               />
             </div>
 
