@@ -529,17 +529,14 @@ export type Database = {
           created_at: string
           created_by: string | null
           fuel_type: string
-          hardness_gpg: number | null
           has_circ_pump: boolean | null
           has_exp_tank: boolean | null
           has_prv: boolean | null
           has_softener: boolean | null
-          house_psi: number | null
           id: string
           install_date: string | null
           is_closed_loop: boolean | null
           is_finished_area: boolean | null
-          is_leaking: boolean | null
           location: string | null
           manufacturer: string | null
           model_number: string | null
@@ -552,7 +549,6 @@ export type Database = {
           temp_setting: string | null
           updated_at: string
           vent_type: string | null
-          visual_rust: boolean | null
           warranty_years: number | null
         }
         Insert: {
@@ -560,17 +556,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           fuel_type?: string
-          hardness_gpg?: number | null
           has_circ_pump?: boolean | null
           has_exp_tank?: boolean | null
           has_prv?: boolean | null
           has_softener?: boolean | null
-          house_psi?: number | null
           id?: string
           install_date?: string | null
           is_closed_loop?: boolean | null
           is_finished_area?: boolean | null
-          is_leaking?: boolean | null
           location?: string | null
           manufacturer?: string | null
           model_number?: string | null
@@ -583,7 +576,6 @@ export type Database = {
           temp_setting?: string | null
           updated_at?: string
           vent_type?: string | null
-          visual_rust?: boolean | null
           warranty_years?: number | null
         }
         Update: {
@@ -591,17 +583,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           fuel_type?: string
-          hardness_gpg?: number | null
           has_circ_pump?: boolean | null
           has_exp_tank?: boolean | null
           has_prv?: boolean | null
           has_softener?: boolean | null
-          house_psi?: number | null
           id?: string
           install_date?: string | null
           is_closed_loop?: boolean | null
           is_finished_area?: boolean | null
-          is_leaking?: boolean | null
           location?: string | null
           manufacturer?: string | null
           model_number?: string | null
@@ -614,7 +603,6 @@ export type Database = {
           temp_setting?: string | null
           updated_at?: string
           vent_type?: string | null
-          visual_rust?: boolean | null
           warranty_years?: number | null
         }
         Relationships: [
@@ -627,6 +615,71 @@ export type Database = {
           },
           {
             foreignKeyName: "water_heaters_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      water_softeners: {
+        Row: {
+          capacity_grains: number | null
+          control_head: string | null
+          created_at: string
+          created_by: string | null
+          has_carbon_filter: boolean | null
+          id: string
+          install_date: string | null
+          manufacturer: string | null
+          model_number: string | null
+          notes: string | null
+          photo_urls: Json | null
+          property_id: string
+          resin_type: string | null
+          serial_number: string | null
+          updated_at: string
+          visual_height: string | null
+        }
+        Insert: {
+          capacity_grains?: number | null
+          control_head?: string | null
+          created_at?: string
+          created_by?: string | null
+          has_carbon_filter?: boolean | null
+          id?: string
+          install_date?: string | null
+          manufacturer?: string | null
+          model_number?: string | null
+          notes?: string | null
+          photo_urls?: Json | null
+          property_id: string
+          resin_type?: string | null
+          serial_number?: string | null
+          updated_at?: string
+          visual_height?: string | null
+        }
+        Update: {
+          capacity_grains?: number | null
+          control_head?: string | null
+          created_at?: string
+          created_by?: string | null
+          has_carbon_filter?: boolean | null
+          id?: string
+          install_date?: string | null
+          manufacturer?: string | null
+          model_number?: string | null
+          notes?: string | null
+          photo_urls?: Json | null
+          property_id?: string
+          resin_type?: string | null
+          serial_number?: string | null
+          updated_at?: string
+          visual_height?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "water_softeners_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"

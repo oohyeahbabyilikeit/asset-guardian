@@ -42,7 +42,8 @@
 
 // --- TYPES & INTERFACES ---
 
-export type FuelType = 'GAS' | 'ELECTRIC';
+export type FuelType = 'GAS' | 'ELECTRIC' | 'HYBRID';
+export type AirFilterStatus = 'CLEAN' | 'DIRTY' | 'CLOGGED';
 export type TempSetting = 'LOW' | 'NORMAL' | 'HOT';
 export type LocationType = 'ATTIC' | 'UPPER_FLOOR' | 'MAIN_LIVING' | 'BASEMENT' | 'GARAGE' | 'EXTERIOR' | 'CRAWLSPACE';
 export type RiskLevel = 1 | 2 | 3 | 4;
@@ -60,6 +61,7 @@ export interface TierProfile {
   features: string[];
   baseCostGas: number;
   baseCostElectric: number;
+  baseCostHybrid: number;  // NEW v7.3: Heat pump water heaters
 }
 
 export interface ForensicInputs {
@@ -97,6 +99,10 @@ export interface ForensicInputs {
   // Service History Resets (null/undefined = never serviced)
   lastAnodeReplaceYearsAgo?: number;  // Years since last anode replacement
   lastFlushYearsAgo?: number;         // Years since last tank flush
+  
+  // NEW v7.3: Hybrid (Heat Pump) specific fields
+  airFilterStatus?: AirFilterStatus;  // HYBRID only: air filter condition
+  isCondensateClear?: boolean;        // HYBRID only: condensate drain clear?
 }
 
 export interface OpterraMetrics {
@@ -223,6 +229,7 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     features: ['Basic glass-lined tank', 'Single anode rod', 'Standard thermostat'],
     baseCostGas: 1400,
     baseCostElectric: 1200,
+    baseCostHybrid: 2800,  // Heat pumps start higher
   },
   STANDARD: {
     tier: 'STANDARD',
@@ -232,6 +239,7 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     features: ['Premium glass lining', 'Larger anode rod', 'Self-cleaning dip tube'],
     baseCostGas: 1900,
     baseCostElectric: 1600,
+    baseCostHybrid: 3400,
   },
   PROFESSIONAL: {
     tier: 'PROFESSIONAL',
@@ -241,6 +249,7 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     features: ['Dual anode rods', 'High-recovery burner', 'Brass drain valve', 'Commercial-grade thermostat'],
     baseCostGas: 2600,
     baseCostElectric: 2200,
+    baseCostHybrid: 4200,
   },
   PREMIUM: {
     tier: 'PREMIUM',
@@ -250,6 +259,7 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     features: ['Stainless steel tank OR Lifetime warranty', 'Powered anode', 'WiFi monitoring', 'Leak detection'],
     baseCostGas: 3500,
     baseCostElectric: 3000,
+    baseCostHybrid: 5200,
   },
 };
 
@@ -278,6 +288,7 @@ const CONSTANTS = {
   // Sediment Accumulation
   SEDIMENT_FACTOR_GAS: 0.044, 
   SEDIMENT_FACTOR_ELEC: 0.08,
+  SEDIMENT_FACTOR_HYBRID: 0.06,  // NEW v7.3: Heat pumps - lower than electric due to efficiency
   FLUSH_EFFICIENCY: 0.5,  // 50% sediment removal per flush (conservative estimate)
   
   // Limits
@@ -501,9 +512,15 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   const shieldLife = Math.max(0, effectiveShieldDuration - anodeAge);
 
   // 2. SEDIMENT CALCULATION (Needed for stress factor)
-  const sedFactor = data.fuelType === 'ELECTRIC' 
-    ? CONSTANTS.SEDIMENT_FACTOR_ELEC 
-    : CONSTANTS.SEDIMENT_FACTOR_GAS;
+  // NEW v7.3: Added HYBRID fuel type with lower sediment rate
+  let sedFactor: number;
+  if (data.fuelType === 'HYBRID') {
+    sedFactor = CONSTANTS.SEDIMENT_FACTOR_HYBRID;
+  } else if (data.fuelType === 'ELECTRIC') {
+    sedFactor = CONSTANTS.SEDIMENT_FACTOR_ELEC;
+  } else {
+    sedFactor = CONSTANTS.SEDIMENT_FACTOR_GAS;
+  }
   
   // If softener is present, use near-zero hardness (anode sludge only)
   // Softened water removes 95%+ of minerals; remaining sediment is primarily anode byproduct
@@ -767,6 +784,33 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
       urgent: true,
       badgeColor: 'red',
       badge: 'CRITICAL'
+    };
+  }
+
+  // ============================================
+  // TIER 0.5: HYBRID-SPECIFIC FAILURE MODES (NEW v7.3)
+  // ============================================
+  // Filter Clog - Heat pump cannot draw air, compressor damage imminent
+  if (data.fuelType === 'HYBRID' && data.airFilterStatus === 'CLOGGED') {
+    return {
+      action: 'REPAIR',
+      title: 'Filter Clog',
+      reason: 'Clogged air filter is starving the heat pump compressor. Immediate cleaning required to prevent compressor failure.',
+      urgent: true,
+      badgeColor: 'orange',
+      badge: 'SERVICE'
+    };
+  }
+  
+  // Condensate Blockage - water backing up can damage electronics
+  if (data.fuelType === 'HYBRID' && data.isCondensateClear === false) {
+    return {
+      action: 'REPAIR',
+      title: 'Condensate Blockage',
+      reason: 'Condensate drain is blocked. Water backup can damage control board and create mold. Clear drain immediately.',
+      urgent: true,
+      badgeColor: 'orange',
+      badge: 'SERVICE'
     };
   }
 
@@ -1138,9 +1182,19 @@ function getUpgradeTier(currentTier: QualityTier): TierProfile | undefined {
 
 /**
  * NEW v7.2: Calculate tier-aware replacement cost with venting
+ * UPDATED v7.3: Added HYBRID fuel type support
  */
 function calculateTierCost(profile: TierProfile, data: ForensicInputs): number {
-  const baseCost = data.fuelType === 'GAS' ? profile.baseCostGas : profile.baseCostElectric;
+  // Select base cost by fuel type
+  let baseCost: number;
+  if (data.fuelType === 'HYBRID') {
+    baseCost = profile.baseCostHybrid;
+  } else if (data.fuelType === 'GAS') {
+    baseCost = profile.baseCostGas;
+  } else {
+    baseCost = profile.baseCostElectric;
+  }
+  
   const ventAdder = VENT_COST_ADDERS[data.ventType || profile.ventType];
   
   // Location adders
