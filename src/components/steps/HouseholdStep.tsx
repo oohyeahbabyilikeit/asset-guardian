@@ -95,10 +95,7 @@ export function HouseholdStep({
           {usageOptions.map((option) => (
             <button
               key={option.type}
-              onClick={() => {
-                onUsageTypeChange(option.type);
-                setTimeout(() => onNext(), 200);
-              }}
+              onClick={() => onUsageTypeChange(option.type)}
               className={cn(
                 "flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200",
                 usageType === option.type
@@ -126,6 +123,15 @@ export function HouseholdStep({
         </div>
       </div>
 
+      {/* CTA */}
+      <Button
+        onClick={onNext}
+        size="lg"
+        className="w-full h-12 text-base font-medium rounded-lg"
+      >
+        Continue
+        <ChevronRight className="w-5 h-5 ml-2" />
+      </Button>
     </div>
   );
 }
