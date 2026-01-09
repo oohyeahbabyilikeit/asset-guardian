@@ -137,10 +137,11 @@ function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
 }
 
 export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
-  // Calculate all metrics using v6.0 algorithm
+  // Calculate all metrics using v7.2 algorithm
   const opterraResult = calculateOpterraRisk(inputs);
   const { failProb, bioAge, sedimentLbs, shieldLife, stressFactors } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
+  const financial = opterraResult.financial;
 
   // Generate dynamic audit findings based on current inputs
   const auditFindings = generateAuditFindings(inputs, { sedimentLbs, shieldLife, bioAge, stressFactors });
@@ -194,6 +195,23 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
               <div className="text-xs text-muted-foreground">Stress Factor</div>
               <div className="text-lg font-bold font-mono">{stressFactors.total.toFixed(2)}×</div>
               <div className="text-[10px] text-muted-foreground">combined multiplier</div>
+            </div>
+            
+            {/* Tier Detection - v7.2 */}
+            <div className="col-span-2 p-3 rounded-lg bg-primary/5 border border-primary/30 mt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground">Detected Quality Tier</div>
+                  <div className="text-sm font-bold text-primary">{financial.currentTier.tierLabel}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Original Warranty</div>
+                  <div className="text-sm font-bold">{financial.currentTier.warrantyYears} years</div>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
+                Tier based on warranty length and venting type
+              </p>
             </div>
           </div>
           <p className="text-[10px] text-muted-foreground mt-3 italic">

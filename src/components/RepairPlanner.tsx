@@ -248,23 +248,49 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
               </div>
             </div>
 
-            {/* What to Expect Section */}
+            {/* Your Replacement Options - Tier Matching v7.2 */}
             <div className="clean-card mb-4 border-primary/30 bg-primary/5">
               <div className="flex items-center gap-2 mb-3">
                 <Info className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">What to Expect</span>
+                <span className="text-sm font-medium text-foreground">Your Replacement Options</span>
               </div>
               
+              {/* Detected Tier Badge */}
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
+                <span className="text-xs text-muted-foreground">Current Unit:</span>
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+                  {financial.currentTier.tierLabel}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({financial.currentTier.warrantyYears}-yr warranty)
+                </span>
+              </div>
+              
+              {/* Like-for-Like Option */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Estimated Replacement Cost</span>
-                  <span className="font-bold text-foreground">${financial.estReplacementCostMin.toLocaleString()} - ${financial.estReplacementCostMax.toLocaleString()}</span>
+                  <div>
+                    <span className="text-sm font-medium text-foreground">Match Current Quality</span>
+                    <p className="text-xs text-muted-foreground">{financial.currentTier.tierLabel} replacement</p>
+                  </div>
+                  <span className="font-bold text-foreground">${financial.likeForLikeCost.toLocaleString()}</span>
                 </div>
                 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Target Replacement</span>
-                  <span className="font-medium text-foreground">{financial.targetReplacementDate}</span>
-                </div>
+                {/* Upgrade Option (if available) */}
+                {financial.upgradeTier && (
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">Upgrade to {financial.upgradeTier.tierLabel}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">
+                          BETTER VALUE
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{financial.upgradeValueProp}</p>
+                    </div>
+                    <span className="font-bold text-green-400">${financial.upgradeCost?.toLocaleString()}</span>
+                  </div>
+                )}
               </div>
               
               <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50">

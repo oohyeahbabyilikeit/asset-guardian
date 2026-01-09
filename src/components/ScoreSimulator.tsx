@@ -246,12 +246,36 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
                   </p>
                 </div>
 
-                {/* Financial Benefits - Economic Focus */}
+                {/* Tier-Aware Replacement Options - v7.2 */}
                 <div className="clean-card mb-4 border-primary/30 bg-primary/5">
                   <div className="flex items-center gap-2 mb-3">
                     <PiggyBank className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium text-foreground">Financial Benefits</span>
+                    <span className="text-sm font-medium text-foreground">Your Replacement Options</span>
                   </div>
+                  
+                  {/* Detected Tier */}
+                  <div className="mb-4 p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-muted-foreground">Your unit is:</span>
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/20 text-primary">
+                        {financial.currentTier.tierLabel}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Match Quality</span>
+                        <span className="font-medium text-foreground">${financial.likeForLikeCost.toLocaleString()}</span>
+                      </div>
+                      {financial.upgradeTier && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-green-400">Upgrade ({financial.upgradeTier.tierLabel})</span>
+                          <span className="font-medium text-green-400">${financial.upgradeCost?.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <span className="text-primary mt-0.5">✓</span>
@@ -265,13 +289,6 @@ export function ScoreSimulator({ selectedRepairs, onBack, onSchedule, currentInp
                       <div>
                         <span className="text-sm text-foreground font-medium">Schedule on Your Terms</span>
                         <p className="text-xs text-muted-foreground">No emergency pricing or rushed decisions</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-primary mt-0.5">✓</span>
-                      <div>
-                        <span className="text-sm text-foreground font-medium">Estimated Cost: ${financial.estReplacementCostMin.toLocaleString()} - ${financial.estReplacementCostMax.toLocaleString()}</span>
-                        <p className="text-xs text-muted-foreground">Range varies by contractor</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
