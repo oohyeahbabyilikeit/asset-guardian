@@ -1,4 +1,4 @@
-import { Droplet, ChevronRight, Calendar, Wrench } from 'lucide-react';
+import { Droplet, ChevronRight, Calendar, Wrench, Building2, Waves } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -6,9 +6,11 @@ interface SoftenerContextStepProps {
   wasHereWhenMoved: boolean | null;
   installYearsAgo: number | null;
   serviceFrequency: 'professional' | 'diy_salt' | 'never' | 'unknown';
+  waterSource: 'city' | 'well' | null;
   onWasHereChange: (wasHere: boolean | null) => void;
   onInstallYearsChange: (years: number | null) => void;
   onServiceFrequencyChange: (freq: 'professional' | 'diy_salt' | 'never' | 'unknown') => void;
+  onWaterSourceChange: (source: 'city' | 'well') => void;
   onNext: () => void;
 }
 
@@ -32,13 +34,21 @@ const serviceOptions: { label: string; value: ServiceFreq; icon: typeof Wrench }
   { label: 'Never / Not sure', value: 'never', icon: Calendar },
 ];
 
+type WaterSourceType = 'city' | 'well';
+const waterSourceOptions: { label: string; value: WaterSourceType; icon: typeof Building2; description: string }[] = [
+  { label: 'City Water', value: 'city', icon: Building2, description: 'Municipal supply with chlorine treatment' },
+  { label: 'Well Water', value: 'well', icon: Waves, description: 'Private well, may contain iron/sediment' },
+];
+
 export function SoftenerContextStep({
   wasHereWhenMoved,
   installYearsAgo,
   serviceFrequency,
+  waterSource,
   onWasHereChange,
   onInstallYearsChange,
   onServiceFrequencyChange,
+  onWaterSourceChange,
   onNext,
 }: SoftenerContextStepProps) {
   const showInstallQuestion = wasHereWhenMoved === false;
@@ -55,7 +65,58 @@ export function SoftenerContextStep({
         </p>
       </div>
 
-      {/* Question 1: Was it here? */}
+      {/* Question 1: Water Source (most important for algorithm) */}
+      <div className="space-y-3">
+        <label className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Droplet className="w-4 h-4 text-muted-foreground" />
+          What's your water source?
+        </label>
+        
+        <div className="space-y-2">
+          {waterSourceOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => onWaterSourceChange(option.value)}
+              className={cn(
+                "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-200",
+                waterSource === option.value
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-card hover:border-muted-foreground/50"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <option.icon className={cn(
+                  "w-4 h-4",
+                  waterSource === option.value ? "text-primary" : "text-muted-foreground"
+                )} />
+                <div className="text-left">
+                  <span className={cn(
+                    "text-sm font-medium block",
+                    waterSource === option.value ? "text-foreground" : "text-muted-foreground"
+                  )}>
+                    {option.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {option.description}
+                  </span>
+                </div>
+              </div>
+              <div className={cn(
+                "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                waterSource === option.value
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground/30"
+              )}>
+                {waterSource === option.value && (
+                  <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Question 2: Was it here? */}
       <div className="space-y-3">
         <label className="text-sm font-medium text-foreground flex items-center gap-2">
           <Droplet className="w-4 h-4 text-muted-foreground" />

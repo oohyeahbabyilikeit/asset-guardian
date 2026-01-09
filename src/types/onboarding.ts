@@ -31,6 +31,7 @@ export interface OnboardingData {
   softenerWasHereWhenMoved: boolean | null; // null = not sure
   softenerInstallYearsAgo: number | null;   // null if was here when moved
   softenerServiceFrequency: 'professional' | 'diy_salt' | 'never' | 'unknown';
+  waterSource: 'city' | 'well' | null;      // null = not answered yet
   
   // Step 5: Symptoms
   symptoms: Symptoms;
@@ -46,6 +47,7 @@ export const DEFAULT_ONBOARDING_DATA: OnboardingData = {
   softenerWasHereWhenMoved: null,
   softenerInstallYearsAgo: null,
   softenerServiceFrequency: 'unknown',
+  waterSource: null,
   symptoms: {
     notEnoughHotWater: false,
     lukewarmWater: false,
@@ -110,5 +112,8 @@ export function mapOnboardingToSoftenerInputs(
     ...baseInputs,
     people: onboarding.peopleCount,
     ageYears: softenerAge,
+    isCityWater: onboarding.waterSource === 'city',
+    // hardnessGPG: will come from API
+    // hasCarbonFilter: will come from technician inspection
   };
 }
