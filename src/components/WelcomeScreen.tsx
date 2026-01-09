@@ -41,7 +41,7 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
               Your Water Heater Report Is Ready
             </h1>
             <p className="text-muted-foreground text-base leading-relaxed">
-              Your plumber uses Opterra Home — physics-based software that tells you what's actually happening with your equipment. We only recommend action when the math says it matters.
+              Your plumber uses Opterra Home to check if your water heater is healthy. We only tell you to fix things when you really need to.
             </p>
           </div>
 
@@ -54,10 +54,10 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
                 </div>
                 <div>
                   <span className="text-sm font-medium text-foreground block">
-                    Physics, Not Guesswork
+                    Real Math, Not Guessing
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Corrosion rates, thermal stress, failure probability — calculated from real data.
+                    We use real numbers to check your water heater.
                   </span>
                 </div>
               </li>
@@ -67,10 +67,10 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
                 </div>
                 <div>
                   <span className="text-sm font-medium text-foreground block">
-                    No Upsell Incentives
+                    We Don't Make Money From Repairs
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Opterra Home doesn't earn more when you buy more. We recommend action only when safety, health, or economics justify it.
+                    We have no reason to tell you to buy things you don't need.
                   </span>
                 </div>
               </li>
@@ -80,10 +80,10 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
                 </div>
                 <div>
                   <span className="text-sm font-medium text-foreground block">
-                    Your Plumber, On Your Terms
+                    Your Plumber Is Here to Help
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    When something needs attention, we'll explain why — and connect you with the pro who already knows your system.
+                    If something is wrong, we'll tell you why — and your plumber can fix it.
                   </span>
                 </div>
               </li>
@@ -93,7 +93,7 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
           {/* Time estimate */}
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Clock className="w-4 h-4" />
-            <span className="text-sm">2 minutes to review your results</span>
+            <span className="text-sm">Takes about 2 minutes</span>
           </div>
 
           {/* CTA */}
@@ -110,7 +110,7 @@ export function WelcomeScreen({ onBegin }: WelcomeScreenProps) {
           <div className="flex items-start gap-2 p-3 bg-muted/30 rounded-lg border border-border/30">
             <Shield className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              This analysis is based on physics calculations and your plumber's inspection data. For hands-on service, your plumber is ready to help — but only when it makes sense.
+              This report is based on what your plumber found. If you need help, your plumber is ready.
             </p>
           </div>
         </div>
