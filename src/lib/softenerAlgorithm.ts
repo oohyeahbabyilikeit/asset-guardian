@@ -1,7 +1,15 @@
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
- * ║  SOFTENER FORENSIC ALGORITHM v1.0                                         ║
+ * ║  SOFTENER FORENSIC ALGORITHM v1.1                                         ║
  * ║  "The Odometer" — Predicting softener failure from usage, not age         ║
+ * ╠═══════════════════════════════════════════════════════════════════════════╣
+ * ║  CHANGES v1.1:                                                            ║
+ * ║  - ANALOG TIMER FIX: Timer units regen every ~3.5 days regardless of use  ║
+ * ║  - CAPACITY TRAP FIX: 9lbs salt = 75% of rated capacity (0.75 factor)     ║
+ * ║  - SNAKE OIL FIX: RESIN_DETOX only for well water (iron), not city (mush) ║
+ * ║  - IRON DETECTION: visualIron flag accelerates well water resin decay     ║
+ * ║  - VISUAL PROXIES: visualHeight replaces raw capacity input               ║
+ * ║  - SALT WASTE: Analog units apply 1.3x salt waste factor                  ║
  * ╠═══════════════════════════════════════════════════════════════════════════╣
  * ║  Unlike water heaters (catastrophic failure), softeners fail like cars:   ║
  * ║  • Clock A: Valve Seals (Odometer) — Mechanical wear from cycling         ║
@@ -16,12 +24,22 @@
 // TYPES & INTERFACES
 // ─────────────────────────────────────────────────────────────────────────────
 
+export type VisualHeight = 'KNEE' | 'WAIST' | 'CHEST';
+export type ControlHead = 'DIGITAL' | 'ANALOG';
+
 export interface SoftenerInputs {
   ageYears: number;           // How old the unit is
   hardnessGPG: number;        // Water hardness (Grains Per Gallon)
   people: number;             // Household occupancy
   isCityWater: boolean;       // True = Chlorine Risk
   hasCarbonFilter: boolean;   // True = Shield Up (protects resin)
+  
+  // NEW v1.1: Visual Proxies (replaces raw capacity)
+  visualHeight: VisualHeight; // Capacity Proxy: KNEE=24k, WAIST=32k, CHEST=48k
+  controlHead: ControlHead;   // Efficiency Proxy: DIGITAL=metered, ANALOG=timer
+  visualIron: boolean;        // Rust Staining? (Well water iron indicator)
+  
+  // Legacy field (now derived from visualHeight)
   capacity: number;           // Grain capacity (default 32000)
 }
 
@@ -48,6 +66,8 @@ export interface SoftenerMetrics {
   regenIntervalDays: number;
   dailyLoadGrains: number;
   regensPerYear: number;
+  isAnalog: boolean;          // NEW v1.1: Flag for UI display
+  effectiveCapacity: number;  // NEW v1.1: Actual working capacity
 }
 
 export interface SoftenerRecommendation {
@@ -89,17 +109,29 @@ const CONSTANTS = {
   MOTOR_LIMIT: 1500,          // Cycles before replacement
 
   // Clock B: Resin Decay Rates (% per year)
-  CITY_WATER_DECAY: 10.0,     // Chlorine kills resin
-  CITY_WATER_CARBON_DECAY: 5.0, // Carbon filter protects
-  WELL_WATER_DECAY: 12.0,     // Iron/sediment coating
+  CITY_WATER_DECAY: 10.0,         // Chlorine kills resin
+  CITY_WATER_CARBON_DECAY: 5.0,   // Carbon filter protects
+  WELL_WATER_DECAY: 12.0,         // Iron/sediment coating
+  WELL_WATER_IRON_DECAY: 20.0,    // NEW v1.1: Iron staining = faster decay
 
   // Clock C: Salt
   SALT_PER_REGEN_LBS: 9,      // Average lbs per regeneration
   SALT_BAG_LBS: 40,           // Standard bag size
+  ANALOG_WASTE_FACTOR: 1.3,   // NEW v1.1: Timers waste 30% more salt
 
   // Usage
   GALLONS_PER_PERSON_PER_DAY: 75,
-  CAPACITY_SAFETY_FACTOR: 0.9, // Reserve capacity
+  CAPACITY_SAFETY_FACTOR: 0.9,    // Reserve capacity
+  CAPACITY_EFFICIENCY_FACTOR: 0.75, // NEW v1.1: 9lbs salt = 75% of rated
+
+  // NEW v1.1: Timer Logic
+  ANALOG_FIXED_INTERVAL_DAYS: 3.5,  // Analog timers regen every ~3.5 days
+  DIGITAL_MAX_INTERVAL_DAYS: 14,    // Day override prevents bacteria
+
+  // Visual Capacity Mapping
+  CAPACITY_KNEE: 24000,
+  CAPACITY_WAIST: 32000,
+  CAPACITY_CHEST: 48000,
 
   // Service Pricing
   VALVE_REBUILD_COST: 350,
@@ -118,8 +150,24 @@ export const DEFAULT_SOFTENER_INPUTS: SoftenerInputs = {
   people: 3,
   isCityWater: true,
   hasCarbonFilter: false,
-  capacity: 32000,
+  visualHeight: 'WAIST',
+  controlHead: 'DIGITAL',
+  visualIron: false,
+  capacity: 32000, // Legacy field, now derived from visualHeight
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER: Map Visual Height to Capacity
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getRatedCapacity(visualHeight: VisualHeight): number {
+  switch (visualHeight) {
+    case 'KNEE': return CONSTANTS.CAPACITY_KNEE;
+    case 'WAIST': return CONSTANTS.CAPACITY_WAIST;
+    case 'CHEST': return CONSTANTS.CAPACITY_CHEST;
+    default: return CONSTANTS.CAPACITY_WAIST;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN CALCULATION ENGINE
@@ -129,7 +177,7 @@ export function calculateSoftenerHealth(data: SoftenerInputs): SoftenerResult {
   const metrics = calculateMetrics(data);
   const recommendation = generateRecommendation(data, metrics);
   const serviceMenu = generateServiceMenu(data, metrics, recommendation);
-  const saltCalculator = calculateSaltSchedule(metrics);
+  const saltCalculator = calculateSaltSchedule(data, metrics);
 
   return {
     metrics,
@@ -148,15 +196,36 @@ function calculateOdometer(data: SoftenerInputs): {
   daysPerCycle: number;
   regensPerYear: number;
   currentOdometer: number;
+  effectiveCapacity: number;
 } {
+  // --- 1. ESTABLISH CAPACITY (Visual Proxy) ---
+  const ratedCapacity = getRatedCapacity(data.visualHeight);
+  
+  // PHYSICS PATCH v1.1: Effective Capacity
+  // 9lbs salt only regenerates ~75% of rated capacity.
+  // We use the *programmed* capacity to calculate cycles accurately.
+  const effectiveCapacity = ratedCapacity * CONSTANTS.CAPACITY_EFFICIENCY_FACTOR;
+
   // Daily grain load = People × Gallons × Hardness
   const dailyLoad = data.people * CONSTANTS.GALLONS_PER_PERSON_PER_DAY * data.hardnessGPG;
   
   // Safety check to prevent divide by zero
   const safeLoad = Math.max(dailyLoad, 1);
   
-  // Days between regenerations (with safety factor)
-  const daysPerCycle = (data.capacity * CONSTANTS.CAPACITY_SAFETY_FACTOR) / safeLoad;
+  // --- 2. CALCULATE INTERVAL (With Timer Logic) ---
+  // A. Theoretical (Metered) Interval
+  let daysPerCycle = (effectiveCapacity * CONSTANTS.CAPACITY_SAFETY_FACTOR) / safeLoad;
+
+  // B. Physics Corrections based on control head type
+  if (data.controlHead === 'ANALOG') {
+    // ANALOG PATCH v1.1: Timers are dumb. They regen every ~3.5 days.
+    // Regardless of actual water usage
+    daysPerCycle = CONSTANTS.ANALOG_FIXED_INTERVAL_DAYS;
+  } else {
+    // DIGITAL PATCH v1.1: Day override prevents bacteria (Max 14 days)
+    // Even if water usage is low, modern units regen at least every 2 weeks
+    daysPerCycle = Math.min(daysPerCycle, CONSTANTS.DIGITAL_MAX_INTERVAL_DAYS);
+  }
   
   // Regenerations per year
   const regensPerYear = 365 / daysPerCycle;
@@ -169,6 +238,7 @@ function calculateOdometer(data: SoftenerInputs): {
     daysPerCycle,
     regensPerYear,
     currentOdometer,
+    effectiveCapacity,
   };
 }
 
@@ -180,14 +250,17 @@ function calculateResinHealth(data: SoftenerInputs): number {
   let decayRate: number;
 
   if (data.isCityWater) {
-    // Chlorine kills resin. Carbon blocks Chlorine.
+    // Chlorine kills resin via oxidation (Mush). Carbon blocks Chlorine.
     // No Carbon = 10% rot/year. With Carbon = 5% rot/year.
     decayRate = data.hasCarbonFilter 
       ? CONSTANTS.CITY_WATER_CARBON_DECAY 
       : CONSTANTS.CITY_WATER_DECAY;
   } else {
-    // Well Water (Iron/Sediment) - 12% decay/year
-    decayRate = CONSTANTS.WELL_WATER_DECAY;
+    // Well Water - Check for iron staining
+    // NEW v1.1: If Iron is present, it coats resin much faster
+    decayRate = data.visualIron 
+      ? CONSTANTS.WELL_WATER_IRON_DECAY 
+      : CONSTANTS.WELL_WATER_DECAY;
   }
 
   // Resin health degrades linearly with age
@@ -200,15 +273,21 @@ function calculateResinHealth(data: SoftenerInputs): number {
 // CLOCK C: THE FUEL (Salt)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function calculateSaltUsage(daysPerCycle: number): number {
+function calculateSaltUsage(data: SoftenerInputs, daysPerCycle: number): number {
   // Lbs per month = (30 days / days per cycle) × lbs per regen
   const regensPerMonth = 30 / daysPerCycle;
-  const lbsPerMonth = regensPerMonth * CONSTANTS.SALT_PER_REGEN_LBS;
+  
+  // NEW v1.1: Timers waste salt. Apply waste factor to analog units.
+  const wasteFactor = data.controlHead === 'ANALOG' 
+    ? CONSTANTS.ANALOG_WASTE_FACTOR 
+    : 1.0;
+  
+  const lbsPerMonth = regensPerMonth * CONSTANTS.SALT_PER_REGEN_LBS * wasteFactor;
   
   return lbsPerMonth;
 }
 
-function calculateSaltSchedule(metrics: SoftenerMetrics): SaltCalculator {
+function calculateSaltSchedule(data: SoftenerInputs, metrics: SoftenerMetrics): SaltCalculator {
   const burnRate = metrics.saltUsageLbsPerMonth;
   
   // Assume 120 lbs tank capacity (3 bags worth)
@@ -233,7 +312,7 @@ function calculateSaltSchedule(metrics: SoftenerMetrics): SaltCalculator {
 function calculateMetrics(data: SoftenerInputs): SoftenerMetrics {
   const odometer = calculateOdometer(data);
   const resinHealth = calculateResinHealth(data);
-  const saltUsage = calculateSaltUsage(odometer.daysPerCycle);
+  const saltUsage = calculateSaltUsage(data, odometer.daysPerCycle);
 
   return {
     odometer: Math.round(odometer.currentOdometer),
@@ -242,6 +321,8 @@ function calculateMetrics(data: SoftenerInputs): SoftenerMetrics {
     regenIntervalDays: Math.round(odometer.daysPerCycle * 10) / 10,
     dailyLoadGrains: Math.round(odometer.dailyLoad),
     regensPerYear: Math.round(odometer.regensPerYear),
+    isAnalog: data.controlHead === 'ANALOG',
+    effectiveCapacity: Math.round(odometer.effectiveCapacity),
   };
 }
 
@@ -257,37 +338,50 @@ function generateRecommendation(
   let badge: SoftenerBadge = 'HEALTHY';
   let reason = 'System cycling normally.';
 
-  // Rule A: Resin Failure (Mush) — HIGHEST PRIORITY
+  // Precalculate daily load for efficiency check
+  const dailyLoad = data.people * CONSTANTS.GALLONS_PER_PERSON_PER_DAY * data.hardnessGPG;
+
+  // Rule A: Resin Failure (Mush/Iron) — HIGHEST PRIORITY
   if (metrics.resinHealth < 40) {
     action = 'REBED_OR_REPLACE';
     badge = 'RESIN_FAILURE';
-    reason = data.isCityWater && !data.hasCarbonFilter
-      ? 'Chlorine oxidation has destroyed resin beads (Mush). Capacity lost.'
-      : 'Resin bed life exceeded. Salt is being wasted.';
+    // NEW v1.1: Different messaging based on water source
+    reason = data.isCityWater
+      ? 'Chlorine has turned resin to mush (Irreversible).'
+      : 'Iron fouling has suffocated the resin bed.';
   }
   // Rule B: Motor/Body End of Life
   else if (metrics.odometer > CONSTANTS.MOTOR_LIMIT) {
     action = 'REPLACE_UNIT';
     badge = 'MECHANICAL_FAILURE';
-    reason = 'Valve motor and body wear exceed cost-to-repair.';
+    reason = 'Valve motor wear exceeds repair value.';
   }
   // Rule C: Seal Failure (Maintenance)
   else if (metrics.odometer > CONSTANTS.SEAL_LIMIT) {
     action = 'VALVE_REBUILD';
     badge = 'SEAL_WEAR';
-    reason = `Odometer reads ${metrics.odometer} cycles. Piston seals likely leaking.`;
+    reason = `Odometer: ${metrics.odometer} cycles. Seals likely leaking.`;
   }
   // Rule D: Resin Degraded (Detox opportunity)
-  else if (metrics.resinHealth < 75 && metrics.resinHealth >= 40) {
+  // SNAKE OIL FIX v1.1: Only trigger RESIN_DETOX for Well Water!
+  // Chlorine damage (city water) cannot be fixed by phosphoric acid cleaners.
+  // Detox only works by stripping Iron buildup.
+  else if (metrics.resinHealth < 75 && metrics.resinHealth >= 40 && !data.isCityWater) {
     action = 'RESIN_DETOX';
     badge = 'RESIN_DEGRADED';
-    reason = 'Resin beads are coated in mineral buildup. Chemical detox can restore flow.';
+    reason = 'Iron buildup detected. Chemical detox needed.';
   }
-  // Rule E: Undersized (Inefficient)
-  else if (metrics.regenIntervalDays < 3.0) {
+  // Rule E: High Waste (The "Analog" Upgrade or Undersized)
+  // NEW v1.1: Catch analog units that are wasting salt
+  else if (
+    metrics.regenIntervalDays < 3.0 || 
+    (data.controlHead === 'ANALOG' && dailyLoad < 3000)
+  ) {
     action = 'UPGRADE_EFFICIENCY';
     badge = 'HIGH_WASTE';
-    reason = 'Unit regenerating every 2 days. Wasting water and salt.';
+    reason = data.controlHead === 'ANALOG'
+      ? 'Unit regenerates based on Time, not Usage. Wasting salt.'
+      : 'Unit regenerating every 2 days. Wasting water and salt.';
   }
 
   return { action, badge, reason };
@@ -316,14 +410,14 @@ function generateServiceMenu(
     });
   }
 
-  // Resin Detox
-  if (metrics.resinHealth >= 40 && metrics.resinHealth < 75) {
+  // Resin Detox - ONLY for well water (v1.1 Snake Oil Fix)
+  if (metrics.resinHealth >= 40 && metrics.resinHealth < 75 && !data.isCityWater) {
     menu.push({
       id: 'resin-detox',
       name: 'Resin Detox',
-      trigger: 'Resin Health 40-75%',
+      trigger: 'Iron Buildup (Well Water)',
       price: CONSTANTS.RESIN_DETOX_COST,
-      pitch: 'Your resin beads are coated in city grime. A chemical detox restores factory flow rates.',
+      pitch: 'Your resin beads are coated in iron deposits. A phosphoric acid detox strips the iron and restores exchange capacity.',
       priority: recommendation.action === 'RESIN_DETOX' ? 'critical' : 'recommended',
     });
   }
@@ -335,7 +429,9 @@ function generateServiceMenu(
       name: 'Resin Re-Bed',
       trigger: 'Resin Health < 50%',
       price: CONSTANTS.RESIN_REBED_COST,
-      pitch: 'Your resin has lost over half its capacity. The unit burns salt but doesn\'t soften water. Fresh resin restores full performance.',
+      pitch: data.isCityWater
+        ? 'Chlorine has destroyed your resin (Mush). Fresh resin is the only fix.'
+        : 'Iron fouling has exceeded what detox can fix. Fresh resin restores full performance.',
       priority: recommendation.action === 'REBED_OR_REPLACE' ? 'critical' : 'recommended',
     });
   }
@@ -349,6 +445,18 @@ function generateServiceMenu(
       price: 299,
       pitch: 'City chlorine is cutting your resin life in half. A carbon filter doubles the lifespan of your softener.',
       priority: metrics.resinHealth < 60 ? 'critical' : 'optional',
+    });
+  }
+
+  // Digital Upgrade (for analog units)
+  if (data.controlHead === 'ANALOG') {
+    menu.push({
+      id: 'digital-upgrade',
+      name: 'Digital Control Head',
+      trigger: 'Analog timer wasting salt',
+      price: 450,
+      pitch: 'Your timer regenerates every 3.5 days regardless of usage. A digital head regenerates on-demand, cutting salt use by 30%.',
+      priority: recommendation.action === 'UPGRADE_EFFICIENCY' ? 'critical' : 'recommended',
     });
   }
 
@@ -379,9 +487,16 @@ export function estimateSoftenerLifespan(data: SoftenerInputs): {
   const odometer = calculateOdometer(data);
   
   // Resin death: when resinHealth hits 40%
-  const resinDecayRate = data.isCityWater
-    ? (data.hasCarbonFilter ? CONSTANTS.CITY_WATER_CARBON_DECAY : CONSTANTS.CITY_WATER_DECAY)
-    : CONSTANTS.WELL_WATER_DECAY;
+  let resinDecayRate: number;
+  if (data.isCityWater) {
+    resinDecayRate = data.hasCarbonFilter 
+      ? CONSTANTS.CITY_WATER_CARBON_DECAY 
+      : CONSTANTS.CITY_WATER_DECAY;
+  } else {
+    resinDecayRate = data.visualIron 
+      ? CONSTANTS.WELL_WATER_IRON_DECAY 
+      : CONSTANTS.WELL_WATER_DECAY;
+  }
   const resinDeathYears = (100 - 40) / resinDecayRate; // Years until 40% health
 
   // Mechanical death: when odometer hits MOTOR_LIMIT
@@ -411,13 +526,14 @@ export function compareHardnessImpact(
   compareRegensPerYear: number;
   agingMultiplier: number;
 } {
-  const capacity = 32000;
+  // Use effective capacity (v1.1 fix)
+  const effectiveCapacity = CONSTANTS.CAPACITY_WAIST * CONSTANTS.CAPACITY_EFFICIENCY_FACTOR;
   
   const baseLoad = people * CONSTANTS.GALLONS_PER_PERSON_PER_DAY * baseGPG;
   const compareLoad = people * CONSTANTS.GALLONS_PER_PERSON_PER_DAY * compareGPG;
   
-  const baseDays = (capacity * 0.9) / baseLoad;
-  const compareDays = (capacity * 0.9) / compareLoad;
+  const baseDays = (effectiveCapacity * CONSTANTS.CAPACITY_SAFETY_FACTOR) / baseLoad;
+  const compareDays = (effectiveCapacity * CONSTANTS.CAPACITY_SAFETY_FACTOR) / compareLoad;
   
   const baseRegens = 365 / baseDays;
   const compareRegens = 365 / compareDays;
