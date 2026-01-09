@@ -98,29 +98,49 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
       <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
 
-      <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-4 px-4">
-        <div className="flex items-center justify-between max-w-md mx-auto">
-          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      {/* Minimal Header */}
+      <header className="relative bg-card/80 backdrop-blur-xl border-b border-border py-3 px-4">
+        <div className="flex items-center max-w-md mx-auto">
+          <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-foreground">Maintenance Options</h1>
-          <div className="w-10" />
         </div>
       </header>
 
       <div className="relative p-4 max-w-md mx-auto pb-32">
-        <div className="mb-4 p-4 rounded-xl bg-card border border-border">
+        {/* Warm Intro */}
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-semibold text-foreground">Here's what needs attention</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            A few targeted repairs can make a real difference
+          </p>
+        </div>
+
+        {/* Health Score Card */}
+        <div className="mb-6 p-4 rounded-xl bg-card border border-border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Current Health Score</p>
+              <p className="text-sm text-muted-foreground">Current Health</p>
               <p className="text-3xl font-bold text-foreground">{animatedNewScore}</p>
             </div>
             {selectedRepairs.length > 0 && (
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">After Repairs</p>
-                <p className="text-lg font-semibold text-green-500">+{result.newScore - currentScore} pts</p>
+                <p className="text-lg font-semibold text-emerald-500">+{result.newScore - currentScore} pts</p>
               </div>
             )}
+          </div>
+          
+          {/* Health Bar */}
+          <div className="h-2 bg-muted rounded-full overflow-hidden mt-3">
+            <div 
+              className={`h-full rounded-full transition-all ${
+                animatedNewScore >= 70 ? 'bg-emerald-500' :
+                animatedNewScore >= 50 ? 'bg-amber-500' :
+                'bg-orange-500'
+              }`}
+              style={{ width: `${animatedNewScore}%` }}
+            />
           </div>
         </div>
 
@@ -246,7 +266,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border">
           <div className="max-w-md mx-auto">
             <Button onClick={() => onSchedule(selectedRepairs)} className="w-full h-14 text-base font-semibold">
-              Schedule These Repairs
+              Let's Get This Done
             </Button>
           </div>
         </div>
