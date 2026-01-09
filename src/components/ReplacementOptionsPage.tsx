@@ -139,18 +139,14 @@ export function ReplacementOptionsPage({
                 className={cn(
                   'w-full text-left rounded-2xl border-2 transition-all duration-200 overflow-hidden',
                   isSelected 
-                    ? isSafetyReplacement 
-                      ? 'border-destructive bg-destructive/5' 
-                      : 'border-primary bg-primary/5'
+                    ? 'border-primary bg-primary/5'
                     : isRecommended
                       ? 'border-primary/40 bg-card/50 hover:border-primary/60'
                       : 'border-border bg-card/50 hover:border-muted-foreground/50'
                 )}
                 style={{
                   boxShadow: isSelected 
-                    ? isSafetyReplacement
-                      ? '0 0 24px -4px rgba(239, 68, 68, 0.25)'
-                      : '0 0 24px -4px hsl(var(--primary) / 0.25)'
+                    ? '0 0 24px -4px hsl(var(--primary) / 0.25)'
                     : undefined,
                 }}
               >
@@ -174,9 +170,7 @@ export function ReplacementOptionsPage({
                       <div className={cn(
                         'w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0',
                         isSelected 
-                          ? isSafetyReplacement
-                            ? 'border-destructive bg-destructive'
-                            : 'border-primary bg-primary'
+                          ? 'border-primary bg-primary'
                           : 'border-muted-foreground/30'
                       )}>
                         {isSelected && <Check className="w-4 h-4 text-white" />}
@@ -197,9 +191,7 @@ export function ReplacementOptionsPage({
                         <div>
                           <span className={cn(
                             'text-xl font-bold',
-                            isSelected 
-                              ? isSafetyReplacement ? 'text-destructive' : 'text-primary'
-                              : 'text-foreground'
+                            isSelected ? 'text-primary' : 'text-foreground'
                           )}>
                             ${displayPrice.toLocaleString()}
                           </span>
