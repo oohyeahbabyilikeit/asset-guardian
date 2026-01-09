@@ -1,7 +1,7 @@
-import React from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, XCircle, Wrench, Droplets, Gauge, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { Activity, ChevronDown, Gauge, Droplets, Zap, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface SoftenerHealthGaugeProps {
   resinHealth: number;
@@ -9,58 +9,41 @@ interface SoftenerHealthGaugeProps {
   action: string;
   badge: string;
   reason: string;
+  saltLevelPercent?: number;
+  isCityWater?: boolean;
+  hasCarbonFilter?: boolean;
 }
 
-const badgeConfig: Record<string, { 
-  icon: React.ElementType; 
-  color: string; 
-  bgColor: string;
-  borderColor: string;
+interface StressFactorItemProps {
+  icon: React.ElementType;
   label: string;
-}> = {
-  HEALTHY: {
-    icon: CheckCircle,
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/10',
-    borderColor: 'border-green-500/30',
-    label: 'Healthy',
-  },
-  SEAL_WEAR: {
-    icon: Wrench,
-    color: 'text-yellow-400',
-    bgColor: 'bg-yellow-500/10',
-    borderColor: 'border-yellow-500/30',
-    label: 'Seal Wear',
-  },
-  RESIN_FAILURE: {
-    icon: Droplets,
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
-    label: 'Resin Failure',
-  },
-  MECHANICAL_FAILURE: {
-    icon: XCircle,
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
-    label: 'Mechanical Failure',
-  },
-  HIGH_WASTE: {
-    icon: Zap,
-    color: 'text-orange-400',
-    bgColor: 'bg-orange-500/10',
-    borderColor: 'border-orange-500/30',
-    label: 'High Waste',
-  },
-  RESIN_DEGRADED: {
-    icon: AlertTriangle,
-    color: 'text-yellow-400',
-    bgColor: 'bg-yellow-500/10',
-    borderColor: 'border-yellow-500/30',
-    label: 'Resin Degraded',
-  },
-};
+  value: string;
+  status: 'optimal' | 'warning' | 'critical';
+}
+
+function StressFactorItem({ icon: Icon, label, value, status }: StressFactorItemProps) {
+  return (
+    <div className="flex items-center justify-between py-1.5">
+      <div className="flex items-center gap-2">
+        <Icon className={cn(
+          "w-3.5 h-3.5",
+          status === 'critical' ? "text-red-400" : 
+          status === 'warning' ? "text-amber-400" : 
+          "text-muted-foreground"
+        )} />
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+      <span className={cn(
+        "text-xs font-mono font-medium",
+        status === 'critical' ? "text-red-400" : 
+        status === 'warning' ? "text-amber-400" : 
+        "text-muted-foreground"
+      )}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 export function SoftenerHealthGauge({
   resinHealth,
@@ -68,105 +51,251 @@ export function SoftenerHealthGauge({
   action,
   badge,
   reason,
+  saltLevelPercent = 75,
+  isCityWater = true,
+  hasCarbonFilter = false,
 }: SoftenerHealthGaugeProps) {
-  const config = badgeConfig[badge] || badgeConfig.HEALTHY;
-  const Icon = config.icon;
+  const [isOpen, setIsOpen] = useState(false);
 
   // Calculate overall score (weighted average)
   const odometerScore = Math.max(0, 100 - (odometer / 15)); // 0 at 1500 cycles
   const overallScore = Math.round((resinHealth * 0.6) + (odometerScore * 0.4));
 
-  // Determine ring color based on score
-  const getRingColor = () => {
-    if (overallScore >= 70) return '#22c55e';
-    if (overallScore >= 40) return '#f59e0b';
-    return '#ef4444';
+  // Determine status
+  const getStatus = () => {
+    if (overallScore >= 70) return 'optimal';
+    if (overallScore >= 40) return 'warning';
+    return 'critical';
   };
 
-  const circumference = 2 * Math.PI * 45;
-  const strokeDashoffset = circumference - (overallScore / 100) * circumference;
+  const status = getStatus();
+
+  const getResinStatus = () => {
+    if (resinHealth >= 75) return 'optimal';
+    if (resinHealth >= 40) return 'warning';
+    return 'critical';
+  };
+
+  const getOdometerStatus = () => {
+    if (odometer < 600) return 'optimal';
+    if (odometer < 1500) return 'warning';
+    return 'critical';
+  };
+
+  const getSaltStatus = () => {
+    if (saltLevelPercent >= 50) return 'optimal';
+    if (saltLevelPercent >= 25) return 'warning';
+    return 'critical';
+  };
+
+  // Intelligent status message
+  const getIntelligentStatus = (): { message: string; severity: 'critical' | 'warning' | 'info' | 'good' } => {
+    // Check for chlorine attack
+    if (isCityWater && !hasCarbonFilter && resinHealth < 60) {
+      return { message: 'Chlorine Killing Resin', severity: 'warning' };
+    }
+
+    // Critical conditions
+    if (badge === 'RESIN_FAILURE' || badge === 'MECHANICAL_FAILURE') {
+      return { message: 'Replace Unit', severity: 'critical' };
+    }
+
+    if (resinHealth < 25) {
+      return { message: 'Resin Exhausted', severity: 'critical' };
+    }
+
+    if (odometer >= 1500) {
+      return { message: 'Seals Worn Out', severity: 'critical' };
+    }
+
+    // Warning conditions
+    if (saltLevelPercent < 25) {
+      return { message: 'Salt Running Low', severity: 'warning' };
+    }
+
+    if (resinHealth < 50) {
+      return { message: 'Resin Degrading', severity: 'warning' };
+    }
+
+    if (odometer >= 600) {
+      return { message: 'Valve Service Due', severity: 'warning' };
+    }
+
+    if (badge === 'SEAL_WEAR' || badge === 'RESIN_DEGRADED') {
+      return { message: 'Monitor Closely', severity: 'info' };
+    }
+
+    // Good conditions
+    return { message: 'Running Strong', severity: 'good' };
+  };
+
+  const intelligentStatus = getIntelligentStatus();
+
+  const getRingColor = () => {
+    if (status === 'critical') return 'hsl(0 55% 48%)';
+    if (status === 'warning') return 'hsl(32 65% 48%)';
+    return 'hsl(158 45% 42%)';
+  };
+
+  const getStatusColor = () => {
+    if (status === 'critical') return 'text-red-400';
+    if (status === 'warning') return 'text-amber-400';
+    return 'text-emerald-400';
+  };
 
   return (
-    <Card className={`p-6 ${config.bgColor} border ${config.borderColor}`}>
-      <div className="flex items-center gap-6">
-        {/* Circular Gauge */}
-        <div className="relative flex-shrink-0">
-          <svg width="120" height="120" viewBox="0 0 120 120">
-            {/* Background ring */}
-            <circle
-              cx="60"
-              cy="60"
-              r="45"
-              fill="none"
-              stroke="hsl(var(--muted))"
-              strokeWidth="10"
-              opacity="0.3"
-            />
-            {/* Progress ring */}
-            <circle
-              cx="60"
-              cy="60"
-              r="45"
-              fill="none"
-              stroke={getRingColor()}
-              strokeWidth="10"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              transform="rotate(-90 60 60)"
-              className="transition-all duration-700"
-            />
-            {/* Center score */}
-            <text
-              x="60"
-              y="55"
-              textAnchor="middle"
-              fill="currentColor"
-              className="text-3xl font-bold"
-            >
-              {overallScore}
-            </text>
-            <text
-              x="60"
-              y="75"
-              textAnchor="middle"
-              fill="hsl(var(--muted-foreground))"
-              className="text-xs"
-            >
-              SCORE
-            </text>
-          </svg>
-        </div>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className={cn(
+        "command-card overflow-hidden",
+        status === 'critical' && "border-red-500/40",
+        status === 'warning' && "border-amber-500/40"
+      )}>
+        {/* Status gradient bar at top */}
+        <div className={cn(
+          "absolute top-0 left-0 right-0 h-1",
+          status === 'critical' && "bg-gradient-to-r from-red-500/60 via-red-400/80 to-red-500/60",
+          status === 'warning' && "bg-gradient-to-r from-amber-500/60 via-amber-400/80 to-amber-500/60",
+          status === 'optimal' && "bg-gradient-to-r from-emerald-500/60 via-emerald-400/80 to-emerald-500/60"
+        )} />
+        
+        <CollapsibleTrigger className="w-full p-3 text-left">
+          {/* Header with Score */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <div className={cn(
+                "w-6 h-6 rounded-lg flex items-center justify-center",
+                status === 'critical' && "bg-gradient-to-br from-red-500/25 to-red-600/15 border border-red-500/30",
+                status === 'warning' && "bg-gradient-to-br from-amber-500/25 to-amber-600/15 border border-amber-500/30",
+                status === 'optimal' && "bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 border border-emerald-500/30"
+              )}>
+                <Activity className={cn(
+                  "w-3.5 h-3.5",
+                  status === 'critical' && "text-red-400",
+                  status === 'warning' && "text-amber-400",
+                  status === 'optimal' && "text-emerald-400"
+                )} />
+              </div>
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
+                System Health
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className={cn("text-lg font-bold font-data", getStatusColor())}>
+                  {overallScore}
+                </span>
+                <span className="text-[8px] text-muted-foreground">/100</span>
+              </div>
+              <ChevronDown className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                isOpen && "rotate-180"
+              )} />
+            </div>
+          </div>
 
-        {/* Status Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <Icon className={`h-5 w-5 ${config.color}`} />
-            <Badge variant="outline" className={`${config.color} border-current`}>
-              {config.label}
-            </Badge>
-          </div>
-          
-          <p className="text-sm text-foreground font-medium mb-1">
-            {reason}
-          </p>
-          
-          <div className="flex gap-4 mt-3">
-            <div className="text-xs">
-              <span className="text-muted-foreground">Resin: </span>
-              <span className={resinHealth >= 50 ? 'text-green-400' : 'text-red-400'}>
-                {resinHealth}%
-              </span>
+          {/* Health Bar */}
+          <div className="relative h-3.5 rounded-full bg-secondary/60 overflow-hidden mb-2">
+            {/* Background texture */}
+            <div className="absolute inset-0 opacity-30">
+              {[...Array(20)].map((_, i) => (
+                <div key={i} className="absolute w-px h-full bg-background/30" style={{ left: `${i * 5}%` }} />
+              ))}
             </div>
-            <div className="text-xs">
-              <span className="text-muted-foreground">Cycles: </span>
-              <span className={odometer < 600 ? 'text-green-400' : odometer < 1500 ? 'text-yellow-400' : 'text-red-400'}>
-                {odometer.toLocaleString()}
-              </span>
-            </div>
+            
+            <div 
+              className={cn(
+                "absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out",
+                status === 'critical' && "bg-gradient-to-r from-red-600 via-red-500 to-red-400",
+                status === 'warning' && "bg-gradient-to-r from-amber-600 via-amber-500 to-amber-400",
+                status === 'optimal' && "bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400"
+              )}
+              style={{ 
+                width: `${overallScore}%`,
+                boxShadow: `0 0 16px ${getRingColor()}50, inset 0 1px 0 rgba(255,255,255,0.2)`
+              }}
+            />
           </div>
-        </div>
+
+          {/* Status Label */}
+          <div className={cn(
+            "text-[10px] font-bold uppercase tracking-wider text-center px-3 py-1 rounded-full w-fit mx-auto",
+            intelligentStatus.severity === 'critical' ? "bg-red-500/15 text-red-400 border border-red-500/20" :
+            intelligentStatus.severity === 'warning' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
+            intelligentStatus.severity === 'info' ? "bg-blue-500/15 text-blue-400 border border-blue-500/20" :
+            "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+          )}>
+            {intelligentStatus.message}
+          </div>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/30">
+            {/* Component Status Breakdown */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Component Status
+                </span>
+              </div>
+              <div className="bg-secondary/20 rounded-lg p-2 space-y-0.5">
+                <StressFactorItem 
+                  icon={Droplets} 
+                  label="Resin Bed Health" 
+                  value={`${resinHealth}%`}
+                  status={getResinStatus()}
+                />
+                <StressFactorItem 
+                  icon={Gauge} 
+                  label="Valve Odometer" 
+                  value={`${odometer.toLocaleString()} cycles`}
+                  status={getOdometerStatus()}
+                />
+                <StressFactorItem 
+                  icon={Zap} 
+                  label="Salt Level" 
+                  value={`${saltLevelPercent}%`}
+                  status={getSaltStatus()}
+                />
+                
+                {/* Chlorine exposure warning */}
+                {isCityWater && !hasCarbonFilter && (
+                  <div className="flex items-center justify-between py-1.5 border-t border-border/20 mt-1">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                      <span className="text-xs text-muted-foreground">Chlorine Exposure</span>
+                    </div>
+                    <span className="text-xs font-mono text-red-400">
+                      UNPROTECTED
+                    </span>
+                  </div>
+                )}
+                
+                {hasCarbonFilter && (
+                  <div className="flex items-center justify-between py-1.5 border-t border-border/20 mt-1">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-xs text-muted-foreground">Chlorine Protection</span>
+                    </div>
+                    <span className="text-xs font-mono text-emerald-400">
+                      ACTIVE
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recommendation */}
+            {reason && (
+              <div className="bg-secondary/20 rounded-lg p-2">
+                <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Assessment
+                </div>
+                <p className="text-xs text-foreground">{reason}</p>
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
       </div>
-    </Card>
+    </Collapsible>
   );
 }
