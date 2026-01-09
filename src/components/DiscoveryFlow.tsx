@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Droplets, Gauge, Shield, Thermometer, AlertTriangle, CheckCircle2, Info, Zap, AlertOctagon, XCircle, Flame, Battery } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -391,20 +391,17 @@ function UnitProfileStep({ asset, inputs, metrics }: { asset: AssetData; inputs:
   );
 }
 
-// Step 2: Observations (one at a time)
+// Step 2: Observations (auto-carousel)
 function ObservationsStep({ 
   observations, 
-  currentIndex, 
-  onNext, 
-  onPrev,
-  isLast 
+  onComplete 
 }: { 
   observations: Observation[]; 
-  currentIndex: number;
-  onNext: () => void;
-  onPrev: () => void;
-  isLast: boolean;
+  onComplete: () => void;
 }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  
   const obs = observations[currentIndex];
   
   const statusColors = {
@@ -413,75 +410,110 @@ function ObservationsStep({
     concern: 'text-red-500 bg-red-500/10 border-red-500/20',
   };
 
+  // Auto-advance carousel
+  useEffect(() => {
+    if (isPaused) return;
+    
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => {
+        if (prev >= observations.length - 1) {
+          // Auto-complete after showing all
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 4000); // 4 seconds per card
+
+    return () => clearInterval(timer);
+  }, [isPaused, observations.length]);
+
+  // Check if we've seen all observations
+  const hasSeenAll = currentIndex >= observations.length - 1;
+
   return (
-    <div className="space-y-6">
+    <div 
+      className="space-y-6"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={() => setIsPaused(true)}
+      onTouchEnd={() => setIsPaused(false)}
+    >
       <div className="text-center space-y-2">
         <h2 className="text-xl font-semibold text-foreground">What We Measured</h2>
         <p className="text-sm text-muted-foreground">
-          Observation {currentIndex + 1} of {observations.length}
+          {isPaused ? 'Paused — tap outside to resume' : `Observation ${currentIndex + 1} of ${observations.length}`}
         </p>
       </div>
 
-      {/* Progress dots */}
+      {/* Progress bar */}
       <div className="flex items-center justify-center gap-1.5">
         {observations.map((_, i) => (
-          <div
+          <button
             key={i}
+            onClick={() => setCurrentIndex(i)}
             className={cn(
-              "w-1.5 h-1.5 rounded-full transition-all",
-              i === currentIndex ? "w-4 bg-primary" : i < currentIndex ? "bg-primary/50" : "bg-muted"
+              "h-1.5 rounded-full transition-all cursor-pointer hover:opacity-80",
+              i === currentIndex ? "w-6 bg-primary" : i < currentIndex ? "w-3 bg-primary/50" : "w-3 bg-muted"
             )}
           />
         ))}
       </div>
 
-      {/* Observation card */}
-      <Card className={cn("p-5 border-2", statusColors[obs.status])}>
-        <div className="flex items-start gap-4">
-          <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-            statusColors[obs.status]
-          )}>
-            {obs.icon}
+      {/* Observation card with animation */}
+      <div className="relative overflow-hidden">
+        <Card 
+          key={obs.id}
+          className={cn("p-5 border-2 animate-fade-in", statusColors[obs.status])}
+        >
+          <div className="flex items-start gap-4">
+            <div className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
+              statusColors[obs.status]
+            )}>
+              {obs.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-foreground">{obs.title}</h3>
+              <p className="text-2xl font-bold mt-1">{obs.yourValue}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground">{obs.title}</h3>
-            <p className="text-2xl font-bold mt-1">{obs.yourValue}</p>
-          </div>
-        </div>
 
-        <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <Info className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Industry benchmark:</span>
-            <span className="font-medium">{obs.benchmark}</span>
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Industry benchmark:</span>
+              <span className="font-medium">{obs.benchmark}</span>
+            </div>
+            
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {obs.explanation}
+            </p>
           </div>
           
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {obs.explanation}
-          </p>
-        </div>
-      </Card>
+          {/* Progress indicator on card */}
+          {!isPaused && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/30">
+              <div 
+                className="h-full bg-primary/50 animate-progress"
+                style={{ animationDuration: '4s' }}
+              />
+            </div>
+          )}
+        </Card>
+      </div>
 
-      {/* Navigation within observations */}
+      {/* Navigation hint + Continue */}
       <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Tap dots to jump • Hover to pause
+        </p>
         <Button
-          variant="ghost"
+          variant={hasSeenAll ? "default" : "ghost"}
           size="sm"
-          onClick={onPrev}
-          disabled={currentIndex === 0}
+          onClick={onComplete}
           className="gap-1"
         >
-          <ChevronLeft className="w-4 h-4" />
-          Previous
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onNext}
-          className="gap-1"
-        >
-          {isLast ? 'Continue' : 'Next'}
+          {hasSeenAll ? 'Continue' : 'Skip'}
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
@@ -685,8 +717,34 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
   // Determine if we need to show urgent alert first
   const needsUrgentAlert = verdict.action === 'REPLACE' || inputs.isLeaking || inputs.visualRust;
   
-  // Build observations list
+  // Build observations list - breach/leak first if detected
   const observations: Observation[] = [];
+
+  // BREACH DETECTION - Show first if detected
+  if (inputs.isLeaking) {
+    observations.push({
+      id: 'breach',
+      icon: <AlertTriangle className="w-6 h-6" />,
+      title: 'Active Leak Detected',
+      yourValue: 'Immediate Attention',
+      benchmark: 'No leaks acceptable',
+      explanation: 'Water around your heater indicates tank failure or component leak. This is a priority safety concern that requires immediate professional inspection.',
+      status: 'concern',
+    });
+  }
+
+  // Visual rust - show early if present
+  if (inputs.visualRust) {
+    observations.push({
+      id: 'rust',
+      icon: <AlertOctagon className="w-6 h-6" />,
+      title: 'Visible Corrosion',
+      yourValue: 'Rust Detected',
+      benchmark: 'No external rust expected',
+      explanation: 'Visible rust on the tank exterior often indicates internal corrosion. This can lead to leaks and should be evaluated by a professional.',
+      status: 'concern',
+    });
+  }
 
   // Water pressure
   observations.push({
@@ -844,10 +902,7 @@ export function DiscoveryFlow({ asset, inputs, onComplete }: DiscoveryFlowProps)
           {contentStep === 2 && (
             <ObservationsStep
               observations={observations}
-              currentIndex={observationIndex}
-              onNext={handleNext}
-              onPrev={handleBack}
-              isLast={observationIndex === observations.length - 1}
+              onComplete={handleNext}
             />
           )}
           
