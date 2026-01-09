@@ -10,6 +10,7 @@ import { PanicMode } from '@/components/PanicMode';
 import { ServiceRequest } from '@/components/ServiceRequest';
 import { RepairPlanner } from '@/components/RepairPlanner';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
+import { SoftenerMaintenancePlan } from '@/components/SoftenerMaintenancePlan';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, demoServiceHistory, getRandomScenario, type AssetData } from '@/data/mockAsset';
@@ -17,7 +18,7 @@ import { type ForensicInputs, type UsageType, calculateOpterraRisk } from '@/lib
 import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
 import { SoftenerInputs, DEFAULT_SOFTENER_INPUTS } from '@/lib/softenerAlgorithm';
 
-type Screen = 'welcome' | 'calibration' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'test-harness';
+type Screen = 'welcome' | 'calibration' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'softener-maintenance' | 'test-harness';
 type AssetType = 'water-heater' | 'softener';
 
 const Index = () => {
@@ -143,7 +144,7 @@ const Index = () => {
               softenerStatus={softenerStatus}
               onServiceRequest={() => setCurrentScreen('service')}
               onEmergency={() => setCurrentScreen('panic')}
-              onMaintenanceTips={() => setCurrentScreen('maintenance-plan')}
+              onMaintenanceTips={() => setCurrentScreen('softener-maintenance')}
             />
           );
         }
@@ -188,6 +189,14 @@ const Index = () => {
             currentInputs={currentInputs}
             serviceHistory={serviceHistory}
             onAddServiceEvent={handleAddServiceEvent}
+          />
+        );
+      
+      case 'softener-maintenance':
+        return (
+          <SoftenerMaintenancePlan
+            onBack={() => setCurrentScreen('dashboard')}
+            inputs={softenerInputs}
           />
         );
       
