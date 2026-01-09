@@ -470,7 +470,7 @@ export function getRandomScenario(): DemoScenario {
 }
 
 // Current demo data - using a replacement scenario (The Basement Time Bomb - needs replacement, no softener)
-const initialScenario = scenarios[7]; // "The Basement Time Bomb" - needs replacement, hardnessGPG: 22
+const initialScenario = scenarios[8]; // "The Double Whammy" - hasSoftener: true for demo
 export const demoAsset: AssetData = initialScenario.asset;
 export const demoForensicInputs: ForensicInputs = initialScenario.inputs;
 export const demoServiceHistory: ServiceEvent[] = generateServiceHistory(initialScenario);
