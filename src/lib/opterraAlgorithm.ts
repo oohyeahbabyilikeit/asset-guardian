@@ -276,10 +276,10 @@ export function failProbToHealthScore(failProb: number): number {
 export function bioAgeToFailProb(bioAge: number): number {
   const eta = 11.5;  // Characteristic Life
   const beta = 2.2;  // Shape parameter
-  const maxBioAge = 25;
   const statisticalCap = 85.0;
   
-  const t = Math.min(bioAge, maxBioAge);
+  // Use actual bioAge for calculation to show meaningful progression
+  const t = Math.max(0, bioAge);
   const rNow = Math.exp(-Math.pow(t / eta, beta));
   const rNext = Math.exp(-Math.pow((t + 1) / eta, beta));
   
