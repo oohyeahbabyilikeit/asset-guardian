@@ -8,6 +8,7 @@ import {
   getDamageTypeFromReason,
   getLocationKey
 } from '@/data/damageScenarios';
+import { failProbToHealthScore } from '@/lib/opterraAlgorithm';
 
 interface StressFactor {
   name: string;
@@ -88,14 +89,7 @@ function getStressFactorKey(name: string): keyof typeof STRESS_FACTOR_EXPLANATIO
   return null;
 }
 
-// Calculate health score from bioAge (inverse relationship)
-function getHealthScore(bioAge: number): number {
-  // Bio age of 0-8 = healthy (100-60), 8-12 = declining (60-40), 12+ = critical (40-0)
-  if (bioAge <= 8) return Math.max(60, 100 - (bioAge * 5));
-  if (bioAge <= 12) return Math.max(40, 60 - ((bioAge - 8) * 5));
-  return Math.max(0, 40 - ((bioAge - 12) * 10));
-}
-
+// Use the same status labels as the dashboard HealthGauge
 function getStatusLabel(score: number): { label: string; color: string } {
   if (score >= 70) return { label: 'Good Condition', color: 'text-emerald-400' };
   if (score >= 50) return { label: 'Needs Attention', color: 'text-amber-400' };
@@ -129,8 +123,8 @@ export function SafetyAssessmentPage({
   const agingMultiple = agingRate.toFixed(1);
   const isSafetyCritical = !isEconomicReplacement;
   
-  // Calculate health score for the mini gauge
-  const healthScore = getHealthScore(bioAge);
+  // Use the SAME health score calculation as dashboard (failProbToHealthScore)
+  const healthScore = failProbToHealthScore(failProb);
   const status = getStatusLabel(healthScore);
 
   // Get explanation text based on situation
