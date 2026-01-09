@@ -9,6 +9,7 @@ import { SoftenerMetricsGrid } from './SoftenerMetricsGrid';
 import { SoftenerHealthGauge } from './SoftenerHealthGauge';
 import { SaltCalculator } from './SaltCalculator';
 import { SoftenerServiceMenu } from './SoftenerServiceMenu';
+import { SoftenerActionDock } from './SoftenerActionDock';
 import { 
   SoftenerInputs, 
   calculateSoftenerHealth,
@@ -22,6 +23,8 @@ interface SoftenerCenterProps {
   waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
   softenerStatus?: 'optimal' | 'warning' | 'critical';
   onBack?: () => void;
+  onServiceRequest?: () => void;
+  onEmergency?: () => void;
 }
 
 export function SoftenerCenter({
@@ -31,6 +34,8 @@ export function SoftenerCenter({
   waterHeaterStatus,
   softenerStatus,
   onBack,
+  onServiceRequest,
+  onEmergency,
 }: SoftenerCenterProps) {
   const [saltLevelPercent, setSaltLevelPercent] = useState(65);
   
@@ -165,6 +170,16 @@ export function SoftenerCenter({
         </Button>
       </div>
       </div>
+
+      {/* Fixed bottom CTA */}
+      {(onServiceRequest && onEmergency) && (
+        <SoftenerActionDock
+          onServiceRequest={onServiceRequest}
+          onEmergency={onEmergency}
+          recommendation={recommendation}
+          hasActiveServices={activeServices.length > 0}
+        />
+      )}
     </div>
   );
 }
