@@ -2,9 +2,7 @@ import { ChevronRight, Droplets, Gauge, Shield, Thermometer, Zap, AlertOctagon, 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { type ForensicInputs, calculateOpterraRisk, type OpterraMetrics } from '@/lib/opterraAlgorithm';
-import { SafetyReplacementAlert } from './SafetyReplacementAlert';
-import containmentBreachImage from '@/assets/containment-breach.png';
+import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 
 interface DiscoveryFlowProps {
   inputs: ForensicInputs;
@@ -18,124 +16,6 @@ interface Issue {
   value: string;
   explanation: string;
   severity: 'attention' | 'concern';
-}
-
-// Helper function to convert algorithm stress factors to the format expected by SafetyReplacementAlert
-function convertStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
-  const factors: { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] = [];
-  
-  const getLevel = (value: number): 'low' | 'moderate' | 'elevated' | 'critical' => {
-    if (value >= 2.0) return 'critical';
-    if (value >= 1.5) return 'elevated';
-    if (value >= 1.2) return 'moderate';
-    return 'low';
-  };
-
-  if (metrics.stressFactors.pressure > 1.0) {
-    factors.push({
-      name: 'Water Pressure',
-      level: getLevel(metrics.stressFactors.pressure),
-      value: metrics.stressFactors.pressure,
-      description: `Pressure stress factor of ${metrics.stressFactors.pressure.toFixed(2)}x`
-    });
-  }
-
-  if (metrics.stressFactors.sediment > 1.0) {
-    factors.push({
-      name: 'Sediment Buildup',
-      level: metrics.sedimentLbs > 15 ? 'critical' : metrics.sedimentLbs > 8 ? 'elevated' : 'moderate',
-      value: metrics.stressFactors.sediment,
-      description: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment accumulated`
-    });
-  }
-
-  if (metrics.stressFactors.temp > 1.0) {
-    factors.push({
-      name: 'Temperature Stress',
-      level: getLevel(metrics.stressFactors.temp),
-      value: metrics.stressFactors.temp,
-      description: `Temperature stress factor of ${metrics.stressFactors.temp.toFixed(2)}x`
-    });
-  }
-
-  if (metrics.stressFactors.loop > 1.0) {
-    factors.push({
-      name: 'Thermal Expansion (Closed Loop)',
-      level: getLevel(metrics.stressFactors.loop),
-      value: metrics.stressFactors.loop,
-      description: 'Missing expansion tank causes pressure spikes'
-    });
-  }
-
-  if (metrics.stressFactors.circ > 1.0) {
-    factors.push({
-      name: 'Recirculation Loop',
-      level: getLevel(metrics.stressFactors.circ),
-      value: metrics.stressFactors.circ,
-      description: 'Continuous circulation increases wear'
-    });
-  }
-
-  if (metrics.shieldLife <= 0) {
-    factors.push({
-      name: 'Anode Depletion',
-      level: 'critical',
-      value: 0,
-      description: 'Sacrificial anode is fully depleted'
-    });
-  } else if (metrics.shieldLife < 2) {
-    factors.push({
-      name: 'Anode Depletion',
-      level: 'elevated',
-      value: metrics.shieldLife,
-      description: `Only ${metrics.shieldLife.toFixed(1)} years of protection remaining`
-    });
-  }
-
-  return factors;
-}
-
-// Critical Alert Screen - Only shown when replacement is needed
-function CriticalAlertScreen({ 
-  reason, 
-  isLeaking,
-  hasVisualRust,
-  metrics,
-  inputs
-}: { 
-  reason: string;
-  isLeaking?: boolean;
-  hasVisualRust?: boolean;
-  metrics: OpterraMetrics;
-  inputs: ForensicInputs;
-}) {
-  const stressFactors = convertStressFactors(metrics);
-  
-  return (
-    <div className="space-y-4">
-      {/* Containment Breach Image for leaks */}
-      {isLeaking && (
-        <div className="relative rounded-xl overflow-hidden border-2 border-red-500/50 mb-2">
-          <img 
-            src={containmentBreachImage} 
-            alt="Water heater leak damage" 
-            className="w-full h-32 object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-        </div>
-      )}
-
-      <SafetyReplacementAlert
-        reason={reason}
-        location={inputs.location}
-        stressFactors={stressFactors}
-        agingRate={metrics.stressFactors.total}
-        bioAge={metrics.bioAge}
-        chronoAge={inputs.calendarAge}
-        breachDetected={isLeaking || hasVisualRust}
-      />
-    </div>
-  );
 }
 
 // Key Issues Screen - Shows only non-good observations as a list
@@ -202,6 +82,18 @@ export function DiscoveryFlow({ inputs, onComplete }: DiscoveryFlowProps) {
   
   // Build issues list - only items that need attention
   const issues: Issue[] = [];
+
+  // Add replacement recommendation at top if critical
+  if (verdict.action === 'REPLACE') {
+    issues.push({
+      id: 'replacement',
+      icon: <AlertOctagon className="w-5 h-5" />,
+      title: 'Replacement Recommended',
+      value: 'Critical',
+      explanation: verdict.reason,
+      severity: 'concern',
+    });
+  }
 
   if (inputs.isLeaking) {
     issues.push({
@@ -309,20 +201,8 @@ export function DiscoveryFlow({ inputs, onComplete }: DiscoveryFlowProps) {
 
   const hasIssues = issues.length > 0;
 
-  // Single screen - show issues or critical alert, then go to dashboard
+  // Single screen - show issues, then go to dashboard
   const renderContent = () => {
-    if (isCritical) {
-      return (
-        <CriticalAlertScreen
-          reason={verdict.reason}
-          isLeaking={inputs.isLeaking}
-          hasVisualRust={inputs.visualRust}
-          metrics={metrics}
-          inputs={inputs}
-        />
-      );
-    }
-    
     if (hasIssues) {
       return <KeyIssuesScreen issues={issues} />;
     }
