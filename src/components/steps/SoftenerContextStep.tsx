@@ -1,5 +1,4 @@
-import { Droplet, ChevronRight, Calendar, Wrench } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Droplet, Calendar, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SoftenerContextStepProps {
@@ -138,7 +137,10 @@ export function SoftenerContextStep({
           {serviceOptions.map((option) => (
             <button
               key={option.value}
-              onClick={() => onServiceFrequencyChange(option.value)}
+              onClick={() => {
+                onServiceFrequencyChange(option.value);
+                setTimeout(() => onNext(), 200);
+              }}
               className={cn(
                 "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-200",
                 serviceFrequency === option.value
@@ -173,15 +175,6 @@ export function SoftenerContextStep({
         </div>
       </div>
 
-      {/* CTA */}
-      <Button
-        onClick={onNext}
-        size="lg"
-        className="w-full h-12 text-base font-medium rounded-lg"
-      >
-        Continue
-        <ChevronRight className="w-5 h-5 ml-2" />
-      </Button>
     </div>
   );
 }
