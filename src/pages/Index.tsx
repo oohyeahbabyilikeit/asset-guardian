@@ -291,7 +291,7 @@ const Index = () => {
         return (
           <MaintenancePlan
             onBack={() => setCurrentScreen('dashboard')}
-            onScheduleService={() => setCurrentScreen('repair-planner')}
+            onScheduleService={handleServiceNavigation}
             currentInputs={currentInputs}
             serviceHistory={serviceHistory}
             onAddServiceEvent={handleAddServiceEvent}

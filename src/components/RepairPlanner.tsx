@@ -51,6 +51,16 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
   const { bioAge, failProb, agingRate } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
+  // If replacement is required, this component shouldn't be shown
+  // Redirect back to dashboard (parent will route to correct screen)
+  const replacementRequired = recommendation.action === 'REPLACE';
+  
+  useEffect(() => {
+    if (replacementRequired) {
+      onBack();
+    }
+  }, [replacementRequired, onBack]);
+
   const currentScore = failProbToHealthScore(failProb);
   const currentAgingFactor = bioAge / currentInputs.calendarAge;
   const currentFailureProb = Math.round(failProb * 10) / 10;
