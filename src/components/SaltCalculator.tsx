@@ -99,15 +99,6 @@ export function SaltCalculator({
         </div>
       </div>
 
-      {/* Order Button */}
-      <Button 
-        variant={isLow ? "default" : "outline"} 
-        className="w-full gap-2"
-        size="sm"
-      >
-        <ShoppingCart className="h-4 w-4" />
-        {isLow ? 'Order Salt Now' : 'Schedule Delivery'}
-      </Button>
     </Card>
   );
 }
