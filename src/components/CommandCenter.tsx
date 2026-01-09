@@ -21,9 +21,11 @@ interface CommandCenterProps {
   currentAsset: AssetData;
   currentInputs: ForensicInputs;
   onInputsChange: (inputs: ForensicInputs) => void;
-  onRandomize: () => void;
-  scenarioName: string;
+  onRandomize?: () => void;
+  scenarioName?: string;
   serviceHistory?: ServiceEvent[];
+  hasSoftener?: boolean;
+  onSwitchToSoftener?: () => void;
 }
 
 // Derive status from thresholds
@@ -60,7 +62,9 @@ export function CommandCenter({
   onInputsChange,
   onRandomize,
   scenarioName,
-  serviceHistory = []
+  serviceHistory = [],
+  hasSoftener,
+  onSwitchToSoftener,
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
 

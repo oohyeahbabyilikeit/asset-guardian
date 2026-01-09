@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { HandshakeLoading } from '@/components/HandshakeLoading';
 import { CommandCenter } from '@/components/CommandCenter';
+import { SoftenerCenter } from '@/components/SoftenerCenter';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { CalibrationStep } from '@/components/CalibrationStep';
 import { DiscoveryFlow } from '@/components/DiscoveryFlow';
@@ -14,17 +15,27 @@ import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, demoServiceHistory, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs, type UsageType, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
+import { SoftenerInputs, DEFAULT_SOFTENER_INPUTS } from '@/lib/softenerAlgorithm';
 
 type Screen = 'welcome' | 'calibration' | 'discovery' | 'loading' | 'dashboard' | 'report' | 'panic' | 'service' | 'repair-planner' | 'maintenance-plan' | 'test-harness';
+type AssetType = 'water-heater' | 'softener';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
+  const [assetType, setAssetType] = useState<AssetType>('water-heater');
   const [selectedRepairs, setSelectedRepairs] = useState<RepairOption[]>([]);
   
   // Shared scenario state - use stable default values
   const [scenarioName, setScenarioName] = useState<string>('');
   const [currentAsset, setCurrentAsset] = useState<AssetData>(demoAsset);
   const [currentInputs, setCurrentInputs] = useState<ForensicInputs>(demoForensicInputs);
+  
+  // Softener inputs (synced with water heater where applicable)
+  const [softenerInputs, setSoftenerInputs] = useState<SoftenerInputs>({
+    ...DEFAULT_SOFTENER_INPUTS,
+    hardnessGPG: demoForensicInputs.hardnessGPG,
+    people: demoForensicInputs.peopleCount,
+  });
   
   // Shared service history state
   const [serviceHistory, setServiceHistory] = useState<ServiceEvent[]>(demoServiceHistory);
@@ -40,6 +51,16 @@ const Index = () => {
       }));
     }
   }, [serviceHistory]);
+
+  // Sync softener inputs when water heater inputs change
+  useEffect(() => {
+    setSoftenerInputs(prev => ({
+      ...prev,
+      hardnessGPG: currentInputs.hardnessGPG,
+      people: currentInputs.peopleCount,
+      hasCarbonFilter: currentInputs.hasSoftener, // If they have softener, likely have carbon
+    }));
+  }, [currentInputs.hardnessGPG, currentInputs.peopleCount, currentInputs.hasSoftener]);
 
   const handleRandomize = useCallback(() => {
     const newScenario = getRandomScenario();
@@ -98,6 +119,17 @@ const Index = () => {
         return <HandshakeLoading onComplete={handleLoadingComplete} />;
       
       case 'dashboard':
+        // Check if we're viewing softener
+        if (assetType === 'softener') {
+          return (
+            <SoftenerCenter
+              inputs={softenerInputs}
+              onInputsChange={setSoftenerInputs}
+              onSwitchToWaterHeater={() => setAssetType('water-heater')}
+            />
+          );
+        }
+        
         // Determine which flow to show based on recommendation
         const opterraResult = calculateOpterraRisk(currentInputs);
         const recommendation = opterraResult.verdict;
@@ -117,6 +149,8 @@ const Index = () => {
             onRandomize={handleRandomize}
             scenarioName={scenarioName}
             serviceHistory={serviceHistory}
+            hasSoftener={currentInputs.hasSoftener}
+            onSwitchToSoftener={() => setAssetType('softener')}
           />
         );
       
