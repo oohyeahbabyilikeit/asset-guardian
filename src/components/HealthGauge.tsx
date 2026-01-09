@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2 } from 'lucide-react';
+import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2, CheckCircle, XCircle } from 'lucide-react';
 import containmentBreachImg from '@/assets/containment-breach.png';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
@@ -30,6 +30,10 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
   const isElevated = value > 1.15;
   const isHigh = value > 1.5;
   
+  // Accessibility: pair status with icon for colorblind users
+  const StatusIcon = isHigh ? XCircle : isElevated ? AlertCircle : CheckCircle;
+  const status = isHigh ? 'critical' : isElevated ? 'warning' : 'optimal';
+  
   return (
     <div className="flex items-center justify-between py-1.5">
       <div className="flex items-center gap-2">
@@ -43,16 +47,26 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
         )} />
         <span className="text-xs text-muted-foreground">{label}</span>
       </div>
-      {/* Value - muted by default, only colorize for warnings */}
-      <span className={cn(
-        "text-xs font-mono font-medium",
-        isNeutral ? "text-muted-foreground" :
-        isHigh ? "text-red-400" : 
-        isElevated ? "text-amber-400" : 
-        "text-muted-foreground"
-      )}>
-        {value.toFixed(2)}x
-      </span>
+      {/* Value with status icon for accessibility */}
+      <div className="flex items-center gap-1.5">
+        {!isNeutral && (
+          <StatusIcon className={cn(
+            "w-3 h-3",
+            status === 'critical' ? "text-red-400" : 
+            status === 'warning' ? "text-amber-400" : 
+            "text-emerald-400"
+          )} />
+        )}
+        <span className={cn(
+          "text-xs font-mono font-medium",
+          isNeutral ? "text-muted-foreground" :
+          isHigh ? "text-red-400" : 
+          isElevated ? "text-amber-400" : 
+          "text-muted-foreground"
+        )}>
+          {value.toFixed(2)}x
+        </span>
+      </div>
     </div>
   );
 }

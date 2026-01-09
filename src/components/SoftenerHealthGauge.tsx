@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, ChevronDown, Gauge, Droplets, Zap, AlertTriangle } from 'lucide-react';
+import { Activity, ChevronDown, Gauge, Droplets, Zap, AlertTriangle, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -22,6 +22,9 @@ interface StressFactorItemProps {
 }
 
 function StressFactorItem({ icon: Icon, label, value, status }: StressFactorItemProps) {
+  // Accessibility: pair status with icon for colorblind users
+  const StatusIcon = status === 'critical' ? XCircle : status === 'warning' ? AlertCircle : CheckCircle;
+  
   return (
     <div className="flex items-center justify-between py-1.5">
       <div className="flex items-center gap-2">
@@ -33,14 +36,22 @@ function StressFactorItem({ icon: Icon, label, value, status }: StressFactorItem
         )} />
         <span className="text-xs text-muted-foreground">{label}</span>
       </div>
-      <span className={cn(
-        "text-xs font-mono font-medium",
-        status === 'critical' ? "text-red-400" : 
-        status === 'warning' ? "text-amber-400" : 
-        "text-muted-foreground"
-      )}>
-        {value}
-      </span>
+      <div className="flex items-center gap-1.5">
+        <StatusIcon className={cn(
+          "w-3 h-3",
+          status === 'critical' ? "text-red-400" : 
+          status === 'warning' ? "text-amber-400" : 
+          "text-emerald-400"
+        )} />
+        <span className={cn(
+          "text-xs font-mono font-medium",
+          status === 'critical' ? "text-red-400" : 
+          status === 'warning' ? "text-amber-400" : 
+          "text-muted-foreground"
+        )}>
+          {value}
+        </span>
+      </div>
     </div>
   );
 }
