@@ -5,6 +5,7 @@ import { SoftenerRecommendation } from '@/lib/softenerAlgorithm';
 interface SoftenerActionDockProps {
   onServiceRequest: () => void;
   onEmergency: () => void;
+  onMaintenanceTips: () => void;
   recommendation?: SoftenerRecommendation;
   hasActiveServices: boolean;
 }
@@ -12,6 +13,7 @@ interface SoftenerActionDockProps {
 export function SoftenerActionDock({ 
   onServiceRequest, 
   onEmergency,
+  onMaintenanceTips,
   recommendation,
   hasActiveServices
 }: SoftenerActionDockProps) {
@@ -61,7 +63,14 @@ export function SoftenerActionDock({
       <div className="max-w-md mx-auto">
         {/* Primary Action with glow - enhanced for critical */}
         <Button
-          onClick={onServiceRequest}
+          onClick={() => {
+            // If healthy with no active services, show tips
+            if (recommendation?.badge === 'HEALTHY' && !hasActiveServices) {
+              onMaintenanceTips();
+            } else {
+              onServiceRequest();
+            }
+          }}
           size="lg"
           className={`w-full font-bold py-4 h-auto rounded-xl active:scale-[0.98] transition-all text-base ${
             isCritical 

@@ -143,6 +143,7 @@ const Index = () => {
               softenerStatus={softenerStatus}
               onServiceRequest={() => setCurrentScreen('service')}
               onEmergency={() => setCurrentScreen('panic')}
+              onMaintenanceTips={() => setCurrentScreen('maintenance-plan')}
             />
           );
         }
