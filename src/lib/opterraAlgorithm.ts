@@ -1,7 +1,11 @@
 /**
- * OPTERRA v7.0 Risk Calculation Engine
+ * OPTERRA v7.1 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
+ * 
+ * CHANGES v7.1:
+ * - ANODE FIX: Unified AGE_ANODE_LIMIT to 8 years (was 6 in algorithm, 8 in repair options)
+ * - ANODE FIX: Added hardnessGPG factor to anode decay rate calculation
  * 
  * CHANGES v7.0:
  * - FIX "GRANDMA PARADOX": Lowered occupancy floor from 1.0 to 0.4 so single residents get credit for low wear
@@ -226,7 +230,7 @@ const CONSTANTS = {
   
   // Economic Thresholds (NEW v6.2)
   AGE_ECONOMIC_REPAIR_LIMIT: 10, // Don't recommend heavy repairs past this age
-  AGE_ANODE_LIMIT: 6,            // Age limit for anode refresh recommendation
+  AGE_ANODE_LIMIT: 8,            // Age limit for anode refresh recommendation (unified with repairOptions)
   
   // Risk Levels
   RISK_LOW: 1 as RiskLevel,      
@@ -407,6 +411,12 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   let anodeDecayRate = 1.0;
   if (data.hasSoftener) anodeDecayRate += 1.4;  // Conductivity accelerates consumption
   if (data.hasCircPump) anodeDecayRate += 0.5;  // Erosion/amperage
+  
+  // NEW v7.1: Hard water accelerates electrochemical reaction on anode
+  // Scale: 0-5 GPG = negligible, 5-15 GPG = moderate, 15+ GPG = significant
+  // Formula: 0.02 per GPG above 5 (max ~0.4 for very hard water at 25+ GPG)
+  const hardnessAboveBaseline = Math.max(0, data.hardnessGPG - 5);
+  anodeDecayRate += hardnessAboveBaseline * 0.02;
   
   // NEW v6.9: Usage intensity accelerates electrochemical reactions
   // More hot water draws = more anode consumption (sqrt dampening for realism)
