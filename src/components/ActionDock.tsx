@@ -1,14 +1,22 @@
 import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Recommendation } from '@/lib/opterraAlgorithm';
+import { Recommendation, FuelType } from '@/lib/opterraAlgorithm';
+import { getUnitCategory, getServiceStatus, getCTALabel } from '@/lib/unitTypeContent';
 
 interface ActionDockProps {
   onPanicMode: () => void;
   onServiceRequest: () => void;
   onMaintenancePlan?: () => void;
   recommendation?: Recommendation;
+  fuelType?: FuelType;
+  // Tank-specific
   monthsToFlush?: number | null;
   flushStatus?: 'optimal' | 'schedule' | 'due' | 'lockout';
+  // Tankless-specific
+  monthsToDescale?: number | null;
+  descaleStatus?: 'optimal' | 'schedule' | 'due' | 'lockout';
+  // Hybrid-specific
+  airFilterStatus?: 'CLEAN' | 'DIRTY' | 'CLOGGED';
 }
 
 export function ActionDock({ 
@@ -16,13 +24,23 @@ export function ActionDock({
   onServiceRequest,
   onMaintenancePlan,
   recommendation,
+  fuelType = 'GAS',
   monthsToFlush,
-  flushStatus
+  flushStatus,
+  monthsToDescale,
+  descaleStatus,
+  airFilterStatus,
 }: ActionDockProps) {
-  // Check if service is due NOW based on sediment weight (flushStatus from algorithm)
-  const isServiceOverdue = flushStatus === 'due' || flushStatus === 'lockout';
-  // Check if service should be scheduled soon (algorithm says within 12 months, or monthsToFlush <= 6)
-  const isServiceDueSoon = flushStatus === 'schedule' || (monthsToFlush !== null && monthsToFlush !== undefined && monthsToFlush <= 6 && monthsToFlush > 0);
+  // Get unit-aware service status
+  const serviceStatus = getServiceStatus(fuelType, {
+    flushStatus,
+    monthsToFlush,
+    descaleStatus,
+    monthsToDescale,
+    airFilterStatus,
+  });
+  
+  const { isOverdue: isServiceOverdue, isDueSoon: isServiceDueSoon } = serviceStatus;
   const needsServiceAttention = isServiceDueSoon || isServiceOverdue;
   
   // Determine which handler to use - maintenance plan for service-related CTAs
@@ -38,42 +56,41 @@ export function ActionDock({
     }
   };
   
-  // Dynamic CTA based on urgency tier
+  // Dynamic CTA based on urgency tier and unit type
   const getButtonLabel = () => {
     if (!recommendation) return 'See What Others Do';
     
     // Tier 0/1 (Critical Safety) - Safety focus
     if (recommendation.badge === 'CRITICAL' as const) {
-      return 'View Safety Recommendations';
+      return getCTALabel(fuelType, 'critical');
     }
     
     // Tier 2C (Economic Replacement) - Soft invitation to explore
     if (recommendation.action === 'REPLACE') {
-      return 'Show Me My Options';
-      return 'Plan Your Upgrade';
+      return getCTALabel(fuelType, 'replace');
     }
     
-    // Service is overdue - soft but clear urgency
+    // Service is overdue - unit-aware messaging
     if (isServiceOverdue) {
-      return "Let's Get This Taken Care Of";
+      return getCTALabel(fuelType, 'serviceOverdue');
     }
     
-    // Service due within 6 months - gentle nudge
+    // Service due soon - unit-aware messaging
     if (isServiceDueSoon) {
-      return 'Time to Schedule Service';
+      return getCTALabel(fuelType, 'serviceDueSoon');
     }
     
     // Tier 2/3 (Service) - Service focus
     if (recommendation.badge === 'SERVICE' || recommendation.action === 'REPAIR' || recommendation.action === 'UPGRADE') {
-      return 'View Service Options';
+      return getCTALabel(fuelType, 'service');
     }
     
     // Tier 4 (Green) - Maintenance focus
     if (recommendation.action === 'PASS' || recommendation.badge === 'OPTIMAL') {
-      return 'View Maintenance Plan';
+      return getCTALabel(fuelType, 'optimal');
     }
     
-    return 'Explore My Options';
+    return getCTALabel(fuelType, 'default');
   };
   
   // Only apply urgent red styling to actual safety issues, not economic replacements

@@ -58,6 +58,7 @@ export const DAMAGE_SCENARIOS = {
 } as const;
 
 // Stress factor explanations and remediation advice
+// TANK-specific stress factors
 export const STRESS_FACTOR_EXPLANATIONS = {
   pressure: {
     label: "Water Pressure",
@@ -165,6 +166,223 @@ export const STRESS_FACTOR_EXPLANATIONS = {
     lifespanBenefit: "+4-6 years"
   }
 } as const;
+
+// TANKLESS-specific stress factors
+export const TANKLESS_STRESS_FACTOR_EXPLANATIONS = {
+  scale: {
+    label: "Scale Buildup",
+    icon: "Layers",
+    elevated: {
+      description: "Mineral deposits are reducing heat exchanger efficiency and flow capacity",
+      impact: "Reduces efficiency 10-20%, shortens lifespan"
+    },
+    critical: {
+      description: "Heavy scale has severely restricted the heat exchanger — descaling is critical",
+      impact: "Flow reduced 30%+, unit may lock out"
+    },
+    remedy: "Annual descaling service (requires isolation valves for proper flushing)",
+    remedyCost: "$150-250 professional",
+    lifespanBenefit: "+5-8 years"
+  },
+  flowRestriction: {
+    label: "Flow Restriction",
+    icon: "Droplets",
+    elevated: {
+      description: "Flow rate is reduced from scale buildup or clogged inlet filter",
+      impact: "Unit struggles to meet hot water demand"
+    },
+    critical: {
+      description: "Severe flow loss — unit cannot deliver rated GPM",
+      impact: "May not activate or provide adequate hot water"
+    },
+    remedy: "Clean inlet filter and descale heat exchanger",
+    remedyCost: "$150-300",
+    lifespanBenefit: "+3-5 years"
+  },
+  isolationValves: {
+    label: "Isolation Valves Missing",
+    icon: "Wrench",
+    elevated: {
+      description: "Without isolation valves, descaling requires shutting off main water supply",
+      impact: "Makes routine maintenance difficult"
+    },
+    critical: {
+      description: "Cannot properly service unit without isolation valves — install required first",
+      impact: "Unit cannot be maintained, scale will accumulate"
+    },
+    remedy: "Install service isolation valves for proper maintenance access",
+    remedyCost: "$200-400 installed",
+    lifespanBenefit: "+5-10 years (enables maintenance)"
+  },
+  igniter: {
+    label: "Igniter Health",
+    icon: "Flame",
+    elevated: {
+      description: "Igniter showing wear — may have occasional ignition delays",
+      impact: "Could cause intermittent no-hot-water issues"
+    },
+    critical: {
+      description: "Igniter failing — unit may stop igniting reliably",
+      impact: "Risk of complete ignition failure"
+    },
+    remedy: "Replace igniter assembly before complete failure",
+    remedyCost: "$150-300",
+    lifespanBenefit: "Prevents failure"
+  },
+  flameRod: {
+    label: "Flame Sensor",
+    icon: "Zap",
+    elevated: {
+      description: "Flame rod showing buildup — flame detection may be inconsistent",
+      impact: "May cause occasional error codes"
+    },
+    critical: {
+      description: "Flame rod failing — causing frequent error codes and shutdowns",
+      impact: "Unit locks out frequently"
+    },
+    remedy: "Clean or replace flame sensor rod",
+    remedyCost: "$50-150",
+    lifespanBenefit: "Prevents lockouts"
+  },
+  ventStatus: {
+    label: "Vent Condition",
+    icon: "Wind",
+    elevated: {
+      description: "Vent showing partial restriction — combustion efficiency reduced",
+      impact: "Higher operating costs, potential CO issues"
+    },
+    critical: {
+      description: "Vent obstruction detected — safety risk and error codes",
+      impact: "Unit may lock out, CO risk"
+    },
+    remedy: "Inspect and clear vent system immediately",
+    remedyCost: "$100-200",
+    lifespanBenefit: "+2-3 years"
+  },
+  recirculationFatigue: {
+    label: "Recirculation Fatigue",
+    icon: "RefreshCw",
+    elevated: {
+      description: "Continuous recirculation increasing heat exchanger thermal cycles",
+      impact: "Accelerates wear on heat exchanger"
+    },
+    critical: {
+      description: "24/7 recirculation causing excessive wear on heat exchanger",
+      impact: "Significantly reduces unit lifespan"
+    },
+    remedy: "Add timer or demand-based control to recirculation",
+    remedyCost: "$100-200",
+    lifespanBenefit: "+3-5 years"
+  }
+} as const;
+
+// HYBRID (Heat Pump) stress factors
+export const HYBRID_STRESS_FACTOR_EXPLANATIONS = {
+  airFilter: {
+    label: "Air Filter Status",
+    icon: "Wind",
+    elevated: {
+      description: "Air filter is restricting airflow to the heat pump evaporator",
+      impact: "Efficiency reduced 10-20%"
+    },
+    critical: {
+      description: "Clogged air filter forcing compressor to work overtime",
+      impact: "Compressor strain, potential failure"
+    },
+    remedy: "Clean or replace air filter every 3 months",
+    remedyCost: "$10-30 DIY",
+    lifespanBenefit: "+3-5 years"
+  },
+  condensateDrain: {
+    label: "Condensate Drain",
+    icon: "Droplets",
+    elevated: {
+      description: "Condensate drain line showing partial blockage",
+      impact: "May cause overflow or water damage"
+    },
+    critical: {
+      description: "Condensate backup — water damage risk and compressor strain",
+      impact: "Water damage, potential compressor failure"
+    },
+    remedy: "Clear condensate drain line monthly",
+    remedyCost: "$0 DIY, $100 professional",
+    lifespanBenefit: "+2-3 years"
+  },
+  compressorHealth: {
+    label: "Compressor Health",
+    icon: "Cpu",
+    elevated: {
+      description: "Compressor showing signs of wear or reduced efficiency",
+      impact: "Heat pump mode less effective"
+    },
+    critical: {
+      description: "Compressor failing — heat pump mode compromised",
+      impact: "Falls back to electric resistance (expensive)"
+    },
+    remedy: "Professional compressor diagnostic and service",
+    remedyCost: "$200-500",
+    lifespanBenefit: "Prevents failure"
+  },
+  // Hybrid also inherits tank-related stressors
+  sediment: {
+    label: "Tank Sediment",
+    icon: "Layers",
+    elevated: {
+      description: "Mineral buildup in the tank section reducing efficiency",
+      impact: "Heat transfer reduced, energy costs higher"
+    },
+    critical: {
+      description: "Heavy sediment affecting overall heating efficiency",
+      impact: "Unit works harder, higher energy bills"
+    },
+    remedy: "Annual tank flush",
+    remedyCost: "$100-150",
+    lifespanBenefit: "+2-3 years"
+  },
+  anodeDepletion: {
+    label: "Anode Depletion",
+    icon: "Shield",
+    elevated: {
+      description: "Sacrificial anode depleting, tank protection reduced",
+      impact: "Internal corrosion beginning"
+    },
+    critical: {
+      description: "Anode depleted — tank section corroding",
+      impact: "Tank integrity compromised"
+    },
+    remedy: "Replace anode rod every 3-5 years",
+    remedyCost: "$150-250",
+    lifespanBenefit: "+3-5 years"
+  },
+  thermalExpansion: {
+    label: "Thermal Expansion",
+    icon: "Maximize2",
+    elevated: {
+      description: "Missing expansion tank causing pressure spikes",
+      impact: "Stresses tank connections"
+    },
+    critical: {
+      description: "Chronic pressure cycling stressing tank",
+      impact: "Increased leak risk"
+    },
+    remedy: "Install expansion tank",
+    remedyCost: "$150-300",
+    lifespanBenefit: "+2-3 years"
+  }
+} as const;
+
+/**
+ * Get appropriate stress factor explanations based on fuel type
+ */
+export function getStressFactorExplanations(fuelType: string) {
+  if (fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC') {
+    return TANKLESS_STRESS_FACTOR_EXPLANATIONS;
+  }
+  if (fuelType === 'HYBRID') {
+    return { ...STRESS_FACTOR_EXPLANATIONS, ...HYBRID_STRESS_FACTOR_EXPLANATIONS };
+  }
+  return STRESS_FACTOR_EXPLANATIONS;
+}
 
 // Damage types and their visual/urgency characteristics
 export const DAMAGE_TYPE_INFO = {

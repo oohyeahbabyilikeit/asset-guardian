@@ -41,8 +41,11 @@ type Screen =
 // Only 2 asset types: Water Heater (can be GAS, ELECTRIC, or HYBRID/heat pump) and Softener
 type AssetType = 'water-heater' | 'softener';
 
-// Helper to convert metrics to stress factors
-function convertMetricsToStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
+// Helper to convert metrics to stress factors - UNIT-TYPE AWARE
+function convertMetricsToStressFactors(
+  metrics: OpterraMetrics, 
+  fuelType: ForensicInputs['fuelType']
+): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
   const factors: { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] = [];
   
   const getLevel = (value: number): 'low' | 'moderate' | 'elevated' | 'critical' => {
@@ -52,25 +55,73 @@ function convertMetricsToStressFactors(metrics: OpterraMetrics): { name: string;
     return 'low';
   };
 
+  const isTankless = fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
+  const isHybrid = fuelType === 'HYBRID';
+  
+  // Cast metrics to access unit-specific properties
+  const extMetrics = metrics as OpterraMetrics & { 
+    scaleBuildup?: number; 
+    flowDegradation?: number; 
+    hasIsolationValves?: boolean;
+    igniterHealth?: number;
+    airFilterStatus?: string;
+    isCondensateClear?: boolean;
+  };
+
+  // TANKLESS-specific stress factors
+  if (isTankless) {
+    if (extMetrics.scaleBuildup !== undefined && extMetrics.scaleBuildup > 10) {
+      const level = extMetrics.scaleBuildup > 35 ? 'critical' : extMetrics.scaleBuildup > 25 ? 'elevated' : 'moderate';
+      factors.push({ name: 'Scale Buildup', level, value: extMetrics.scaleBuildup / 100, description: `${extMetrics.scaleBuildup}% scale in heat exchanger` });
+    }
+    if (extMetrics.flowDegradation !== undefined && extMetrics.flowDegradation > 10) {
+      const level = extMetrics.flowDegradation > 30 ? 'critical' : extMetrics.flowDegradation > 20 ? 'elevated' : 'moderate';
+      factors.push({ name: 'Flow Restriction', level, value: extMetrics.flowDegradation / 100, description: `${extMetrics.flowDegradation}% flow reduction` });
+    }
+    if (extMetrics.hasIsolationValves === false) {
+      factors.push({ name: 'Isolation Valves Missing', level: 'elevated', value: 0, description: 'Cannot service without isolation valves' });
+    }
+    if (extMetrics.igniterHealth !== undefined && extMetrics.igniterHealth < 70) {
+      factors.push({ name: 'Igniter Health', level: extMetrics.igniterHealth < 50 ? 'critical' : 'elevated', value: extMetrics.igniterHealth / 100, description: `Igniter at ${extMetrics.igniterHealth}%` });
+    }
+    if (metrics.stressFactors.circ > 1.0) {
+      factors.push({ name: 'Recirculation Fatigue', level: getLevel(metrics.stressFactors.circ), value: metrics.stressFactors.circ, description: 'Recirculation increasing wear' });
+    }
+    return factors;
+  }
+
+  // HYBRID-specific stress factors
+  if (isHybrid) {
+    if (extMetrics.airFilterStatus === 'CLOGGED') {
+      factors.push({ name: 'Air Filter Clogged', level: 'critical', value: 0, description: 'Clogged filter straining compressor' });
+    } else if (extMetrics.airFilterStatus === 'DIRTY') {
+      factors.push({ name: 'Air Filter Dirty', level: 'elevated', value: 0.5, description: 'Filter restricting airflow' });
+    }
+    if (extMetrics.isCondensateClear === false) {
+      factors.push({ name: 'Condensate Blocked', level: 'critical', value: 0, description: 'Condensate drain blocked' });
+    }
+  }
+
+  // TANK and HYBRID tank-related stress factors
   if (metrics.stressFactors.pressure > 1.0) {
-    factors.push({ name: 'Water Pressure', level: getLevel(metrics.stressFactors.pressure), value: metrics.stressFactors.pressure, description: `Pressure stress factor of ${metrics.stressFactors.pressure.toFixed(2)}x` });
+    factors.push({ name: 'Water Pressure', level: getLevel(metrics.stressFactors.pressure), value: metrics.stressFactors.pressure, description: `Pressure stress ${metrics.stressFactors.pressure.toFixed(2)}x` });
   }
   if (metrics.stressFactors.sediment > 1.0) {
-    factors.push({ name: 'Sediment Buildup', level: metrics.sedimentLbs > 15 ? 'critical' : metrics.sedimentLbs > 8 ? 'elevated' : 'moderate', value: metrics.stressFactors.sediment, description: `${metrics.sedimentLbs.toFixed(1)} lbs accumulated` });
+    factors.push({ name: isHybrid ? 'Tank Sediment' : 'Sediment Buildup', level: metrics.sedimentLbs > 15 ? 'critical' : metrics.sedimentLbs > 8 ? 'elevated' : 'moderate', value: metrics.stressFactors.sediment, description: `${metrics.sedimentLbs.toFixed(1)} lbs accumulated` });
   }
   if (metrics.stressFactors.temp > 1.0) {
-    factors.push({ name: 'Temperature Stress', level: getLevel(metrics.stressFactors.temp), value: metrics.stressFactors.temp, description: `Temperature stress factor of ${metrics.stressFactors.temp.toFixed(2)}x` });
+    factors.push({ name: 'Temperature Stress', level: getLevel(metrics.stressFactors.temp), value: metrics.stressFactors.temp, description: `Temperature stress ${metrics.stressFactors.temp.toFixed(2)}x` });
   }
   if (metrics.stressFactors.loop > 1.0) {
-    factors.push({ name: 'Thermal Expansion', level: getLevel(metrics.stressFactors.loop), value: metrics.stressFactors.loop, description: 'Missing expansion tank causes pressure spikes' });
+    factors.push({ name: 'Thermal Expansion', level: getLevel(metrics.stressFactors.loop), value: metrics.stressFactors.loop, description: 'Missing expansion tank' });
   }
-  if (metrics.stressFactors.circ > 1.0) {
-    factors.push({ name: 'Recirculation Loop', level: getLevel(metrics.stressFactors.circ), value: metrics.stressFactors.circ, description: 'Continuous circulation increases wear' });
+  if (metrics.stressFactors.circ > 1.0 && !isHybrid) {
+    factors.push({ name: 'Recirculation Loop', level: getLevel(metrics.stressFactors.circ), value: metrics.stressFactors.circ, description: 'Continuous circulation wear' });
   }
   if (metrics.shieldLife <= 0) {
-    factors.push({ name: 'Anode Depletion', level: 'critical', value: 0, description: 'Sacrificial anode is fully depleted' });
+    factors.push({ name: 'Anode Depletion', level: 'critical', value: 0, description: 'Anode fully depleted' });
   } else if (metrics.shieldLife < 2) {
-    factors.push({ name: 'Anode Depletion', level: 'elevated', value: metrics.shieldLife, description: `Only ${metrics.shieldLife.toFixed(1)} years protection remaining` });
+    factors.push({ name: 'Anode Depletion', level: 'elevated', value: metrics.shieldLife, description: `${metrics.shieldLife.toFixed(1)} years remaining` });
   }
   return factors;
 }
@@ -254,13 +305,14 @@ const Index = () => {
             onContinue={() => setCurrentScreen('replacement-options')}
             reason={opterraResult.verdict.reason}
             location={currentInputs.location}
-            stressFactors={convertMetricsToStressFactors(opterraResult.metrics)}
+            stressFactors={convertMetricsToStressFactors(opterraResult.metrics, currentInputs.fuelType)}
             agingRate={opterraResult.metrics.agingRate}
             bioAge={opterraResult.metrics.bioAge}
             chronoAge={currentInputs.calendarAge}
             breachDetected={currentInputs.isLeaking || currentInputs.visualRust}
             isEconomicReplacement={isEconomicReplacement}
             failProb={opterraResult.metrics.failProb}
+            fuelType={currentInputs.fuelType}
           />
         );
       
