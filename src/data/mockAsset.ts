@@ -601,6 +601,78 @@ const scenarios: DemoScenario[] = [
       hasIsolationValves: true,  // NEW: Can be descaled
     },
   },
+  // === NEW: TANKLESS SCALE + NO VALVES SCENARIO ===
+  {
+    name: "The Scaled Tankless (No Valves)",
+    asset: {
+      id: "NV-TL180-S",
+      type: "Tankless Water Heater",
+      brand: "Navien",
+      model: "NPE-180A",
+      serialNumber: "NV-2019-TL180-S",
+      installDate: "2019-04-18",
+      paperAge: 5.7,
+      biologicalAge: 8.2,
+      location: "Utility Closet",
+      specs: { capacity: "9.8 GPM", fuelType: "Natural Gas (Tankless)", ventType: "Power Vent", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 6, housePsi: 65, warrantyYears: 10, fuelType: 'TANKLESS_GAS' as FuelType,
+      hardnessGPG: 25, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: false, hasPrv: true, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
+      visualRust: false, tempSetting: 'HOT' as TempSetting,
+      peopleCount: 4, usageType: 'heavy', tankCapacity: 0,
+      ventType: 'POWER_VENT' as VentType,
+      // Tankless specific - CRITICAL: No isolation valves + heavy scale
+      flowRateGPM: 6.2,           // Significant flow loss (was 9.8 rated)
+      ratedFlowGPM: 9.8,
+      lastDescaleYearsAgo: undefined, // NEVER descaled (can't be without valves)
+      igniterHealth: 75,
+      flameRodStatus: 'WORN' as FlameRodStatus,
+      inletFilterStatus: 'DIRTY' as InletFilterStatus,
+      errorCodeCount: 8,
+      tanklessVentStatus: 'CLEAR' as VentStatus,
+      scaleBuildup: 42,           // Critical scale level (past lockout threshold)
+      hasIsolationValves: false,  // CRITICAL: Cannot be serviced - needs valve install first
+      hasRecirculationLoop: false,
+    },
+  },
+  // === TANKLESS NEEDING DESCALE (HAS VALVES) ===
+  {
+    name: "The Descale Due Tankless",
+    asset: {
+      id: "RN-TL98-D",
+      type: "Tankless Water Heater",
+      brand: "Rinnai",
+      model: "RU180iN",
+      serialNumber: "RN-2020-TL98-D",
+      installDate: "2020-08-12",
+      paperAge: 4.4,
+      biologicalAge: 5.1,
+      location: "Garage",
+      specs: { capacity: "9.8 GPM", fuelType: "Natural Gas (Tankless)", ventType: "Direct Vent", piping: "3/4\" Copper" },
+    },
+    inputs: {
+      calendarAge: 4, housePsi: 60, warrantyYears: 12, fuelType: 'TANKLESS_GAS' as FuelType,
+      hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: false, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 3, usageType: 'normal', tankCapacity: 0,
+      ventType: 'DIRECT_VENT' as VentType,
+      // Tankless specific - Due for descale, has valves so CAN be serviced
+      flowRateGPM: 8.5,
+      ratedFlowGPM: 9.8,
+      lastDescaleYearsAgo: 2.5,   // Overdue for descale
+      igniterHealth: 88,
+      flameRodStatus: 'GOOD' as FlameRodStatus,
+      inletFilterStatus: 'CLEAN' as InletFilterStatus,
+      errorCodeCount: 2,
+      tanklessVentStatus: 'CLEAR' as VentStatus,
+      scaleBuildup: 18,           // Moderate scale - in "due" zone
+      hasIsolationValves: true,   // CAN be serviced
+      hasRecirculationLoop: false,
+    },
+  },
 ];
 
 // Generate sample service history for a scenario
