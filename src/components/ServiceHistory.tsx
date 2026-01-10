@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Wrench, Droplets, Shield, Plus, Calendar, AlertTriangle, Wind, Cpu } from 'lucide-react';
+import { ChevronDown, ChevronUp, Wrench, Droplets, Shield, Plus, Calendar, AlertTriangle, Wind, Cpu, Flame, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { ServiceEvent } from '@/types/serviceHistory';
-import type { FuelType, AirFilterStatus } from '@/lib/opterraAlgorithm';
+import type { FuelType, AirFilterStatus, InletFilterStatus, FlameRodStatus, VentStatus } from '@/lib/opterraAlgorithm';
+import { isTankless } from '@/lib/opterraAlgorithm';
+import { TanklessDiagram } from './TanklessDiagram';
 
 interface ServiceHistoryProps {
   calendarAge: number;
@@ -29,6 +31,16 @@ interface ServiceHistoryProps {
   compressorHealth?: number;
   hasExpansionTank?: boolean;
   hasPRV?: boolean;
+  // TANKLESS support
+  flowRateGPM?: number;
+  ratedFlowGPM?: number;
+  scaleBuildup?: number;
+  igniterHealth?: number;
+  elementHealth?: number;
+  inletFilterStatus?: InletFilterStatus;
+  flameRodStatus?: FlameRodStatus;
+  tanklessVentStatus?: VentStatus;
+  errorCodeCount?: number;
 }
 
 // Integrated Water Heater SVG Diagram Component
@@ -880,11 +892,22 @@ export function ServiceHistory({
   isCondensateClear = true,
   compressorHealth = 85,
   hasExpansionTank,
-  hasPRV
+  hasPRV,
+  // TANKLESS props
+  flowRateGPM = 9.5,
+  ratedFlowGPM = 9.5,
+  scaleBuildup = 0,
+  igniterHealth = 85,
+  elementHealth = 90,
+  inletFilterStatus = 'CLEAN',
+  flameRodStatus = 'GOOD',
+  tanklessVentStatus = 'CLEAR',
+  errorCodeCount = 0,
 }: ServiceHistoryProps) {
   // Breach detection
   const isBreach = isLeaking || visualRust;
   const isHybrid = fuelType === 'HYBRID';
+  const isTanklessUnit = isTankless(fuelType);
   // Check if replacement is recommended (no maintenance should be shown)
   const isReplacementRequired = recommendation?.action === 'REPLACE';
   // Default to closed - user can expand to see details
@@ -905,17 +928,61 @@ export function ServiceHistory({
   const anodeStatus = anodeDepleted ? 'critical' : anodeDepletionPercent > 70 ? 'warning' : 'good';
   const sedimentStatus = sedimentPercent > 50 ? 'critical' : sedimentHigh ? 'warning' : 'good';
 
+  // TANKLESS-specific calculations
+  const flowCapacityPercent = ratedFlowGPM > 0 ? Math.round((flowRateGPM / ratedFlowGPM) * 100) : 100;
+  const needsDescale = scaleBuildup > 20;
+  const needsIgniter = fuelType === 'TANKLESS_GAS' && igniterHealth < 60;
+  const needsElement = fuelType === 'TANKLESS_ELECTRIC' && elementHealth < 60;
+  const needsInletFilter = inletFilterStatus !== 'CLEAN';
+
   // SAFE FLUSH LOGIC GATES
   const isFragile = failProb > 60 || calendarAge > 12;
   const isLockedOut = sedimentLbs > 15;
   const isServiceable = sedimentLbs >= 5 && sedimentLbs <= 15;
-  const needsFlush = !isFragile && !isLockedOut && isServiceable;
+  const needsFlush = !isTanklessUnit && !isFragile && !isLockedOut && isServiceable;
   
-  const needsAnode = shieldLife < 1 && calendarAge < 8;
+  const needsAnode = !isTanklessUnit && shieldLife < 1 && calendarAge < 8;
   
   // HYBRID-specific service needs
   const needsFilterClean = isHybrid && airFilterStatus !== 'CLEAN';
   const needsDrainClear = isHybrid && !isCondensateClear;
+
+  // Get header label based on fuel type
+  const getHeaderLabel = () => {
+    if (isTanklessUnit) return 'Unit Health';
+    return 'Tank Health';
+  };
+
+  // Get fuel type badge
+  const getFuelTypeBadge = () => {
+    if (isHybrid) {
+      return (
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          HYBRID
+        </span>
+      );
+    }
+    if (fuelType === 'TANKLESS_GAS') {
+      return (
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center gap-1">
+          <Flame className="w-3 h-3" />
+          TANKLESS
+        </span>
+      );
+    }
+    if (fuelType === 'TANKLESS_ELECTRIC') {
+      return (
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 flex items-center gap-1">
+          <Zap className="w-3 h-3" />
+          TANKLESS
+        </span>
+      );
+    }
+    return null;
+  };
+
+  // Determine if any tankless service is needed
+  const tanklessServiceNeeded = isTanklessUnit && (needsDescale || needsIgniter || needsElement || needsInletFilter);
 
   return (
     <div className="command-card mx-4">
@@ -927,40 +994,51 @@ export function ServiceHistory({
         )}>
           <Wrench className={cn("w-4 h-4", isBreach ? "text-red-400" : "text-amber-400")} />
         </div>
-        <span className="font-semibold text-sm">Tank Health</span>
-        {isHybrid && (
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            HYBRID
-          </span>
-        )}
+        <span className="font-semibold text-sm">{getHeaderLabel()}</span>
+        {getFuelTypeBadge()}
         {isBreach && (
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse ml-auto">
             BREACH
           </span>
         )}
-        {!isBreach && !isReplacementRequired && (needsFlush || needsAnode || needsFilterClean || needsDrainClear) && (
+        {!isBreach && !isReplacementRequired && (needsFlush || needsAnode || needsFilterClean || needsDrainClear || tanklessServiceNeeded) && (
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-auto">
             SERVICE DUE
           </span>
         )}
       </div>
 
-      {/* Always Visible Content: Tank Diagram + Stats */}
+      {/* Always Visible Content: Diagram + Stats */}
       <div className="px-5 py-4">
         <div className="flex flex-col items-center">
-          {/* Water Heater Diagram - includes integrated heat pump for HYBRID */}
-          <WaterHeaterDiagram 
-            anodePercent={anodeDepletionPercent}
-            sedimentPercent={sedimentPercent}
-            anodeStatus={anodeStatus}
-            sedimentStatus={sedimentStatus}
-            sedimentLbs={sedimentLbs}
-            isBreach={isBreach}
-            isHybrid={isHybrid}
-            compressorHealth={compressorHealth}
-            airFilterStatus={airFilterStatus}
-            isCondensateClear={isCondensateClear}
-          />
+          {/* Conditional Diagram Rendering */}
+          {isTanklessUnit ? (
+            <TanklessDiagram 
+              fuelType={fuelType}
+              scalePercent={scaleBuildup}
+              flowCapacityPercent={flowCapacityPercent}
+              igniterHealth={igniterHealth}
+              elementHealth={elementHealth}
+              inletFilterStatus={inletFilterStatus}
+              flameRodStatus={flameRodStatus}
+              ventStatus={tanklessVentStatus}
+              isBreach={isBreach}
+              errorCodeCount={errorCodeCount}
+            />
+          ) : (
+            <WaterHeaterDiagram 
+              anodePercent={anodeDepletionPercent}
+              sedimentPercent={sedimentPercent}
+              anodeStatus={anodeStatus}
+              sedimentStatus={sedimentStatus}
+              sedimentLbs={sedimentLbs}
+              isBreach={isBreach}
+              isHybrid={isHybrid}
+              compressorHealth={compressorHealth}
+              airFilterStatus={airFilterStatus}
+              isCondensateClear={isCondensateClear}
+            />
+          )}
           
           {/* Stats Row - Always visible */}
           <div className="flex justify-center gap-6 mt-4 w-full">
