@@ -23,20 +23,20 @@ const usageOptions: UsageOption[] = [
   {
     type: 'light',
     icon: <Droplet className="w-6 h-6" />,
-    title: 'Efficient',
-    description: 'We keep it quick',
+    title: 'Light',
+    description: 'Short showers, minimal use',
   },
   {
     type: 'normal',
     icon: <Waves className="w-6 h-6" />,
-    title: 'Standard',
-    description: 'Normal daily routine',
+    title: 'Average',
+    description: 'Typical daily showers and tasks',
   },
   {
     type: 'heavy',
     icon: <Sparkles className="w-6 h-6" />,
-    title: 'Spa Mode',
-    description: 'We love long, hot showers',
+    title: 'Heavy',
+    description: 'Long showers, frequent use',
   },
 ];
 
@@ -52,10 +52,10 @@ export function HouseholdStep({
       {/* Title */}
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold text-foreground">
-          Tell us about your household
+          Your Household
         </h1>
         <p className="text-muted-foreground text-base">
-          This helps us calculate your actual usage and wear patterns.
+          This helps us estimate daily demand on your system.
         </p>
       </div>
 
@@ -63,7 +63,7 @@ export function HouseholdStep({
       <div className="space-y-4">
         <label className="text-sm font-medium text-foreground flex items-center gap-2">
           <Users className="w-4 h-4 text-muted-foreground" />
-          How many people rely on this water heater?
+          Number of people in your home
         </label>
         
         <div className="space-y-3">
@@ -88,7 +88,7 @@ export function HouseholdStep({
       {/* Question 2: Usage Type */}
       <div className="space-y-4">
         <label className="text-sm font-medium text-foreground">
-          What's the hot water vibe?
+          How would you describe your hot water usage?
         </label>
         
         <div className="grid grid-cols-3 gap-3">
