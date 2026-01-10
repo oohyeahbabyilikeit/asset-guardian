@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield } from 'lucide-react';
+import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -7,9 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
-import { ForensicInputs, calculateOpterraRisk, calculateHealth, failProbToHealthScore } from '@/lib/opterraAlgorithm';
+import { ForensicInputs, calculateOpterraRisk, failProbToHealthScore, isTankless } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
-import { SmartMaintenanceCard, UpcomingTask, HealthSummary } from './SmartMaintenanceCard';
+import { HealthSummary } from './SmartMaintenanceCard';
+import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMaintenanceCard';
+import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
@@ -30,8 +32,11 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   
-  // Add event form state
-  const [newEventType, setNewEventType] = useState<'flush' | 'anode_replacement' | 'inspection' | 'repair'>('flush');
+  // Get unit-specific service event types
+  const serviceEventTypes = useMemo(() => getServiceEventTypes(currentInputs.fuelType), [currentInputs.fuelType]);
+  
+  // Add event form state - default to first available event type for this unit
+  const [newEventType, setNewEventType] = useState(serviceEventTypes[0]?.value || 'inspection');
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
   const [newEventCost, setNewEventCost] = useState('');
   const [newEventNotes, setNewEventNotes] = useState('');
@@ -45,6 +50,11 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   // Handle critical states
   const isCriticalOrReplace = recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE';
   
+  // Unit type info for UI
+  const isTanklessUnit = isTankless(currentInputs.fuelType);
+  const isHybridUnit = currentInputs.fuelType === 'HYBRID';
+  const unitTypeLabel = isTanklessUnit ? 'Tankless' : isHybridUnit ? 'Hybrid Heat Pump' : 'Tank';
+  
   if (isCriticalOrReplace) {
     return (
       <div className="min-h-screen bg-background p-4">
@@ -57,7 +67,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
             <h2 className="text-lg font-semibold text-destructive mb-2">Maintenance Plan Unavailable</h2>
             <p className="text-muted-foreground text-sm mb-4">
-              Your unit requires {recommendation.badge === 'CRITICAL' ? 'immediate attention' : 'replacement'} before a maintenance plan can be established.
+              Your {unitTypeLabel.toLowerCase()} unit requires {recommendation.badge === 'CRITICAL' ? 'immediate attention' : 'replacement'} before a maintenance plan can be established.
             </p>
             <Button onClick={onScheduleService} variant="destructive" className="w-full">
               View Required Action
@@ -68,20 +78,11 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     );
   }
 
-  // Calculate maintenance timeline
-  const healthMetrics = useMemo(() => calculateHealth(currentInputs), [currentInputs]);
-  const { shieldLife, monthsToFlush, sedimentLbs, flushStatus } = healthMetrics;
-
-  // Cap maintenance timelines at 3 years (36 months)
-  // But if flushStatus is 'due' or 'lockout', flush is needed NOW (0 months)
-  const MAX_MONTHS = 36;
-  const isFlushDueNow = flushStatus === 'due' || flushStatus === 'lockout';
-  const cappedMonthsToFlush = isFlushDueNow ? 0 : (monthsToFlush !== null ? Math.min(Math.max(0, monthsToFlush), MAX_MONTHS) : 6);
-  const monthsToAnodeReplacement = shieldLife > 1 ? Math.round((shieldLife - 1) * 12) : 0;
-  const cappedMonthsToAnode = Math.min(Math.max(0, monthsToAnodeReplacement), MAX_MONTHS);
-  
-  // Determine which task is next
-  const flushIsNext = cappedMonthsToFlush <= cappedMonthsToAnode;
+  // Calculate unit-type-aware maintenance schedule
+  const maintenanceSchedule = useMemo(
+    () => calculateMaintenanceSchedule(currentInputs, opterraResult.metrics),
+    [currentInputs, opterraResult.metrics]
+  );
   
   // Calculate total saved from service history
   const totalSaved = serviceHistory.reduce((sum, e) => {
@@ -89,21 +90,38 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     return sum + (healthGain > 0 ? healthGain * 50 : 0);
   }, 0);
 
+  // Calculate health score boost based on event type
+  const getHealthBoost = (eventType: string): number => {
+    const boosts: Record<string, number> = {
+      flush: 5,
+      anode_replacement: 8,
+      descale: 7,
+      filter_clean: 3,
+      valve_install: 2,
+      air_filter: 4,
+      condensate: 2,
+      inspection: 1,
+      repair: 5,
+    };
+    return boosts[eventType] || 0;
+  };
+
   const handleAddEvent = () => {
     if (!newEventDate) {
       toast.error('Please select a date');
       return;
     }
     
+    const healthBoost = getHealthBoost(newEventType);
+    
     const event: ServiceEvent = {
       id: `event-${Date.now()}`,
-      type: newEventType,
+      type: newEventType as ServiceEvent['type'],
       date: newEventDate,
       cost: newEventCost ? parseFloat(newEventCost) : 0,
       notes: newEventNotes || undefined,
       healthScoreBefore: currentScore,
-      healthScoreAfter: newEventType === 'flush' ? Math.min(100, currentScore + 5) : 
-                        newEventType === 'anode_replacement' ? Math.min(100, currentScore + 8) : currentScore,
+      healthScoreAfter: Math.min(100, currentScore + healthBoost),
     };
     
     onAddServiceEvent?.(event);
@@ -111,7 +129,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     setShowAddEventModal(false);
     
     // Reset form
-    setNewEventType('flush');
+    setNewEventType(serviceEventTypes[0]?.value || 'inspection');
     setNewEventDate(new Date().toISOString().split('T')[0]);
     setNewEventCost('');
     setNewEventNotes('');
@@ -140,21 +158,47 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     setContactPhone('');
   };
 
-  // Format a simple history list
+  // Format a simple history list - unit-type aware
   const formatEventType = (type: string) => {
-    switch (type) {
-      case 'flush': return 'Tank Flush';
-      case 'anode_replacement': return 'Anode Replacement';
-      case 'anode_check': return 'Anode Check';
-      case 'inspection': return 'Inspection';
-      case 'repair': return 'Repair';
-      default: return type;
-    }
+    const labels: Record<string, string> = {
+      // Tank events
+      flush: 'Tank Flush',
+      anode_replacement: 'Anode Replacement',
+      anode_check: 'Anode Check',
+      // Tankless events
+      descale: 'Descale Service',
+      filter_clean: 'Filter Cleaning',
+      valve_install: 'Isolation Valve Install',
+      // Hybrid events
+      air_filter: 'Air Filter Service',
+      condensate: 'Condensate Drain Clear',
+      // Common events
+      inspection: 'Inspection',
+      repair: 'Repair',
+    };
+    return labels[type] || type;
   };
 
   const getEventIcon = (type: string) => {
-    if (type === 'flush') return Droplets;
-    return Shield;
+    switch (type) {
+      case 'flush':
+      case 'condensate':
+        return Droplets;
+      case 'anode_replacement':
+      case 'anode_check':
+        return Shield;
+      case 'descale':
+        return Flame;
+      case 'filter_clean':
+        return Filter;
+      case 'valve_install':
+      case 'repair':
+        return Wrench;
+      case 'air_filter':
+        return Wind;
+      default:
+        return Shield;
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -163,6 +207,17 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       day: 'numeric', 
       year: 'numeric' 
     });
+  };
+  
+  // Get intro message based on unit type
+  const getIntroMessage = () => {
+    if (isTanklessUnit) {
+      return 'Keep your tankless unit running efficiently with these maintenance tasks.';
+    }
+    if (isHybridUnit) {
+      return 'Your heat pump water heater needs regular care for optimal efficiency.';
+    }
+    return 'A little preventive care goes a long way. Here\'s how to keep it that way.';
   };
 
   return (
@@ -191,9 +246,9 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 mb-3">
             <span className="text-3xl">✨</span>
           </div>
-          <h2 className="text-xl font-semibold text-foreground mb-1">Your system is in great shape</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-1">Your {unitTypeLabel.toLowerCase()} is in great shape</h2>
           <p className="text-sm text-muted-foreground">
-            A little preventive care goes a long way. Here's how to keep it that way.
+            {getIntroMessage()}
           </p>
         </div>
         
@@ -209,29 +264,40 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
             Priority Maintenance
           </h2>
-          <SmartMaintenanceCard
-            taskType={flushIsNext ? 'flush' : 'anode'}
-            monthsUntilDue={flushIsNext ? cappedMonthsToFlush : cappedMonthsToAnode}
-            sedimentLbs={sedimentLbs}
-            waterHardnessGPG={currentInputs.hardnessGPG}
-            usageType={currentInputs.usageType}
+          <UnifiedMaintenanceCard
+            task={maintenanceSchedule.primaryTask}
             onSchedule={handleSchedule}
             onRemind={handleRemind}
           />
         </div>
 
-        {/* Coming Up Next */}
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
-            Also Scheduled
-          </h2>
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <UpcomingTask 
-              taskType={flushIsNext ? 'anode' : 'flush'}
-              timeframe={`${Math.round(flushIsNext ? cappedMonthsToAnode : cappedMonthsToFlush)} months`}
-            />
+        {/* Secondary Task */}
+        {maintenanceSchedule.secondaryTask && (
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+              Also Scheduled
+            </h2>
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <UpcomingMaintenanceTask task={maintenanceSchedule.secondaryTask} />
+            </div>
           </div>
-        </div>
+        )}
+        
+        {/* Additional Tasks (for complex units like tankless needing valve install) */}
+        {maintenanceSchedule.additionalTasks.length > 0 && (
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+              Other Maintenance
+            </h2>
+            <div className="rounded-2xl border border-border bg-card divide-y divide-border">
+              {maintenanceSchedule.additionalTasks.map((task) => (
+                <div key={task.type} className="px-4">
+                  <UpcomingMaintenanceTask task={task} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Service History */}
         <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
@@ -349,15 +415,16 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
               <Label>Service Type</Label>
-              <Select value={newEventType} onValueChange={(v: any) => setNewEventType(v)}>
+              <Select value={newEventType} onValueChange={(v) => setNewEventType(v)}>
                 <SelectTrigger className="h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="flush">Tank Flush</SelectItem>
-                  <SelectItem value="anode_replacement">Anode Replacement</SelectItem>
-                  <SelectItem value="inspection">Inspection</SelectItem>
-                  <SelectItem value="repair">Repair</SelectItem>
+                  {serviceEventTypes.map((eventType) => (
+                    <SelectItem key={eventType.value} value={eventType.value}>
+                      {eventType.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
