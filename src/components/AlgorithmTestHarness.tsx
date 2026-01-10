@@ -15,7 +15,8 @@ import {
   type OpterraResult,
   type FuelType,
   type TempSetting,
-  type LocationType 
+  type LocationType,
+  type AirFilterStatus 
 } from '@/lib/opterraAlgorithm';
 
 interface AlgorithmTestHarnessProps {
@@ -42,6 +43,9 @@ const DEFAULT_INPUTS: ForensicInputs = {
   peopleCount: 3,
   usageType: 'normal',
   tankCapacity: 50,
+  // Hybrid (Heat Pump) defaults
+  airFilterStatus: 'CLEAN',
+  isCondensateClear: true,
 };
 
 interface Issue {
@@ -262,6 +266,37 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
       detail: `${riskInfo.label} location increases potential damage from failure.`,
       value: inputs.location
     });
+  }
+
+  // Hybrid/Heat Pump specific issues
+  if (inputs.fuelType === 'HYBRID') {
+    if (inputs.airFilterStatus === 'CLOGGED') {
+      issues.push({
+        id: 'air_filter_clogged',
+        severity: 'critical',
+        title: 'Air Filter Clogged',
+        detail: 'Clogged air filter severely restricts airflow. Compressor damage imminent.',
+        value: 'CLOGGED'
+      });
+    } else if (inputs.airFilterStatus === 'DIRTY') {
+      issues.push({
+        id: 'air_filter_dirty',
+        severity: 'warning',
+        title: 'Air Filter Dirty',
+        detail: 'Dirty air filter reduces efficiency by 10-25%. Clean or replace soon.',
+        value: 'DIRTY'
+      });
+    }
+    
+    if (inputs.isCondensateClear === false) {
+      issues.push({
+        id: 'condensate_blocked',
+        severity: 'warning',
+        title: 'Condensate Drain Blocked',
+        detail: 'Blocked condensate drain can cause water damage and unit shutdown.',
+        value: 'BLOCKED'
+      });
+    }
   }
 
   // Stress factor warning
@@ -505,6 +540,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                     <SelectContent>
                       <SelectItem value="GAS">Gas</SelectItem>
                       <SelectItem value="ELECTRIC">Electric</SelectItem>
+                      <SelectItem value="HYBRID">Heat Pump / Hybrid</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -527,6 +563,43 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 </div>
               </div>
             </section>
+
+            {/* Heat Pump Maintenance - Only show for HYBRID */}
+            {inputs.fuelType === 'HYBRID' && (
+              <>
+                <Separator />
+                <section>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5" /> Heat Pump Maintenance
+                  </h2>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Air Filter Status</Label>
+                      <Select 
+                        value={inputs.airFilterStatus || 'CLEAN'} 
+                        onValueChange={(v) => updateInput('airFilterStatus', v as AirFilterStatus)}
+                      >
+                        <SelectTrigger className="mt-1 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CLEAN">Clean - Good Airflow</SelectItem>
+                          <SelectItem value="DIRTY">Dirty - Reduced Efficiency</SelectItem>
+                          <SelectItem value="CLOGGED">Clogged - Compressor at Risk</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                      <Label className="text-xs">Condensate Drain Clear</Label>
+                      <Switch 
+                        checked={inputs.isCondensateClear ?? true} 
+                        onCheckedChange={(v) => updateInput('isCondensateClear', v)} 
+                      />
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
 
             <Separator />
 
