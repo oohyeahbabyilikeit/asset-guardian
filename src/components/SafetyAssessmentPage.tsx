@@ -1,14 +1,17 @@
-import { ArrowLeft, Droplets, Gauge, Thermometer, Layers, RefreshCw, Maximize2, Shield, ChevronRight, Check } from 'lucide-react';
+import { ArrowLeft, Droplets, Gauge, Thermometer, Layers, RefreshCw, Maximize2, Shield, ChevronRight, Check, Wind, Wrench, Flame, Zap, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   STRESS_FACTOR_EXPLANATIONS, 
+  TANKLESS_STRESS_FACTOR_EXPLANATIONS,
+  HYBRID_STRESS_FACTOR_EXPLANATIONS,
   DAMAGE_TYPE_INFO,
   DAMAGE_SCENARIOS,
   getDamageTypeFromReason,
   getLocationKey
 } from '@/data/damageScenarios';
-import { failProbToHealthScore } from '@/lib/opterraAlgorithm';
+import { failProbToHealthScore, FuelType } from '@/lib/opterraAlgorithm';
+import { getUnitTypeLabel, getContextualRecommendation as getUnitRecommendation } from '@/lib/unitTypeContent';
 
 interface StressFactor {
   name: string;
@@ -29,6 +32,7 @@ interface SafetyAssessmentPageProps {
   breachDetected?: boolean;
   isEconomicReplacement?: boolean;
   failProb: number;
+  fuelType?: FuelType;
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -38,7 +42,12 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Maximize2,
   RefreshCw,
   Shield,
-  Droplets
+  Droplets,
+  Wind,
+  Wrench,
+  Flame,
+  Zap,
+  Cpu
 };
 
 // Generate contextual recommendation based on actual stress factor values
@@ -109,6 +118,7 @@ export function SafetyAssessmentPage({
   breachDetected = false,
   isEconomicReplacement = false,
   failProb,
+  fuelType = 'GAS',
 }: SafetyAssessmentPageProps) {
   const locationKey = getLocationKey(location);
   const damageScenario = DAMAGE_SCENARIOS[locationKey];
