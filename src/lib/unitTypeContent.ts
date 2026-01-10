@@ -66,34 +66,54 @@ export function getServiceTypes(fuelType: FuelType) {
 
 /**
  * CTA Labels by unit type and urgency
+ * 
+ * THREE-TIER ESCALATION SYSTEM:
+ * 🔴 RED TIER: Safety critical or code violations → "View Safety Recommendations"
+ * 🟡 YELLOW TIER: Overdue/upcoming maintenance, optional upgrades, near end-of-life → "See My Options"
+ * 🟢 GREEN TIER: No issues, healthy system → "See Maintenance Plan"
  */
 export const CTA_LABELS = {
   TANK: {
-    serviceOverdue: "Time to Flush Your Tank",
-    serviceDueSoon: "Schedule Your Flush",
+    // Yellow tier - maintenance attention
+    serviceOverdue: "See My Options",
+    serviceDueSoon: "See My Options",
+    // Red tier - safety critical
     critical: "View Safety Recommendations",
-    replace: "Show Me My Options",
-    service: "View Service Options",
-    optimal: "View Maintenance Plan",
-    default: "Explore My Options",
+    // Yellow tier - near end-of-life, not critical
+    replace: "See My Options",
+    // Yellow tier - service/upgrades needed
+    service: "See My Options",
+    // Green tier - healthy
+    optimal: "See Maintenance Plan",
+    default: "See My Options",
   },
   TANKLESS: {
-    serviceOverdue: "Time to Descale",
-    serviceDueSoon: "Schedule Descaling",
+    // Yellow tier - maintenance attention
+    serviceOverdue: "See My Options",
+    serviceDueSoon: "See My Options",
+    // Red tier - safety critical
     critical: "View Safety Recommendations",
-    replace: "Show Me My Options",
-    service: "View Service Options",
-    optimal: "View Maintenance Plan",
-    default: "Explore My Options",
+    // Yellow tier - near end-of-life, not critical
+    replace: "See My Options",
+    // Yellow tier - service/upgrades needed
+    service: "See My Options",
+    // Green tier - healthy
+    optimal: "See Maintenance Plan",
+    default: "See My Options",
   },
   HYBRID: {
-    serviceOverdue: "Air Filter Service Needed",
-    serviceDueSoon: "Schedule Filter Service",
+    // Yellow tier - maintenance attention
+    serviceOverdue: "See My Options",
+    serviceDueSoon: "See My Options",
+    // Red tier - safety critical
     critical: "View Safety Recommendations",
-    replace: "Show Me My Options",
-    service: "View Service Options",
-    optimal: "View Maintenance Plan",
-    default: "Explore My Options",
+    // Yellow tier - near end-of-life, not critical
+    replace: "See My Options",
+    // Yellow tier - service/upgrades needed
+    service: "See My Options",
+    // Green tier - healthy
+    optimal: "See Maintenance Plan",
+    default: "See My Options",
   },
 } as const;
 

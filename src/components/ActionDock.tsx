@@ -56,47 +56,53 @@ export function ActionDock({
     }
   };
   
-  // Dynamic CTA based on urgency tier and unit type
-  const getButtonLabel = () => {
-    if (!recommendation) return 'See What Others Do';
+  // Dynamic CTA based on three-tier escalation system:
+  // 🔴 RED TIER: Safety critical / code violations → "View Safety Recommendations"
+  // 🟡 YELLOW TIER: Maintenance, upgrades, near end-of-life → "See My Options"  
+  // 🟢 GREEN TIER: Healthy, no issues → "See Maintenance Plan"
+  
+  const getEscalationTier = (): 'red' | 'yellow' | 'green' => {
+    if (!recommendation) return 'yellow';
     
-    // Tier 0/1 (Critical Safety) - Safety focus
-    if (recommendation.badge === 'CRITICAL' as const) {
-      return getCTALabel(fuelType, 'critical');
+    // RED TIER: Safety critical or code violations
+    if (recommendation.badge === 'CRITICAL') {
+      return 'red';
     }
     
-    // Tier 2C (Economic Replacement) - Soft invitation to explore
-    if (recommendation.action === 'REPLACE') {
-      return getCTALabel(fuelType, 'replace');
+    // GREEN TIER: No issues, healthy system
+    if (recommendation.action === 'PASS' && recommendation.badge === 'OPTIMAL') {
+      return 'green';
     }
     
-    // Service is overdue - unit-aware messaging
-    if (isServiceOverdue) {
-      return getCTALabel(fuelType, 'serviceOverdue');
+    // GREEN TIER: Maintenance monitoring with no urgent needs
+    if (recommendation.action === 'PASS' && !needsServiceAttention) {
+      return 'green';
     }
     
-    // Service due soon - unit-aware messaging
-    if (isServiceDueSoon) {
-      return getCTALabel(fuelType, 'serviceDueSoon');
-    }
-    
-    // Tier 2/3 (Service) - Service focus
-    if (recommendation.badge === 'SERVICE' || recommendation.action === 'REPAIR' || recommendation.action === 'UPGRADE') {
-      return getCTALabel(fuelType, 'service');
-    }
-    
-    // Tier 4 (Green) - Maintenance focus
-    if (recommendation.action === 'PASS' || recommendation.badge === 'OPTIMAL') {
-      return getCTALabel(fuelType, 'optimal');
-    }
-    
-    return getCTALabel(fuelType, 'default');
+    // YELLOW TIER: Everything else (replacements, upgrades, service, overdue maintenance)
+    return 'yellow';
   };
   
-  // Only apply urgent red styling to actual safety issues, not economic replacements
-  const isCritical = recommendation?.badge === ('CRITICAL' as const);
-  // Amber styling for service attention needed
-  const isServiceUrgent = needsServiceAttention && !isCritical && recommendation?.action !== 'REPLACE';
+  const escalationTier = getEscalationTier();
+  
+  const getButtonLabel = () => {
+    if (!recommendation) return 'See My Options';
+    
+    switch (escalationTier) {
+      case 'red':
+        return getCTALabel(fuelType, 'critical'); // "View Safety Recommendations"
+      case 'green':
+        return getCTALabel(fuelType, 'optimal');  // "See Maintenance Plan"
+      case 'yellow':
+      default:
+        return getCTALabel(fuelType, 'default');  // "See My Options"
+    }
+  };
+  
+  // Apply styling based on escalation tier
+  const isRedTier = escalationTier === 'red';
+  const isYellowTier = escalationTier === 'yellow';
+  const isGreenTier = escalationTier === 'green';
   
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"
@@ -113,18 +119,18 @@ export function ActionDock({
           onClick={handlePrimaryClick}
           size="lg"
           className={`w-full font-bold py-4 h-auto rounded-xl active:scale-[0.98] transition-all text-base ${
-            isCritical 
+            isRedTier 
               ? 'bg-red-600 hover:bg-red-500 text-white animate-pulse' 
-              : isServiceUrgent
+              : isYellowTier
               ? 'bg-amber-600 hover:bg-amber-500 text-white'
-              : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+              : 'bg-emerald-600 hover:bg-emerald-500 text-white'
           }`}
           style={{
-            boxShadow: isCritical 
+            boxShadow: isRedTier 
               ? '0 4px 24px -4px rgba(239, 68, 68, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)'
-              : isServiceUrgent
+              : isYellowTier
               ? '0 4px 24px -4px rgba(217, 119, 6, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)'
-              : '0 4px 24px -4px hsl(24 95% 53% / 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)',
+              : '0 4px 24px -4px rgba(16, 185, 129, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)',
           }}
         >
           <span className="truncate">{getButtonLabel()}</span>
