@@ -41,6 +41,10 @@ interface ServiceHistoryProps {
   flameRodStatus?: FlameRodStatus;
   tanklessVentStatus?: VentStatus;
   errorCodeCount?: number;
+  // NEW: Tankless algorithm outputs
+  hasIsolationValves?: boolean;
+  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible';
+  flowDegradation?: number;
 }
 
 // Integrated Water Heater SVG Diagram Component
@@ -903,6 +907,10 @@ export function ServiceHistory({
   flameRodStatus = 'GOOD',
   tanklessVentStatus = 'CLEAR',
   errorCodeCount = 0,
+  // NEW: Tankless algorithm outputs
+  hasIsolationValves = true,
+  descaleStatus = 'optimal',
+  flowDegradation = 0,
 }: ServiceHistoryProps) {
   // Breach detection
   const isBreach = isLeaking || visualRust;
