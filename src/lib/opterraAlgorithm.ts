@@ -103,6 +103,7 @@ export interface ForensicInputs {
   // NEW v7.3: Hybrid (Heat Pump) specific fields
   airFilterStatus?: AirFilterStatus;  // HYBRID only: air filter condition
   isCondensateClear?: boolean;        // HYBRID only: condensate drain clear?
+  compressorHealth?: number;          // HYBRID only: 0-100 health percentage
 }
 
 export interface OpterraMetrics {

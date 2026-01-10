@@ -217,6 +217,12 @@ export function CommandCenter({
           serviceHistory={serviceHistory}
           isLeaking={currentInputs.isLeaking}
           visualRust={currentInputs.visualRust}
+          fuelType={currentInputs.fuelType}
+          airFilterStatus={currentInputs.airFilterStatus}
+          isCondensateClear={currentInputs.isCondensateClear}
+          compressorHealth={currentInputs.compressorHealth || 85}
+          hasExpansionTank={currentInputs.hasExpTank}
+          hasPRV={currentInputs.hasPrv}
         />
         </div>
 
