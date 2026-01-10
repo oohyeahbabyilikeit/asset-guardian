@@ -20,6 +20,7 @@ import { type ForensicInputs, calculateOpterraRisk, OpterraMetrics } from '@/lib
 import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
 import { SoftenerInputs, DEFAULT_SOFTENER_INPUTS } from '@/lib/softenerAlgorithm';
+import { HeatPumpCenter, HeatPumpInputs, DEFAULT_HEAT_PUMP_INPUTS } from '@/components/HeatPumpCenter';
 import { OnboardingData, mapOnboardingToForensicInputs, mapOnboardingToSoftenerInputs } from '@/types/onboarding';
 
 type Screen = 
@@ -38,7 +39,7 @@ type Screen =
   | 'softener-maintenance' 
   | 'test-harness';
 
-type AssetType = 'water-heater' | 'softener';
+type AssetType = 'water-heater' | 'softener' | 'heat-pump';
 
 // Helper to convert metrics to stress factors
 function convertMetricsToStressFactors(metrics: OpterraMetrics): { name: string; level: 'low' | 'moderate' | 'elevated' | 'critical'; value: number; description: string }[] {
@@ -91,6 +92,12 @@ const Index = () => {
     people: demoForensicInputs.peopleCount,
   });
   
+  // Heat pump inputs
+  const [heatPumpInputs, setHeatPumpInputs] = useState<HeatPumpInputs>(DEFAULT_HEAT_PUMP_INPUTS);
+  
+  // Demo: enable heat pump for testing (set to true to see the heat pump tab)
+  const hasHeatPump = true;
+
   // Shared service history state
   const [serviceHistory, setServiceHistory] = useState<ServiceEvent[]>(demoServiceHistory);
   
@@ -209,6 +216,27 @@ const Index = () => {
           isCritical ? 'critical' : isHealthy ? 'optimal' : 'warning';
         
         const softenerStatus: 'optimal' | 'warning' | 'critical' = 'optimal';
+        const heatPumpStatus: 'optimal' | 'warning' | 'critical' = 
+          heatPumpInputs.compressorHealth < 50 || !heatPumpInputs.condensateClear ? 'critical' :
+          heatPumpInputs.compressorHealth < 80 || heatPumpInputs.filterCondition !== 'clean' ? 'warning' : 'optimal';
+        
+        if (assetType === 'heat-pump') {
+          return (
+            <HeatPumpCenter
+              inputs={heatPumpInputs}
+              onInputsChange={setHeatPumpInputs}
+              onSwitchAsset={setAssetType}
+              waterHeaterStatus={whStatus}
+              softenerStatus={softenerStatus}
+              heatPumpStatus={heatPumpStatus}
+              onServiceRequest={() => setCurrentScreen('service')}
+              onEmergency={() => setCurrentScreen('panic')}
+              onMaintenanceTips={() => setCurrentScreen('maintenance-plan')}
+              hasSoftener={currentInputs.hasSoftener}
+              hasWaterHeater={true}
+            />
+          );
+        }
         
         if (assetType === 'softener') {
           return (
@@ -224,7 +252,7 @@ const Index = () => {
             />
           );
         }
-        
+
         return (
           <CommandCenter
             onPanicMode={() => setCurrentScreen('panic')}
@@ -239,12 +267,14 @@ const Index = () => {
             scenarioName={scenarioName}
             serviceHistory={serviceHistory}
             hasSoftener={currentInputs.hasSoftener}
+            hasHeatPump={hasHeatPump}
             onSwitchAsset={setAssetType}
             waterHeaterStatus={whStatus}
             softenerStatus={softenerStatus}
+            heatPumpStatus={heatPumpStatus}
           />
         );
-      
+
       case 'safety-assessment':
         return (
           <SafetyAssessmentPage
