@@ -1,7 +1,7 @@
 // Mock Asset Data for Opterra Home Asset Vault MVP
 // All data is configurable here for demo flexibility
 
-import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel, VentType, AirFilterStatus } from '@/lib/opterraAlgorithm';
+import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel, VentType, AirFilterStatus, InletFilterStatus, FlameRodStatus, VentStatus } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
 
 export interface AssetData {
@@ -464,6 +464,137 @@ const scenarios: DemoScenario[] = [
       // Heat pump specific - filter needs cleaning
       airFilterStatus: 'DIRTY' as AirFilterStatus,
       isCondensateClear: true,
+    },
+  },
+
+  // === TANKLESS WATER HEATER SCENARIOS ===
+  {
+    name: "The Efficient Tankless",
+    asset: {
+      id: "RN-TL95-A",
+      type: "Tankless Water Heater",
+      brand: "Rinnai",
+      model: "RU199iN",
+      serialNumber: "RN-2022-TL95-A",
+      installDate: "2022-06-15",
+      paperAge: 2.5,
+      biologicalAge: 2.2,
+      location: "Garage",
+      specs: { capacity: "9.5 GPM", fuelType: "Natural Gas (Tankless)", ventType: "Direct Vent", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 2, housePsi: 55, warrantyYears: 12, fuelType: 'TANKLESS_GAS' as FuelType,
+      hardnessGPG: 10, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: false, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 3, usageType: 'normal', tankCapacity: 0,
+      ventType: 'DIRECT_VENT' as VentType,
+      // Tankless specific - healthy
+      flowRateGPM: 9.2,
+      ratedFlowGPM: 9.5,
+      lastDescaleYearsAgo: 1,
+      igniterHealth: 95,
+      flameRodStatus: 'GOOD' as FlameRodStatus,
+      inletFilterStatus: 'CLEAN' as InletFilterStatus,
+      errorCodeCount: 0,
+      tanklessVentStatus: 'CLEAR' as VentStatus,
+      scaleBuildup: 5,
+    },
+  },
+  {
+    name: "The Hard Water Warrior",
+    asset: {
+      id: "NV-TL240-H",
+      type: "Tankless Water Heater",
+      brand: "Navien",
+      model: "NPE-240A",
+      serialNumber: "NV-2020-TL240-H",
+      installDate: "2020-03-22",
+      paperAge: 4.8,
+      biologicalAge: 5.5,
+      location: "Utility Closet",
+      specs: { capacity: "11.2 GPM", fuelType: "Natural Gas (Tankless)", ventType: "Power Vent", piping: "3/4\" Copper" },
+    },
+    inputs: {
+      calendarAge: 5, housePsi: 68, warrantyYears: 10, fuelType: 'TANKLESS_GAS' as FuelType,
+      hardnessGPG: 22, hasSoftener: false, hasCircPump: true, isClosedLoop: false,
+      hasExpTank: false, hasPrv: false, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 4, usageType: 'heavy', tankCapacity: 0,
+      ventType: 'POWER_VENT' as VentType,
+      // Tankless specific - needs descale
+      flowRateGPM: 7.8,
+      ratedFlowGPM: 11.2,
+      lastDescaleYearsAgo: 3,
+      igniterHealth: 82,
+      flameRodStatus: 'WORN' as FlameRodStatus,
+      inletFilterStatus: 'DIRTY' as InletFilterStatus,
+      errorCodeCount: 3,
+      tanklessVentStatus: 'CLEAR' as VentStatus,
+      scaleBuildup: 35,
+    },
+  },
+  {
+    name: "The Igniter Issue",
+    asset: {
+      id: "RH-TL95-I",
+      type: "Tankless Water Heater",
+      brand: "Rheem",
+      model: "RTGH-95DVLN",
+      serialNumber: "RH-2018-TL95-I",
+      installDate: "2018-09-10",
+      paperAge: 6.3,
+      biologicalAge: 7.8,
+      location: "Garage",
+      specs: { capacity: "9.5 GPM", fuelType: "Natural Gas (Tankless)", ventType: "Direct Vent", piping: "3/4\" Copper" },
+    },
+    inputs: {
+      calendarAge: 6, housePsi: 72, warrantyYears: 6, fuelType: 'TANKLESS_GAS' as FuelType,
+      hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: false, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'HOT' as TempSetting,
+      peopleCount: 5, usageType: 'heavy', tankCapacity: 0,
+      ventType: 'DIRECT_VENT' as VentType,
+      // Tankless specific - igniter failing
+      flowRateGPM: 7.2,
+      ratedFlowGPM: 9.5,
+      lastDescaleYearsAgo: 2,
+      igniterHealth: 45,
+      flameRodStatus: 'FAILING' as FlameRodStatus,
+      inletFilterStatus: 'CLOGGED' as InletFilterStatus,
+      errorCodeCount: 12,
+      tanklessVentStatus: 'RESTRICTED' as VentStatus,
+      scaleBuildup: 28,
+    },
+  },
+  {
+    name: "The Electric Instant",
+    asset: {
+      id: "ST-TLE27-E",
+      type: "Tankless Water Heater",
+      brand: "Stiebel Eltron",
+      model: "Tempra 29 Plus",
+      serialNumber: "ST-2021-TLE27-E",
+      installDate: "2021-11-05",
+      paperAge: 3.2,
+      biologicalAge: 3.0,
+      location: "Basement",
+      specs: { capacity: "7.0 GPM", fuelType: "Electric (Tankless)", ventType: "N/A", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 3, housePsi: 58, warrantyYears: 7, fuelType: 'TANKLESS_ELECTRIC' as FuelType,
+      hardnessGPG: 12, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: false, hasPrv: true, location: 'BASEMENT' as LocationType, isFinishedArea: true,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 2, usageType: 'light', tankCapacity: 0,
+      // Tankless electric specific - healthy
+      flowRateGPM: 6.8,
+      ratedFlowGPM: 7.0,
+      lastDescaleYearsAgo: 1.5,
+      elementHealth: 92,
+      inletFilterStatus: 'CLEAN' as InletFilterStatus,
+      errorCodeCount: 0,
+      scaleBuildup: 8,
     },
   },
 ];

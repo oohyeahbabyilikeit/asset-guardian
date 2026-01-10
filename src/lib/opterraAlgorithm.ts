@@ -42,8 +42,11 @@
 
 // --- TYPES & INTERFACES ---
 
-export type FuelType = 'GAS' | 'ELECTRIC' | 'HYBRID';
+export type FuelType = 'GAS' | 'ELECTRIC' | 'HYBRID' | 'TANKLESS_GAS' | 'TANKLESS_ELECTRIC';
 export type AirFilterStatus = 'CLEAN' | 'DIRTY' | 'CLOGGED';
+export type InletFilterStatus = 'CLEAN' | 'DIRTY' | 'CLOGGED';
+export type FlameRodStatus = 'GOOD' | 'WORN' | 'FAILING';
+export type VentStatus = 'CLEAR' | 'RESTRICTED' | 'BLOCKED';
 export type TempSetting = 'LOW' | 'NORMAL' | 'HOT';
 export type LocationType = 'ATTIC' | 'UPPER_FLOOR' | 'MAIN_LIVING' | 'BASEMENT' | 'GARAGE' | 'EXTERIOR' | 'CRAWLSPACE';
 export type RiskLevel = 1 | 2 | 3 | 4;
@@ -64,6 +67,11 @@ export interface TierProfile {
   baseCostHybrid: number;  // NEW v7.3: Heat pump water heaters
 }
 
+// Helper to detect tankless fuel types
+export function isTankless(fuelType: FuelType): boolean {
+  return fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
+}
+
 export interface ForensicInputs {
   calendarAge: number;     // Years
   warrantyYears: number;   // Standard is 6, 9, or 12
@@ -80,7 +88,7 @@ export interface ForensicInputs {
   // Usage Calibration (NEW v6.8)
   peopleCount: number;     // 1-8+ people in household
   usageType: UsageType;    // light, normal, heavy (shower habits)
-  tankCapacity: number;    // Gallons (from model # or user input)
+  tankCapacity: number;    // Gallons (from model # or user input) - for tankless, use 0
   
   // NEW v7.2: Venting Type (affects replacement cost)
   ventType?: VentType;     // Atmospheric, Power Vent, or Direct Vent
@@ -104,6 +112,19 @@ export interface ForensicInputs {
   airFilterStatus?: AirFilterStatus;  // HYBRID only: air filter condition
   isCondensateClear?: boolean;        // HYBRID only: condensate drain clear?
   compressorHealth?: number;          // HYBRID only: 0-100 health percentage
+  
+  // NEW v7.4: Tankless-specific fields
+  flowRateGPM?: number;               // Current flow rate capability
+  ratedFlowGPM?: number;              // Factory rated flow (e.g., 9.5 GPM)
+  lastDescaleYearsAgo?: number;       // Years since last descale/flush
+  igniterHealth?: number;             // 0-100% (gas tankless only)
+  flameRodStatus?: FlameRodStatus;    // Gas tankless only
+  elementHealth?: number;             // 0-100% (electric tankless only)
+  inletFilterStatus?: InletFilterStatus;
+  hasRecirculationLoop?: boolean;     // Built-in recirc pump
+  errorCodeCount?: number;            // Recent error code occurrences
+  tanklessVentStatus?: VentStatus;    // Gas tankless only
+  scaleBuildup?: number;              // 0-100% heat exchanger efficiency loss
 }
 
 export interface OpterraMetrics {
