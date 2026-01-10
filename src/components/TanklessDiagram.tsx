@@ -114,14 +114,27 @@ export function TanklessDiagram({
           <stop offset="100%" stopColor="#b45309" />
         </linearGradient>
         
-        {/* Flame glow filter */}
-        <filter id="flameGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
+        {/* Burner glow filter - subtle industrial look */}
+        <filter id="burnerGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
+        
+        {/* Heat shimmer gradient */}
+        <linearGradient id="burnerHeatGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+          <stop offset="0%" stopColor="#dc2626" stopOpacity="0.9" />
+          <stop offset="40%" stopColor="#ea580c" stopOpacity="0.7" />
+          <stop offset="80%" stopColor="#f97316" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#fdba74" stopOpacity="0.1" />
+        </linearGradient>
+        
+        {/* Burner bar gradient */}
+        <linearGradient id="burnerBarGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#1f2937" />
+          <stop offset="30%" stopColor="#374151" />
+          <stop offset="70%" stopColor="#374151" />
+          <stop offset="100%" stopColor="#1f2937" />
+        </linearGradient>
         
         {/* Breach glow */}
         <filter id="breachGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -286,27 +299,71 @@ export function TanklessDiagram({
         ))}
       </g>
       
-      {/* Flame visualization (gas only) */}
+      {/* Burner assembly (gas only) - industrial style */}
       {isGas && (
-        <g filter="url(#flameGlow)" opacity={igniterHealth > 30 ? 1 : 0.3}>
-          {[0, 1, 2, 3].map((i) => (
-            <ellipse
-              key={`flame-${i}`}
-              cx={unitX + 35 + i * 18}
-              cy={unitY + 158}
-              rx="6"
-              ry="8"
-              fill="#f97316"
-              opacity={0.7 + Math.random() * 0.3}
-            >
-              <animate 
-                attributeName="ry" 
-                values="8;10;7;8" 
-                dur={`${0.3 + i * 0.1}s`} 
-                repeatCount="indefinite" 
-              />
-            </ellipse>
+        <g opacity={igniterHealth > 30 ? 1 : 0.4}>
+          {/* Burner bar */}
+          <rect 
+            x={unitX + 20} 
+            y={unitY + 156} 
+            width={unitWidth - 40} 
+            height="6" 
+            rx="1"
+            fill="url(#burnerBarGradient)"
+            stroke="#1f2937"
+            strokeWidth="0.5"
+          />
+          
+          {/* Burner ports (holes) */}
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <circle
+              key={`port-${i}`}
+              cx={unitX + 28 + i * 10}
+              cy={unitY + 159}
+              r="2"
+              fill="#0f172a"
+            />
           ))}
+          
+          {/* Heat glow bars - subtle industrial heat visualization */}
+          <g filter="url(#burnerGlow)">
+            {[0, 1, 2].map((row) => (
+              <rect
+                key={`heat-row-${row}`}
+                x={unitX + 22}
+                y={unitY + 150 - row * 4}
+                width={unitWidth - 44}
+                height="2"
+                rx="1"
+                fill={row === 0 ? '#dc2626' : row === 1 ? '#ea580c' : '#f97316'}
+                opacity={0.6 - row * 0.15}
+              >
+                <animate 
+                  attributeName="opacity" 
+                  values={`${0.6 - row * 0.15};${0.4 - row * 0.1};${0.6 - row * 0.15}`}
+                  dur={`${1.5 + row * 0.3}s`} 
+                  repeatCount="indefinite" 
+                />
+              </rect>
+            ))}
+          </g>
+          
+          {/* Subtle shimmer effect */}
+          <rect
+            x={unitX + 22}
+            y={unitY + 140}
+            width={unitWidth - 44}
+            height="16"
+            fill="url(#burnerHeatGradient)"
+            opacity="0.3"
+          >
+            <animate 
+              attributeName="opacity" 
+              values="0.3;0.2;0.35;0.25;0.3"
+              dur="3s" 
+              repeatCount="indefinite" 
+            />
+          </rect>
         </g>
       )}
       
