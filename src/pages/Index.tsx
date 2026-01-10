@@ -59,10 +59,10 @@ function convertMetricsToStressFactors(
   const isHybrid = fuelType === 'HYBRID';
   
   // Cast metrics to access unit-specific properties
+  // NOTE: scaleBuildupScore (not scaleBuildup) is the correct property from the tankless algorithm
   const extMetrics = metrics as OpterraMetrics & { 
-    scaleBuildup?: number; 
+    scaleBuildupScore?: number; 
     flowDegradation?: number; 
-    hasIsolationValves?: boolean;
     igniterHealth?: number;
     airFilterStatus?: string;
     isCondensateClear?: boolean;
@@ -70,20 +70,21 @@ function convertMetricsToStressFactors(
 
   // TANKLESS-specific stress factors
   if (isTankless) {
-    if (extMetrics.scaleBuildup !== undefined && extMetrics.scaleBuildup > 10) {
-      const level = extMetrics.scaleBuildup > 35 ? 'critical' : extMetrics.scaleBuildup > 25 ? 'elevated' : 'moderate';
-      factors.push({ name: 'Scale Buildup', level, value: extMetrics.scaleBuildup / 100, description: `${extMetrics.scaleBuildup}% scale in heat exchanger` });
+    // Scale buildup - use scaleBuildupScore from algorithm
+    if (extMetrics.scaleBuildupScore !== undefined && extMetrics.scaleBuildupScore > 10) {
+      const level = extMetrics.scaleBuildupScore > 35 ? 'critical' : extMetrics.scaleBuildupScore > 25 ? 'elevated' : 'moderate';
+      factors.push({ name: 'Scale Buildup', level, value: extMetrics.scaleBuildupScore / 100, description: `${extMetrics.scaleBuildupScore.toFixed(0)}% scale in heat exchanger` });
     }
+    // Flow degradation
     if (extMetrics.flowDegradation !== undefined && extMetrics.flowDegradation > 10) {
       const level = extMetrics.flowDegradation > 30 ? 'critical' : extMetrics.flowDegradation > 20 ? 'elevated' : 'moderate';
-      factors.push({ name: 'Flow Restriction', level, value: extMetrics.flowDegradation / 100, description: `${extMetrics.flowDegradation}% flow reduction` });
+      factors.push({ name: 'Flow Restriction', level, value: extMetrics.flowDegradation / 100, description: `${extMetrics.flowDegradation.toFixed(0)}% flow reduction` });
     }
-    if (extMetrics.hasIsolationValves === false) {
-      factors.push({ name: 'Isolation Valves Missing', level: 'elevated', value: 0, description: 'Cannot service without isolation valves' });
-    }
+    // Igniter health (for gas tankless)
     if (extMetrics.igniterHealth !== undefined && extMetrics.igniterHealth < 70) {
       factors.push({ name: 'Igniter Health', level: extMetrics.igniterHealth < 50 ? 'critical' : 'elevated', value: extMetrics.igniterHealth / 100, description: `Igniter at ${extMetrics.igniterHealth}%` });
     }
+    // Recirculation fatigue
     if (metrics.stressFactors.circ > 1.0) {
       factors.push({ name: 'Recirculation Fatigue', level: getLevel(metrics.stressFactors.circ), value: metrics.stressFactors.circ, description: 'Recirculation increasing wear' });
     }
