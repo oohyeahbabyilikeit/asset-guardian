@@ -1048,28 +1048,57 @@ export function ServiceHistory({
             />
           )}
           
-          {/* Stats Row - Always visible */}
+          {/* Stats Row - Unit-type aware */}
           <div className="flex justify-center gap-6 mt-4 w-full">
-            <div className="text-center data-display px-4 py-2 flex-1">
-              <div className={cn(
-                "text-lg font-bold font-data",
-                anodeStatus === 'critical' ? "text-red-400" : 
-                anodeStatus === 'warning' ? "text-amber-400" : "text-emerald-400"
-              )}>
-                {shieldLife > 0 ? `${shieldLife.toFixed(1)} yr` : 'DEPLETED'}
-              </div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Anode Life</div>
-            </div>
-            <div className="text-center data-display px-4 py-2 flex-1">
-              <div className={cn(
-                "text-lg font-bold font-data",
-                sedimentStatus === 'critical' ? "text-red-400" : 
-                sedimentStatus === 'warning' ? "text-amber-400" : "text-emerald-400"
-              )}>
-                {sedimentLbs.toFixed(1)} lbs
-              </div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Sediment</div>
-            </div>
+            {isTanklessUnit ? (
+              // TANKLESS: Show Scale % and Flow Capacity
+              <>
+                <div className="text-center data-display px-4 py-2 flex-1">
+                  <div className={cn(
+                    "text-lg font-bold font-data",
+                    scaleBuildup > 30 ? "text-red-400" : 
+                    scaleBuildup > 15 ? "text-amber-400" : "text-emerald-400"
+                  )}>
+                    {scaleBuildup.toFixed(0)}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Scale Buildup</div>
+                </div>
+                <div className="text-center data-display px-4 py-2 flex-1">
+                  <div className={cn(
+                    "text-lg font-bold font-data",
+                    flowCapacityPercent < 70 ? "text-red-400" : 
+                    flowCapacityPercent < 85 ? "text-amber-400" : "text-emerald-400"
+                  )}>
+                    {flowCapacityPercent}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Flow Capacity</div>
+                </div>
+              </>
+            ) : (
+              // TANK/HYBRID: Show Anode Life and Sediment
+              <>
+                <div className="text-center data-display px-4 py-2 flex-1">
+                  <div className={cn(
+                    "text-lg font-bold font-data",
+                    anodeStatus === 'critical' ? "text-red-400" : 
+                    anodeStatus === 'warning' ? "text-amber-400" : "text-emerald-400"
+                  )}>
+                    {shieldLife > 0 ? `${shieldLife.toFixed(1)} yr` : 'DEPLETED'}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Anode Life</div>
+                </div>
+                <div className="text-center data-display px-4 py-2 flex-1">
+                  <div className={cn(
+                    "text-lg font-bold font-data",
+                    sedimentStatus === 'critical' ? "text-red-400" : 
+                    sedimentStatus === 'warning' ? "text-amber-400" : "text-emerald-400"
+                  )}>
+                    {sedimentLbs.toFixed(1)} lbs
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Sediment</div>
+                </div>
+              </>
+            )}
           </div>
           
           {/* HYBRID Status Row */}

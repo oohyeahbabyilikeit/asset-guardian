@@ -8,7 +8,7 @@ import {
   type AssetData
 } from '@/data/mockAsset';
 import { generatePDF } from '@/lib/pdfGenerator';
-import { calculateOpterraRisk, type ForensicInputs } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, type ForensicInputs, isTankless } from '@/lib/opterraAlgorithm';
 import { RecommendationBadge } from './RecommendationBadge';
 
 interface ForensicReportProps {
@@ -139,9 +139,11 @@ function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
 export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
   // Calculate all metrics using v7.2 algorithm
   const opterraResult = calculateOpterraRisk(inputs);
-  const { failProb, bioAge, sedimentLbs, shieldLife, stressFactors } = opterraResult.metrics;
+  const { failProb, bioAge, sedimentLbs, shieldLife, stressFactors, scaleBuildupScore, flowDegradation } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
   const financial = opterraResult.financial;
+  
+  const isTanklessUnit = isTankless(inputs.fuelType);
 
   // Generate dynamic audit findings based on current inputs
   const auditFindings = generateAuditFindings(inputs, { sedimentLbs, shieldLife, bioAge, stressFactors });
@@ -181,16 +183,34 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
               <div className="text-lg font-bold font-mono">{bioAge.toFixed(1)} yrs</div>
               <div className="text-[10px] text-muted-foreground">vs {inputs.calendarAge} calendar</div>
             </div>
-            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-              <div className="text-xs text-muted-foreground">Shield Life</div>
-              <div className="text-lg font-bold font-mono">{shieldLife.toFixed(1)} yrs</div>
-              <div className="text-[10px] text-muted-foreground">anode protection</div>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-              <div className="text-xs text-muted-foreground">Sediment Load</div>
-              <div className="text-lg font-bold font-mono">{sedimentLbs.toFixed(1)} lbs</div>
-              <div className="text-[10px] text-muted-foreground">estimated buildup*</div>
-            </div>
+            {isTanklessUnit ? (
+              // Tankless: Show Scale Buildup instead of Shield Life
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                <div className="text-xs text-muted-foreground">Scale Buildup</div>
+                <div className="text-lg font-bold font-mono">{(scaleBuildupScore ?? 0).toFixed(0)}%</div>
+                <div className="text-[10px] text-muted-foreground">heat exchanger</div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                <div className="text-xs text-muted-foreground">Shield Life</div>
+                <div className="text-lg font-bold font-mono">{shieldLife.toFixed(1)} yrs</div>
+                <div className="text-[10px] text-muted-foreground">anode protection</div>
+              </div>
+            )}
+            {isTanklessUnit ? (
+              // Tankless: Show Flow Degradation instead of Sediment Load
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                <div className="text-xs text-muted-foreground">Flow Degradation</div>
+                <div className="text-lg font-bold font-mono">{(flowDegradation ?? 0).toFixed(0)}%</div>
+                <div className="text-[10px] text-muted-foreground">vs rated GPM</div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                <div className="text-xs text-muted-foreground">Sediment Load</div>
+                <div className="text-lg font-bold font-mono">{sedimentLbs.toFixed(1)} lbs</div>
+                <div className="text-[10px] text-muted-foreground">estimated buildup*</div>
+              </div>
+            )}
             <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
               <div className="text-xs text-muted-foreground">Stress Factor</div>
               <div className="text-lg font-bold font-mono">{stressFactors.total.toFixed(2)}×</div>
@@ -214,9 +234,16 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
               </p>
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-3 italic">
-            *Sediment estimates assume ~50% removal per flush. Neglected tanks may retain more sediment.
-          </p>
+          {!isTanklessUnit && (
+            <p className="text-[10px] text-muted-foreground mt-3 italic">
+              *Sediment estimates assume ~50% removal per flush. Neglected tanks may retain more sediment.
+            </p>
+          )}
+          {isTanklessUnit && (
+            <p className="text-[10px] text-muted-foreground mt-3 italic">
+              *Scale buildup is estimated based on water hardness, usage, and time since last descale.
+            </p>
+          )}
         </section>
         
         <EvidenceLockerSection findings={auditFindings} />
