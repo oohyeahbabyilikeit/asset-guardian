@@ -22,6 +22,7 @@ export function UnifiedMaintenanceCard({
   const isOverdue = urgency === 'overdue' || monthsUntilDue <= 0;
   const isDueSoon = urgency === 'due' || (monthsUntilDue <= 2 && monthsUntilDue > 0);
   const isImpossible = urgency === 'impossible';
+  const isFarOut = monthsUntilDue > 3 && !isOverdue && !isImpossible;
   
   // Calculate urgency percentage (inverse - higher when due sooner)
   const maxMonths = 12;
@@ -151,27 +152,52 @@ export function UnifiedMaintenanceCard({
 
       {/* Actions */}
       <div className="flex gap-3">
-        <Button 
-          onClick={onSchedule}
-          className={cn(
-            "flex-1 gap-2 h-11",
-            isImpossible && "bg-orange-600 hover:bg-orange-500 text-white",
-            isOverdue && !isImpossible && "bg-amber-600 hover:bg-amber-500 text-white"
-          )}
-          variant={(isOverdue || isImpossible) ? undefined : "default"}
-        >
-          <Calendar className="w-4 h-4" />
-          {isImpossible ? 'Schedule Install' : 'Schedule Service'}
-        </Button>
-        {!isImpossible && (
-          <Button 
-            onClick={onRemind}
-            variant="outline"
-            className="gap-2 h-11 px-4"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="hidden sm:inline">Remind</span>
-          </Button>
+        {isFarOut ? (
+          // Far out (>3 months): Remind is primary
+          <>
+            <Button 
+              onClick={onRemind}
+              className="flex-1 gap-2 h-11"
+              variant="default"
+            >
+              <Bell className="w-4 h-4" />
+              Remind Me
+            </Button>
+            <Button 
+              onClick={onSchedule}
+              variant="outline"
+              className="gap-2 h-11 px-4"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Schedule</span>
+            </Button>
+          </>
+        ) : (
+          // Due soon, overdue, or impossible: Schedule is primary
+          <>
+            <Button 
+              onClick={onSchedule}
+              className={cn(
+                "flex-1 gap-2 h-11",
+                isImpossible && "bg-orange-600 hover:bg-orange-500 text-white",
+                isOverdue && !isImpossible && "bg-amber-600 hover:bg-amber-500 text-white"
+              )}
+              variant={(isOverdue || isImpossible) ? undefined : "default"}
+            >
+              <Calendar className="w-4 h-4" />
+              {isImpossible ? 'Schedule Install' : 'Schedule Service'}
+            </Button>
+            {!isImpossible && (
+              <Button 
+                onClick={onRemind}
+                variant="outline"
+                className="gap-2 h-11 px-4"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="hidden sm:inline">Remind</span>
+              </Button>
+            )}
+          </>
         )}
       </div>
     </div>
