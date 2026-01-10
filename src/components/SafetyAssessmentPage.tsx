@@ -2,9 +2,7 @@ import { ArrowLeft, Droplets, Gauge, Thermometer, Layers, RefreshCw, Maximize2, 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
-  STRESS_FACTOR_EXPLANATIONS, 
-  TANKLESS_STRESS_FACTOR_EXPLANATIONS,
-  HYBRID_STRESS_FACTOR_EXPLANATIONS,
+  getStressFactorExplanations,
   DAMAGE_TYPE_INFO,
   DAMAGE_SCENARIOS,
   getDamageTypeFromReason,
@@ -317,7 +315,8 @@ export function SafetyAssessmentPage({
               <ul className="space-y-3">
                 {significantStressors.map((stressor, i) => {
                   const factorKey = getStressFactorKey(stressor.name, fuelType);
-                  const factorInfo = factorKey ? STRESS_FACTOR_EXPLANATIONS[factorKey as keyof typeof STRESS_FACTOR_EXPLANATIONS] : null;
+                  const stressFactorExplanations = getStressFactorExplanations(fuelType);
+                  const factorInfo = factorKey ? stressFactorExplanations[factorKey as keyof typeof stressFactorExplanations] : null;
                   const IconComponent = factorInfo ? ICON_MAP[factorInfo.icon] || Gauge : Gauge;
                   const levelInfo = factorInfo?.[stressor.level as 'elevated' | 'critical'];
 
