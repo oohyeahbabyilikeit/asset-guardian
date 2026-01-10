@@ -31,7 +31,7 @@ interface ServiceHistoryProps {
   hasPRV?: boolean;
 }
 
-// Heat Pump Unit SVG Component for HYBRID
+// Heat Pump Unit SVG Component for HYBRID - matches WaterHeaterDiagram style
 function HeatPumpUnit({ 
   compressorHealth = 85,
   airFilterStatus = 'CLEAN',
@@ -45,86 +45,119 @@ function HeatPumpUnit({
   const filterStatus = airFilterStatus === 'CLEAN' ? 'good' : airFilterStatus === 'DIRTY' ? 'warning' : 'critical';
   const drainStatus = isCondensateClear ? 'good' : 'critical';
   
+  const statusColors = {
+    good: '#22c55e',
+    warning: '#f59e0b', 
+    critical: '#ef4444'
+  };
+  
   return (
     <svg 
-      viewBox="0 0 200 80" 
-      className="w-full h-auto max-h-[80px]"
-      style={{ filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.3))' }}
+      viewBox="0 0 200 100" 
+      className="w-full h-auto max-h-[100px]"
+      style={{ filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }}
     >
       <defs>
-        {/* Heat pump housing gradient */}
+        {/* Metallic housing gradient - matching tank style */}
         <linearGradient id="hpHousingGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#1f2937" />
-          <stop offset="50%" stopColor="#374151" />
-          <stop offset="100%" stopColor="#1f2937" />
+          <stop offset="0%" stopColor="#2d3748" />
+          <stop offset="15%" stopColor="#3d4a5c" />
+          <stop offset="35%" stopColor="#5a6b7d" />
+          <stop offset="50%" stopColor="#718096" />
+          <stop offset="65%" stopColor="#5a6b7d" />
+          <stop offset="85%" stopColor="#3d4a5c" />
+          <stop offset="100%" stopColor="#2d3748" />
         </linearGradient>
         
-        {/* Fan gradient */}
-        <radialGradient id="fanGradient" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#3b82f6" />
+        {/* Top face gradient */}
+        <linearGradient id="hpTopGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#4a5568" />
+          <stop offset="100%" stopColor="#2d3748" />
+        </linearGradient>
+        
+        {/* Fan grille gradient */}
+        <radialGradient id="fanGrilleGradient" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#1a202c" />
+          <stop offset="70%" stopColor="#0f1419" />
+          <stop offset="100%" stopColor="#1a202c" />
         </radialGradient>
+        
+        {/* Control panel gradient */}
+        <linearGradient id="controlPanelGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#1a202c" />
+          <stop offset="50%" stopColor="#0f1419" />
+          <stop offset="100%" stopColor="#1a202c" />
+        </linearGradient>
       </defs>
       
-      {/* Main housing */}
-      <rect x="25" y="10" width="150" height="55" rx="6" fill="url(#hpHousingGradient)" stroke="#4b5563" strokeWidth="1.5" />
+      {/* Main housing body - 3D box effect */}
+      <rect x="20" y="15" width="160" height="60" rx="4" fill="url(#hpHousingGradient)" />
       
-      {/* Vent grilles */}
-      <g fill="#6b7280" opacity="0.5">
-        {[0, 1, 2, 3, 4, 5].map(i => (
-          <rect key={i} x={40 + i * 20} y="18" width="12" height="2" rx="1" />
-        ))}
-        {[0, 1, 2, 3, 4, 5].map(i => (
-          <rect key={i + 10} x={40 + i * 20} y="24" width="12" height="2" rx="1" />
-        ))}
+      {/* Top edge highlight */}
+      <rect x="20" y="15" width="160" height="3" rx="1" fill="url(#hpTopGradient)" opacity="0.8" />
+      
+      {/* Bottom shadow edge */}
+      <rect x="20" y="72" width="160" height="3" rx="1" fill="#1a202c" opacity="0.6" />
+      
+      {/* Circular fan grille - left side */}
+      <circle cx="65" cy="45" r="22" fill="url(#fanGrilleGradient)" stroke="#4a5568" strokeWidth="1.5" />
+      
+      {/* Fan grille slats */}
+      <g stroke="#2d3748" strokeWidth="1.5" opacity="0.8">
+        <line x1="45" y1="45" x2="85" y2="45" />
+        <line x1="48" y1="35" x2="82" y2="55" />
+        <line x1="48" y1="55" x2="82" y2="35" />
+        <line x1="65" y1="25" x2="65" y2="65" />
       </g>
       
-      {/* Compressor fan area */}
-      <circle cx="100" cy="42" r="16" fill="#111827" stroke="#4b5563" strokeWidth="1" />
-      <g className={compressorHealth >= 50 ? "animate-spin" : ""} style={{ transformOrigin: '100px 42px', animationDuration: '2s' }}>
-        <path d="M100 28 L104 42 L100 56 L96 42 Z" fill="url(#fanGradient)" />
-        <path d="M86 42 L100 38 L114 42 L100 46 Z" fill="url(#fanGradient)" />
-      </g>
+      {/* Fan center hub */}
+      <circle cx="65" cy="45" r="6" fill="#2d3748" stroke="#4a5568" strokeWidth="1" />
       
-      {/* Status LED for compressor */}
+      {/* Compressor status indicator on fan */}
       <circle 
-        cx="100" 
-        cy="42" 
-        r="4" 
-        fill={compressorStatus === 'good' ? '#22c55e' : compressorStatus === 'warning' ? '#f59e0b' : '#ef4444'}
-        className={compressorHealth >= 50 ? "animate-pulse" : ""}
+        cx="65" 
+        cy="45" 
+        r="3" 
+        fill={statusColors[compressorStatus]}
+        opacity="0.9"
       />
       
-      {/* Air filter indicator (right side) */}
-      <rect 
-        x="145" 
-        y="30" 
-        width="22" 
-        height="25" 
-        rx="3" 
-        fill={filterStatus === 'good' ? 'rgba(34, 197, 94, 0.2)' : filterStatus === 'warning' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
-        stroke={filterStatus === 'good' ? '#22c55e' : filterStatus === 'warning' ? '#f59e0b' : '#ef4444'}
-        strokeWidth="1.5"
-      />
-      <text x="156" y="47" textAnchor="middle" fill="#9ca3af" fontSize="6" fontWeight="500">
-        FILTER
+      {/* Control panel - right side */}
+      <rect x="105" y="22" width="65" height="46" rx="2" fill="url(#controlPanelGradient)" stroke="#4a5568" strokeWidth="1" />
+      
+      {/* Digital display */}
+      <rect x="112" y="28" width="50" height="14" rx="1" fill="#0a0f14" stroke="#374151" strokeWidth="0.5" />
+      <text x="137" y="39" textAnchor="middle" fill="#22c55e" fontSize="8" fontFamily="monospace" fontWeight="600">
+        {compressorHealth}%
       </text>
       
-      {/* Condensate drain (bottom left) */}
-      <path 
-        d="M35 55 L35 70 L45 70" 
-        fill="none" 
-        stroke={drainStatus === 'good' ? '#22c55e' : '#ef4444'} 
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      {!isCondensateClear && (
-        <circle cx="40" cy="62" r="4" fill="#ef4444" className="animate-pulse" />
-      )}
+      {/* Status LEDs row */}
+      <g>
+        {/* Compressor LED */}
+        <circle cx="118" cy="52" r="3" fill={statusColors[compressorStatus]} />
+        <text x="118" y="62" textAnchor="middle" fill="#6b7280" fontSize="4">COMP</text>
+        
+        {/* Filter LED */}
+        <circle cx="137" cy="52" r="3" fill={statusColors[filterStatus]} />
+        <text x="137" y="62" textAnchor="middle" fill="#6b7280" fontSize="4">FILT</text>
+        
+        {/* Drain LED */}
+        <circle cx="156" cy="52" r="3" fill={statusColors[drainStatus]} />
+        <text x="156" y="62" textAnchor="middle" fill="#6b7280" fontSize="4">DRAIN</text>
+      </g>
       
-      {/* Label */}
-      <text x="100" y="72" textAnchor="middle" fill="#6b7280" fontSize="7" fontWeight="600" letterSpacing="0.5">
-        HEAT PUMP UNIT
+      {/* Connection pipes to tank below */}
+      <rect x="75" y="75" width="8" height="10" fill="#4a5568" />
+      <rect x="117" y="75" width="8" height="10" fill="#4a5568" />
+      
+      {/* Pipe highlights */}
+      <rect x="77" y="75" width="2" height="10" fill="#5a6b7d" opacity="0.5" />
+      <rect x="119" y="75" width="2" height="10" fill="#5a6b7d" opacity="0.5" />
+      
+      {/* Brand label area */}
+      <rect x="25" y="20" width="25" height="8" rx="1" fill="#1a202c" opacity="0.5" />
+      <text x="37.5" y="26" textAnchor="middle" fill="#4a5568" fontSize="4" fontWeight="600" letterSpacing="0.5">
+        HYBRID
       </text>
     </svg>
   );
