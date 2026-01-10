@@ -1101,6 +1101,40 @@ export function ServiceHistory({
             )}
           </div>
           
+          {/* TANKLESS Error Code Banner */}
+          {isTanklessUnit && errorCodeCount > 0 && (
+            <div className={cn(
+              "mt-3 w-full rounded-lg border p-3 flex items-start gap-3",
+              errorCodeCount > 5 
+                ? "bg-red-500/10 border-red-500/30" 
+                : "bg-amber-500/10 border-amber-500/30"
+            )}>
+              <div className={cn(
+                "p-1.5 rounded-md",
+                errorCodeCount > 5 ? "bg-red-500/20" : "bg-amber-500/20"
+              )}>
+                <AlertTriangle className={cn(
+                  "w-4 h-4",
+                  errorCodeCount > 5 ? "text-red-400" : "text-amber-400"
+                )} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-sm font-semibold",
+                  errorCodeCount > 5 ? "text-red-400" : "text-amber-400"
+                )}>
+                  {errorCodeCount} Error Code{errorCodeCount > 1 ? 's' : ''} Logged
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {errorCodeCount > 5 
+                    ? "Frequent errors indicate a potential system issue. Professional diagnosis recommended."
+                    : "Review error history to identify recurring issues before they escalate."
+                  }
+                </p>
+              </div>
+            </div>
+          )}
+          
           {/* HYBRID Status Row */}
           {isHybrid && (
             <div className="grid grid-cols-3 gap-2 mt-3 w-full">
