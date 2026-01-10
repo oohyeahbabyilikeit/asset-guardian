@@ -68,12 +68,12 @@ function WaterHeaterDiagram({
   // SVG dimensions - taller for hybrid to accommodate heat pump on top
   const width = 200;
   const baseHeight = 300;
-  const heatPumpHeight = isHybrid ? 100 : 0;
+  const heatPumpHeight = isHybrid ? 95 : 0;
   const height = baseHeight + heatPumpHeight;
   const tankWidth = 100;
   const tankHeight = 200;
   const tankX = (width - tankWidth) / 2;
-  const tankY = 35 + heatPumpHeight; // Shift tank down for hybrid
+  const tankY = isHybrid ? 95 : 35; // Heat pump ends at y=95, tank starts there (seamless)
   
   // Calculated values
   const sedimentHeight = Math.max(8, (sedimentPercent / 100) * (tankHeight * 0.5));
@@ -192,24 +192,24 @@ function WaterHeaterDiagram({
       {/* === HYBRID HEAT PUMP SECTION (integrated on top of tank) === */}
       {isHybrid && (
         <g>
-          {/* Heat pump housing - same width as tank, sits directly on top */}
+          {/* Heat pump outer jacket - extends down to meet tank jacket */}
           <rect 
             x={tankX - 4} 
             y="8" 
             width={tankWidth + 8} 
-            height="90" 
+            height="89" 
             fill="url(#jacketGradient)"
             rx="6"
             stroke="#111827"
             strokeWidth="1"
           />
           
-          {/* Heat pump body with same metallic gradient as tank */}
+          {/* Heat pump body - extends down to meet tank body at y=95 */}
           <rect 
             x={tankX} 
             y="12" 
             width={tankWidth} 
-            height="82" 
+            height="83" 
             fill="url(#tankGradient)"
             stroke="#1f2937"
             strokeWidth="2"
@@ -221,7 +221,7 @@ function WaterHeaterDiagram({
             x={tankX + 3} 
             y="16" 
             width="4" 
-            height="74" 
+            height="79" 
             fill="rgba(255,255,255,0.1)"
             rx="2"
           />
@@ -242,22 +242,22 @@ function WaterHeaterDiagram({
           </g>
           
           {/* Circular fan grille */}
-          <circle cx={tankX + 32} cy="58" r="24" fill="url(#fanGrilleGradient)" stroke="#4a5568" strokeWidth="1.5" />
+          <circle cx={tankX + 32} cy="54" r="22" fill="url(#fanGrilleGradient)" stroke="#4a5568" strokeWidth="1.5" />
           
           {/* Fan blade slats */}
           <g stroke="#2d3748" strokeWidth="1.5" opacity="0.8">
-            <line x1={tankX + 10} y1="58" x2={tankX + 54} y2="58" />
-            <line x1={tankX + 32} y1="36" x2={tankX + 32} y2="80" />
-            <line x1={tankX + 15} y1="42" x2={tankX + 49} y2="74" />
-            <line x1={tankX + 49} y1="42" x2={tankX + 15} y2="74" />
+            <line x1={tankX + 12} y1="54" x2={tankX + 52} y2="54" />
+            <line x1={tankX + 32} y1="34" x2={tankX + 32} y2="74" />
+            <line x1={tankX + 17} y1="39" x2={tankX + 47} y2="69" />
+            <line x1={tankX + 47} y1="39" x2={tankX + 17} y2="69" />
           </g>
           
           {/* Fan center hub with status LED */}
-          <circle cx={tankX + 32} cy="58" r="8" fill="#2d3748" stroke="#4a5568" strokeWidth="1" />
+          <circle cx={tankX + 32} cy="54" r="7" fill="#2d3748" stroke="#4a5568" strokeWidth="1" />
           <circle 
             cx={tankX + 32} 
-            cy="58" 
-            r="4" 
+            cy="54" 
+            r="3.5" 
             fill={statusColors[compressorStatus]}
             opacity="0.9"
           >
@@ -267,9 +267,9 @@ function WaterHeaterDiagram({
           {/* Control panel */}
           <rect 
             x={tankX + 58} 
-            y="32" 
+            y="30" 
             width="38" 
-            height="52" 
+            height="50" 
             rx="3" 
             fill="url(#controlPanelGradient)" 
             stroke="#4a5568" 
@@ -277,47 +277,31 @@ function WaterHeaterDiagram({
           />
           
           {/* Digital display */}
-          <rect x={tankX + 62} y="38" width="30" height="14" rx="2" fill="#0a0f14" stroke="#374151" strokeWidth="0.5" />
-          <text x={tankX + 77} y="49" textAnchor="middle" fill={statusColors[compressorStatus]} fontSize="9" fontFamily="monospace" fontWeight="600">
+          <rect x={tankX + 62} y="35" width="30" height="13" rx="2" fill="#0a0f14" stroke="#374151" strokeWidth="0.5" />
+          <text x={tankX + 77} y="45" textAnchor="middle" fill={statusColors[compressorStatus]} fontSize="8" fontFamily="monospace" fontWeight="600">
             {compressorHealth}%
           </text>
           
           {/* Status LEDs with labels */}
           <g>
             {/* Compressor LED */}
-            <circle cx={tankX + 68} cy="62" r="3.5" fill={statusColors[compressorStatus]} />
-            <text x={tankX + 68} y="71" textAnchor="middle" fill="#6b7280" fontSize="4">COMP</text>
+            <circle cx={tankX + 68} cy="56" r="3" fill={statusColors[compressorStatus]} />
+            <text x={tankX + 68} y="64" textAnchor="middle" fill="#6b7280" fontSize="4">COMP</text>
             
             {/* Filter LED */}
-            <circle cx={tankX + 82} cy="62" r="3.5" fill={statusColors[filterStatus]} />
-            <text x={tankX + 82} y="71" textAnchor="middle" fill="#6b7280" fontSize="4">FILT</text>
+            <circle cx={tankX + 82} cy="56" r="3" fill={statusColors[filterStatus]} />
+            <text x={tankX + 82} y="64" textAnchor="middle" fill="#6b7280" fontSize="4">FILT</text>
             
             {/* Drain LED */}
-            <circle cx={tankX + 75} cy="78" r="3.5" fill={statusColors[drainStatus]} />
-            <text x={tankX + 75} y="87" textAnchor="middle" fill="#6b7280" fontSize="4">DRAIN</text>
+            <circle cx={tankX + 75} cy="72" r="3" fill={statusColors[drainStatus]} />
+            <text x={tankX + 75} y="80" textAnchor="middle" fill="#6b7280" fontSize="4">DRAIN</text>
           </g>
           
           {/* HYBRID label */}
-          <rect x={tankX + 2} y="80" width="24" height="10" rx="2" fill="#1a202c" opacity="0.8" />
-          <text x={tankX + 14} y="88" textAnchor="middle" fill="#4a5568" fontSize="5" fontWeight="600" letterSpacing="0.5">
+          <rect x={tankX + 2} y="78" width="24" height="10" rx="2" fill="#1a202c" opacity="0.8" />
+          <text x={tankX + 14} y="86" textAnchor="middle" fill="#4a5568" fontSize="5" fontWeight="600" letterSpacing="0.5">
             HYBRID
           </text>
-          
-          {/* Seamless transition to tank (hide gap) */}
-          <rect 
-            x={tankX - 4} 
-            y="94" 
-            width={tankWidth + 8} 
-            height="8" 
-            fill="url(#jacketGradient)"
-          />
-          <rect 
-            x={tankX} 
-            y="94" 
-            width={tankWidth} 
-            height="6" 
-            fill="url(#tankGradient)"
-          />
         </g>
       )}
 
@@ -386,16 +370,18 @@ function WaterHeaterDiagram({
         strokeWidth="1"
       />
 
-      {/* Tank Top Dome */}
-      <ellipse 
-        cx={tankX + tankWidth / 2} 
-        cy={tankY} 
-        rx={tankWidth / 2 + 4} 
-        ry="18" 
-        fill="url(#domeGradient)"
-        stroke="#1f2937"
-        strokeWidth="2"
-      />
+      {/* Tank Top Dome - hidden for hybrid since heat pump connects directly */}
+      {!isHybrid && (
+        <ellipse 
+          cx={tankX + tankWidth / 2} 
+          cy={tankY} 
+          rx={tankWidth / 2 + 4} 
+          ry="18" 
+          fill="url(#domeGradient)"
+          stroke="#1f2937"
+          strokeWidth="2"
+        />
+      )}
 
       {/* Main Tank Body - Cylinder */}
       <rect 
@@ -446,15 +432,17 @@ function WaterHeaterDiagram({
         </g>
       ))}
 
-      {/* Top connection nipples */}
-      <g>
-        {/* Left nipple (cold in) */}
-        <rect x={tankX + 18} y={tankY - 20} width="14" height="12" rx="2" fill="url(#copperGradient)" />
-        <ellipse cx={tankX + 25} cy={tankY - 20} rx="7" ry="3" fill="#d97706" />
-        {/* Right nipple (hot out) */}
-        <rect x={tankX + tankWidth - 32} y={tankY - 20} width="14" height="12" rx="2" fill="url(#copperGradient)" />
-        <ellipse cx={tankX + tankWidth - 25} cy={tankY - 20} rx="7" ry="3" fill="#d97706" />
-      </g>
+      {/* Top connection nipples - hidden for hybrid since heat pump is there */}
+      {!isHybrid && (
+        <g>
+          {/* Left nipple (cold in) */}
+          <rect x={tankX + 18} y={tankY - 20} width="14" height="12" rx="2" fill="url(#copperGradient)" />
+          <ellipse cx={tankX + 25} cy={tankY - 20} rx="7" ry="3" fill="#d97706" />
+          {/* Right nipple (hot out) */}
+          <rect x={tankX + tankWidth - 32} y={tankY - 20} width="14" height="12" rx="2" fill="url(#copperGradient)" />
+          <ellipse cx={tankX + tankWidth - 25} cy={tankY - 20} rx="7" ry="3" fill="#d97706" />
+        </g>
+      )}
 
       {/* Tank Interior (clipped) */}
       <g clipPath="url(#tankInterior)">
