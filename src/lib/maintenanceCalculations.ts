@@ -109,6 +109,27 @@ function calculateTanklessMaintenance(
   const { scaleBuildupScore = 0, flowDegradation = 0, descaleStatus = 'optimal' } = metrics;
   const hasIsolationValves = inputs.hasIsolationValves ?? false;
   
+  // CRITICAL: If scale is at lockout level (40%+), unit needs replacement - not maintenance
+  // This should route to SafetyAssessmentPage for replacement guidance
+  if (descaleStatus === 'lockout') {
+    const replacementTask: MaintenanceTask = {
+      type: 'inspection',
+      label: 'Unit Replacement Required',
+      description: 'Scale damage too severe for maintenance',
+      monthsUntilDue: 0,
+      urgency: 'overdue',
+      benefit: 'Avoid system failure',
+      whyExplanation: `Scale buildup has exceeded 40% (currently ${Math.round(scaleBuildupScore)}%). Descaling at this level risks creating pinhole leaks in the heat exchanger. Replacement is the safest option.`,
+      icon: 'wrench',
+    };
+    return {
+      unitType: 'tankless',
+      primaryTask: replacementTask,
+      secondaryTask: null,
+      additionalTasks: [],
+    };
+  }
+  
   // Calculate months to descale based on scale buildup
   const DESCALE_INTERVAL_MONTHS = inputs.hardnessGPG > 10 ? 12 : 18;
   const yearsSinceDescale = inputs.lastDescaleYearsAgo ?? inputs.calendarAge;
@@ -119,7 +140,7 @@ function calculateTanklessMaintenance(
   let descaleUrgency: MaintenanceTask['urgency'] = 'optimal';
   if (!hasIsolationValves) {
     descaleUrgency = 'impossible';
-  } else if (descaleStatus === 'lockout' || descaleStatus === 'critical') {
+  } else if (descaleStatus === 'critical') {
     descaleUrgency = 'overdue';
   } else if (descaleStatus === 'due') {
     descaleUrgency = 'due';
@@ -161,7 +182,7 @@ function calculateTanklessMaintenance(
     icon: 'filter',
   };
   
-  // Isolation Valve Installation (if missing)
+  // Isolation Valve Installation (if missing and scale not at lockout)
   const valveTask: MaintenanceTask | null = !hasIsolationValves ? {
     type: 'isolation_valves',
     label: 'Install Isolation Valves',
@@ -174,6 +195,7 @@ function calculateTanklessMaintenance(
   } : null;
   
   // Prioritize: Valve installation > Filter > Descale
+  // Note: Don't show descale as additional task if valves are missing (it's impossible anyway)
   let primaryTask = descaleTask;
   let secondaryTask: MaintenanceTask | null = filterTask;
   const additionalTasks: MaintenanceTask[] = [];
@@ -182,7 +204,8 @@ function calculateTanklessMaintenance(
     // No isolation valves - this is the priority
     primaryTask = valveTask;
     secondaryTask = filterTask;
-    additionalTasks.push(descaleTask);
+    // Don't add descale to additionalTasks - it's impossible without valves
+    // and showing it creates confusing mixed messages
   } else if (filterStatus === 'CLOGGED' || filterStatus === 'DIRTY') {
     // Filter needs attention first
     primaryTask = filterTask;
