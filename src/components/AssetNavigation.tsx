@@ -34,16 +34,17 @@ export function AssetNavigation({
   if (assetCount <= 1) return null;
 
   // Calculate positions for the sliding indicator
+  // Order: Water Heater (0) → Heat Pump (1, if exists) → Softener (2, if exists)
   const getIndicatorPosition = () => {
     if (assetCount === 2) {
-      // Two assets: water-heater or softener/heat-pump
+      // Two assets: water-heater is always first
       if (activeAsset === 'water-heater') return 'left-1';
       return 'left-[calc(50%+2px)]';
     }
-    // Three assets
+    // Three assets: Water Heater → Heat Pump → Softener
     if (activeAsset === 'water-heater') return 'left-1';
-    if (activeAsset === 'softener') return 'left-[calc(33.33%+2px)]';
-    return 'left-[calc(66.66%+2px)]';
+    if (activeAsset === 'heat-pump') return 'left-[calc(33.33%+2px)]';
+    return 'left-[calc(66.66%+2px)]'; // softener is last
   };
 
   const getIndicatorWidth = () => {
