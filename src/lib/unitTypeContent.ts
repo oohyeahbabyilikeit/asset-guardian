@@ -466,7 +466,8 @@ export function getServiceStatus(
   metrics: {
     flushStatus?: 'optimal' | 'schedule' | 'due' | 'lockout';
     monthsToFlush?: number | null;
-    descaleStatus?: 'optimal' | 'schedule' | 'due' | 'lockout';
+    // Tankless algorithm produces: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible'
+    descaleStatus?: 'optimal' | 'schedule' | 'due' | 'critical' | 'lockout' | 'impossible';
     monthsToDescale?: number | null;
     airFilterStatus?: 'CLEAN' | 'DIRTY' | 'CLOGGED';
   }
@@ -474,14 +475,27 @@ export function getServiceStatus(
   const category = getUnitCategory(fuelType);
   
   if (category === 'TANKLESS') {
-    const isOverdue = metrics.descaleStatus === 'due' || metrics.descaleStatus === 'lockout';
+    // Handle all algorithm-produced descaleStatus values
+    const isOverdue = metrics.descaleStatus === 'due' || 
+                      metrics.descaleStatus === 'critical' || 
+                      metrics.descaleStatus === 'lockout' || 
+                      metrics.descaleStatus === 'impossible';
     const isDueSoon = metrics.descaleStatus === 'schedule' || 
       (metrics.monthsToDescale !== null && metrics.monthsToDescale !== undefined && metrics.monthsToDescale <= 6 && metrics.monthsToDescale > 0);
-    return { 
-      isOverdue, 
-      isDueSoon, 
-      label: isOverdue ? 'Descaling Overdue' : isDueSoon ? 'Descaling Due Soon' : 'Maintenance OK' 
-    };
+    
+    // Provide specific labels for each status
+    let label = 'Maintenance OK';
+    if (metrics.descaleStatus === 'impossible') {
+      label = 'Isolation Valves Needed';
+    } else if (metrics.descaleStatus === 'lockout') {
+      label = 'Scale Lockout';
+    } else if (isOverdue) {
+      label = 'Descaling Overdue';
+    } else if (isDueSoon) {
+      label = 'Descaling Due Soon';
+    }
+    
+    return { isOverdue, isDueSoon, label };
   }
   
   if (category === 'HYBRID') {

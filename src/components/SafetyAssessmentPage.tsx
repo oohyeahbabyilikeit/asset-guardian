@@ -11,7 +11,7 @@ import {
   getLocationKey
 } from '@/data/damageScenarios';
 import { failProbToHealthScore, FuelType } from '@/lib/opterraAlgorithm';
-import { getUnitTypeLabel, getContextualRecommendation as getUnitRecommendation } from '@/lib/unitTypeContent';
+import { getUnitTypeLabel, getContextualRecommendation as getUnitRecommendation, isTankless, isHybrid, getStressFactors } from '@/lib/unitTypeContent';
 
 interface StressFactor {
   name: string;
@@ -50,12 +50,52 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Cpu
 };
 
-// Generate contextual recommendation based on actual stress factor values
-function getContextualRecommendation(stressor: StressFactor, factorKey: string | null): string {
+// Generate contextual recommendation based on actual stress factor values and unit type
+function getContextualRecommendation(stressor: StressFactor, factorKey: string | null, fuelType: FuelType): string {
   if (!factorKey) return '';
   
   const { level } = stressor;
+  const isTanklessUnit = isTankless(fuelType);
+  const isHybridUnit = isHybrid(fuelType);
   
+  // Tankless-specific recommendations
+  if (isTanklessUnit) {
+    switch (factorKey) {
+      case 'scale':
+        if (level === 'critical') {
+          return 'New unit with isolation valves for easy maintenance';
+        }
+        return 'Annual descaling to maintain efficiency';
+      case 'flowRestriction':
+        return 'Regular inlet filter cleaning included in maintenance';
+      case 'isolationValves':
+        return 'Isolation valves included with new installation';
+      case 'igniterHealth':
+      case 'flameRod':
+        return 'Fresh ignition components in new unit';
+      case 'ventStatus':
+        return 'Proper venting verified during installation';
+      case 'recirculationFatigue':
+        return 'Timer or demand-based recirculation control';
+      default:
+        return '';
+    }
+  }
+  
+  // Hybrid-specific recommendations
+  if (isHybridUnit) {
+    switch (factorKey) {
+      case 'airFilter':
+        return 'Easy-access air filter for quarterly maintenance';
+      case 'condensateDrain':
+        return 'Clear condensate drain setup';
+      case 'compressorHealth':
+        return 'New high-efficiency compressor';
+      // Fall through to tank recommendations for sediment/anode
+    }
+  }
+  
+  // Tank/default recommendations
   switch (factorKey) {
     case 'pressure':
       if (level === 'critical') {
@@ -86,8 +126,31 @@ function getContextualRecommendation(stressor: StressFactor, factorKey: string |
   }
 }
 
-function getStressFactorKey(name: string): keyof typeof STRESS_FACTOR_EXPLANATIONS | null {
+// Map stress factor names to keys - UNIT-TYPE AWARE
+function getStressFactorKey(name: string, fuelType: FuelType): string | null {
   const lowerName = name.toLowerCase();
+  const isTanklessUnit = isTankless(fuelType);
+  const isHybridUnit = isHybrid(fuelType);
+  
+  // Tankless-specific mappings
+  if (isTanklessUnit) {
+    if (lowerName.includes('scale')) return 'scale';
+    if (lowerName.includes('flow')) return 'flowRestriction';
+    if (lowerName.includes('isolation') || lowerName.includes('valve')) return 'isolationValves';
+    if (lowerName.includes('igniter')) return 'igniterHealth';
+    if (lowerName.includes('flame')) return 'flameRod';
+    if (lowerName.includes('vent')) return 'ventStatus';
+    if (lowerName.includes('recirc')) return 'recirculationFatigue';
+  }
+  
+  // Hybrid-specific mappings
+  if (isHybridUnit) {
+    if (lowerName.includes('air filter') || lowerName.includes('filter')) return 'airFilter';
+    if (lowerName.includes('condensate')) return 'condensateDrain';
+    if (lowerName.includes('compressor')) return 'compressorHealth';
+  }
+  
+  // Tank/common mappings
   if (lowerName.includes('pressure')) return 'pressure';
   if (lowerName.includes('sediment') || lowerName.includes('hardite')) return 'sediment';
   if (lowerName.includes('temp')) return 'temperature';
@@ -95,6 +158,23 @@ function getStressFactorKey(name: string): keyof typeof STRESS_FACTOR_EXPLANATIO
   if (lowerName.includes('recirc') || lowerName.includes('loop')) return 'recirculation';
   if (lowerName.includes('anode')) return 'anodeDepletion';
   if (lowerName.includes('hard') || lowerName.includes('mineral')) return 'hardWater';
+  return null;
+}
+
+// Get explanation for tankless lockout scenarios
+function getTanklessLockoutExplanation(reason: string, fuelType: FuelType): string | null {
+  if (!isTankless(fuelType)) return null;
+  
+  const lowerReason = reason.toLowerCase();
+  if (lowerReason.includes('scale lockout') || lowerReason.includes('blocked')) {
+    return "The heat exchanger has over 40% scale buildup. Attempting to descale now risks creating pinhole leaks. Replacement is the safe option.";
+  }
+  if (lowerReason.includes('isolation') || lowerReason.includes('valve') || lowerReason.includes('cannot be serviced')) {
+    return "This unit was installed without isolation valves, making it impossible to flush. A new installation will include proper service access.";
+  }
+  if (lowerReason.includes('vent')) {
+    return "Blocked exhaust venting creates a carbon monoxide hazard. The unit should not be operated until resolved.";
+  }
   return null;
 }
 
@@ -138,7 +218,14 @@ export function SafetyAssessmentPage({
   const status = getStatusLabel(healthScore);
 
   // Get explanation text based on situation
+  const tanklessLockoutExplanation = getTanklessLockoutExplanation(reason, fuelType);
+  
   const getExplanationText = () => {
+    // If we have a specific tankless lockout explanation, use it
+    if (tanklessLockoutExplanation) {
+      return tanklessLockoutExplanation;
+    }
+    
     if (isSafetyCritical) {
       return `We've detected signs that make continuing to run this unit risky. Your safety comes first.`;
     }
@@ -229,8 +316,8 @@ export function SafetyAssessmentPage({
               
               <ul className="space-y-3">
                 {significantStressors.map((stressor, i) => {
-                  const factorKey = getStressFactorKey(stressor.name);
-                  const factorInfo = factorKey ? STRESS_FACTOR_EXPLANATIONS[factorKey] : null;
+                  const factorKey = getStressFactorKey(stressor.name, fuelType);
+                  const factorInfo = factorKey ? STRESS_FACTOR_EXPLANATIONS[factorKey as keyof typeof STRESS_FACTOR_EXPLANATIONS] : null;
                   const IconComponent = factorInfo ? ICON_MAP[factorInfo.icon] || Gauge : Gauge;
                   const levelInfo = factorInfo?.[stressor.level as 'elevated' | 'critical'];
 
@@ -268,8 +355,8 @@ export function SafetyAssessmentPage({
               </h4>
               <ul className="space-y-2">
                 {significantStressors.slice(0, 4).map((stressor, i) => {
-                  const factorKey = getStressFactorKey(stressor.name);
-                  const recommendation = getContextualRecommendation(stressor, factorKey);
+                  const factorKey = getStressFactorKey(stressor.name, fuelType);
+                  const recommendation = getContextualRecommendation(stressor, factorKey, fuelType);
                   
                   if (!recommendation) return null;
 

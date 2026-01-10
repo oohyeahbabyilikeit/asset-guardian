@@ -267,8 +267,15 @@ export function CommandCenter({
           onServiceRequest={onServiceRequest}
           onMaintenancePlan={onMaintenancePlan}
           recommendation={recommendation}
+          fuelType={currentInputs.fuelType}
+          // Tank-specific
           monthsToFlush={monthsToFlush}
           flushStatus={flushStatus}
+          // Tankless-specific
+          monthsToDescale={isTanklessUnit ? (descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12) : undefined}
+          descaleStatus={descaleStatus === 'impossible' ? 'lockout' : descaleStatus === 'lockout' ? 'lockout' : (descaleStatus as 'optimal' | 'schedule' | 'due' | 'lockout' | undefined)}
+          // Hybrid-specific
+          airFilterStatus={currentInputs.airFilterStatus}
         />
       </div>
 
