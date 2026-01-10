@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, Circle, Info, ChevronDown } from 'lucide-react';
 import { AssetData } from '@/data/mockAsset';
-import { ForensicInputs } from '@/lib/opterraAlgorithm';
+import { ForensicInputs, isTankless } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface UnitProfileCardProps {
@@ -10,7 +10,10 @@ interface UnitProfileCardProps {
 }
 
 // Approximate dimensions based on tank capacity
-function getDimensions(capacity: string): string {
+function getDimensions(capacity: string, isTanklessUnit: boolean): string {
+  if (isTanklessUnit) {
+    return '14" × 24" × 10"'; // Typical wall-mount tankless
+  }
   const gallons = parseInt(capacity) || 50;
   if (gallons <= 40) return '18" × 48"';
   if (gallons <= 50) return '20" × 54"';
@@ -20,8 +23,11 @@ function getDimensions(capacity: string): string {
 
 export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const isTanklessUnit = isTankless(inputs.fuelType);
+  const isHybridUnit = inputs.fuelType === 'HYBRID';
 
-  const equipment = [
+  // Equipment varies by unit type
+  const getTankEquipment = () => [
     { 
       label: 'Pressure Reducing Valve (PRV)', 
       present: inputs.hasPrv,
@@ -39,6 +45,50 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
       present: inputs.hasCircPump,
     },
   ];
+
+  const getTanklessEquipment = () => [
+    { 
+      label: 'Isolation Valves', 
+      present: inputs.hasIsolationValves ?? false,
+    },
+    { 
+      label: 'Water Softener', 
+      present: inputs.hasSoftener,
+    },
+    { 
+      label: 'Recirculation Loop', 
+      present: inputs.hasRecirculationLoop || inputs.hasCircPump,
+    },
+    { 
+      label: 'Pressure Reducing Valve', 
+      present: inputs.hasPrv,
+    },
+  ];
+
+  const getHybridEquipment = () => [
+    { 
+      label: 'Pressure Reducing Valve (PRV)', 
+      present: inputs.hasPrv,
+    },
+    { 
+      label: 'Expansion Tank', 
+      present: inputs.hasExpTank,
+    },
+    { 
+      label: 'Water Softener', 
+      present: inputs.hasSoftener,
+    },
+    { 
+      label: 'Adequate Ventilation', 
+      present: true, // Assume if installed, ventilation was considered
+    },
+  ];
+
+  const equipment = isTanklessUnit 
+    ? getTanklessEquipment() 
+    : isHybridUnit 
+      ? getHybridEquipment()
+      : getTankEquipment();
 
   // Map location type to readable string
   const locationLabel = {
@@ -112,8 +162,10 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
                 <p className="font-semibold text-foreground capitalize">{asset.specs.fuelType}</p>
               </div>
               <div className="space-y-1">
-                <span className="text-muted-foreground text-xs block font-medium">Dimensions</span>
-                <p className="font-semibold text-foreground">{getDimensions(asset.specs.capacity)}</p>
+                <span className="text-muted-foreground text-xs block font-medium">
+                  {isTanklessUnit ? 'Size' : 'Dimensions'}
+                </span>
+                <p className="font-semibold text-foreground">{getDimensions(asset.specs.capacity, isTanklessUnit)}</p>
               </div>
               <div className="space-y-1">
                 <span className="text-muted-foreground text-xs block font-medium">Vent Type</span>
