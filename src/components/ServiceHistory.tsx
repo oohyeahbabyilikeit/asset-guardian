@@ -783,6 +783,48 @@ function WaterHeaterDiagram({
         </text>
       </g>
 
+      {/* COMPRESSOR Label with line - only for HYBRID */}
+      {isHybrid && (
+        <g>
+          <line 
+            x1={tankX + 54} 
+            y1={54} 
+            x2={tankX + tankWidth + 28} 
+            y2={54}
+            stroke="#6b7280"
+            strokeWidth="1"
+            strokeDasharray="2 2"
+          />
+          <circle 
+            cx={tankX + tankWidth + 28} 
+            cy={54} 
+            r="3" 
+            fill={statusColors[compressorStatus]}
+          />
+          <text 
+            x={tankX + tankWidth + 35} 
+            y={48} 
+            fill="#9ca3af" 
+            fontSize="9" 
+            fontWeight="600"
+            textAnchor="start"
+          >
+            COMPRESSOR
+          </text>
+          <text 
+            x={tankX + tankWidth + 35} 
+            y={60} 
+            fill={statusColors[compressorStatus]} 
+            fontSize="10" 
+            fontWeight="bold"
+            textAnchor="start"
+            className="font-data"
+          >
+            {compressorHealth}%
+          </text>
+        </g>
+      )}
+
       {/* BREACH VISUALIZATION - Subtle red glow and indicator */}
       {isBreach && (
         <>
