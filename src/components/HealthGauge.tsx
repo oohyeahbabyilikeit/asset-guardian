@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2, CheckCircle, XCircle, Flame } from 'lucide-react';
 import containmentBreachImg from '@/assets/containment-breach.png';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
-import { getRiskLevelInfo, type RiskLevel, type OpterraMetrics, type Recommendation, failProbToHealthScore, bioAgeToFailProb } from '@/lib/opterraAlgorithm';
+import { getRiskLevelInfo, type RiskLevel, type OpterraMetrics, type Recommendation, failProbToHealthScore, bioAgeToFailProb, type FuelType, isTankless } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from 'recharts';
 
@@ -17,6 +17,7 @@ interface HealthGaugeProps {
   recommendation?: Recommendation;
   isLeaking?: boolean;
   visualRust?: boolean;
+  fuelType?: FuelType;
 }
 
 interface StressFactorItemProps {
@@ -71,10 +72,11 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
   );
 }
 
-export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust, fuelType = 'GAS' }: HealthGaugeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { score, status, failureProbability } = healthScore;
   const riskInfo = getRiskLevelInfo(riskLevel);
+  const isTanklessUnit = isTankless(fuelType);
   
   // Unit is economically unsound to maintain if algorithm recommends replacement
   const isReplacementRequired = recommendation?.action === 'REPLACE';
@@ -119,26 +121,49 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
     
     // Now check specific issues even if overall score looks okay
     if (metrics) {
-      // Heavy sediment (>10 lbs is concerning, >15 is serious)
-      if (metrics.sedimentLbs >= 15) {
-        return { message: 'Sediment Buildup Critical', severity: 'warning' };
-      }
-      if (metrics.sedimentLbs >= 10) {
-        return { message: 'Flush Overdue', severity: 'warning' };
-      }
-      if (metrics.sedimentLbs >= 5) {
-        return { message: 'Sediment Building Up', severity: 'info' };
+      // Tankless-specific status messages
+      if (isTanklessUnit) {
+        if (metrics.scaleBuildupScore && metrics.scaleBuildupScore >= 35) {
+          return { message: 'Scale Buildup Critical', severity: 'warning' };
+        }
+        if (metrics.scaleBuildupScore && metrics.scaleBuildupScore >= 20) {
+          return { message: 'Descale Overdue', severity: 'warning' };
+        }
+        if (metrics.flowDegradation && metrics.flowDegradation >= 20) {
+          return { message: 'Flow Restricted', severity: 'warning' };
+        }
+        if (metrics.descaleStatus === 'impossible') {
+          return { message: 'Cannot Be Serviced', severity: 'warning' };
+        }
+        if (metrics.descaleStatus === 'lockout') {
+          return { message: 'Descale Too Risky', severity: 'warning' };
+        }
+        if (metrics.scaleBuildupScore && metrics.scaleBuildupScore >= 10) {
+          return { message: 'Scale Building Up', severity: 'info' };
+        }
+      } else {
+        // Tank-specific status messages
+        // Heavy sediment (>10 lbs is concerning, >15 is serious)
+        if (metrics.sedimentLbs >= 15) {
+          return { message: 'Sediment Buildup Critical', severity: 'warning' };
+        }
+        if (metrics.sedimentLbs >= 10) {
+          return { message: 'Flush Overdue', severity: 'warning' };
+        }
+        if (metrics.sedimentLbs >= 5) {
+          return { message: 'Sediment Building Up', severity: 'info' };
+        }
+        
+        // Anode rod depleted or nearly depleted
+        if (metrics.shieldLife <= 0) {
+          return { message: 'Anode Protection Gone', severity: 'warning' };
+        }
+        if (metrics.shieldLife < 1) {
+          return { message: 'Anode Nearly Depleted', severity: 'info' };
+        }
       }
       
-      // Anode rod depleted or nearly depleted
-      if (metrics.shieldLife <= 0) {
-        return { message: 'Anode Protection Gone', severity: 'warning' };
-      }
-      if (metrics.shieldLife < 1) {
-        return { message: 'Anode Nearly Depleted', severity: 'info' };
-      }
-      
-      // High aging rate indicates stress
+      // High aging rate indicates stress (applies to both)
       if (metrics.agingRate >= 2.5) {
         return { message: 'Aging Faster Than Normal', severity: 'info' };
       }
@@ -146,7 +171,7 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
         return { message: 'Some Stress Detected', severity: 'info' };
       }
       
-      // Flush is due soon
+      // Maintenance status
       if (metrics.flushStatus === 'due' || metrics.flushStatus === 'lockout') {
         return { message: 'Maintenance Overdue', severity: 'warning' };
       }
@@ -340,37 +365,71 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                   </span>
                 </div>
                 <div className="bg-secondary/20 rounded-lg p-2 space-y-0.5">
-                  <StressFactorItem 
-                    icon={Gauge} 
-                    label="Pressure" 
-                    value={metrics.stressFactors.pressure} 
-                  />
-                  <StressFactorItem 
-                    icon={Thermometer} 
-                    label="Thermal Cycling" 
-                    value={metrics.stressFactors.tempMechanical} 
-                  />
-                  <StressFactorItem 
-                    icon={Droplets} 
-                    label="Sediment" 
-                    value={metrics.stressFactors.sediment} 
-                  />
-                  <StressFactorItem 
-                    icon={Zap} 
-                    label="Circulation" 
-                    value={metrics.stressFactors.circ} 
-                  />
-                  <StressFactorItem 
-                    icon={Shield} 
-                    label="Closed Loop" 
-                    value={metrics.stressFactors.loop} 
-                  />
-                  {metrics.stressFactors.undersizing > 1.0 && (
-                    <StressFactorItem 
-                      icon={Maximize2} 
-                      label="Tank Undersized" 
-                      value={metrics.stressFactors.undersizing} 
-                    />
+                  {isTanklessUnit ? (
+                    // Tankless-specific stress factors
+                    <>
+                      <StressFactorItem 
+                        icon={Droplets} 
+                        label="Scale Buildup" 
+                        value={metrics.stressFactors.chemical} 
+                      />
+                      <StressFactorItem 
+                        icon={Gauge} 
+                        label="Flow Restriction" 
+                        value={metrics.stressFactors.pressure} 
+                      />
+                      <StressFactorItem 
+                        icon={Flame} 
+                        label="Cycle Intensity" 
+                        value={metrics.stressFactors.mechanical} 
+                      />
+                      <StressFactorItem 
+                        icon={Zap} 
+                        label="Recirculation" 
+                        value={metrics.stressFactors.circ} 
+                      />
+                      <StressFactorItem 
+                        icon={Thermometer} 
+                        label="Temperature" 
+                        value={metrics.stressFactors.temp} 
+                      />
+                    </>
+                  ) : (
+                    // Tank-specific stress factors
+                    <>
+                      <StressFactorItem 
+                        icon={Gauge} 
+                        label="Pressure" 
+                        value={metrics.stressFactors.pressure} 
+                      />
+                      <StressFactorItem 
+                        icon={Thermometer} 
+                        label="Thermal Cycling" 
+                        value={metrics.stressFactors.tempMechanical} 
+                      />
+                      <StressFactorItem 
+                        icon={Droplets} 
+                        label="Sediment" 
+                        value={metrics.stressFactors.sediment} 
+                      />
+                      <StressFactorItem 
+                        icon={Zap} 
+                        label="Circulation" 
+                        value={metrics.stressFactors.circ} 
+                      />
+                      <StressFactorItem 
+                        icon={Shield} 
+                        label="Closed Loop" 
+                        value={metrics.stressFactors.loop} 
+                      />
+                      {metrics.stressFactors.undersizing > 1.0 && (
+                        <StressFactorItem 
+                          icon={Maximize2} 
+                          label="Tank Undersized" 
+                          value={metrics.stressFactors.undersizing} 
+                        />
+                      )}
+                    </>
                   )}
                   
                   {/* Usage context - shown as info, not multiplier */}
@@ -378,7 +437,7 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                     <div className="flex items-center justify-between py-1.5 border-t border-border/20 mt-1">
                       <div className="flex items-center gap-2">
                         <Users className="w-3.5 h-3.5 text-cyan-400" />
-                        <span className="text-xs text-muted-foreground">Usage Impact</span>
+                        <span className="text-xs text-muted-foreground">{isTanklessUnit ? 'Cycle Impact' : 'Usage Impact'}</span>
                       </div>
                       <span className="text-xs font-mono text-cyan-400">
                         +{((metrics.stressFactors.usageIntensity - 1) * 100).toFixed(0)}% wear

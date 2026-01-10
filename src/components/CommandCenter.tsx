@@ -75,10 +75,13 @@ export function CommandCenter({
   // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
   const opterraMetrics = opterraResult.metrics;
-  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor, sedimentRate, monthsToFlush, monthsToLockout, flushStatus } = opterraMetrics;
+  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor, sedimentRate, monthsToFlush, monthsToLockout, flushStatus, scaleBuildupScore, flowDegradation, descaleStatus } = opterraMetrics;
   const recommendation = opterraResult.verdict;
   const financial = opterraResult.financial;
   const hardWaterTax = opterraResult.hardWaterTax;
+  
+  // Check if tankless unit
+  const isTanklessUnit = currentInputs.fuelType === 'TANKLESS_GAS' || currentInputs.fuelType === 'TANKLESS_ELECTRIC';
 
   // Derive dynamic vitals from algorithm output
   // PRV implies closed loop (backpressure), so expansion tank is required if either condition is true
@@ -196,6 +199,7 @@ export function CommandCenter({
             recommendation={recommendation}
             isLeaking={currentInputs.isLeaking}
             visualRust={currentInputs.visualRust}
+            fuelType={currentInputs.fuelType}
           />
         </div>
 
@@ -223,6 +227,19 @@ export function CommandCenter({
           compressorHealth={currentInputs.compressorHealth || 85}
           hasExpansionTank={currentInputs.hasExpTank}
           hasPRV={currentInputs.hasPrv}
+          // Tankless-specific props
+          flowRateGPM={currentInputs.flowRateGPM}
+          ratedFlowGPM={currentInputs.ratedFlowGPM}
+          scaleBuildup={scaleBuildupScore}
+          igniterHealth={currentInputs.igniterHealth}
+          elementHealth={currentInputs.elementHealth}
+          inletFilterStatus={currentInputs.inletFilterStatus}
+          flameRodStatus={currentInputs.flameRodStatus}
+          tanklessVentStatus={currentInputs.tanklessVentStatus}
+          errorCodeCount={currentInputs.errorCodeCount}
+          hasIsolationValves={currentInputs.hasIsolationValves}
+          descaleStatus={descaleStatus}
+          flowDegradation={flowDegradation}
         />
         </div>
 
