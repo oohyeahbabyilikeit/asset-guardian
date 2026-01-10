@@ -1,7 +1,7 @@
 // Mock Asset Data for Opterra Home Asset Vault MVP
 // All data is configurable here for demo flexibility
 
-import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel, VentType } from '@/lib/opterraAlgorithm';
+import type { ForensicInputs, FuelType, TempSetting, LocationType, RiskLevel, VentType, AirFilterStatus } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
 
 export interface AssetData {
@@ -387,6 +387,83 @@ const scenarios: DemoScenario[] = [
       hasExpTank: false, hasPrv: false, location: 'CRAWLSPACE' as LocationType, isFinishedArea: false,
       visualRust: false, tempSetting: 'HIGH' as TempSetting,
       peopleCount: 2, usageType: 'normal', tankCapacity: 40,
+    },
+  },
+
+  // === HYBRID (HEAT PUMP) WATER HEATER SCENARIOS ===
+  {
+    name: "The Efficient Hybrid",
+    asset: {
+      id: "RH-HP50-A",
+      type: "Heat Pump Water Heater",
+      brand: "Rheem",
+      model: "ProTerra Hybrid 50",
+      serialNumber: "RH-2023-HP50-A",
+      installDate: "2023-03-15",
+      paperAge: 1.8,
+      biologicalAge: 1.5,
+      location: "Garage",
+      specs: { capacity: "50-Gal", fuelType: "Hybrid (Heat Pump)", ventType: "N/A", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 2, housePsi: 55, warrantyYears: 10, fuelType: 'HYBRID' as FuelType,
+      hardnessGPG: 10, hasSoftener: true, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: true, hasPrv: true, location: 'GARAGE' as LocationType, isFinishedArea: false,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 3, usageType: 'normal', tankCapacity: 50,
+      // Heat pump specific
+      airFilterStatus: 'CLEAN' as AirFilterStatus,
+      isCondensateClear: true,
+    },
+  },
+  {
+    name: "The Clogged Hybrid",
+    asset: {
+      id: "AO-HP65-C",
+      type: "Heat Pump Water Heater",
+      brand: "A.O. Smith",
+      model: "Voltex AL 65",
+      serialNumber: "AO-2021-HP65-C",
+      installDate: "2021-08-20",
+      paperAge: 3.4,
+      biologicalAge: 4.1,
+      location: "Basement",
+      specs: { capacity: "65-Gal", fuelType: "Hybrid (Heat Pump)", ventType: "N/A", piping: "3/4\" Copper" },
+    },
+    inputs: {
+      calendarAge: 3, housePsi: 68, warrantyYears: 10, fuelType: 'HYBRID' as FuelType,
+      hardnessGPG: 18, hasSoftener: false, hasCircPump: false, isClosedLoop: false,
+      hasExpTank: true, hasPrv: false, location: 'BASEMENT' as LocationType, isFinishedArea: true,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 4, usageType: 'heavy', tankCapacity: 65,
+      // Heat pump specific - needs service
+      airFilterStatus: 'CLOGGED' as AirFilterStatus,
+      isCondensateClear: false,
+    },
+  },
+  {
+    name: "The Dusty Hybrid",
+    asset: {
+      id: "BR-HP50-D",
+      type: "Heat Pump Water Heater",
+      brand: "Bradford White",
+      model: "AeroTherm Series",
+      serialNumber: "BW-2022-HP50-D",
+      installDate: "2022-01-10",
+      paperAge: 3.0,
+      biologicalAge: 3.2,
+      location: "Utility Closet",
+      specs: { capacity: "50-Gal", fuelType: "Hybrid (Heat Pump)", ventType: "N/A", piping: "3/4\" PEX" },
+    },
+    inputs: {
+      calendarAge: 3, housePsi: 62, warrantyYears: 6, fuelType: 'HYBRID' as FuelType,
+      hardnessGPG: 15, hasSoftener: true, hasCircPump: false, isClosedLoop: true,
+      hasExpTank: false, hasPrv: true, location: 'MAIN_LIVING' as LocationType, isFinishedArea: true,
+      visualRust: false, tempSetting: 'NORMAL' as TempSetting,
+      peopleCount: 2, usageType: 'light', tankCapacity: 50,
+      // Heat pump specific - filter needs cleaning
+      airFilterStatus: 'DIRTY' as AirFilterStatus,
+      isCondensateClear: true,
     },
   },
 ];
