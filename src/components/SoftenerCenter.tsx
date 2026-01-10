@@ -19,11 +19,9 @@ import {
 interface SoftenerCenterProps {
   inputs: SoftenerInputs;
   onInputsChange?: (inputs: SoftenerInputs) => void;
-  onSwitchAsset?: (asset: 'water-heater' | 'softener' | 'heat-pump') => void;
+  onSwitchAsset?: (asset: 'water-heater' | 'softener') => void;
   waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
   softenerStatus?: 'optimal' | 'warning' | 'critical';
-  heatPumpStatus?: 'optimal' | 'warning' | 'critical';
-  hasHeatPump?: boolean;
   onBack?: () => void;
   onServiceRequest?: () => void;
   onEmergency?: () => void;
@@ -36,8 +34,6 @@ export function SoftenerCenter({
   onSwitchAsset,
   waterHeaterStatus,
   softenerStatus,
-  heatPumpStatus,
-  hasHeatPump,
   onBack,
   onServiceRequest,
   onEmergency,
@@ -81,9 +77,7 @@ export function SoftenerCenter({
           onSwitchAsset={onSwitchAsset}
           waterHeaterStatus={waterHeaterStatus}
           softenerStatus={softenerStatus}
-          heatPumpStatus={heatPumpStatus}
           hasSoftener={true}
-          hasHeatPump={hasHeatPump}
         />
 
       {/* Content */}
