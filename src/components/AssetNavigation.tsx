@@ -1,15 +1,13 @@
 import React from 'react';
-import { Flame, Droplets, Cpu } from 'lucide-react';
+import { Flame, Droplets } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AssetNavigationProps {
-  activeAsset: 'water-heater' | 'softener' | 'heat-pump';
-  onSwitchAsset: (asset: 'water-heater' | 'softener' | 'heat-pump') => void;
+  activeAsset: 'water-heater' | 'softener';
+  onSwitchAsset: (asset: 'water-heater' | 'softener') => void;
   waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
   softenerStatus?: 'optimal' | 'warning' | 'critical';
-  heatPumpStatus?: 'optimal' | 'warning' | 'critical';
   hasSoftener: boolean;
-  hasHeatPump?: boolean;
 }
 
 const statusColors = {
@@ -23,34 +21,10 @@ export function AssetNavigation({
   onSwitchAsset,
   waterHeaterStatus = 'optimal',
   softenerStatus = 'optimal',
-  heatPumpStatus = 'optimal',
   hasSoftener,
-  hasHeatPump = false,
 }: AssetNavigationProps) {
-  // Count how many assets we have
-  const assetCount = 1 + (hasSoftener ? 1 : 0) + (hasHeatPump ? 1 : 0);
-  
-  // Don't show navigation if only one asset
-  if (assetCount <= 1) return null;
-
-  // Calculate positions for the sliding indicator
-  // Order: Water Heater (0) → Heat Pump (1, if exists) → Softener (2, if exists)
-  const getIndicatorPosition = () => {
-    if (assetCount === 2) {
-      // Two assets: water-heater is always first
-      if (activeAsset === 'water-heater') return 'left-1';
-      return 'left-[calc(50%+2px)]';
-    }
-    // Three assets: Water Heater → Heat Pump → Softener
-    if (activeAsset === 'water-heater') return 'left-1';
-    if (activeAsset === 'heat-pump') return 'left-[calc(33.33%+2px)]';
-    return 'left-[calc(66.66%+2px)]'; // softener is last
-  };
-
-  const getIndicatorWidth = () => {
-    if (assetCount === 2) return 'w-[calc(50%-4px)]';
-    return 'w-[calc(33.33%-4px)]';
-  };
+  // Don't show navigation if only water heater (no softener)
+  if (!hasSoftener) return null;
 
   return (
     <div className="px-4 py-3 bg-card/50 border-b border-border/30">
@@ -58,13 +32,12 @@ export function AssetNavigation({
         {/* Animated background indicator */}
         <div
           className={cn(
-            "absolute top-1 bottom-1 bg-gradient-to-br from-primary to-primary/80 rounded-lg shadow-lg shadow-primary/20 transition-all duration-300 ease-out",
-            getIndicatorPosition(),
-            getIndicatorWidth()
+            "absolute top-1 bottom-1 w-[calc(50%-4px)] bg-gradient-to-br from-primary to-primary/80 rounded-lg shadow-lg shadow-primary/20 transition-all duration-300 ease-out",
+            activeAsset === 'water-heater' ? 'left-1' : 'left-[calc(50%+2px)]'
           )}
         />
 
-        {/* Water Heater Tab - always shown */}
+        {/* Water Heater Tab */}
         <button
           onClick={() => onSwitchAsset('water-heater')}
           className={cn(
@@ -83,47 +56,24 @@ export function AssetNavigation({
           )} />
         </button>
 
-        {/* Heat Pump Tab - shown when hasHeatPump */}
-        {hasHeatPump && (
-          <button
-            onClick={() => onSwitchAsset('heat-pump')}
-            className={cn(
-              "relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-colors duration-200",
-              activeAsset === 'heat-pump'
-                ? 'text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Cpu className="w-4 h-4" />
-            <span className="hidden sm:inline">Heat Pump</span>
-            <span className="sm:hidden">Pump</span>
-            <div className={cn(
-              "w-2 h-2 rounded-full",
-              statusColors[heatPumpStatus]
-            )} />
-          </button>
-        )}
-
-        {/* Softener Tab - shown when hasSoftener */}
-        {hasSoftener && (
-          <button
-            onClick={() => onSwitchAsset('softener')}
-            className={cn(
-              "relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-colors duration-200",
-              activeAsset === 'softener'
-                ? 'text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Droplets className="w-4 h-4" />
-            <span className="hidden sm:inline">Softener</span>
-            <span className="sm:hidden">Soft</span>
-            <div className={cn(
-              "w-2 h-2 rounded-full",
-              statusColors[softenerStatus]
-            )} />
-          </button>
-        )}
+        {/* Softener Tab */}
+        <button
+          onClick={() => onSwitchAsset('softener')}
+          className={cn(
+            "relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-colors duration-200",
+            activeAsset === 'softener'
+              ? 'text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Droplets className="w-4 h-4" />
+          <span className="hidden sm:inline">Softener</span>
+          <span className="sm:hidden">Soft</span>
+          <div className={cn(
+            "w-2 h-2 rounded-full",
+            statusColors[softenerStatus]
+          )} />
+        </button>
       </div>
     </div>
   );

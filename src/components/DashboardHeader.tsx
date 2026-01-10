@@ -7,13 +7,11 @@ interface DashboardHeaderProps {
   onRandomize?: () => void;
   scenarioName?: string;
   // Asset navigation props
-  activeAsset?: 'water-heater' | 'softener' | 'heat-pump';
-  onSwitchAsset?: (asset: 'water-heater' | 'softener' | 'heat-pump') => void;
+  activeAsset?: 'water-heater' | 'softener';
+  onSwitchAsset?: (asset: 'water-heater' | 'softener') => void;
   waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
   softenerStatus?: 'optimal' | 'warning' | 'critical';
-  heatPumpStatus?: 'optimal' | 'warning' | 'critical';
   hasSoftener?: boolean;
-  hasHeatPump?: boolean;
 }
 
 export function DashboardHeader({ 
@@ -24,11 +22,9 @@ export function DashboardHeader({
   onSwitchAsset,
   waterHeaterStatus = 'optimal',
   softenerStatus = 'optimal',
-  heatPumpStatus = 'optimal',
   hasSoftener = false,
-  hasHeatPump = false,
 }: DashboardHeaderProps) {
-  const showAssetNav = (hasSoftener || hasHeatPump) && onSwitchAsset;
+  const showAssetNav = hasSoftener && onSwitchAsset;
 
   return (
     <div className="sticky top-0 z-50">
@@ -91,16 +87,14 @@ export function DashboardHeader({
         </div>
       </header>
 
-      {/* Asset Navigation - shows when multiple assets exist */}
+      {/* Asset Navigation - shows when softener exists */}
       {showAssetNav && (
         <AssetNavigation
           activeAsset={activeAsset}
           onSwitchAsset={onSwitchAsset}
           waterHeaterStatus={waterHeaterStatus}
           softenerStatus={softenerStatus}
-          heatPumpStatus={heatPumpStatus}
           hasSoftener={hasSoftener}
-          hasHeatPump={hasHeatPump}
         />
       )}
     </div>
