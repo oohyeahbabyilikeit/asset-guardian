@@ -223,9 +223,7 @@ export function TanklessDiagram({
       {/* Status LEDs row */}
       <g>
         {/* Power LED */}
-        <circle cx={unitX + 22} cy={unitY + 58} r="4" fill="#22c55e">
-          <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite" />
-        </circle>
+        <circle cx={unitX + 22} cy={unitY + 58} r="4" fill="#22c55e" opacity="0.9" />
         <text x={unitX + 22} y={unitY + 68} textAnchor="middle" fill="#6b7280" fontSize="5">PWR</text>
         
         {/* Igniter/Element LED */}
@@ -249,11 +247,7 @@ export function TanklessDiagram({
           cy={unitY + 58} 
           r="4" 
           fill={errorCodeCount > 5 ? '#ef4444' : errorCodeCount > 0 ? '#f59e0b' : '#22c55e'}
-        >
-          {errorCodeCount > 0 && (
-            <animate attributeName="opacity" values="1;0.3;1" dur="0.5s" repeatCount="indefinite" />
-          )}
-        </circle>
+        />
         <text x={unitX + 91} y={unitY + 68} textAnchor="middle" fill="#6b7280" fontSize="5">ERR</text>
       </g>
 
@@ -336,15 +330,8 @@ export function TanklessDiagram({
                 height="2"
                 rx="1"
                 fill={row === 0 ? '#dc2626' : row === 1 ? '#ea580c' : '#f97316'}
-                opacity={0.6 - row * 0.15}
-              >
-                <animate 
-                  attributeName="opacity" 
-                  values={`${0.6 - row * 0.15};${0.4 - row * 0.1};${0.6 - row * 0.15}`}
-                  dur={`${1.5 + row * 0.3}s`} 
-                  repeatCount="indefinite" 
-                />
-              </rect>
+                opacity={0.5 - row * 0.12}
+              />
             ))}
           </g>
           
@@ -355,15 +342,8 @@ export function TanklessDiagram({
             width={unitWidth - 44}
             height="16"
             fill="url(#burnerHeatGradient)"
-            opacity="0.3"
-          >
-            <animate 
-              attributeName="opacity" 
-              values="0.3;0.2;0.35;0.25;0.3"
-              dur="3s" 
-              repeatCount="indefinite" 
-            />
-          </rect>
+            opacity="0.25"
+          />
         </g>
       )}
       
@@ -377,15 +357,8 @@ export function TanklessDiagram({
             height="6" 
             rx="2"
             fill={elementHealth > 50 ? '#ef4444' : '#7f1d1d'}
-            opacity={elementHealth > 50 ? 0.8 : 0.4}
-          >
-            <animate 
-              attributeName="opacity" 
-              values="0.8;0.5;0.8" 
-              dur="2s" 
-              repeatCount="indefinite" 
-            />
-          </rect>
+            opacity={elementHealth > 50 ? 0.7 : 0.4}
+          />
         </g>
       )}
 
@@ -552,10 +525,8 @@ export function TanklessDiagram({
             stroke="#ef4444"
             strokeWidth="3"
             rx="8"
-            opacity="0.7"
-          >
-            <animate attributeName="opacity" values="0.7;0.3;0.7" dur="1s" repeatCount="indefinite" />
-          </rect>
+            opacity="0.6"
+          />
         </g>
       )}
     </svg>
