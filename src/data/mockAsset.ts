@@ -499,6 +499,7 @@ const scenarios: DemoScenario[] = [
       errorCodeCount: 0,
       tanklessVentStatus: 'CLEAR' as VentStatus,
       scaleBuildup: 5,
+      hasIsolationValves: true,  // NEW: Can be descaled
     },
   },
   {
@@ -532,6 +533,7 @@ const scenarios: DemoScenario[] = [
       errorCodeCount: 3,
       tanklessVentStatus: 'CLEAR' as VentStatus,
       scaleBuildup: 35,
+      hasIsolationValves: true,  // NEW: Can be descaled
     },
   },
   {
@@ -555,7 +557,7 @@ const scenarios: DemoScenario[] = [
       visualRust: false, tempSetting: 'HOT' as TempSetting,
       peopleCount: 5, usageType: 'heavy', tankCapacity: 0,
       ventType: 'DIRECT_VENT' as VentType,
-      // Tankless specific - igniter failing
+      // Tankless specific - igniter failing, NO VALVES (can't be serviced)
       flowRateGPM: 7.2,
       ratedFlowGPM: 9.5,
       lastDescaleYearsAgo: 2,
@@ -565,6 +567,7 @@ const scenarios: DemoScenario[] = [
       errorCodeCount: 12,
       tanklessVentStatus: 'RESTRICTED' as VentStatus,
       scaleBuildup: 28,
+      hasIsolationValves: false,  // NEW: Cannot be descaled - needs valve install
     },
   },
   {
@@ -595,6 +598,7 @@ const scenarios: DemoScenario[] = [
       inletFilterStatus: 'CLEAN' as InletFilterStatus,
       errorCodeCount: 0,
       scaleBuildup: 8,
+      hasIsolationValves: true,  // NEW: Can be descaled
     },
   },
 ];
