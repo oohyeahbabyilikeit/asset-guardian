@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Check, Wrench, AlertTriangle, Calendar, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { ArrowLeft, Check, Wrench, AlertTriangle, Calendar, ChevronDown, ChevronUp, Info, Flame, Filter, Wind, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RepairOption, getAvailableRepairs, simulateRepairs } from '@/data/repairOptions';
-import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs } from '@/lib/opterraAlgorithm';
+import { RepairOption, getAvailableRepairs, simulateRepairs, getUnitCategory } from '@/data/repairOptions';
+import { calculateOpterraRisk, failProbToHealthScore, projectFutureHealth, ForensicInputs, isTankless } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -43,6 +43,26 @@ function useAnimatedNumber(target: number, duration: number = 400) {
   return current;
 }
 
+// Get appropriate icon for repair type
+function getRepairIcon(repairId: string) {
+  switch (repairId) {
+    case 'descale':
+      return Flame;
+    case 'inlet_filter':
+    case 'air_filter_service':
+      return Filter;
+    case 'vent_cleaning':
+      return Wind;
+    case 'igniter_service':
+    case 'flow_sensor':
+    case 'compressor_service':
+    case 'refrigerant_check':
+      return Zap;
+    default:
+      return Wrench;
+  }
+}
+
 export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlannerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [doNothingOpen, setDoNothingOpen] = useState(false);
@@ -51,8 +71,13 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
   const { bioAge, failProb, agingRate } = opterraResult.metrics;
   const recommendation = opterraResult.verdict;
 
+  // Unit type info for contextual messaging
+  const unitCategory = getUnitCategory(currentInputs.fuelType);
+  const isTanklessUnit = isTankless(currentInputs.fuelType);
+  const isHybridUnit = currentInputs.fuelType === 'HYBRID';
+  const unitTypeLabel = isTanklessUnit ? 'tankless unit' : isHybridUnit ? 'hybrid heat pump' : 'water heater';
+
   // If replacement is required, this component shouldn't be shown
-  // Redirect back to dashboard (parent will route to correct screen)
   const replacementRequired = recommendation.action === 'REPLACE';
   
   useEffect(() => {
@@ -108,11 +133,21 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
       </header>
 
       <div className="relative p-4 max-w-md mx-auto pb-32">
-        {/* Warm Intro */}
+        {/* Warm Intro - Unit-type aware */}
         <div className="text-center mb-6">
-          <h1 className="text-xl font-semibold text-foreground">Here's what needs attention</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            {isTanklessUnit 
+              ? "Here's what your tankless needs" 
+              : isHybridUnit 
+                ? "Keep your heat pump running efficiently"
+                : "Here's what needs attention"}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            A few targeted repairs can make a real difference
+            {isTanklessUnit
+              ? "Targeted service to maintain flow and efficiency"
+              : isHybridUnit
+                ? "A few key services can make a real difference"
+                : "A few targeted repairs can make a real difference"}
           </p>
         </div>
 
@@ -146,9 +181,16 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
 
         {individualRepairs.length > 0 ? (
           <div className="space-y-3 mb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Available Repairs</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              {isTanklessUnit 
+                ? 'Available Services' 
+                : isHybridUnit 
+                  ? 'Recommended Services'
+                  : 'Available Repairs'}
+            </p>
             {individualRepairs.map((repair) => {
               const isSelected = selectedIds.has(repair.id);
+              const RepairIcon = getRepairIcon(repair.id);
               return (
                 <button
                   key={repair.id}
@@ -166,7 +208,7 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
-                          <Wrench className="w-4 h-4 text-muted-foreground" />
+                          <RepairIcon className="w-4 h-4 text-muted-foreground" />
                           <span className="font-semibold text-foreground">{repair.name}</span>
                           <Tooltip>
                             <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -202,7 +244,13 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
           </div>
         ) : (
           <div className="p-6 rounded-xl bg-card border border-border text-center mb-4">
-            <p className="text-muted-foreground">No repairs available for your current unit status.</p>
+            <p className="text-muted-foreground">
+              {isTanklessUnit 
+                ? 'Your tankless unit is running well. No services needed right now.'
+                : isHybridUnit
+                  ? 'Your heat pump is in good shape. No services needed right now.'
+                  : 'No repairs available for your current unit status.'}
+            </p>
           </div>
         )}
 
@@ -257,7 +305,11 @@ export function RepairPlanner({ onBack, onSchedule, currentInputs }: RepairPlann
         {selectedRepairs.length > 0 && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-200/80">These repairs extend life but don't reset the {currentInputs.calendarAge}-year paper age.</p>
+            <p className="text-xs text-amber-200/80">
+              {isTanklessUnit
+                ? `These services extend life but don't reset the ${currentInputs.calendarAge}-year age.`
+                : `These repairs extend life but don't reset the ${currentInputs.calendarAge}-year paper age.`}
+            </p>
           </div>
         )}
       </div>
