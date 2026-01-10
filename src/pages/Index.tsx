@@ -246,6 +246,8 @@ const Index = () => {
               onSwitchAsset={setAssetType}
               waterHeaterStatus={whStatus}
               softenerStatus={softenerStatus}
+              heatPumpStatus={heatPumpStatus}
+              hasHeatPump={hasHeatPump}
               onServiceRequest={() => setCurrentScreen('service')}
               onEmergency={() => setCurrentScreen('panic')}
               onMaintenanceTips={() => setCurrentScreen('softener-maintenance')}
