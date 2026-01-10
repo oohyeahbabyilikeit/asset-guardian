@@ -233,12 +233,14 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // =========================================
   // 6. MAINTENANCE STATUS (Descale Eligibility)
   // =========================================
+  // CRITICAL: Check scale lockout FIRST - if scale is too high, unit needs replacement
+  // regardless of valve status. Installing valves won't help at 40%+ scale.
   let descaleStatus: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' = 'optimal';
   
-  if (!data.hasIsolationValves && data.calendarAge > 1) {
+  if (scaleBuildupScore > TANKLESS.LIMIT_SCALE_LOCKOUT) {
+    descaleStatus = 'lockout'; // Scale too high - acid flush risks pinhole leaks, replacement needed
+  } else if (!data.hasIsolationValves && data.calendarAge > 1) {
     descaleStatus = 'impossible'; // Cannot be flushed without valves
-  } else if (scaleBuildupScore > TANKLESS.LIMIT_SCALE_LOCKOUT) {
-    descaleStatus = 'lockout'; // Acid flush risks pinhole leaks
   } else if (scaleBuildupScore > 25) {
     descaleStatus = 'critical';
   } else if (scaleBuildupScore > TANKLESS.LIMIT_SCALE_DUE) {

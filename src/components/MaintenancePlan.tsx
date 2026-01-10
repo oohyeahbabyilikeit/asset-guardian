@@ -44,16 +44,17 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   // Calculate metrics from algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
   const recommendation = opterraResult.verdict;
-  const { failProb } = opterraResult.metrics;
+  const { failProb, descaleStatus } = opterraResult.metrics;
   const currentScore = failProbToHealthScore(failProb);
-  
-  // Handle critical states
-  const isCriticalOrReplace = recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE';
   
   // Unit type info for UI
   const isTanklessUnit = isTankless(currentInputs.fuelType);
   const isHybridUnit = currentInputs.fuelType === 'HYBRID';
   const unitTypeLabel = isTanklessUnit ? 'Tankless' : isHybridUnit ? 'Hybrid Heat Pump' : 'Tank';
+  
+  // Handle critical states - block maintenance plan for units that need replacement
+  const isScaleLockout = isTanklessUnit && descaleStatus === 'lockout';
+  const isCriticalOrReplace = recommendation.badge === 'CRITICAL' || recommendation.action === 'REPLACE' || isScaleLockout;
   
   if (isCriticalOrReplace) {
     return (
@@ -241,14 +242,26 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       {/* Content */}
       <div className="max-w-lg mx-auto p-4 space-y-5 pb-8">
         
-        {/* Warm Intro - Celebrate their good standing */}
+        {/* Dynamic Intro - Reflects actual health state */}
         <div className="text-center py-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 mb-3">
-            <span className="text-3xl">✨</span>
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-3 ${
+            currentScore < 30 ? 'bg-destructive/10' : currentScore < 60 ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+          }`}>
+            <span className="text-3xl">
+              {currentScore < 30 ? '⚠️' : currentScore < 60 ? '🔧' : '✨'}
+            </span>
           </div>
-          <h2 className="text-xl font-semibold text-foreground mb-1">Your {unitTypeLabel.toLowerCase()} is in great shape</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-1">
+            {currentScore < 30 
+              ? `Your ${unitTypeLabel.toLowerCase()} needs attention`
+              : currentScore < 60 
+                ? `Your ${unitTypeLabel.toLowerCase()} is holding up`
+                : `Your ${unitTypeLabel.toLowerCase()} is in great shape`}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            {getIntroMessage()}
+            {currentScore < 30
+              ? "Address these priority items to improve reliability:"
+              : getIntroMessage()}
           </p>
         </div>
         
