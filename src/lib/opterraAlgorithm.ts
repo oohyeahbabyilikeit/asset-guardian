@@ -125,6 +125,9 @@ export interface ForensicInputs {
   errorCodeCount?: number;            // Recent error code occurrences
   tanklessVentStatus?: VentStatus;    // Gas tankless only
   scaleBuildup?: number;              // 0-100% heat exchanger efficiency loss
+  
+  // NEW v7.5: Tankless isolation valves (critical for maintenance eligibility)
+  hasIsolationValves?: boolean;       // Can the unit be descaled?
 }
 
 export interface OpterraMetrics {
@@ -167,7 +170,12 @@ export interface OpterraMetrics {
   yearsLeftCurrent: number;    
   yearsLeftOptimized: number;  
   lifeExtension: number;       
-  primaryStressor: string;     
+  primaryStressor: string;
+  
+  // NEW v7.5: Tankless-specific metrics
+  scaleBuildupScore?: number;    // 0-100% heat exchanger blockage
+  flowDegradation?: number;      // % GPM loss vs rated
+  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible';
 }
 
 export type ActionType = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
@@ -1489,9 +1497,30 @@ export function calculateHardWaterTax(
   };
 }
 
+// --- TANKLESS ENGINE IMPORT ---
+
+import { 
+  calculateTanklessHealth, 
+  getTanklessRecommendation, 
+  getTanklessFinancials 
+} from './opterraTanklessAlgorithm';
+
 // --- MAIN ENTRY POINT ---
 
 export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
+  // ROUTING LOGIC: Direct tankless units to tankless algorithm
+  const isTanklessUnit = data.fuelType === 'TANKLESS_GAS' || data.fuelType === 'TANKLESS_ELECTRIC';
+
+  if (isTanklessUnit) {
+    const metrics = calculateTanklessHealth(data);
+    const verdict = getTanklessRecommendation(metrics, data);
+    const financial = getTanklessFinancials(metrics, data);
+    const hardWaterTax = calculateHardWaterTax(data, metrics);
+    
+    return { metrics, verdict, financial, hardWaterTax };
+  }
+
+  // Standard tank heater logic
   const metrics = calculateHealth(data);
   const rawVerdict = getRawRecommendation(metrics, data);
   const verdict = optimizeEconomicDecision(rawVerdict, data, metrics);
