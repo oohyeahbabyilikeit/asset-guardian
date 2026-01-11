@@ -23,7 +23,8 @@ import {
   RiskLevel,
   failProbToHealthScore,
   TierProfile,
-  VentType
+  VentType,
+  resolveHardness
 } from './opterraAlgorithm';
 
 // --- CONSTANTS ---
@@ -156,10 +157,13 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // 2. SCALE ACCUMULATION (The "Artery Blockage")
   // Scale insulates the copper heat exchanger, causing overheating/cracking
   // =========================================
-  // FIX v7.6: Trust measurement over checkbox ("Phantom Softener" Fix)
-  const effectiveHardness = (data.hasSoftener && data.hardnessGPG <= 1.5) 
+  // v7.6: Use Digital-First hardness resolver for all physics calculations
+  // This uses measuredHardnessGPG (test strip) if available, or infers from softener status
+  const { effectiveHardness } = resolveHardness(data);
+  // For tankless, if softener is working, use 0.2 GPG (less buffer than tank)
+  const tanklessEffectiveHardness = (data.hasSoftener && effectiveHardness < 1.5) 
     ? 0.2 
-    : data.hardnessGPG;
+    : effectiveHardness;
   const yearsSinceDescale = data.lastDescaleYearsAgo ?? data.calendarAge;
   
   const fuelFactor = data.fuelType === 'TANKLESS_ELECTRIC' 
@@ -170,7 +174,7 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   const tempPenalty = data.tempSetting === 'HOT' ? 1.5 : 1.0;
   
   // Physics Formula: Hardness * Time * Intensity * Temp
-  const rawScaleScore = effectiveHardness * yearsSinceDescale * cycleStress * fuelFactor * tempPenalty;
+  const rawScaleScore = tanklessEffectiveHardness * yearsSinceDescale * cycleStress * fuelFactor * tempPenalty;
   
   // Residual Scarring: Flushing removes 90%, but 10% stays forever
   const residualScarring = Math.max(0, (data.calendarAge - yearsSinceDescale)) * 0.5;

@@ -1,4 +1,4 @@
-import { Flame, TrendingDown, Droplets, CheckCircle2, Wrench } from 'lucide-react';
+import { Flame, TrendingDown, Droplets, CheckCircle2, Wrench, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HardWaterTax } from '@/lib/opterraAlgorithm';
 
@@ -18,11 +18,65 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
     netAnnualSavings,
     paybackYears,
     recommendation,
+    protectedAmount,
   } = hardWaterTax;
 
   // Don't render if no recommendation needed
   if (recommendation === 'NONE') {
     return null;
+  }
+
+  // v7.6: PROTECTED state - softener is working
+  if (recommendation === 'PROTECTED') {
+    return (
+      <div className="command-card overflow-hidden border-emerald-500/30">
+        {/* Accent bar */}
+        <div className="h-1 bg-gradient-to-r from-emerald-500/50 via-green-500/50 to-emerald-500/50" />
+        
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500/20 to-green-500/10 border border-emerald-500/30">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-emerald-400">
+                  Protected by Softener
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Your equipment is shielded from hard water
+                </p>
+              </div>
+            </div>
+            <div className="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+              {hardnessGPG} GPG Area
+            </div>
+          </div>
+
+          {/* Savings Display */}
+          <div className="text-center py-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
+            <p className="text-xs text-muted-foreground mb-1">Annual Protection Value</p>
+            <p className="text-2xl font-bold text-emerald-400 font-data">${protectedAmount || 0}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">saved per year by your softener</p>
+          </div>
+
+          {/* Net Savings */}
+          {netAnnualSavings > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Net savings (after salt & maintenance):</span>
+              <span className="font-bold text-emerald-400">+${netAnnualSavings}/yr</span>
+            </div>
+          )}
+          
+          {/* ROI Breakdown */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Softener operating cost: ~${softenerAnnualCost}/yr</span>
+            <span className="text-emerald-400">ROI: Positive ✓</span>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const isRecommend = recommendation === 'RECOMMEND';

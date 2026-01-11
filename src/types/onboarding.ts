@@ -1,4 +1,4 @@
-import type { ForensicInputs, UsageType } from '@/lib/opterraAlgorithm';
+import type { ForensicInputs, UsageType, SoftenerSaltStatus } from '@/lib/opterraAlgorithm';
 import type { SoftenerInputs } from '@/lib/softenerAlgorithm';
 
 // Symptom flags that map to algorithm inputs
@@ -31,6 +31,7 @@ export interface OnboardingData {
   softenerWasHereWhenMoved: boolean | null; // null = not sure
   softenerInstallYearsAgo: number | null;   // null if was here when moved
   softenerServiceFrequency: 'professional' | 'diy_salt' | 'never' | 'unknown';
+  softenerSaltStatus: SoftenerSaltStatus;   // NEW v7.6: Quick visual check
   waterSource: 'city' | 'well' | null;      // null = not answered yet
   
   // Step 5: Symptoms
@@ -47,6 +48,7 @@ export const DEFAULT_ONBOARDING_DATA: OnboardingData = {
   softenerWasHereWhenMoved: null,
   softenerInstallYearsAgo: null,
   softenerServiceFrequency: 'unknown',
+  softenerSaltStatus: 'UNKNOWN',
   waterSource: null,
   symptoms: {
     notEnoughHotWater: false,
@@ -81,6 +83,7 @@ export function mapOnboardingToForensicInputs(
     peopleCount: onboarding.peopleCount,
     usageType: onboarding.usageType,
     hasSoftener: onboarding.hasSoftener,
+    softenerSaltStatus: onboarding.softenerSaltStatus, // NEW v7.6
     lastFlushYearsAgo,
     lastAnodeReplaceYearsAgo,
     visualRust,

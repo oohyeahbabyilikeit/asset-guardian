@@ -1,16 +1,19 @@
-import { Droplet, ChevronRight, Calendar, Wrench, Building2, Waves } from 'lucide-react';
+import { Droplet, ChevronRight, Calendar, Wrench, Building2, Waves, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { SoftenerSaltStatus } from '@/lib/opterraAlgorithm';
 
 interface SoftenerContextStepProps {
   wasHereWhenMoved: boolean | null;
   installYearsAgo: number | null;
   serviceFrequency: 'professional' | 'diy_salt' | 'never' | 'unknown';
   waterSource: 'city' | 'well' | null;
+  saltStatus: SoftenerSaltStatus;
   onWasHereChange: (wasHere: boolean | null) => void;
   onInstallYearsChange: (years: number | null) => void;
   onServiceFrequencyChange: (freq: 'professional' | 'diy_salt' | 'never' | 'unknown') => void;
   onWaterSourceChange: (source: 'city' | 'well') => void;
+  onSaltStatusChange: (status: SoftenerSaltStatus) => void;
   onNext: () => void;
 }
 
@@ -40,15 +43,24 @@ const waterSourceOptions: { label: string; value: WaterSourceType; icon: typeof 
   { label: 'Well Water', value: 'well', icon: Waves, description: 'Private well, may contain iron/sediment' },
 ];
 
+// v7.6: Salt status options for zero-friction hardness detection
+const saltStatusOptions: { label: string; value: SoftenerSaltStatus; description: string }[] = [
+  { label: 'Salt looks OK', value: 'OK', description: 'Salt visible above water line' },
+  { label: 'Empty / Low', value: 'EMPTY', description: 'No salt visible or below water' },
+  { label: 'Not sure', value: 'UNKNOWN', description: 'Cannot check or lid stuck' },
+];
+
 export function SoftenerContextStep({
   wasHereWhenMoved,
   installYearsAgo,
   serviceFrequency,
   waterSource,
+  saltStatus,
   onWasHereChange,
   onInstallYearsChange,
   onServiceFrequencyChange,
   onWaterSourceChange,
+  onSaltStatusChange,
   onNext,
 }: SoftenerContextStepProps) {
   const showInstallQuestion = wasHereWhenMoved === false;

@@ -72,6 +72,9 @@ export function isTankless(fuelType: FuelType): boolean {
   return fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
 }
 
+// Softener Salt Status for "Digital-First" hardness detection
+export type SoftenerSaltStatus = 'OK' | 'EMPTY' | 'UNKNOWN';
+
 export interface ForensicInputs {
   calendarAge: number;     // Years
   warrantyYears: number;   // Standard is 6, 9, or 12
@@ -83,7 +86,14 @@ export interface ForensicInputs {
   location: LocationType;
   isFinishedArea: boolean; 
   fuelType: FuelType;
-  hardnessGPG: number;     
+  
+  // HARDNESS INPUTS (v7.6 "Digital-First" Split Architecture)
+  // streetHardnessGPG: From API/Zip (Required - pre-filled, used for Financial ROI)
+  // measuredHardnessGPG: From Test Strip (Optional override, used for Physics if provided)
+  // hardnessGPG: Legacy field, treated as streetHardnessGPG for backwards compatibility
+  streetHardnessGPG?: number;        // NEW: From API (pre-filled from USGS/EPA)
+  measuredHardnessGPG?: number;      // NEW: From Test Strip (optional tech verification)
+  hardnessGPG: number;               // Legacy: Used as fallback if streetHardnessGPG not set
   
   // Usage Calibration (NEW v6.8)
   peopleCount: number;     // 1-8+ people in household
@@ -95,6 +105,7 @@ export interface ForensicInputs {
   
   // Equipment Flags
   hasSoftener: boolean;
+  softenerSaltStatus?: SoftenerSaltStatus;  // NEW v7.6: Visual salt check (faster than test strip)
   hasCircPump: boolean;
   hasExpTank: boolean;
   hasPrv: boolean;         // Pressure Reducing Valve present?
@@ -217,9 +228,9 @@ export interface FinancialForecast {
   upgradeValueProp?: string;      // Why upgrade is worth considering
 }
 
-// Hard Water Tax Interface (NEW v6.7)
+// Hard Water Tax Interface (NEW v6.7, UPDATED v7.6 for Digital-First)
 export interface HardWaterTax {
-  hardnessGPG: number;
+  hardnessGPG: number;          // Street hardness (for display)
   hasSoftener: boolean;
   
   // Annual Loss Breakdown
@@ -235,9 +246,12 @@ export interface HardWaterTax {
   paybackYears: number;         // Install cost / annual savings
   
   // Recommendation
-  recommendation: 'NONE' | 'CONSIDER' | 'RECOMMEND';
+  recommendation: 'NONE' | 'CONSIDER' | 'RECOMMEND' | 'PROTECTED';  // NEW v7.6: PROTECTED for working softener
   reason: string;
   badgeColor: 'green' | 'yellow' | 'orange';
+  
+  // NEW v7.6: For softener users, show what they're saving
+  protectedAmount?: number;     // Annual $ saved by softener
 }
 
 export interface OpterraResult {
@@ -447,6 +461,65 @@ export function getRiskLevelInfo(level: RiskLevel): RiskLevelInfo {
 }
 
 /**
+ * HARDNESS RESOLVER v7.6 - "Digital-First" Logic
+ * 
+ * Returns TWO values for TWO different purposes:
+ * - streetHardness: Used for Financial ROI (what they WOULD face without treatment)
+ * - effectiveHardness: Used for Physics (what the tank ACTUALLY experiences)
+ * 
+ * Priority Order:
+ * 1. measuredHardnessGPG (Test Strip) - Ultimate truth if provided
+ * 2. Inferred from softener + salt status - Zero friction assumption
+ * 3. streetHardnessGPG (API) or hardnessGPG (Legacy) - Baseline
+ */
+export interface ResolvedHardness {
+  streetHardness: number;      // For: Hard Water Tax, ROI, softener recommendation
+  effectiveHardness: number;   // For: Sediment, anode decay, scale buildup
+  source: 'MEASURED' | 'INFERRED' | 'API';
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+export function resolveHardness(data: ForensicInputs): ResolvedHardness {
+  // 1. BASELINE (Street Water) - Always from API or legacy field
+  const streetHardness = data.streetHardnessGPG ?? data.hardnessGPG;
+  
+  // 2. EFFECTIVE (Tank Water) - Logic tree
+  let effectiveHardness = streetHardness;
+  let source: ResolvedHardness['source'] = 'API';
+  let confidence: ResolvedHardness['confidence'] = 'MEDIUM';
+  
+  // SCENARIO A: Tech verified with test strip (Ultimate Truth)
+  if (data.measuredHardnessGPG !== undefined) {
+    effectiveHardness = data.measuredHardnessGPG;
+    source = 'MEASURED';
+    confidence = 'HIGH';
+  }
+  // SCENARIO B: Frictionless assumption based on softener + salt status
+  else if (data.hasSoftener) {
+    if (data.softenerSaltStatus === 'EMPTY') {
+      // Softener is dead → Use Street Hardness
+      effectiveHardness = streetHardness;
+      source = 'INFERRED';
+      confidence = 'MEDIUM';
+    } else {
+      // Salt OK or Unknown → Assume working (0.5 GPG for tank)
+      effectiveHardness = 0.5;
+      source = 'INFERRED';
+      confidence = 'LOW';  // Could be wrong if softener broken
+    }
+  }
+  // SCENARIO C: Measured hardness is low despite "no softener" checkbox
+  // (User might not know they have a softener, or neighbor's softener, etc.)
+  else if (data.measuredHardnessGPG !== undefined && data.measuredHardnessGPG <= 1.5) {
+    effectiveHardness = data.measuredHardnessGPG;
+    source = 'MEASURED';
+    confidence = 'HIGH';
+  }
+  
+  return { streetHardness, effectiveHardness, source, confidence };
+}
+
+/**
  * PHYSICS ADAPTER v6.6 - Duty Cycle Logic
  * Determines both the EFFECTIVE PSI and whether it's TRANSIENT (duty cycle).
  * 
@@ -552,12 +625,9 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     sedFactor = CONSTANTS.SEDIMENT_FACTOR_GAS;
   }
   
-  // FIX v7.6: Trust measurement over checkbox ("Phantom Softener" Fix)
-  // If the tech measures hard water (>1.5 GPG), the softener is broken/bypassed.
-  // Only use softened rate (0.5 GPG) if BOTH softener exists AND water tests soft.
-  const effectiveHardness = (data.hasSoftener && data.hardnessGPG <= 1.5) 
-    ? 0.5 
-    : data.hardnessGPG;
+  // v7.6: Use the Digital-First hardness resolver for all physics calculations
+  // This uses measuredHardnessGPG (test strip) if available, or infers from softener status
+  const { effectiveHardness } = resolveHardness(data);
   
   // Volume factor now uses the pre-calculated usageIntensity
   const volumeFactor = usageIntensity;
@@ -1407,27 +1477,61 @@ export function calculateHardWaterTax(
   data: ForensicInputs,
   metrics: OpterraMetrics
 ): HardWaterTax {
-  const { hardnessGPG, hasSoftener } = data;
   const C = HARD_WATER_CONSTANTS;
   
-  // Skip if softener already installed
-  if (hasSoftener) {
+  // v7.6: Use Digital-First hardness resolver
+  // streetHardness = what they WOULD face without treatment (for ROI calc)
+  // effectiveHardness = what the tank ACTUALLY sees (for physics)
+  const { streetHardness, effectiveHardness } = resolveHardness(data);
+  
+  // Use streetHardness for financial calculations (what they'd pay without treatment)
+  const hardnessGPG = streetHardness;
+  
+  // v7.6: SOFTENER WORKING - Show what they're SAVING
+  // If softener exists AND effective hardness is low, the softener is working
+  if (data.hasSoftener && effectiveHardness < 1.5) {
+    // Calculate what they WOULD pay without the softener (using street hardness)
+    const wouldBeEnergyLoss = Math.round(C.BASE_ENERGY_COST * (streetHardness * 0.01) * 3); // Estimated sediment if no softener
+    
+    let wouldBeLifespan: number;
+    if (streetHardness < 10) wouldBeLifespan = 11;
+    else if (streetHardness < 15) wouldBeLifespan = 9;
+    else if (streetHardness < 20) wouldBeLifespan = 8;
+    else wouldBeLifespan = 7;
+    
+    const normalCostPerYear = C.APPLIANCE_PACKAGE_VALUE / C.NORMAL_LIFESPAN;
+    const wouldBeCostPerYear = C.APPLIANCE_PACKAGE_VALUE / wouldBeLifespan;
+    const wouldBeDepreciation = Math.round(wouldBeCostPerYear - normalCostPerYear);
+    
+    const householdSize = data.peopleCount || C.DEFAULT_HOUSEHOLD_SIZE;
+    const styleMultipliers = { light: 0.6, normal: 1.0, heavy: 1.8 };
+    const styleMultiplier = styleMultipliers[data.usageType] || 1.0;
+    const wouldBeDetergent = Math.round(householdSize * C.DETERGENT_ANNUAL_PER_PERSON * styleMultiplier);
+    
+    const wouldBePlumbing = Math.round(streetHardness * 10);
+    
+    const totalProtected = wouldBeEnergyLoss + wouldBeDepreciation + wouldBeDetergent + wouldBePlumbing;
+    const netSavings = totalProtected - C.ANNUAL_COST_OF_OWNERSHIP;
+    
     return {
-      hardnessGPG,
+      hardnessGPG: streetHardness,
       hasSoftener: true,
-      energyLoss: 0,
+      energyLoss: 0,           // They're not losing this
       applianceDepreciation: 0,
       detergentOverspend: 0,
       plumbingProtection: 0,
       totalAnnualLoss: 0,
-      softenerAnnualCost: 0,
-      netAnnualSavings: 0,
+      softenerAnnualCost: C.ANNUAL_COST_OF_OWNERSHIP,
+      netAnnualSavings: netSavings,
       paybackYears: 0,
-      recommendation: 'NONE',
-      reason: 'Water softener already installed.',
-      badgeColor: 'green'
+      recommendation: 'PROTECTED',
+      reason: `Your softener protects you from $${totalProtected}/yr in hard water damage.`,
+      badgeColor: 'green',
+      protectedAmount: totalProtected
     };
   }
+  
+  // v7.6: SOFTENER BROKEN or NO SOFTENER - Calculate actual losses
   
   // A. Energy Loss (from sediment barrier)
   // Sediment acts as insulator - ~1% efficiency loss per lb
@@ -1463,7 +1567,7 @@ export function calculateHardWaterTax(
   // D. Plumbing Protection (NEW v7.0)
   // Hard water causes pinhole leaks, faucet failures, and fixture damage
   // Conservative estimate: ~$10 per Grain of Hardness annually
-  const plumbingProtection = Math.round(data.hardnessGPG * 10);
+  const plumbingProtection = Math.round(hardnessGPG * 10);
   
   // Total Annual Loss ("Hard Water Tax")
   const totalAnnualLoss = energyLoss + applianceDepreciation + detergentOverspend + plumbingProtection;
