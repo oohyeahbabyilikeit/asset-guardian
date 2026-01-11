@@ -25,10 +25,12 @@ import { SoftenerInputs, DEFAULT_SOFTENER_INPUTS } from '@/lib/softenerAlgorithm
 import { OnboardingData, mapOnboardingToForensicInputs, mapOnboardingToSoftenerInputs } from '@/types/onboarding';
 import { TechnicianInspectionData } from '@/types/technicianInspection';
 import { mapTechnicianToForensicInputs, mapTechnicianToAssetDisplay } from '@/types/technicianMapper';
+import { CalibrationFlow } from '@/components/CalibrationFlow';
 
 type Screen = 
   | 'mode-select'
   | 'technician'
+  | 'calibration'
   | 'welcome' 
   | 'onboarding' 
   | 'discovery' 
@@ -280,6 +282,19 @@ const Index = () => {
             onComplete={handleTechnicianComplete}
             onBack={() => setCurrentScreen('mode-select')}
             initialStreetHardness={10}
+          />
+        );
+      
+      case 'calibration':
+        return (
+          <CalibrationFlow
+            baseInputs={currentInputs}
+            brand={currentAsset.brand}
+            model={currentAsset.model}
+            onComplete={(result, calibratedInputs) => {
+              setCurrentInputs(calibratedInputs);
+              setCurrentScreen('dashboard');
+            }}
           />
         );
       
