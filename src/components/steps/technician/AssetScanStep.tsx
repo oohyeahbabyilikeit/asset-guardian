@@ -12,10 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Flame, Zap, Droplets, Wind, AlertCircle, CheckCircle2 } from 'lucide-react';
-import type { AssetIdentification, WATER_HEATER_BRANDS } from '@/types/technicianInspection';
+import { Flame, Zap, Droplets, Wind, CheckCircle2 } from 'lucide-react';
+import type { AssetIdentification } from '@/types/technicianInspection';
 import type { FuelType, VentType } from '@/lib/opterraAlgorithm';
-import { decodeSerialNumber, getAgeDisplayString, getConfidenceColor } from '@/lib/serialDecoder';
+import { decodeSerialNumber, getAgeDisplayString } from '@/lib/serialDecoder';
 
 const BRANDS = [
   'A.O. Smith',
@@ -79,22 +79,15 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetSc
   const canProceed = data.brand && data.fuelType;
   
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-foreground">Asset Identification</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Scan the unit's data plate for key information
-        </p>
-      </div>
-      
+    <div className="space-y-5">
       {/* Brand Selection */}
       <div className="space-y-2">
-        <Label>Brand / Manufacturer</Label>
+        <Label className="text-sm font-medium">Brand / Manufacturer</Label>
         <Select
           value={data.brand}
           onValueChange={(value) => onUpdate({ brand: value })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="h-12">
             <SelectValue placeholder="Select brand..." />
           </SelectTrigger>
           <SelectContent>
@@ -107,55 +100,45 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetSc
         </Select>
       </div>
       
-      {/* Model Number */}
-      <div className="space-y-2">
-        <Label>Model Number (optional)</Label>
-        <Input
-          value={data.model}
-          onChange={(e) => onUpdate({ model: e.target.value.toUpperCase() })}
-          placeholder="e.g., XG50T06EC36U1"
-          className="font-mono"
-        />
+      {/* Model & Serial in a row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Model Number</Label>
+          <Input
+            value={data.model}
+            onChange={(e) => onUpdate({ model: e.target.value.toUpperCase() })}
+            placeholder="XG50T06EC36U1"
+            className="font-mono h-12"
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Serial Number</Label>
+          <Input
+            value={data.serialNumber}
+            onChange={(e) => onUpdate({ serialNumber: e.target.value.toUpperCase() })}
+            placeholder="1423A012345"
+            className="font-mono h-12"
+          />
+        </div>
       </div>
       
-      {/* Serial Number */}
-      <div className="space-y-2">
-        <Label>Serial Number</Label>
-        <Input
-          value={data.serialNumber}
-          onChange={(e) => onUpdate({ serialNumber: e.target.value.toUpperCase() })}
-          placeholder="e.g., 1423A012345"
-          className="font-mono"
-        />
-        
-        {/* Age Detection Badge */}
-        {decodedAge && (
-          <div className="flex items-center gap-2 mt-2">
-            {decodedAge.confidence !== 'LOW' ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium">
-                  {getAgeDisplayString(decodedAge)}
-                </span>
-                <Badge variant="secondary" className={getConfidenceColor(decodedAge.confidence)}>
-                  {decodedAge.confidence} confidence
-                </Badge>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Could not decode age from serial
-                </span>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Age Detection Result */}
+      {decodedAge && decodedAge.confidence !== 'LOW' && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[hsl(var(--status-optimal))]/10 border border-[hsl(var(--status-optimal))]/20">
+          <CheckCircle2 className="h-5 w-5 text-[hsl(var(--status-optimal))]" />
+          <span className="text-sm font-medium text-foreground">
+            {getAgeDisplayString(decodedAge)}
+          </span>
+          <Badge variant="secondary" className="ml-auto text-xs">
+            Auto-detected
+          </Badge>
+        </div>
+      )}
       
       {/* Fuel Type */}
-      <div className="space-y-3">
-        <Label>Unit Type</Label>
+      <div className="space-y-2.5">
+        <Label className="text-sm font-medium">Unit Type</Label>
         <RadioGroup
           value={data.fuelType}
           onValueChange={(value) => onUpdate({ fuelType: value as FuelType })}
@@ -170,64 +153,74 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetSc
               />
               <Label
                 htmlFor={type.value}
-                className="flex items-center gap-2 rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                className="flex items-center gap-2.5 rounded-xl border-2 border-border bg-card p-3.5 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all"
               >
-                {type.icon}
-                <span className="text-sm">{type.label}</span>
+                <div className="text-muted-foreground peer-data-[state=checked]:text-primary">
+                  {type.icon}
+                </div>
+                <span className="text-sm font-medium">{type.label}</span>
               </Label>
             </div>
           ))}
         </RadioGroup>
       </div>
       
-      {/* Capacity (Tank) or Flow Rate (Tankless) */}
-      {isTankless ? (
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <Label>Rated Flow (GPM)</Label>
-            <span className="text-sm font-medium">{data.ratedFlowGPM || 8} GPM</span>
+      {/* Capacity/Flow + Warranty Row */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Capacity (Tank) or Flow Rate (Tankless) */}
+        <div className="space-y-2.5">
+          <div className="flex justify-between items-baseline">
+            <Label className="text-sm font-medium">{isTankless ? 'Flow Rate' : 'Capacity'}</Label>
+            <span className="text-sm font-mono font-medium text-primary">
+              {isTankless ? `${data.ratedFlowGPM || 8} GPM` : `${data.tankCapacity || 50} gal`}
+            </span>
           </div>
           <Slider
-            value={[data.ratedFlowGPM || 8]}
-            onValueChange={([value]) => onUpdate({ ratedFlowGPM: value })}
-            min={4}
-            max={12}
-            step={0.5}
+            value={[isTankless ? (data.ratedFlowGPM || 8) : (data.tankCapacity || 50)]}
+            onValueChange={([value]) => onUpdate(isTankless ? { ratedFlowGPM: value } : { tankCapacity: value })}
+            min={isTankless ? 4 : 20}
+            max={isTankless ? 12 : 100}
+            step={isTankless ? 0.5 : 5}
+            className="py-2"
           />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>4 GPM</span>
-            <span>12 GPM</span>
-          </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <Label>Tank Capacity</Label>
-            <span className="text-sm font-medium">{data.tankCapacity || 50} Gallons</span>
-          </div>
-          <Slider
-            value={[data.tankCapacity || 50]}
-            onValueChange={([value]) => onUpdate({ tankCapacity: value })}
-            min={20}
-            max={100}
-            step={5}
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>20 gal</span>
-            <span>100 gal</span>
-          </div>
+        
+        {/* Warranty */}
+        <div className="space-y-2.5">
+          <Label className="text-sm font-medium">Warranty</Label>
+          <RadioGroup
+            value={String(data.warrantyYears)}
+            onValueChange={(value) => onUpdate({ warrantyYears: parseInt(value) })}
+            className="flex gap-1.5"
+          >
+            {[6, 9, 12].map((years) => (
+              <div key={years} className="flex-1">
+                <RadioGroupItem
+                  value={String(years)}
+                  id={`warranty-${years}`}
+                  className="peer sr-only"
+                />
+                <Label
+                  htmlFor={`warranty-${years}`}
+                  className="flex justify-center rounded-lg border-2 border-border bg-card py-2.5 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer text-sm font-medium transition-all"
+                >
+                  {years}yr
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
         </div>
-      )}
+      </div>
       
       {/* Vent Type (Gas Units Only) */}
       {isGasUnit && (
         <div className="space-y-2">
-          <Label>Vent Type</Label>
+          <Label className="text-sm font-medium">Vent Type</Label>
           <Select
             value={data.ventType}
             onValueChange={(value) => onUpdate({ ventType: value as VentType })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-12">
               <SelectValue placeholder="Select vent type..." />
             </SelectTrigger>
             <SelectContent>
@@ -241,41 +234,12 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetSc
         </div>
       )}
       
-      {/* Warranty Years */}
-      <div className="space-y-3">
-        <div className="flex justify-between">
-          <Label>Warranty Period</Label>
-          <span className="text-sm font-medium">{data.warrantyYears} Years</span>
-        </div>
-        <RadioGroup
-          value={String(data.warrantyYears)}
-          onValueChange={(value) => onUpdate({ warrantyYears: parseInt(value) })}
-          className="flex gap-2"
-        >
-          {[6, 9, 12].map((years) => (
-            <div key={years} className="flex-1">
-              <RadioGroupItem
-                value={String(years)}
-                id={`warranty-${years}`}
-                className="peer sr-only"
-              />
-              <Label
-                htmlFor={`warranty-${years}`}
-                className="flex justify-center rounded-lg border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-sm"
-              >
-                {years} yr
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
-      
       <Button 
         onClick={onNext} 
-        className="w-full"
+        className="w-full h-12 text-base font-semibold mt-4"
         disabled={!canProceed}
       >
-        Continue to Measurements
+        Continue
       </Button>
     </div>
   );
