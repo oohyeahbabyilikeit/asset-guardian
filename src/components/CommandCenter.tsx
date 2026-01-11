@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { ActionDock } from '@/components/ActionDock';
@@ -12,6 +13,66 @@ import { type VitalsData, type HealthScore, type AssetData } from '@/data/mockAs
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
 
+// Staggered animation variants for dashboard sections
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+      delayChildren: 0.1,
+    },
+  },
+} as const;
+
+const slideInLeft = {
+  hidden: { opacity: 0, x: -40 },
+  visible: { 
+    opacity: 1, 
+    x: 0,
+    transition: { duration: 0.5 }
+  },
+} as const;
+
+const slideInRight = {
+  hidden: { opacity: 0, x: 40 },
+  visible: { 
+    opacity: 1, 
+    x: 0,
+    transition: { duration: 0.5 }
+  },
+} as const;
+
+const popIn = {
+  hidden: { opacity: 0, scale: 0.92 },
+  visible: { 
+    opacity: 1, 
+    scale: 1,
+    transition: { duration: 0.4 }
+  },
+} as const;
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.5 }
+  },
+} as const;
+
+const slideUpBounce = {
+  hidden: { opacity: 0, y: 50 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { 
+      type: "spring" as const,
+      stiffness: 100,
+      damping: 15
+    }
+  },
+} as const;
 interface CommandCenterProps {
   onPanicMode: () => void;
   onServiceRequest: () => void;
@@ -186,97 +247,116 @@ export function CommandCenter({
           hasSoftener={hasSoftener}
         />
 
-        {/* DISCOVERY PHASE 1: Your Unit Profile + System Diagnostics */}
-        <div className="px-4 pt-4 animate-fade-in-up space-y-3">
-          <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
-          <HealthGauge 
-            healthScore={dynamicHealthScore} 
-            location={currentAsset.location} 
-            riskLevel={riskLevel}
-            primaryStressor={dynamicVitals.biologicalAge.primaryStressor}
-            estDamageCost={financial.estReplacementCost}
-            metrics={opterraMetrics}
+        {/* Animated Dashboard Content */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="space-y-3"
+        >
+          {/* DISCOVERY PHASE 1: Your Unit Profile */}
+          <motion.div variants={popIn} className="px-4 pt-4">
+            <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
+          </motion.div>
+
+          {/* DISCOVERY PHASE 1b: Health Gauge slides in from left */}
+          <motion.div variants={slideInLeft} className="px-4">
+            <HealthGauge 
+              healthScore={dynamicHealthScore} 
+              location={currentAsset.location} 
+              riskLevel={riskLevel}
+              primaryStressor={dynamicVitals.biologicalAge.primaryStressor}
+              estDamageCost={financial.estReplacementCost}
+              metrics={opterraMetrics}
+              recommendation={recommendation}
+              isLeaking={currentInputs.isLeaking}
+              visualRust={currentInputs.visualRust}
+              fuelType={currentInputs.fuelType}
+            />
+          </motion.div>
+
+          {/* DISCOVERY PHASE 2: Tank Visualization slides in from right */}
+          <motion.div variants={slideInRight}>
+            <ServiceHistory 
+              calendarAge={currentInputs.calendarAge}
+              sedimentLbs={sedimentLbs}
+              shieldLife={shieldLife}
+              hasSoftener={currentInputs.hasSoftener}
+              tankCapacityGallons={parseInt(currentAsset.specs.capacity) || 50}
+              failProb={failProb}
+              sedimentRate={sedimentRate}
+              monthsToFlush={monthsToFlush}
+              monthsToLockout={monthsToLockout}
+              flushStatus={flushStatus}
+              autoExpand={dynamicHealthScore.score < 50}
+              recommendation={recommendation}
+              serviceHistory={serviceHistory}
+              isLeaking={currentInputs.isLeaking}
+              visualRust={currentInputs.visualRust}
+              fuelType={currentInputs.fuelType}
+              airFilterStatus={currentInputs.airFilterStatus}
+              isCondensateClear={currentInputs.isCondensateClear}
+              compressorHealth={currentInputs.compressorHealth || 85}
+              hasExpansionTank={currentInputs.hasExpTank}
+              hasPRV={currentInputs.hasPrv}
+              // Tankless-specific props
+              flowRateGPM={currentInputs.flowRateGPM}
+              ratedFlowGPM={currentInputs.ratedFlowGPM}
+              scaleBuildup={scaleBuildupScore}
+              igniterHealth={currentInputs.igniterHealth}
+              elementHealth={currentInputs.elementHealth}
+              inletFilterStatus={currentInputs.inletFilterStatus}
+              flameRodStatus={currentInputs.flameRodStatus}
+              tanklessVentStatus={currentInputs.tanklessVentStatus}
+              errorCodeCount={currentInputs.errorCodeCount}
+              hasIsolationValves={currentInputs.hasIsolationValves}
+              descaleStatus={descaleStatus}
+              flowDegradation={flowDegradation}
+            />
+          </motion.div>
+
+          {/* DISCOVERY PHASE 3: How Water Heaters Age - fades up */}
+          <motion.div variants={fadeUp} className="px-4">
+            <IndustryBenchmarks 
+              asset={currentAsset} 
+              inputs={currentInputs}
+              onLearnMore={handleLearnMore}
+              agingRate={agingRate}
+              bioAge={bioAge}
+              recommendation={recommendation}
+            />
+          </motion.div>
+
+          {/* Hard Water Tax Card - bounces up if shown */}
+          {hardWaterTax.recommendation !== 'NONE' && (
+            <motion.div variants={slideUpBounce} className="px-4">
+              <HardWaterTaxCard hardWaterTax={hardWaterTax} />
+            </motion.div>
+          )}
+        </motion.div>
+
+        {/* Action Dock - slides up from bottom */}
+        <motion.div
+          initial={{ opacity: 0, y: 60 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <ActionDock
+            onPanicMode={onPanicMode}
+            onServiceRequest={onServiceRequest}
+            onMaintenancePlan={onMaintenancePlan}
             recommendation={recommendation}
-            isLeaking={currentInputs.isLeaking}
-            visualRust={currentInputs.visualRust}
             fuelType={currentInputs.fuelType}
+            // Tank-specific
+            monthsToFlush={monthsToFlush}
+            flushStatus={flushStatus}
+            // Tankless-specific
+            monthsToDescale={isTanklessUnit ? (descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12) : undefined}
+            descaleStatus={descaleStatus === 'impossible' ? 'lockout' : descaleStatus === 'lockout' ? 'lockout' : (descaleStatus as 'optimal' | 'schedule' | 'due' | 'lockout' | undefined)}
+            // Hybrid-specific
+            airFilterStatus={currentInputs.airFilterStatus}
           />
-        </div>
-
-        {/* DISCOVERY PHASE 2: Tank Visualization */}
-        <div className="animate-fade-in-up mt-3" style={{ animationDelay: '0.05s' }}>
-        <ServiceHistory 
-          calendarAge={currentInputs.calendarAge}
-          sedimentLbs={sedimentLbs}
-          shieldLife={shieldLife}
-          hasSoftener={currentInputs.hasSoftener}
-          tankCapacityGallons={parseInt(currentAsset.specs.capacity) || 50}
-          failProb={failProb}
-          sedimentRate={sedimentRate}
-          monthsToFlush={monthsToFlush}
-          monthsToLockout={monthsToLockout}
-          flushStatus={flushStatus}
-          autoExpand={dynamicHealthScore.score < 50}
-          recommendation={recommendation}
-          serviceHistory={serviceHistory}
-          isLeaking={currentInputs.isLeaking}
-          visualRust={currentInputs.visualRust}
-          fuelType={currentInputs.fuelType}
-          airFilterStatus={currentInputs.airFilterStatus}
-          isCondensateClear={currentInputs.isCondensateClear}
-          compressorHealth={currentInputs.compressorHealth || 85}
-          hasExpansionTank={currentInputs.hasExpTank}
-          hasPRV={currentInputs.hasPrv}
-          // Tankless-specific props
-          flowRateGPM={currentInputs.flowRateGPM}
-          ratedFlowGPM={currentInputs.ratedFlowGPM}
-          scaleBuildup={scaleBuildupScore}
-          igniterHealth={currentInputs.igniterHealth}
-          elementHealth={currentInputs.elementHealth}
-          inletFilterStatus={currentInputs.inletFilterStatus}
-          flameRodStatus={currentInputs.flameRodStatus}
-          tanklessVentStatus={currentInputs.tanklessVentStatus}
-          errorCodeCount={currentInputs.errorCodeCount}
-          hasIsolationValves={currentInputs.hasIsolationValves}
-          descaleStatus={descaleStatus}
-          flowDegradation={flowDegradation}
-        />
-        </div>
-
-        {/* DISCOVERY PHASE 3: How Water Heaters Age */}
-        <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.1s' }}>
-        <IndustryBenchmarks 
-          asset={currentAsset} 
-          inputs={currentInputs}
-          onLearnMore={handleLearnMore}
-          agingRate={agingRate}
-          bioAge={bioAge}
-          recommendation={recommendation}
-        />
-        </div>
-        {/* Hard Water Tax Card - Only shows if recommendation !== 'NONE' */}
-        {hardWaterTax.recommendation !== 'NONE' && (
-          <div className="px-4 animate-fade-in-up mt-3" style={{ animationDelay: '0.25s' }}>
-            <HardWaterTaxCard hardWaterTax={hardWaterTax} />
-          </div>
-        )}
-
-        {/* Action Dock */}
-        <ActionDock
-          onPanicMode={onPanicMode}
-          onServiceRequest={onServiceRequest}
-          onMaintenancePlan={onMaintenancePlan}
-          recommendation={recommendation}
-          fuelType={currentInputs.fuelType}
-          // Tank-specific
-          monthsToFlush={monthsToFlush}
-          flushStatus={flushStatus}
-          // Tankless-specific
-          monthsToDescale={isTanklessUnit ? (descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12) : undefined}
-          descaleStatus={descaleStatus === 'impossible' ? 'lockout' : descaleStatus === 'lockout' ? 'lockout' : (descaleStatus as 'optimal' | 'schedule' | 'due' | 'lockout' | undefined)}
-          // Hybrid-specific
-          airFilterStatus={currentInputs.airFilterStatus}
-        />
+        </motion.div>
       </div>
 
       {/* Educational Drawer */}
