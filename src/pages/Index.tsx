@@ -243,8 +243,8 @@ const Index = () => {
       },
     });
     
-    // Go to homeowner onboarding (they answer usage questions)
-    setCurrentScreen('onboarding');
+    // Go to calibration flow (SMS-to-Reveal experience)
+    setCurrentScreen('calibration');
   }, [currentAsset]);
 
   const handleOnboardingComplete = (data: OnboardingData) => {
