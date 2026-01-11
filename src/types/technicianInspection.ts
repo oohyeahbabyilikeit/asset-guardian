@@ -45,10 +45,10 @@ export interface WaterMeasurements {
 // Step 3: Location & Condition
 export interface LocationCondition {
   location: LocationType;
-  isFinishedArea: boolean;
+  isFinishedArea?: boolean;  // undefined = not answered yet
   visualRust: boolean;
   isLeaking: boolean;
-  tempSetting: TempSetting;
+  tempSetting?: TempSetting;  // undefined = not answered yet
 }
 
 // Step 4: Equipment Checklist
@@ -133,10 +133,10 @@ export const DEFAULT_WATER_MEASUREMENTS: WaterMeasurements = {
 
 export const DEFAULT_LOCATION_CONDITION: LocationCondition = {
   location: 'GARAGE',
-  isFinishedArea: false,
+  isFinishedArea: undefined,  // Requires explicit selection
   visualRust: false,
   isLeaking: false,
-  tempSetting: 'NORMAL',
+  tempSetting: undefined,  // Requires explicit selection
 };
 
 export const DEFAULT_EQUIPMENT_CHECKLIST: EquipmentChecklist = {
