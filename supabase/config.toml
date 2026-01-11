@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.seed-prices]
 verify_jwt = false
+
+[functions.scan-data-plate]
+verify_jwt = false

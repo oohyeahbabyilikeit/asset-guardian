@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,10 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Flame, Zap, Droplets, Wind, CheckCircle2 } from 'lucide-react';
+import { Flame, Zap, Droplets, Wind, CheckCircle2, Camera, Loader2, Sparkles } from 'lucide-react';
 import type { AssetIdentification } from '@/types/technicianInspection';
 import type { FuelType, VentType } from '@/lib/opterraAlgorithm';
 import { decodeSerialNumber, getAgeDisplayString } from '@/lib/serialDecoder';
+import { useDataPlateScan } from '@/hooks/useDataPlateScan';
 
 const BRANDS = [
   'A.O. Smith',
@@ -49,6 +50,25 @@ const VENT_TYPES: { value: VentType; label: string }[] = [
   { value: 'DIRECT_VENT', label: 'Direct Vent (Sealed)' },
 ];
 
+// Map brand names from AI to our brand list
+function normalizeBrand(brand: string | null): string {
+  if (!brand) return '';
+  const lower = brand.toLowerCase();
+  
+  // Check for exact or partial matches
+  for (const b of BRANDS) {
+    if (lower.includes(b.toLowerCase()) || b.toLowerCase().includes(lower)) {
+      return b;
+    }
+  }
+  
+  // Common variations
+  if (lower.includes('ao smith') || lower.includes('a. o. smith')) return 'A.O. Smith';
+  if (lower.includes('bradford')) return 'Bradford White';
+  
+  return 'Other';
+}
+
 interface AssetScanStepProps {
   data: AssetIdentification;
   onUpdate: (data: Partial<AssetIdentification>) => void;
@@ -58,9 +78,51 @@ interface AssetScanStepProps {
 
 export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetScanStepProps) {
   const [decodedAge, setDecodedAge] = useState<ReturnType<typeof decodeSerialNumber> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isScanning, scannedData, scanImage } = useDataPlateScan();
   
   const isTankless = data.fuelType === 'TANKLESS_GAS' || data.fuelType === 'TANKLESS_ELECTRIC';
   const isGasUnit = data.fuelType === 'GAS' || data.fuelType === 'TANKLESS_GAS';
+  
+  // Handle file selection for scanning
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const result = await scanImage(file);
+    
+    if (result) {
+      // Apply scanned data to form
+      const updates: Partial<AssetIdentification> = {};
+      
+      if (result.brand) {
+        updates.brand = normalizeBrand(result.brand);
+      }
+      if (result.model) {
+        updates.model = result.model;
+      }
+      if (result.serialNumber) {
+        updates.serialNumber = result.serialNumber;
+      }
+      if (result.fuelType) {
+        updates.fuelType = result.fuelType;
+      }
+      if (result.capacity) {
+        updates.tankCapacity = result.capacity;
+      }
+      if (result.flowRate) {
+        updates.ratedFlowGPM = result.flowRate;
+      }
+      if (result.warrantyYears) {
+        updates.warrantyYears = result.warrantyYears;
+      }
+      
+      onUpdate(updates);
+    }
+    
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
   
   // Decode serial number when brand or serial changes
   useEffect(() => {
@@ -80,6 +142,61 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetSc
   
   return (
     <div className="space-y-5">
+      {/* AI Scan Data Plate Button */}
+      <div className="space-y-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isScanning}
+          className="w-full h-14 border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary/60 transition-all"
+        >
+          {isScanning ? (
+            <>
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              <span>Analyzing data plate...</span>
+            </>
+          ) : (
+            <>
+              <Camera className="h-5 w-5 mr-2" />
+              <span className="font-medium">Scan Data Plate</span>
+              <Sparkles className="h-4 w-4 ml-2 text-primary" />
+            </>
+          )}
+        </Button>
+        
+        {scannedData && scannedData.confidence && (
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Badge 
+              variant={scannedData.confidence === 'HIGH' ? 'default' : 'secondary'}
+              className="text-xs"
+            >
+              {scannedData.confidence === 'HIGH' ? '✓ High confidence' : 
+               scannedData.confidence === 'MEDIUM' ? '~ Medium confidence' : 
+               '? Low confidence'}
+            </Badge>
+            <span>Verify fields below</span>
+          </div>
+        )}
+      </div>
+      
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">or enter manually</span>
+        </div>
+      </div>
+      
       {/* Brand Selection */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">Brand / Manufacturer</Label>
