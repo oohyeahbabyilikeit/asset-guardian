@@ -228,39 +228,68 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     }
   };
   
+  const stepLabels: Record<TechStep, string> = {
+    'asset-scan': 'Unit Identification',
+    'measurements': 'Pressure & Water',
+    'location': 'Location & Condition',
+    'equipment': 'Equipment Check',
+    'softener': 'Water Softener',
+    'hybrid': 'Heat Pump Check',
+    'tankless': 'Tankless Check',
+    'handoff': 'Ready for Handoff',
+  };
+  
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b p-4">
-        <div className="max-w-md mx-auto">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3 mb-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={goBack}
-              className="shrink-0"
+              className="shrink-0 -ml-2 hover:bg-muted"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <div className="flex-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-primary font-medium uppercase tracking-wider">
                 Technician Inspection
               </p>
-              <p className="text-sm font-medium capitalize">
-                {currentStep.replace('-', ' ')}
+              <p className="text-base font-semibold text-foreground truncate">
+                {stepLabels[currentStep]}
               </p>
             </div>
-            <span className="text-sm text-muted-foreground">
-              {currentStepIndex + 1}/{stepOrder.length}
-            </span>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+              <span className="font-medium text-foreground">{currentStepIndex + 1}</span>
+              <span>/</span>
+              <span>{stepOrder.length}</span>
+            </div>
           </div>
-          <Progress value={progress} className="h-1" />
+          
+          {/* Progress bar with step indicators */}
+          <div className="relative">
+            <Progress value={progress} className="h-1.5" />
+            <div className="absolute inset-0 flex justify-between items-center px-0">
+              {stepOrder.map((step, index) => (
+                <div
+                  key={step}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    index <= currentStepIndex 
+                      ? 'bg-primary scale-100' 
+                      : 'bg-muted-foreground/30 scale-75'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
       
       {/* Content */}
-      <div className="flex-1 p-4">
-        <div className="max-w-md mx-auto">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-lg mx-auto px-4 py-6">
           {renderStep()}
         </div>
       </div>
