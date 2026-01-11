@@ -287,14 +287,14 @@ export function TechnicianFindingsPage({
         transition={{ delay: 0.8 }}
         className="p-4 border-t border-slate-700/50 bg-slate-900/80 backdrop-blur-sm"
       >
-        <div className="text-center mb-3">
-          <p className="text-xs text-slate-500 mb-1">
-            These are your technician's raw observations
-          </p>
-          <p className="text-sm text-slate-300">
-            Answer 3 quick questions to generate your personalized health report
-          </p>
-        </div>
+      <div className="text-center mb-2">
+        <p className="text-xs text-slate-400 mb-0.5">
+          These are your technician's raw observations
+        </p>
+        <p className="text-base text-white font-medium">
+          Answer 3 quick questions to generate your personalized health report
+        </p>
+      </div>
         <Button
           onClick={onContinue}
           size="lg"
