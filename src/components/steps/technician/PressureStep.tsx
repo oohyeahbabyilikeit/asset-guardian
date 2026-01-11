@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Gauge, Droplets, Monitor, HelpCircle, PowerOff, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Gauge, Droplets, AlertTriangle, CheckCircle, HelpCircle, PowerOff, Monitor } from 'lucide-react';
 import type { WaterMeasurements } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
+import { QuickSelectChips } from '@/components/ui/QuickSelectChips';
+import { ScanHeroSection } from '@/components/ui/ScanHeroCard';
 
 type FlowRateMode = 'display' | 'unknown' | 'off';
+
 interface MeasurementsStepProps {
   data: WaterMeasurements;
   fuelType: FuelType;
@@ -19,14 +19,16 @@ interface MeasurementsStepProps {
   onNext: () => void;
 }
 
-function getPsiStatus(psi: number): { label: string; color: string; icon: React.ReactNode } {
-  if (psi < 40) {
-    return { label: 'Low Pressure', color: 'text-yellow-600 bg-yellow-100', icon: <AlertTriangle className="h-4 w-4" /> };
-  } else if (psi <= 80) {
-    return { label: 'Normal Range', color: 'text-green-600 bg-green-100', icon: <CheckCircle className="h-4 w-4" /> };
-  } else {
-    return { label: 'High Pressure', color: 'text-red-600 bg-red-100', icon: <AlertTriangle className="h-4 w-4" /> };
-  }
+const PSI_CHIPS = [
+  { value: 45, label: 'Low', sublabel: '<45', variant: 'warning' as const },
+  { value: 60, label: 'Normal', sublabel: '45-80', variant: 'success' as const },
+  { value: 90, label: 'High', sublabel: '80+', variant: 'danger' as const },
+];
+
+function getPsiStatus(psi: number): { label: string; variant: 'success' | 'warning' | 'danger' } {
+  if (psi < 40) return { label: 'Low', variant: 'warning' };
+  if (psi <= 80) return { label: 'Normal', variant: 'success' };
+  return { label: 'High - PRV needed', variant: 'danger' };
 }
 
 function getHardnessLabel(gpg: number): string {
@@ -34,7 +36,7 @@ function getHardnessLabel(gpg: number): string {
   if (gpg <= 7) return 'Moderate';
   if (gpg <= 10) return 'Hard';
   if (gpg <= 15) return 'Very Hard';
-  return 'Extremely Hard';
+  return 'Extreme';
 }
 
 function getHardnessColor(gpg: number): string {
@@ -52,23 +54,18 @@ export function PressureStep({
   onUpdate, 
   onNext 
 }: MeasurementsStepProps) {
-  const [showHardnessOverride, setShowHardnessOverride] = useState(false);
-  
-  // Determine initial flow rate mode based on existing data
   const getInitialFlowMode = (): FlowRateMode => {
     if (data.flowRateUnknown) return 'unknown';
     if (data.flowRateGPM !== undefined && data.flowRateGPM > 0) return 'display';
-    return 'display'; // default
+    return 'display';
   };
   const [flowRateMode, setFlowRateMode] = useState<FlowRateMode>(getInitialFlowMode);
   
   const isTankless = fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
   const psiStatus = getPsiStatus(data.housePsi);
-  
   const effectiveHardness = data.measuredHardnessGPG ?? streetHardnessGPG;
 
   const handleFlowModeChange = (mode: FlowRateMode) => {
-    if (!mode) return;
     setFlowRateMode(mode);
     
     if (mode === 'unknown') {
@@ -79,198 +76,146 @@ export function PressureStep({
       onUpdate({ flowRateUnknown: false });
     }
   };
+
+  // Find closest PSI chip value
+  const getClosestPsiChip = (psi: number): number => {
+    if (psi < 45) return 45;
+    if (psi <= 80) return 60;
+    return 90;
+  };
   
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-foreground">Pressure & Water</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Measure water pressure at nearest hose bib
-        </p>
-      </div>
-      
-      {/* House PSI */}
+    <div className="space-y-5">
+      {/* House PSI - Primary with Quick Chips */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Gauge className="h-5 w-5 text-muted-foreground" />
-            <Label>Static Water Pressure</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold">{data.housePsi} PSI</span>
-            <Badge className={psiStatus.color}>
-              {psiStatus.icon}
-              <span className="ml-1">{psiStatus.label}</span>
-            </Badge>
-          </div>
+          <Label className="flex items-center gap-2">
+            <Gauge className="h-4 w-4 text-muted-foreground" />
+            Water Pressure
+          </Label>
+          <Badge className={
+            psiStatus.variant === 'success' ? 'bg-green-100 text-green-700' :
+            psiStatus.variant === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+            'bg-red-100 text-red-700'
+          }>
+            {data.housePsi} PSI • {psiStatus.label}
+          </Badge>
         </div>
         
-        <Slider
-          value={[data.housePsi]}
-          onValueChange={([value]) => onUpdate({ housePsi: value })}
-          min={30}
-          max={120}
-          step={5}
-          className="py-4"
+        <QuickSelectChips
+          value={getClosestPsiChip(data.housePsi)}
+          onChange={(v) => onUpdate({ housePsi: v })}
+          options={PSI_CHIPS}
+          allowCustom
+          customLabel="Exact"
+          customPlaceholder="PSI"
         />
         
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>30 PSI</span>
-          <span className="text-green-600">40-80 PSI (Ideal)</span>
-          <span>120 PSI</span>
-        </div>
-        
         {data.housePsi > 80 && (
-          <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-            <p className="text-sm text-destructive flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              PRV recommended for pressures above 80 PSI
-            </p>
+          <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg border border-red-200">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <span className="text-sm text-red-700">PRV recommended</span>
           </div>
         )}
       </div>
       
       {/* Flow Rate (Tankless Only) */}
       {isTankless && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Monitor className="h-5 w-5 text-muted-foreground" />
-            <Label>Current Flow Rate</Label>
+        <div className="space-y-3">
+          <Label className="flex items-center gap-2">
+            <Monitor className="h-4 w-4 text-muted-foreground" />
+            Current Flow Rate
+          </Label>
+          
+          <div className="flex gap-2">
+            {[
+              { mode: 'display' as const, icon: <Monitor className="h-4 w-4" />, label: 'Reading' },
+              { mode: 'unknown' as const, icon: <HelpCircle className="h-4 w-4" />, label: 'Unknown' },
+              { mode: 'off' as const, icon: <PowerOff className="h-4 w-4" />, label: 'Unit Off' },
+            ].map(({ mode, icon, label }) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => handleFlowModeChange(mode)}
+                className={`flex-1 flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-all text-sm
+                  ${flowRateMode === mode 
+                    ? 'border-primary bg-primary/5 text-primary' 
+                    : 'border-muted hover:border-primary/50'
+                  }`}
+              >
+                {icon}
+                <span className="text-xs font-medium">{label}</span>
+              </button>
+            ))}
           </div>
           
-          <ToggleGroup 
-            type="single" 
-            value={flowRateMode} 
-            onValueChange={(val) => handleFlowModeChange(val as FlowRateMode)}
-            className="grid grid-cols-3 gap-2"
-          >
-            <ToggleGroupItem 
-              value="display" 
-              className="flex flex-col items-center gap-1 py-3 px-2 h-auto data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-            >
-              <Monitor className="h-4 w-4" />
-              <span className="text-xs font-medium">Read from Unit</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem 
-              value="unknown" 
-              className="flex flex-col items-center gap-1 py-3 px-2 h-auto data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-            >
-              <HelpCircle className="h-4 w-4" />
-              <span className="text-xs font-medium">I Don't Know</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem 
-              value="off" 
-              className="flex flex-col items-center gap-1 py-3 px-2 h-auto data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-            >
-              <PowerOff className="h-4 w-4" />
-              <span className="text-xs font-medium">Unit Off</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-          
           {flowRateMode === 'display' && (
-            <div className="p-4 bg-accent/50 rounded-lg border space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>GPM from display</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={data.flowRateGPM ?? ''}
-                    onChange={(e) => onUpdate({ 
-                      flowRateGPM: e.target.value ? parseFloat(e.target.value) : undefined,
-                      flowRateUnknown: false
-                    })}
-                    placeholder="0.0"
-                    className="w-20 text-right font-mono"
-                    step="0.1"
-                    min="0"
-                    max="12"
-                  />
-                  <span className="text-sm font-medium text-muted-foreground">GPM</span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                💡 Check the unit's digital display panel while hot water is running
-              </p>
-              <div className="text-xs text-muted-foreground">
-                Typical range: 1.5 – 8 GPM
-              </div>
-            </div>
-          )}
-          
-          {flowRateMode === 'unknown' && (
-            <div className="p-4 bg-muted/50 rounded-lg border">
-              <p className="text-sm text-muted-foreground">
-                No problem — the algorithm will use estimated values based on unit specs.
-              </p>
-            </div>
-          )}
-          
-          {flowRateMode === 'off' && (
-            <div className="p-4 bg-muted/50 rounded-lg border">
-              <p className="text-sm text-muted-foreground">
-                Unit wasn't running during inspection. Flow rate not applicable.
-              </p>
+            <div className="flex items-center gap-2 p-3 bg-accent/50 rounded-lg">
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                max="15"
+                value={data.flowRateGPM ?? ''}
+                onChange={(e) => onUpdate({ 
+                  flowRateGPM: e.target.value ? parseFloat(e.target.value) : undefined,
+                  flowRateUnknown: false
+                })}
+                placeholder="0.0"
+                className="w-20 text-center font-mono"
+              />
+              <span className="text-sm font-medium">GPM</span>
+              <span className="text-xs text-muted-foreground ml-auto">From display</span>
             </div>
           )}
         </div>
       )}
       
-      {/* Street Hardness (Auto-fetched) */}
-      <div className="p-4 bg-muted/50 rounded-lg border">
-        <div className="flex items-center justify-between mb-2">
+      {/* Street Hardness - Read Only Display */}
+      <div className="p-4 rounded-lg border bg-muted/30">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Droplets className="h-5 w-5 text-blue-500" />
-            <Label>Area Water Hardness</Label>
-          </div>
-          <Badge className={getHardnessColor(streetHardnessGPG)}>
-            {getHardnessLabel(streetHardnessGPG)}
-          </Badge>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-2xl font-bold">{streetHardnessGPG} GPG</span>
-          <Badge variant="outline" className="text-xs">
-            Source: EPA/USGS
-          </Badge>
-        </div>
-      </div>
-      
-      {/* Optional Hardness Override */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm">Override with test strip?</Label>
-          <Switch
-            checked={showHardnessOverride}
-            onCheckedChange={setShowHardnessOverride}
-          />
-        </div>
-        
-        {showHardnessOverride && (
-          <div className="space-y-2 p-4 bg-accent/50 rounded-lg">
-            <Label>Measured Hardness (GPG)</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                value={data.measuredHardnessGPG ?? ''}
-                onChange={(e) => onUpdate({ 
-                  measuredHardnessGPG: e.target.value ? parseFloat(e.target.value) : undefined 
-                })}
-                placeholder={String(streetHardnessGPG)}
-                className="font-mono"
-              />
-              <Badge className={getHardnessColor(effectiveHardness)}>
-                {getHardnessLabel(effectiveHardness)}
-              </Badge>
+            <div>
+              <p className="font-medium">Water Hardness</p>
+              <p className="text-xs text-muted-foreground">EPA/USGS estimate</p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              This will override the area estimate for physics calculations
-            </p>
           </div>
-        )}
+          <div className="text-right">
+            <p className="text-2xl font-bold">{streetHardnessGPG}</p>
+            <Badge className={getHardnessColor(streetHardnessGPG)}>
+              {getHardnessLabel(streetHardnessGPG)} GPG
+            </Badge>
+          </div>
+        </div>
       </div>
       
-      <Button onClick={onNext} className="w-full">
-        Continue to Location
+      {/* Hardness Override - Collapsed */}
+      <ScanHeroSection 
+        title="Override with test strip?" 
+        defaultOpen={!!data.measuredHardnessGPG}
+      >
+        <div className="flex items-center gap-3">
+          <Input
+            type="number"
+            value={data.measuredHardnessGPG ?? ''}
+            onChange={(e) => onUpdate({ 
+              measuredHardnessGPG: e.target.value ? parseFloat(e.target.value) : undefined 
+            })}
+            placeholder={String(streetHardnessGPG)}
+            className="w-24 font-mono"
+          />
+          <span className="text-sm text-muted-foreground">GPG measured</span>
+          {data.measuredHardnessGPG && (
+            <Badge className={getHardnessColor(effectiveHardness)}>
+              {getHardnessLabel(effectiveHardness)}
+            </Badge>
+          )}
+        </div>
+      </ScanHeroSection>
+      
+      <Button onClick={onNext} className="w-full h-12 font-semibold">
+        Continue
       </Button>
     </div>
   );

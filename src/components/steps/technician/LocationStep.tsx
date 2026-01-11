@@ -1,8 +1,6 @@
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { 
   Home, 
@@ -12,29 +10,27 @@ import {
   Mountain, 
   Trees,
   AlertTriangle,
-  Thermometer,
-  Droplet,
-  Camera,
-  Loader2,
-  Sparkles
+  Droplet
 } from 'lucide-react';
 import type { LocationCondition } from '@/types/technicianInspection';
 import type { LocationType, TempSetting } from '@/lib/opterraAlgorithm';
 import { useConditionScan } from '@/hooks/useConditionScan';
+import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
+import { StatusToggleRow } from '@/components/ui/StatusToggleRow';
 
-const LOCATIONS: { value: LocationType; label: string; icon: React.ReactNode; riskNote?: string }[] = [
+const LOCATIONS: { value: LocationType; label: string; icon: React.ReactNode; risk?: boolean }[] = [
   { value: 'GARAGE', label: 'Garage', icon: <Warehouse className="h-5 w-5" /> },
   { value: 'BASEMENT', label: 'Basement', icon: <ArrowDown className="h-5 w-5" /> },
-  { value: 'ATTIC', label: 'Attic', icon: <ArrowUp className="h-5 w-5" />, riskNote: 'High damage risk' },
-  { value: 'MAIN_LIVING', label: 'Utility Closet', icon: <Home className="h-5 w-5" />, riskNote: 'Finished area' },
+  { value: 'ATTIC', label: 'Attic', icon: <ArrowUp className="h-5 w-5" />, risk: true },
+  { value: 'MAIN_LIVING', label: 'Utility Closet', icon: <Home className="h-5 w-5" />, risk: true },
   { value: 'CRAWLSPACE', label: 'Crawlspace', icon: <Mountain className="h-5 w-5" /> },
   { value: 'EXTERIOR', label: 'Exterior', icon: <Trees className="h-5 w-5" /> },
 ];
 
-const TEMP_SETTINGS: { value: TempSetting; label: string; temp: string; risk: string }[] = [
-  { value: 'LOW', label: 'Low', temp: '~110°F', risk: 'Low stress' },
-  { value: 'NORMAL', label: 'Normal', temp: '~120°F', risk: 'Standard' },
-  { value: 'HOT', label: 'Hot', temp: '~140°F', risk: 'Higher wear' },
+const TEMP_CHIPS: { value: TempSetting; label: string; temp: string }[] = [
+  { value: 'LOW', label: 'Low', temp: '~110°F' },
+  { value: 'NORMAL', label: 'Normal', temp: '~120°F' },
+  { value: 'HOT', label: 'Hot', temp: '~140°F' },
 ];
 
 interface LocationStepProps {
@@ -44,18 +40,10 @@ interface LocationStepProps {
 }
 
 export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
-  const hasActiveIssue = data.isLeaking || data.visualRust;
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasIssue = data.isLeaking || data.visualRust;
   const { scanCondition, isScanning, result } = useConditionScan();
   
-  const handleScanClick = () => {
-    fileInputRef.current?.click();
-  };
-  
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
+  const handleScanImage = async (file: File) => {
     const scanResult = await scanCondition(file);
     if (scanResult) {
       onUpdate({
@@ -63,235 +51,145 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
         isLeaking: scanResult.isLeaking,
       });
     }
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
+
+  const scanSummary = result && result.confidence > 0 && (
+    <div className="space-y-1 text-sm">
+      <p className={result.visualRust ? 'text-orange-600' : 'text-green-600'}>
+        Rust: {result.rustSeverity}
+      </p>
+      <p className={result.isLeaking ? 'text-red-600' : 'text-green-600'}>
+        Leak: {result.leakSeverity}
+      </p>
+    </div>
+  );
   
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-foreground">Location & Condition</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Where is the unit installed and what's its condition?
-        </p>
-      </div>
-      
-      {/* AI Visual Condition Scanner */}
+    <div className="space-y-5">
+      {/* Location Selection - Primary */}
       <div className="space-y-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full h-auto py-4 flex items-center gap-3 border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary/5"
-          onClick={handleScanClick}
-          disabled={isScanning}
-        >
-          {isScanning ? (
-            <>
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <div className="text-left">
-                <p className="font-medium">Analyzing Photo...</p>
-                <p className="text-xs text-muted-foreground">Detecting rust, leaks, and corrosion</p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="relative">
-                <Camera className="h-6 w-6 text-primary" />
-                <Sparkles className="h-3 w-3 text-amber-500 absolute -top-1 -right-1" />
-              </div>
-              <div className="text-left">
-                <p className="font-medium">📸 Scan Unit Condition</p>
-                <p className="text-xs text-muted-foreground">AI detects rust & leaks from photo</p>
-              </div>
-            </>
-          )}
-        </Button>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        
-        {result && result.confidence > 0 && (
-          <div className="p-3 bg-accent/50 rounded-lg border space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                AI Analysis
-              </span>
-              <Badge variant="outline" className={
-                result.confidence >= 80 ? 'text-green-600 border-green-600' :
-                result.confidence >= 60 ? 'text-yellow-600 border-yellow-600' :
-                'text-muted-foreground'
-              }>
-                {result.confidence}% confident
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className={`p-2 rounded ${result.visualRust ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
-                Rust: {result.rustSeverity}
-              </div>
-              <div className={`p-2 rounded ${result.isLeaking ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                Leak: {result.leakSeverity}
-              </div>
-            </div>
-            {(result.rustDetails || result.leakDetails) && (
-              <p className="text-xs text-muted-foreground">
-                {result.rustDetails !== 'Could not analyze image' && result.rustDetails}
-                {result.rustDetails && result.leakDetails && ' • '}
-                {result.leakDetails !== 'Could not analyze image' && result.leakDetails}
-              </p>
-            )}
-          </div>
-        )}
-        
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-muted" />
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-background px-2 text-muted-foreground">or select manually</span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Location Grid */}
-      <div className="space-y-3">
-        <Label>Installation Location</Label>
-        <RadioGroup
-          value={data.location}
-          onValueChange={(value) => onUpdate({ location: value as LocationType })}
-          className="grid grid-cols-2 gap-2"
-        >
+        <Label className="text-sm font-medium">Where is the unit?</Label>
+        <div className="grid grid-cols-3 gap-2">
           {LOCATIONS.map((loc) => (
-            <div key={loc.value}>
-              <RadioGroupItem
-                value={loc.value}
-                id={loc.value}
-                className="peer sr-only"
-              />
-              <Label
-                htmlFor={loc.value}
-                className="flex flex-col items-center gap-2 rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-center"
-              >
+            <button
+              key={loc.value}
+              type="button"
+              onClick={() => onUpdate({ location: loc.value })}
+              className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all
+                ${data.location === loc.value
+                  ? "border-primary bg-primary/5"
+                  : "border-muted hover:border-primary/50"
+                }`}
+            >
+              <span className={data.location === loc.value ? "text-primary" : "text-muted-foreground"}>
                 {loc.icon}
-                <span className="text-sm font-medium">{loc.label}</span>
-                {loc.riskNote && (
-                  <Badge variant="secondary" className="text-xs">
-                    {loc.riskNote}
-                  </Badge>
-                )}
-              </Label>
-            </div>
+              </span>
+              <span className="text-xs font-medium">{loc.label}</span>
+              {loc.risk && data.location === loc.value && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Risk</Badge>
+              )}
+            </button>
           ))}
-        </RadioGroup>
-      </div>
-      
-      {/* Finished Area Toggle */}
-      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-        <div className="space-y-1">
-          <Label>Finished Living Area?</Label>
-          <p className="text-xs text-muted-foreground">
-            Leak damage potential is higher in finished spaces
-          </p>
         </div>
-        <Switch
-          checked={data.isFinishedArea}
-          onCheckedChange={(checked) => onUpdate({ isFinishedArea: checked })}
-        />
       </div>
-      
-      {/* Temperature Setting */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Thermometer className="h-5 w-5 text-muted-foreground" />
-          <Label>Temperature Dial Position</Label>
-        </div>
-        <RadioGroup
-          value={data.tempSetting}
-          onValueChange={(value) => onUpdate({ tempSetting: value as TempSetting })}
-          className="grid grid-cols-3 gap-2"
-        >
-          {TEMP_SETTINGS.map((setting) => (
-            <div key={setting.value}>
-              <RadioGroupItem
-                value={setting.value}
-                id={`temp-${setting.value}`}
-                className="peer sr-only"
-              />
-              <Label
-                htmlFor={`temp-${setting.value}`}
-                className="flex flex-col items-center gap-1 rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-center"
-              >
-                <span className="font-medium">{setting.label}</span>
-                <span className="text-xs text-muted-foreground">{setting.temp}</span>
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
-      
-      {/* Visual Inspection Flags */}
-      <div className="space-y-3">
-        <Label className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-orange-500" />
-          Visual Inspection
-        </Label>
-        
+
+      {/* Condition Scan - Hero for visual inspection */}
+      <ScanHeroCard
+        title="Visual Condition"
+        subtitle="Take a photo of the unit"
+        isScanning={isScanning}
+        hasScanned={!!result}
+        scanSummary={scanSummary}
+        onScanImage={handleScanImage}
+        scanLabel="📷 Scan for Rust & Leaks"
+      >
+        {/* Manual condition toggles */}
         <div className="space-y-2">
-          {/* Rust */}
-          <div className="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50">
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${data.visualRust ? 'bg-orange-500' : 'bg-muted'}`} />
-              <span className="text-sm">Visible Rust / Corrosion</span>
+          <StatusToggleRow
+            label="Rust/Corrosion"
+            value={data.visualRust ? 'poor' : 'good'}
+            onChange={(v) => onUpdate({ visualRust: v === 'poor' || v === 'fair' })}
+            options={[
+              { value: 'good', label: 'None', color: 'green', icon: <span className="text-xs">✓</span> },
+              { value: 'poor', label: 'Visible', color: 'red', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+            ]}
+          />
+          <StatusToggleRow
+            label="Active Leak"
+            value={data.isLeaking ? 'poor' : 'good'}
+            onChange={(v) => onUpdate({ isLeaking: v === 'poor' })}
+            icon={<Droplet className="h-4 w-4" />}
+            options={[
+              { value: 'good', label: 'Dry', color: 'green', icon: <span className="text-xs">✓</span> },
+              { value: 'poor', label: 'Leaking', color: 'red', icon: <Droplet className="h-3.5 w-3.5" /> },
+            ]}
+          />
+        </div>
+      </ScanHeroCard>
+
+      {/* Critical Leak Warning */}
+      {data.isLeaking && (
+        <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <div>
+              <p className="font-medium text-destructive text-sm">Active Leak</p>
+              <p className="text-xs text-muted-foreground">Unit flagged for replacement</p>
             </div>
-            <Switch
-              checked={data.visualRust}
-              onCheckedChange={(checked) => onUpdate({ visualRust: checked })}
-            />
-          </div>
-          
-          {/* Leaking */}
-          <div className="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50">
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${data.isLeaking ? 'bg-red-500' : 'bg-muted'}`} />
-              <div className="flex items-center gap-2">
-                <Droplet className="h-4 w-4" />
-                <span className="text-sm">Active Leak</span>
-              </div>
-            </div>
-            <Switch
-              checked={data.isLeaking}
-              onCheckedChange={(checked) => onUpdate({ isLeaking: checked })}
-            />
           </div>
         </div>
-        
-        {/* Critical Warning */}
-        {data.isLeaking && (
-          <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/30">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-              <div>
-                <p className="font-medium text-destructive">Active Leak Detected</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  This unit may require immediate replacement. The system will flag this as critical.
-                </p>
-              </div>
+      )}
+
+      {/* Secondary Details - Collapsed */}
+      <ScanHeroSection 
+        title="Environment Details" 
+        defaultOpen={false}
+        badge={
+          data.isFinishedArea ? (
+            <Badge variant="secondary" className="text-xs">Finished Area</Badge>
+          ) : null
+        }
+      >
+        <div className="space-y-4">
+          {/* Finished Area */}
+          <StatusToggleRow
+            label="Finished Living Area?"
+            value={data.isFinishedArea ? 'poor' : 'good'}
+            onChange={(v) => onUpdate({ isFinishedArea: v !== 'good' })}
+            options={[
+              { value: 'good', label: 'No', color: 'green', icon: <span className="text-xs">✓</span> },
+              { value: 'poor', label: 'Yes', color: 'yellow', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+            ]}
+          />
+          
+          {/* Temperature Setting */}
+          <div className="space-y-2">
+            <Label className="text-sm">Temp Dial</Label>
+            <div className="flex gap-2">
+              {TEMP_CHIPS.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => onUpdate({ tempSetting: t.value })}
+                  className={`flex-1 py-2 rounded-lg border-2 transition-all text-sm font-medium
+                    ${data.tempSetting === t.value
+                      ? t.value === 'HOT' 
+                        ? "border-orange-500 bg-orange-50 text-orange-700"
+                        : "border-primary bg-primary text-primary-foreground"
+                      : "border-muted bg-muted/30 hover:border-primary/50"
+                    }`}
+                >
+                  <div>{t.label}</div>
+                  <div className="text-[10px] opacity-70">{t.temp}</div>
+                </button>
+              ))}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      </ScanHeroSection>
       
-      <Button onClick={onNext} className="w-full">
-        Continue to Equipment Check
+      <Button onClick={onNext} className="w-full h-12 font-semibold">
+        Continue
       </Button>
     </div>
   );
