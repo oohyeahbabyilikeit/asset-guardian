@@ -77,7 +77,8 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     ...DEFAULT_TECHNICIAN_DATA,
     streetHardnessGPG: initialStreetHardness,
   });
-  
+  const [pressurePhotoUrl, setPressurePhotoUrl] = useState<string | undefined>();
+
   const [selectedProperty, setSelectedProperty] = useState<SelectedProperty | null>(null);
   const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
   const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
@@ -217,7 +218,9 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             data={data.measurements}
             fuelType={data.asset.fuelType}
             streetHardnessGPG={data.streetHardnessGPG}
+            pressurePhotoUrl={pressurePhotoUrl}
             onUpdate={updateMeasurements}
+            onPressurePhoto={setPressurePhotoUrl}
             onNext={goNext}
           />
         );

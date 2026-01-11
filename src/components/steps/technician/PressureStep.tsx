@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, ChevronDown, Beaker } from 'lucide-react';
+import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, ChevronDown, Beaker, Camera, X, ImageIcon } from 'lucide-react';
 import type { WaterMeasurements } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
-import { QuickSelectChips } from '@/components/ui/QuickSelectChips';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
@@ -17,15 +16,11 @@ interface MeasurementsStepProps {
   data: WaterMeasurements;
   fuelType: FuelType;
   streetHardnessGPG: number;
+  pressurePhotoUrl?: string;
   onUpdate: (data: Partial<WaterMeasurements>) => void;
+  onPressurePhoto: (photoUrl: string | undefined) => void;
   onNext: () => void;
 }
-
-const PSI_CHIPS = [
-  { value: 45, label: 'Low', sublabel: '<45 PSI', variant: 'warning' as const },
-  { value: 60, label: 'Normal', sublabel: '45-80 PSI', variant: 'success' as const },
-  { value: 90, label: 'High', sublabel: '80+ PSI', variant: 'danger' as const },
-];
 
 function getPsiStatus(psi: number): { label: string; variant: 'success' | 'warning' | 'danger' } {
   if (psi < 40) return { label: 'Low Pressure', variant: 'warning' };
@@ -45,9 +40,12 @@ export function PressureStep({
   data, 
   fuelType, 
   streetHardnessGPG,
+  pressurePhotoUrl,
   onUpdate, 
+  onPressurePhoto,
   onNext 
 }: MeasurementsStepProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const getInitialFlowMode = (): FlowRateMode => {
     if (data.flowRateUnknown) return 'unknown';
     if (data.flowRateGPM !== undefined && data.flowRateGPM > 0) return 'display';
@@ -55,6 +53,21 @@ export function PressureStep({
   };
   const [flowRateMode, setFlowRateMode] = useState<FlowRateMode>(getInitialFlowMode);
   const [hardnessOpen, setHardnessOpen] = useState(!!data.measuredHardnessGPG);
+
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      onPressurePhoto(url);
+    }
+  };
+
+  const removePhoto = () => {
+    onPressurePhoto(undefined);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
   
   const isTankless = fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
   const psiStatus = getPsiStatus(data.housePsi);
@@ -71,12 +84,6 @@ export function PressureStep({
     }
   };
 
-  const getClosestPsiChip = (psi: number): number => {
-    if (psi < 45) return 45;
-    if (psi <= 80) return 60;
-    return 90;
-  };
-
   const getHardnessVariant = (gpg: number) => {
     if (gpg <= 3) return 'success';
     if (gpg <= 7) return 'default';
@@ -89,59 +96,106 @@ export function PressureStep({
       {/* Water Pressure Card */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          {/* Header with current reading */}
+          {/* Header */}
           <div className={cn(
-            "px-4 py-3 flex items-center justify-between",
+            "px-4 py-3 flex items-center gap-3",
             psiStatus.variant === 'success' && "bg-emerald-500/10",
             psiStatus.variant === 'warning' && "bg-amber-500/10",
             psiStatus.variant === 'danger' && "bg-destructive/10"
           )}>
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "p-2 rounded-full",
-                psiStatus.variant === 'success' && "bg-emerald-500/20",
-                psiStatus.variant === 'warning' && "bg-amber-500/20",
-                psiStatus.variant === 'danger' && "bg-destructive/20"
-              )}>
-                <Gauge className={cn(
-                  "h-5 w-5",
-                  psiStatus.variant === 'success' && "text-emerald-600",
-                  psiStatus.variant === 'warning' && "text-amber-600",
-                  psiStatus.variant === 'danger' && "text-destructive"
-                )} />
-              </div>
-              <div>
-                <p className="font-semibold">Water Pressure</p>
-                <p className="text-xs text-muted-foreground">{psiStatus.label}</p>
-              </div>
+            <div className={cn(
+              "p-2 rounded-full",
+              psiStatus.variant === 'success' && "bg-emerald-500/20",
+              psiStatus.variant === 'warning' && "bg-amber-500/20",
+              psiStatus.variant === 'danger' && "bg-destructive/20"
+            )}>
+              <Gauge className={cn(
+                "h-5 w-5",
+                psiStatus.variant === 'success' && "text-emerald-600",
+                psiStatus.variant === 'warning' && "text-amber-600",
+                psiStatus.variant === 'danger' && "text-destructive"
+              )} />
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold tabular-nums">{data.housePsi}</p>
-              <p className="text-xs text-muted-foreground">PSI</p>
+            <div>
+              <p className="font-semibold">Water Pressure</p>
+              <p className="text-xs text-muted-foreground">Enter exact gauge reading</p>
             </div>
           </div>
           
-          {/* Quick select chips */}
-          <div className="p-4 border-t border-border/50">
-            <QuickSelectChips
-              value={getClosestPsiChip(data.housePsi)}
-              onChange={(v) => onUpdate({ housePsi: v })}
-              options={PSI_CHIPS}
-              allowCustom
-              customLabel="Exact"
-              customPlaceholder="PSI"
-            />
-          </div>
-          
-          {/* PRV Warning */}
-          {data.housePsi > 80 && (
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-                <span className="text-sm font-medium text-destructive">PRV installation recommended</span>
+          {/* Exact PSI Input + Photo */}
+          <div className="p-4 border-t border-border/50 space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground mb-1.5 block">PSI Reading</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="200"
+                    value={data.housePsi || ''}
+                    onChange={(e) => onUpdate({ housePsi: e.target.value ? parseInt(e.target.value) : 0 })}
+                    placeholder="65"
+                    className="text-2xl font-bold h-14 pr-12 text-center"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                    PSI
+                  </span>
+                </div>
+              </div>
+              
+              {/* Photo capture */}
+              <div className="flex flex-col items-center gap-1">
+                <Label className="text-xs text-muted-foreground">Photo</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoCapture}
+                  className="hidden"
+                />
+                {pressurePhotoUrl ? (
+                  <div className="relative">
+                    <img 
+                      src={pressurePhotoUrl} 
+                      alt="Pressure gauge" 
+                      className="w-14 h-14 rounded-lg object-cover border-2 border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={removePhoto}
+                      className="absolute -top-1.5 -right-1.5 p-0.5 bg-destructive text-destructive-foreground rounded-full"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-14 h-14 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                  >
+                    <Camera className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Gauge</span>
+                  </button>
+                )}
               </div>
             </div>
-          )}
+            
+            {/* Status indicator */}
+            <div className={cn(
+              "flex items-center gap-2 p-2.5 rounded-lg text-sm font-medium",
+              psiStatus.variant === 'success' && "bg-emerald-500/10 text-emerald-700",
+              psiStatus.variant === 'warning' && "bg-amber-500/10 text-amber-700",
+              psiStatus.variant === 'danger' && "bg-destructive/10 text-destructive"
+            )}>
+              {psiStatus.variant === 'danger' && <AlertTriangle className="h-4 w-4 shrink-0" />}
+              <span>{psiStatus.label}</span>
+              {psiStatus.variant === 'danger' && (
+                <span className="text-xs font-normal ml-auto">PRV recommended</span>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
       
