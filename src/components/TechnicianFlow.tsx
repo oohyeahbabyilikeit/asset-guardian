@@ -304,6 +304,11 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             selectedType={data.asset.fuelType}
             onSelect={(type) => updateAsset({ fuelType: type })}
             onNext={goNext}
+            onCannotInspect={(reason) => {
+              // For boiler or no access, go back to mode select
+              console.log(`Cannot inspect: ${reason}`);
+              onBack();
+            }}
           />
         );
       
