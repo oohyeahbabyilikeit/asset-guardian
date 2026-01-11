@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   TechnicianInspectionData,
   DEFAULT_TECHNICIAN_DATA,
@@ -104,6 +105,9 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
   const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Track which steps have been visited for free navigation
+  const [visitedSteps, setVisitedSteps] = useState<Set<TechStep>>(new Set(['address-lookup']));
 
   // Auto-fetch water hardness when GPS coordinates become available
   useEffect(() => {
@@ -127,7 +131,41 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   
   const stepOrder = getStepOrder(data.asset.fuelType);
   const currentStepIndex = stepOrder.indexOf(currentStep);
-  const progress = ((currentStepIndex + 1) / stepOrder.length) * 100;
+  
+  // Mark current step as visited whenever it changes
+  useEffect(() => {
+    setVisitedSteps(prev => {
+      if (prev.has(currentStep)) return prev;
+      return new Set([...prev, currentStep]);
+    });
+  }, [currentStep]);
+  
+  // Handle fuel type changes - reset type-specific step visits
+  const previousFuelTypeRef = React.useRef(data.asset.fuelType);
+  useEffect(() => {
+    if (previousFuelTypeRef.current !== data.asset.fuelType) {
+      previousFuelTypeRef.current = data.asset.fuelType;
+      const commonSteps: TechStep[] = ['address-lookup', 'pressure', 'asset-scan', 'location', 'softener', 'handoff'];
+      setVisitedSteps(prev => {
+        const filtered = new Set<TechStep>();
+        prev.forEach(step => {
+          if (commonSteps.includes(step)) {
+            filtered.add(step);
+          }
+        });
+        return filtered;
+      });
+    }
+  }, [data.asset.fuelType]);
+  
+  // Navigation to a specific step (for clickable indicators)
+  const goToStep = useCallback((step: TechStep) => {
+    const stepIndex = stepOrder.indexOf(step);
+    const canNavigate = visitedSteps.has(step) || stepIndex === currentStepIndex + 1;
+    if (canNavigate && stepIndex !== -1) {
+      setCurrentStep(step);
+    }
+  }, [stepOrder, visitedSteps, currentStepIndex]);
   
   const goNext = useCallback(() => {
     const nextIndex = currentStepIndex + 1;
@@ -330,70 +368,96 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   };
   
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-3">
-          <div className="flex items-center gap-3 mb-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goBack}
-              className="shrink-0 -ml-2 hover:bg-muted"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-primary font-medium uppercase tracking-wider">
-                Technician Inspection
-              </p>
-              <p className="text-base font-semibold text-foreground truncate">
-                {stepLabels[currentStep]}
-              </p>
+    <TooltipProvider delayDuration={300}>
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="max-w-lg mx-auto px-4 py-3">
+            <div className="flex items-center gap-3 mb-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goBack}
+                className="shrink-0 -ml-2 hover:bg-muted"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-primary font-medium uppercase tracking-wider">
+                  Technician Inspection
+                </p>
+                <p className="text-base font-semibold text-foreground truncate">
+                  {stepLabels[currentStep]}
+                </p>
+              </div>
+              
+              {/* Offline sync indicator */}
+              <OfflineSyncIndicator
+                isOnline={isOnline}
+                isSyncing={isSyncing}
+                pendingCount={pendingCount}
+                lastSyncAt={lastSyncAt}
+                lastError={lastError}
+                onManualSync={syncPendingInspections}
+              />
+              
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                <span className="font-medium text-foreground">{currentStepIndex + 1}</span>
+                <span>/</span>
+                <span>{stepOrder.length}</span>
+              </div>
             </div>
             
-            {/* Offline sync indicator */}
-            <OfflineSyncIndicator
-              isOnline={isOnline}
-              isSyncing={isSyncing}
-              pendingCount={pendingCount}
-              lastSyncAt={lastSyncAt}
-              lastError={lastError}
-              onManualSync={syncPendingInspections}
-            />
-            
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-              <span className="font-medium text-foreground">{currentStepIndex + 1}</span>
-              <span>/</span>
-              <span>{stepOrder.length}</span>
-            </div>
-          </div>
-          
-          {/* Progress bar with step indicators */}
-          <div className="relative">
-            <Progress value={progress} className="h-1.5" />
-            <div className="absolute inset-0 flex justify-between items-center px-0">
-              {stepOrder.map((step, index) => (
-                <div
-                  key={step}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    index <= currentStepIndex 
-                      ? 'bg-primary scale-100' 
-                      : 'bg-muted-foreground/30 scale-75'
-                  }`}
-                />
-              ))}
+            {/* Clickable step navigation */}
+            <div className="flex justify-between items-center gap-1">
+              {stepOrder.map((step, index) => {
+                const isVisited = visitedSteps.has(step);
+                const isCurrent = step === currentStep;
+                const isNext = index === currentStepIndex + 1;
+                const canClick = (isVisited || isNext) && !isCurrent;
+                
+                return (
+                  <Tooltip key={step}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => canClick && goToStep(step)}
+                        disabled={!canClick && !isCurrent}
+                        aria-label={stepLabels[step]}
+                        aria-current={isCurrent ? 'step' : undefined}
+                        className={cn(
+                          "flex-1 h-2 rounded-full transition-all duration-200",
+                          isCurrent && "bg-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background",
+                          isVisited && !isCurrent && "bg-primary/60 hover:bg-primary/80 cursor-pointer",
+                          !isVisited && !isCurrent && isNext && "bg-muted-foreground/40 hover:bg-muted-foreground/60 cursor-pointer",
+                          !isVisited && !isCurrent && !isNext && "bg-muted-foreground/20 cursor-not-allowed"
+                        )}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      <div className="flex items-center gap-1.5">
+                        {isVisited && !isCurrent && (
+                          <Check className="h-3 w-3 text-primary" />
+                        )}
+                        <span>{stepLabels[step]}</span>
+                        {!canClick && !isCurrent && (
+                          <span className="text-muted-foreground">(locked)</span>
+                        )}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-lg mx-auto px-4 py-6">
-          {renderStep()}
+        
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-lg mx-auto px-4 py-6">
+            {renderStep()}
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
