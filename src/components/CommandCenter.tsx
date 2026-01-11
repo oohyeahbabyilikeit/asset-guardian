@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import { motion, useMotionValue, animate, MotionValue } from 'framer-motion';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { ServiceHistory } from '@/components/ServiceHistory';
@@ -20,14 +20,28 @@ import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
 // Elegant easing curve for sophisticated feel - must be tuple for framer-motion
 const elegantEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-// Slow, deliberate stagger for "walking through the report" feel
+// Timeline configuration - single source of truth for all animation timing
+const TIMELINE = {
+  TOTAL_DURATION: 5.5, // seconds
+  // Normalized times (0-1) for each section reveal
+  PROFILE: 0.05,
+  HEALTH: 0.18,
+  HISTORY: 0.36,
+  BENCHMARKS: 0.54,
+  HARDWATER: 0.72,
+  DOCK: 0.85,
+  END: 1.0,
+};
+
+// Slow, deliberate stagger synced with scroll timeline
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.9,
-      delayChildren: 0.3,
+      // Stagger matches the scroll timeline intervals
+      staggerChildren: TIMELINE.TOTAL_DURATION * (TIMELINE.HEALTH - TIMELINE.PROFILE),
+      delayChildren: TIMELINE.TOTAL_DURATION * TIMELINE.PROFILE,
     }
   }
 };
@@ -160,89 +174,138 @@ export function CommandCenter({
   const hardWaterRef = useRef<HTMLDivElement>(null);
   const actionDockRef = useRef<HTMLDivElement>(null);
 
-  // Smooth scroll to a specific position using requestAnimationFrame
-  const smoothScrollTo = useCallback((targetY: number, duration: number = 800) => {
+  // Motion value for continuous scroll animation
+  const scrollY = useMotionValue(0);
+  
+  // Sync scrollY motion value to container scrollTop
+  useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
     
-    const startY = container.scrollTop;
-    const diff = targetY - startY;
-    let startTime: number | null = null;
+    const unsubscribe = scrollY.on('change', (latest) => {
+      container.scrollTop = latest;
+    });
     
-    const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
-    
-    const step = (currentTime: number) => {
-      if (!startTime) startTime = currentTime;
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      container.scrollTop = startY + diff * easeOutCubic(progress);
-      
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      }
-    };
-    
-    requestAnimationFrame(step);
-  }, []);
+    return unsubscribe;
+  }, [scrollY]);
 
-  // Calculate target scroll position for a section
-  const getScrollTarget = useCallback((ref: React.RefObject<HTMLDivElement>) => {
-    const container = scrollContainerRef.current;
-    const element = ref.current;
-    if (!container || !element) return 0;
-    
-    const containerRect = container.getBoundingClientRect();
-    const elementRect = element.getBoundingClientRect();
-    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
-    
-    // Center the element in the viewport (with some offset for header)
-    const offset = (containerRect.height - elementRect.height) / 2 - 60;
-    return Math.max(0, relativeTop - Math.max(0, offset));
-  }, []);
-
-  // Orchestrated scroll animation - single sequential chain
+  // Block user scroll during animation
   useEffect(() => {
     if (!isAnimating) return;
     
-    let animationFrame: number;
-    let currentTimeout: NodeJS.Timeout;
+    const container = scrollContainerRef.current;
+    if (!container) return;
     
-    const scrollSequence = [
-      { ref: profileRef, delay: 500, duration: 600 },
-      { ref: healthRef, delay: 1400, duration: 700 },
-      { ref: historyRef, delay: 2400, duration: 700 },
-      { ref: benchmarksRef, delay: 3400, duration: 700 },
-      { ref: hardWaterRef, delay: 4300, duration: 600 },
-      { ref: actionDockRef, delay: 5000, duration: 600 },
-    ];
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
     
-    const timeouts: NodeJS.Timeout[] = [];
-    
-    scrollSequence.forEach(({ ref, delay, duration }) => {
-      const timeout = setTimeout(() => {
-        if (ref.current) {
-          const target = getScrollTarget(ref);
-          smoothScrollTo(target, duration);
-        }
-      }, delay);
-      timeouts.push(timeout);
-    });
-    
-    // End animation after all scrolls complete
-    const endTimeout = setTimeout(() => {
-      setIsAnimating(false);
-    }, 5800);
-    timeouts.push(endTimeout);
+    // Use non-passive listeners to allow preventDefault
+    container.addEventListener('wheel', preventScroll, { passive: false });
+    container.addEventListener('touchmove', preventScroll, { passive: false });
     
     return () => {
-      timeouts.forEach(clearTimeout);
+      container.removeEventListener('wheel', preventScroll);
+      container.removeEventListener('touchmove', preventScroll);
     };
-  }, [isAnimating, smoothScrollTo, getScrollTarget]);
+  }, [isAnimating]);
 
-  // Calculate all metrics using v6.0 algorithm
+  // Calculate all metrics using v6.0 algorithm (needed for conditional rendering check)
   const opterraResult = calculateOpterraRisk(currentInputs);
   const { metrics, verdict, financial, hardWaterTax } = opterraResult;
+  const hasHardWaterCard = hardWaterTax.recommendation !== 'NONE';
+
+  // Orchestrated continuous scroll animation - single keyframed timeline
+  useLayoutEffect(() => {
+    if (!isAnimating) return;
+    
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    
+    // Wait for layout to settle before measuring
+    const measureAndAnimate = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const getOffset = (ref: React.RefObject<HTMLDivElement>) => {
+            if (!ref.current || !container) return 0;
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = ref.current.getBoundingClientRect();
+            const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+            // Position element in upper third of viewport
+            const targetOffset = containerRect.height * 0.15;
+            return Math.max(0, relativeTop - targetOffset);
+          };
+          
+          // Measure all section positions
+          const positions = {
+            start: 0,
+            profile: getOffset(profileRef),
+            health: getOffset(healthRef),
+            history: getOffset(historyRef),
+            benchmarks: getOffset(benchmarksRef),
+            hardWater: hasHardWaterCard ? getOffset(hardWaterRef) : null,
+            dock: getOffset(actionDockRef),
+            end: container.scrollHeight - container.clientHeight,
+          };
+          
+          // Build keyframes and times based on which sections exist
+          const keyframes: number[] = [0]; // Start at top
+          const times: number[] = [0];
+          
+          // Profile
+          keyframes.push(positions.profile);
+          times.push(TIMELINE.PROFILE);
+          
+          // Health
+          keyframes.push(positions.health);
+          times.push(TIMELINE.HEALTH);
+          
+          // History
+          keyframes.push(positions.history);
+          times.push(TIMELINE.HISTORY);
+          
+          // Benchmarks
+          keyframes.push(positions.benchmarks);
+          times.push(TIMELINE.BENCHMARKS);
+          
+          // HardWater (conditional)
+          if (hasHardWaterCard && positions.hardWater !== null) {
+            keyframes.push(positions.hardWater);
+            times.push(TIMELINE.HARDWATER);
+          }
+          
+          // Dock
+          keyframes.push(positions.dock);
+          times.push(TIMELINE.DOCK);
+          
+          // End (hold at dock)
+          keyframes.push(positions.dock);
+          times.push(TIMELINE.END);
+          
+          // Animate scrollY through keyframes
+          const controls = animate(scrollY, keyframes, {
+            duration: TIMELINE.TOTAL_DURATION,
+            times,
+            ease: 'easeInOut',
+            onComplete: () => {
+              setIsAnimating(false);
+            },
+          });
+          
+          // Return cleanup for controls
+          return () => controls.stop();
+        });
+      });
+    };
+    
+    // Small delay to ensure initial render is complete
+    const startTimeout = setTimeout(measureAndAnimate, 100);
+    
+    return () => {
+      clearTimeout(startTimeout);
+    };
+  }, [isAnimating, scrollY, hasHardWaterCard]);
   
   // Extract metrics for easier access
   const {
@@ -407,12 +470,16 @@ export function CommandCenter({
           )}
         </motion.div>
 
-        {/* Action Dock - slides up from bottom after all content */}
+        {/* Action Dock - slides up from bottom synced with scroll timeline */}
         <motion.div
           ref={actionDockRef}
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 4.5, duration: 0.6, ease: elegantEase }}
+          transition={{ 
+            delay: TIMELINE.TOTAL_DURATION * TIMELINE.DOCK, 
+            duration: 0.6, 
+            ease: elegantEase 
+          }}
         >
           <ActionDock
             onPanicMode={onPanicMode}
