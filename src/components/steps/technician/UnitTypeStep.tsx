@@ -1,16 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   Flame, 
   Zap, 
   Droplets, 
   Wind,
   Thermometer,
-  Sparkles
+  Sparkles,
+  Building2,
+  Ban,
+  AlertTriangle
 } from 'lucide-react';
 import type { FuelType } from '@/lib/opterraAlgorithm';
+
+type SpecialSelection = 'BOILER' | 'NO_ACCESS' | null;
 
 interface UnitTypeOption {
   value: FuelType;
@@ -62,9 +68,12 @@ interface UnitTypeStepProps {
   selectedType: FuelType;
   onSelect: (type: FuelType) => void;
   onNext: () => void;
+  onCannotInspect?: (reason: 'boiler' | 'no_access') => void;
 }
 
-export function UnitTypeStep({ selectedType, onSelect, onNext }: UnitTypeStepProps) {
+export function UnitTypeStep({ selectedType, onSelect, onNext, onCannotInspect }: UnitTypeStepProps) {
+  const [specialSelection, setSpecialSelection] = useState<SpecialSelection>(null);
+
   const getCategoryLabel = (category: 'tank' | 'tankless' | 'hybrid') => {
     switch (category) {
       case 'tank': return 'Tank Units';
@@ -78,29 +87,49 @@ export function UnitTypeStep({ selectedType, onSelect, onNext }: UnitTypeStepPro
   const tanklessTypes = UNIT_TYPES.filter(t => t.category === 'tankless');
   const hybridTypes = UNIT_TYPES.filter(t => t.category === 'hybrid');
 
-  const renderTypeButton = (type: UnitTypeOption) => (
-    <button
-      key={type.value}
-      type="button"
-      onClick={() => onSelect(type.value)}
-      className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left w-full
-        ${selectedType === type.value
-          ? "border-primary bg-primary/5 shadow-sm"
-          : "border-muted hover:border-primary/50 bg-background"
-        }`}
-    >
-      <div className={`p-3 rounded-lg ${selectedType === type.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-        {type.icon}
-      </div>
-      <div className="flex-1">
-        <p className="font-semibold text-sm">{type.label}</p>
-        <p className="text-xs text-muted-foreground">{type.description}</p>
-      </div>
-      {selectedType === type.value && (
-        <Badge className="bg-primary text-primary-foreground">Selected</Badge>
-      )}
-    </button>
-  );
+  const handleSpecialSelect = (special: SpecialSelection) => {
+    setSpecialSelection(special);
+  };
+
+  const handleContinue = () => {
+    if (specialSelection === 'BOILER') {
+      onCannotInspect?.('boiler');
+    } else if (specialSelection === 'NO_ACCESS') {
+      onCannotInspect?.('no_access');
+    } else {
+      onNext();
+    }
+  };
+
+  const renderTypeButton = (type: UnitTypeOption) => {
+    const isSelected = selectedType === type.value && !specialSelection;
+    return (
+      <button
+        key={type.value}
+        type="button"
+        onClick={() => {
+          setSpecialSelection(null);
+          onSelect(type.value);
+        }}
+        className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left w-full
+          ${isSelected
+            ? "border-primary bg-primary/5 shadow-sm"
+            : "border-muted hover:border-primary/50 bg-background"
+          }`}
+      >
+        <div className={`p-3 rounded-lg ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+          {type.icon}
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-sm">{type.label}</p>
+          <p className="text-xs text-muted-foreground">{type.description}</p>
+        </div>
+        {isSelected && (
+          <Badge className="bg-primary text-primary-foreground">Selected</Badge>
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -139,12 +168,81 @@ export function UnitTypeStep({ selectedType, onSelect, onNext }: UnitTypeStepPro
         </div>
       </div>
 
+      {/* Special Cases */}
+      <div className="space-y-2">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Other
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => handleSpecialSelect('BOILER')}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
+              ${specialSelection === 'BOILER'
+                ? "border-amber-500 bg-amber-500/10"
+                : "border-muted hover:border-amber-500/50 bg-background"
+              }`}
+          >
+            <Building2 className={`h-6 w-6 ${specialSelection === 'BOILER' ? 'text-amber-600' : 'text-muted-foreground'}`} />
+            <div className="text-center">
+              <p className="font-semibold text-sm">Boiler</p>
+              <p className="text-xs text-muted-foreground">Not tracked</p>
+            </div>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => handleSpecialSelect('NO_ACCESS')}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
+              ${specialSelection === 'NO_ACCESS'
+                ? "border-red-500 bg-red-500/10"
+                : "border-muted hover:border-red-500/50 bg-background"
+              }`}
+          >
+            <Ban className={`h-6 w-6 ${specialSelection === 'NO_ACCESS' ? 'text-red-600' : 'text-muted-foreground'}`} />
+            <div className="text-center">
+              <p className="font-semibold text-sm">No Access</p>
+              <p className="text-xs text-muted-foreground">Can't inspect</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Special selection warning */}
+      {specialSelection && (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                {specialSelection === 'BOILER' ? (
+                  <>
+                    <p className="font-medium text-amber-800 dark:text-amber-200">Boiler - Not Tracked</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This app tracks water heaters only. The inspection will be marked as "Boiler - Not Applicable".
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-red-800 dark:text-red-200">No Access</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      The inspection will be marked as "No Access - Could Not Inspect".
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Button 
-        onClick={onNext} 
+        onClick={handleContinue} 
         className="w-full h-12 font-semibold"
-        disabled={!selectedType}
+        disabled={!selectedType && !specialSelection}
+        variant={specialSelection ? 'outline' : 'default'}
       >
-        Continue
+        {specialSelection ? 'Mark & Exit' : 'Continue'}
       </Button>
     </div>
   );
