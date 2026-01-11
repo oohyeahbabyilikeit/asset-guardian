@@ -18,6 +18,7 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { OfflineSyncIndicator } from './OfflineSyncIndicator';
 
 import { AddressLookupStep, type NewPropertyAddress } from './steps/technician/AddressLookupStep';
+import { UnitTypeStep } from './steps/technician/UnitTypeStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
 import { PressureStep } from './steps/technician/PressureStep';
 import { LocationStep } from './steps/technician/LocationStep';
@@ -29,16 +30,18 @@ import { HandoffStep } from './steps/technician/HandoffStep';
 
 // Optimized step order for minimal backtracking:
 // 1. Address Lookup (truck/driveway)
-// 2. Pressure (exterior hose bib)
-// 3. Asset Scan (at the unit)
-// 4. Location & Equipment (at the unit - merged for efficiency)
-// 5. Tankless/Hybrid specifics (at the unit - if applicable)
-// 6. Softener (different location - often separate area)
-// 7. Review (verify all AI-detected and algorithm-affecting values)
-// 8. Handoff
+// 2. Unit Type Selection (before we know what questions to ask)
+// 3. Pressure (exterior hose bib)
+// 4. Asset Scan (at the unit)
+// 5. Location & Equipment (at the unit - merged for efficiency)
+// 6. Tankless/Hybrid specifics (at the unit - if applicable)
+// 7. Softener (different location - often separate area)
+// 8. Review (verify all AI-detected and algorithm-affecting values)
+// 9. Handoff
 
 type TechStep = 
   | 'address-lookup'
+  | 'unit-type'
   | 'pressure'
   | 'asset-scan'
   | 'location'
@@ -64,8 +67,8 @@ interface TechnicianFlowProps {
 
 function getStepOrder(fuelType: FuelType): TechStep[] {
   // Linear path optimized for physical location flow:
-  // Truck → Hose Bib → Water Heater → Softener → Review → Done
-  const base: TechStep[] = ['address-lookup', 'pressure', 'asset-scan', 'location'];
+  // Truck → Unit Type → Hose Bib → Water Heater → Softener → Review → Done
+  const base: TechStep[] = ['address-lookup', 'unit-type', 'pressure', 'asset-scan', 'location'];
   
   // Add unit-specific checks while still at the water heater
   if (isTankless(fuelType)) {
@@ -152,7 +155,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   useEffect(() => {
     if (previousFuelTypeRef.current !== data.asset.fuelType) {
       previousFuelTypeRef.current = data.asset.fuelType;
-      const commonSteps: TechStep[] = ['address-lookup', 'pressure', 'asset-scan', 'location', 'softener', 'handoff'];
+      const commonSteps: TechStep[] = ['address-lookup', 'unit-type', 'pressure', 'asset-scan', 'location', 'softener', 'handoff'];
       setVisitedSteps(prev => {
         const filtered = new Set<TechStep>();
         prev.forEach(step => {
@@ -295,6 +298,15 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           />
         );
       
+      case 'unit-type':
+        return (
+          <UnitTypeStep
+            selectedType={data.asset.fuelType}
+            onSelect={(type) => updateAsset({ fuelType: type })}
+            onNext={goNext}
+          />
+        );
+      
       case 'pressure':
         return (
           <PressureStep
@@ -387,6 +399,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   
   const stepLabels: Record<TechStep, string> = {
     'address-lookup': 'Property Lookup',
+    'unit-type': 'Unit Type',
     'pressure': 'Pressure & Hardness',
     'asset-scan': 'Unit Identification',
     'location': 'Location & Equipment',
@@ -399,6 +412,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   
   const stepIcons: Record<TechStep, React.ReactNode> = {
     'address-lookup': <MapPin className="h-4 w-4" />,
+    'unit-type': <Flame className="h-4 w-4" />,
     'pressure': <Gauge className="h-4 w-4" />,
     'asset-scan': <Scan className="h-4 w-4" />,
     'location': <Navigation className="h-4 w-4" />,
