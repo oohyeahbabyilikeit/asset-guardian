@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { CalibrationCard } from './CalibrationCard';
 import { ScoreRevealAnimation } from './ScoreRevealAnimation';
+import { TeaserDashboard } from './TeaserDashboard';
 import { calculateOpterraRisk, type ForensicInputs, type OpterraResult, type UsageType } from '@/lib/opterraAlgorithm';
 
 type FlushHistory = 'never' | 'recent' | 'unknown';
@@ -25,6 +26,9 @@ type Phase = 'calibrate' | 'reveal' | 'complete';
 
 export function CalibrationFlow({
   baseInputs,
+  brand,
+  model,
+  photoUrl,
   onComplete,
 }: CalibrationFlowProps) {
   const [phase, setPhase] = useState<Phase>('calibrate');
@@ -91,11 +95,27 @@ export function CalibrationFlow({
     );
   }
 
+  // Show TeaserDashboard blurred behind CalibrationCard
   return (
-    <CalibrationCard
-      hasSoftener={baseInputs.hasSoftener}
-      defaultPeopleCount={baseInputs.peopleCount}
-      onComplete={handleCalibrationComplete}
-    />
+    <div className="relative min-h-screen">
+      {/* Blurred TeaserDashboard background */}
+      <div className="absolute inset-0 filter blur-sm brightness-50 pointer-events-none overflow-hidden">
+        <TeaserDashboard
+          inputs={baseInputs}
+          brand={brand}
+          model={model}
+          photoUrl={photoUrl}
+        />
+      </div>
+      
+      {/* CalibrationCard overlay */}
+      <div className="relative z-10">
+        <CalibrationCard
+          hasSoftener={baseInputs.hasSoftener}
+          defaultPeopleCount={baseInputs.peopleCount}
+          onComplete={handleCalibrationComplete}
+        />
+      </div>
+    </div>
   );
 }
