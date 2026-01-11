@@ -89,10 +89,16 @@ export interface TanklessInspection {
   elementHealth?: number;              // Electric only
 }
 
+// Building type for inspection context
+export type BuildingType = 'residential' | 'multifamily' | 'commercial';
+
 // Complete technician inspection data
 export interface TechnicianInspectionData {
   // When inspection started
   inspectedAt: string;  // ISO date
+  
+  // Building context
+  buildingType?: BuildingType;
   
   // Core data (all units)
   asset: AssetIdentification;
