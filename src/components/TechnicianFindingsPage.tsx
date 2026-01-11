@@ -280,36 +280,6 @@ export function TechnicianFindingsPage({
         </motion.div>
       </div>
 
-      {/* What Happens Next Preview */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="px-4 pb-2"
-      >
-        <Card className="bg-slate-800/30 border-slate-700/50 border-dashed">
-          <CardContent className="p-3">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-              Coming up in your report
-            </p>
-            <div className="flex items-center gap-4 text-xs text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5 text-primary" />
-                <span>Health Score</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-primary" />
-                <span>Lifespan Estimate</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Wrench className="w-3.5 h-3.5 text-primary" />
-                <span>Next Steps</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
       {/* CTA Footer */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
