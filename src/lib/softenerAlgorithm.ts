@@ -36,6 +36,9 @@ export type ControlHead = 'DIGITAL' | 'ANALOG';
 
 export type SaltLevelState = 'OK' | 'LOW' | 'HIGH_WATER';
 
+// FIX v1.3: Quality tier for dynamic "totaled" thresholds ("Disposable Softener" Fix)
+export type SoftenerQualityTier = 'CABINET' | 'STANDARD' | 'PREMIUM';
+
 export interface SoftenerInputs {
   ageYears: number;           // How old the unit is
   hardnessGPG: number;        // Water hardness (Grains Per Gallon)
@@ -53,6 +56,9 @@ export interface SoftenerInputs {
   
   // NEW v1.2: Brine Tank Visual Check
   saltLevelState: SaltLevelState;
+  
+  // NEW v1.3: Quality Tier (for dynamic "totaled" threshold)
+  qualityTier?: SoftenerQualityTier;  // CABINET=$300, STANDARD=$500, PREMIUM=$800
   
   // Legacy field (now derived from visualHeight)
   capacity: number;           // Grain capacity (default 32000)
@@ -162,7 +168,9 @@ const CONSTANTS = {
   UNIT_REPLACEMENT_COST: 2500,
   
   // NEW v1.2: Financial Safety Caps
-  MAX_REPAIR_THRESHOLD: 700,      // If repairs > $700, force replacement
+  MAX_REPAIR_CABINET: 300,        // FIX v1.3: Cabinet/big-box units (GE, Whirlpool)
+  MAX_REPAIR_STANDARD: 500,       // FIX v1.3: Mid-range units
+  MAX_REPAIR_PREMIUM: 800,        // FIX v1.3: Premium units (Kinetico, Fleck, etc.)
   CARBON_LIFE_YEARS: 5,           // Carbon media saturates after 5 years
 };
 
@@ -181,6 +189,7 @@ export const DEFAULT_SOFTENER_INPUTS: SoftenerInputs = {
   visualIron: false,
   carbonAgeYears: null,           // NEW v1.2
   saltLevelState: 'OK',           // NEW v1.2
+  qualityTier: 'STANDARD',        // NEW v1.3: Default to mid-range
   capacity: 32000, // Legacy field, now derived from visualHeight
 };
 
@@ -573,14 +582,24 @@ function generateServiceMenu(
     });
   }
 
-  // v1.2: TOTALED RULE — If cumulative repairs exceed threshold, clear menu and force replacement
-  if (totalRepairCost > CONSTANTS.MAX_REPAIR_THRESHOLD) {
+  // FIX v1.3: TOTALED RULE — Dynamic threshold based on unit quality tier ("Disposable Softener" Fix)
+  // A $500 cabinet softener shouldn't get a $350 repair recommendation.
+  const getTotaledThreshold = (tier: SoftenerQualityTier | undefined): number => {
+    switch (tier) {
+      case 'CABINET': return CONSTANTS.MAX_REPAIR_CABINET;   // $300
+      case 'PREMIUM': return CONSTANTS.MAX_REPAIR_PREMIUM;   // $800
+      default: return CONSTANTS.MAX_REPAIR_STANDARD;         // $500
+    }
+  };
+  const totaledLimit = getTotaledThreshold(data.qualityTier);
+  
+  if (totalRepairCost > totaledLimit) {
     return [{
       id: 'replacement-totaled',
       name: 'Unit Replacement (Recommended)',
-      trigger: `Cumulative repairs ($${totalRepairCost}) exceed 50% of new unit value`,
+      trigger: `Cumulative repairs ($${totalRepairCost}) exceed ${Math.round(totaledLimit / CONSTANTS.UNIT_REPLACEMENT_COST * 100)}% of ${data.qualityTier || 'STANDARD'} unit value`,
       price: CONSTANTS.UNIT_REPLACEMENT_COST,
-      pitch: `Your softener needs $${totalRepairCost} in repairs. A new high-efficiency unit costs $${CONSTANTS.UNIT_REPLACEMENT_COST}. Replacement is the smarter investment.`,
+      pitch: `Your ${data.qualityTier === 'CABINET' ? 'cabinet-style' : data.qualityTier === 'PREMIUM' ? 'premium' : ''} softener needs $${totalRepairCost} in repairs. Threshold for this unit tier is $${totaledLimit}. Replacement is the smarter investment.`,
       priority: 'critical',
     }];
   }
