@@ -323,7 +323,9 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
         return (
           <LocationStep
             data={data.location}
+            equipmentData={data.equipment}
             onUpdate={updateLocation}
+            onEquipmentUpdate={updateEquipment}
             onAIDetection={handleAIDetection}
             onNext={goNext}
           />
