@@ -2,6 +2,13 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export interface GeoTag {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
+}
+
 export interface ConditionScanResult {
   visualRust: boolean;
   isLeaking: boolean;
@@ -11,6 +18,32 @@ export interface ConditionScanResult {
   leakDetails: string;
   overallCondition: 'good' | 'fair' | 'poor' | 'critical' | 'unknown';
   confidence: number;
+  geoTag?: GeoTag; // Photo location metadata
+}
+
+// Get current GPS position for geotagging
+async function getGeoTag(): Promise<GeoTag | undefined> {
+  if (!navigator.geolocation) return undefined;
+  
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 60000,
+      });
+    });
+    
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      timestamp: position.timestamp,
+    };
+  } catch {
+    // Silently fail - geotagging is optional
+    return undefined;
+  }
 }
 
 export function useConditionScan() {
@@ -56,7 +89,11 @@ export function useConditionScan() {
     try {
       toast.loading('Analyzing unit condition...', { id: 'condition-scan' });
       
-      const imageBase64 = await processImage(file);
+      // Get geotag and process image in parallel
+      const [imageBase64, geoTag] = await Promise.all([
+        processImage(file),
+        getGeoTag()
+      ]);
       
       const { data, error } = await supabase.functions.invoke('analyze-unit-condition', {
         body: { imageBase64 }
@@ -64,7 +101,12 @@ export function useConditionScan() {
       
       if (error) throw error;
       
-      const scanResult = data as ConditionScanResult;
+      // Attach geotag to result
+      const scanResult: ConditionScanResult = {
+        ...data,
+        geoTag
+      };
+      
       setResult(scanResult);
       
       const issues = [];
@@ -75,6 +117,11 @@ export function useConditionScan() {
         toast.warning(`Issues found: ${issues.join(', ')}`, { id: 'condition-scan' });
       } else {
         toast.success('Unit condition looks good!', { id: 'condition-scan' });
+      }
+      
+      // Log geotag if available
+      if (geoTag) {
+        console.log('📍 Photo geotagged:', geoTag.latitude.toFixed(6), geoTag.longitude.toFixed(6));
       }
       
       return scanResult;

@@ -14,10 +14,13 @@ import {
   Clock, 
   Plus,
   ChevronRight,
-  Loader2
+  Loader2,
+  Navigation,
+  LocateFixed
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow, differenceInDays } from 'date-fns';
+import { useGPS } from '@/hooks/useGPS';
 
 interface PropertyWithAssets {
   id: string;
@@ -47,10 +50,11 @@ export interface NewPropertyAddress {
   city: string;
   state: string;
   zip_code: string;
+  gpsCoords?: { lat: number; lng: number };
 }
 
 interface AddressLookupStepProps {
-  onSelectProperty: (property: PropertyWithAssets | null) => void;
+  onSelectProperty: (property: PropertyWithAssets | null, gpsCoords?: { lat: number; lng: number }) => void;
   onCreateNew: (address: NewPropertyAddress) => void;
 }
 
@@ -95,6 +99,9 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // GPS hook
+  const { isLocating, isReverseGeocoding, getPositionAndAddress, position } = useGPS();
+  
   // New address entry mode
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState<NewPropertyAddress>({
@@ -103,6 +110,38 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
     state: '',
     zip_code: '',
   });
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // GPS auto-fill handler
+  const handleGPSFill = useCallback(async () => {
+    const result = await getPositionAndAddress();
+    if (result) {
+      const { address, position } = result;
+      
+      // Store GPS coords for water hardness lookup
+      setGpsCoords({ lat: position.latitude, lng: position.longitude });
+      
+      // Build street address
+      const streetAddr = [address.streetNumber, address.street]
+        .filter(Boolean)
+        .join(' ');
+      
+      setNewAddress({
+        address_line1: streetAddr || '',
+        city: address.city || '',
+        state: address.state?.slice(0, 2).toUpperCase() || '',
+        zip_code: address.zipCode || '',
+        gpsCoords: { lat: position.latitude, lng: position.longitude },
+      });
+      
+      // Also set search query for property lookup
+      if (streetAddr) {
+        setSearchQuery(streetAddr);
+      }
+      
+      setShowAddressForm(true);
+    }
+  }, [getPositionAndAddress]);
 
   const searchAddress = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -293,13 +332,36 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
         </div>
         <h2 className="text-xl font-semibold text-foreground">Property Lookup</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Search by address to see existing equipment and inspection status
+          Search by address or use GPS to auto-fill location
         </p>
       </div>
+
+      {/* GPS Auto-Fill Button - Hero */}
+      <Button
+        variant="outline"
+        onClick={handleGPSFill}
+        disabled={isLocating || isReverseGeocoding}
+        className="w-full h-14 border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary/5 gap-3"
+      >
+        {isLocating || isReverseGeocoding ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span>{isLocating ? 'Getting location...' : 'Finding address...'}</span>
+          </>
+        ) : (
+          <>
+            <LocateFixed className="h-5 w-5 text-primary" />
+            <div className="text-left">
+              <p className="font-medium">📍 Use My Location</p>
+              <p className="text-xs text-muted-foreground">Auto-fill address from GPS</p>
+            </div>
+          </>
+        )}
+      </Button>
       
       {/* Search Input */}
       <div className="space-y-3">
-        <Label>Address Search</Label>
+        <Label>Or search by address</Label>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
