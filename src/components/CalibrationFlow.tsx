@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { CalibrationCard } from './CalibrationCard';
 import { ScoreRevealAnimation } from './ScoreRevealAnimation';
 import { TeaserDashboard } from './TeaserDashboard';
+import { WelcomeScreen } from './WelcomeScreen';
+import { TechnicianFindingsPage } from './TechnicianFindingsPage';
 import { calculateOpterraRisk, type ForensicInputs, type OpterraResult, type UsageType } from '@/lib/opterraAlgorithm';
 
 type FlushHistory = 'never' | 'recent' | 'unknown';
@@ -18,6 +20,7 @@ interface CalibrationFlowProps {
   baseInputs: ForensicInputs;
   brand?: string;
   model?: string;
+  photoUrl?: string;
   age?: number;
   location?: string;
   capacity?: string;
@@ -25,19 +28,20 @@ interface CalibrationFlowProps {
   onComplete: (result: OpterraResult, calibratedInputs: ForensicInputs) => void;
 }
 
-type Phase = 'calibrate' | 'reveal' | 'complete';
+type Phase = 'welcome' | 'findings' | 'calibrate' | 'reveal' | 'complete';
 
 export function CalibrationFlow({
   baseInputs,
   brand,
   model,
+  photoUrl,
   age,
   location,
   capacity,
   fuelType,
   onComplete,
 }: CalibrationFlowProps) {
-  const [phase, setPhase] = useState<Phase>('calibrate');
+  const [phase, setPhase] = useState<Phase>('welcome');
   const [calibrationData, setCalibrationData] = useState<CalibrationData | null>(null);
 
   // Map calibration data to ForensicInputs adjustments
@@ -89,7 +93,27 @@ export function CalibrationFlow({
     }
   };
 
-  // Render based on phase
+  // Phase 1: Welcome / Who We Are
+  if (phase === 'welcome') {
+    return (
+      <WelcomeScreen onBegin={() => setPhase('findings')} />
+    );
+  }
+
+  // Phase 2: Asset Photo + Technician Findings
+  if (phase === 'findings') {
+    return (
+      <TechnicianFindingsPage
+        inputs={baseInputs}
+        brand={brand}
+        model={model}
+        photoUrl={photoUrl}
+        onContinue={() => setPhase('calibrate')}
+      />
+    );
+  }
+
+  // Phase 4: Score Reveal
   if (phase === 'reveal' && opterraResult) {
     return (
       <ScoreRevealAnimation
@@ -99,7 +123,7 @@ export function CalibrationFlow({
     );
   }
 
-  // Show TeaserDashboard blurred behind CalibrationCard
+  // Phase 3: Calibration Questions (with blurred teaser)
   return (
     <div className="relative min-h-screen">
       {/* Blurred TeaserDashboard background */}
@@ -108,6 +132,7 @@ export function CalibrationFlow({
           inputs={baseInputs}
           brand={brand}
           model={model}
+          photoUrl={photoUrl}
         />
       </div>
       
