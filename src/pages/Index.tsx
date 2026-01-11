@@ -294,6 +294,7 @@ const Index = () => {
             baseInputs={currentInputs}
             brand={currentAsset.brand}
             model={currentAsset.model}
+            photoUrl={currentAsset.photoUrl}
             onComplete={(result, calibratedInputs) => {
               setCurrentInputs(calibratedInputs);
               setCurrentScreen('dashboard');

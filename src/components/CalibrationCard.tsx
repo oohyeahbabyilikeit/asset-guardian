@@ -19,6 +19,8 @@ interface CalibrationData {
 interface CalibrationCardProps {
   hasSoftener: boolean;
   defaultPeopleCount?: number;
+  photoUrl?: string;
+  brand?: string;
   onComplete: (data: CalibrationData) => void;
 }
 
@@ -40,9 +42,13 @@ const slideVariants = {
 };
 
 
+import waterHeaterImage from '@/assets/water-heater-realistic.png';
+
 export function CalibrationCard({ 
   hasSoftener, 
   defaultPeopleCount = 3,
+  photoUrl,
+  brand,
   onComplete 
 }: CalibrationCardProps) {
   const [step, setStep] = useState<Step>('people');
@@ -114,6 +120,20 @@ export function CalibrationCard({
             transition={{ duration: 0.3, ease: 'easeOut' }}
           />
         </div>
+      </div>
+
+      {/* Water Heater Photo - Trust Builder */}
+      <div className="flex flex-col items-center my-4 px-6">
+        <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-cyan-400/30 shadow-lg shadow-cyan-400/10">
+          <img 
+            src={photoUrl || waterHeaterImage} 
+            alt="Your water heater"
+            className="w-full h-full object-cover"
+          />
+        </div>
+        {brand && (
+          <p className="text-xs text-slate-400 mt-2 font-medium">{brand} Water Heater</p>
+        )}
       </div>
 
       {/* Step content - centered */}
