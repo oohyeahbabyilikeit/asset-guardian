@@ -3,6 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 
+export interface GeoTag {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
+}
+
 export interface ScannedDataPlate {
   brand: string | null;
   model: string | null;
@@ -13,6 +20,7 @@ export interface ScannedDataPlate {
   warrantyYears: number | null;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   rawText: string;
+  geoTag?: GeoTag;
 }
 
 interface UseDataPlateScanReturn {
@@ -21,6 +29,30 @@ interface UseDataPlateScanReturn {
   error: string | null;
   scanImage: (file: File) => Promise<ScannedDataPlate | null>;
   reset: () => void;
+}
+
+// Get current GPS position for geotagging
+async function getGeoTag(): Promise<GeoTag | undefined> {
+  if (!navigator.geolocation) return undefined;
+  
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 60000,
+      });
+    });
+    
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      timestamp: position.timestamp,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 // Compress and convert image to base64
@@ -80,8 +112,11 @@ export function useDataPlateScan(): UseDataPlateScanReturn {
     setScannedData(null);
 
     try {
-      // Process and compress image
-      const imageBase64 = await processImage(file);
+      // Process image and get geotag in parallel
+      const [imageBase64, geoTag] = await Promise.all([
+        processImage(file),
+        getGeoTag()
+      ]);
       
       // Call edge function
       const { data, error: fnError } = await supabase.functions.invoke('scan-data-plate', {
@@ -105,7 +140,11 @@ export function useDataPlateScan(): UseDataPlateScanReturn {
       }
 
       if (data?.extracted) {
-        const extracted = data.extracted as ScannedDataPlate;
+        // Attach geotag to extracted data
+        const extracted: ScannedDataPlate = {
+          ...data.extracted,
+          geoTag
+        };
         setScannedData(extracted);
         
         // Show success toast with confidence
@@ -122,6 +161,11 @@ export function useDataPlateScan(): UseDataPlateScanReturn {
           toast.info(`Partial scan: ${fieldsFound} fields detected. Please verify and complete.`);
         } else {
           toast.warning('Could not read data plate clearly. Please enter manually.');
+        }
+
+        // Log geotag
+        if (geoTag) {
+          console.log('📍 Photo geotagged:', geoTag.latitude.toFixed(6), geoTag.longitude.toFixed(6));
         }
         
         return extracted;

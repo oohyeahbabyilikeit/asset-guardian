@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft } from 'lucide-react';
@@ -11,6 +11,7 @@ import {
   isHybrid,
 } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
+import { getHardnessFromCoordinates, getFallbackHardness } from '@/lib/services/waterQualityService';
 
 import { AddressLookupStep, type NewPropertyAddress } from './steps/technician/AddressLookupStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
@@ -80,6 +81,27 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   const [selectedProperty, setSelectedProperty] = useState<SelectedProperty | null>(null);
   const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
   const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Auto-fetch water hardness when GPS coordinates become available
+  useEffect(() => {
+    if (gpsCoords) {
+      const stateCode = selectedProperty?.state || newPropertyAddress?.state;
+      getHardnessFromCoordinates(gpsCoords.lat, gpsCoords.lng, stateCode)
+        .then((result) => {
+          if (result) {
+            setData(prev => ({ ...prev, streetHardnessGPG: result.hardnessGPG }));
+            console.log(`💧 Water hardness: ${result.hardnessGPG} GPG (${result.source})`);
+          }
+        })
+        .catch(console.error);
+    } else if (selectedProperty?.state || newPropertyAddress?.state) {
+      // Fallback to state-based estimate if no GPS
+      const stateCode = selectedProperty?.state || newPropertyAddress?.state || 'DEFAULT';
+      const fallback = getFallbackHardness(stateCode);
+      setData(prev => ({ ...prev, streetHardnessGPG: fallback.hardnessGPG }));
+    }
+  }, [gpsCoords, selectedProperty?.state, newPropertyAddress?.state]);
   
   const stepOrder = getStepOrder(data.asset.fuelType);
   const currentStepIndex = stepOrder.indexOf(currentStep);
@@ -153,15 +175,21 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     setData(prev => ({ ...prev, calendarAge: age }));
   }, []);
   
-  const handlePropertySelect = useCallback((property: SelectedProperty | null) => {
+  const handlePropertySelect = useCallback((property: SelectedProperty | null, coords?: { lat: number; lng: number }) => {
     if (property) {
       setSelectedProperty(property);
+    }
+    if (coords) {
+      setGpsCoords(coords);
     }
     setCurrentStep('pressure');
   }, []);
 
   const handleCreateNewProperty = useCallback((address: NewPropertyAddress) => {
     setNewPropertyAddress(address);
+    if (address.gpsCoords) {
+      setGpsCoords(address.gpsCoords);
+    }
     setCurrentStep('pressure');
   }, []);
 

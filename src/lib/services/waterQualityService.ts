@@ -132,6 +132,35 @@ export function getFallbackHardness(stateCode: string): WaterQualityData {
 }
 
 /**
+ * Get water hardness from GPS coordinates
+ * This is the preferred method for mobile technician apps with GPS
+ * 
+ * @param lat - Latitude
+ * @param lng - Longitude
+ * @param stateCode - Optional state code for fallback
+ * @returns WaterQualityData (API data or fallback)
+ */
+export async function getHardnessFromCoordinates(
+  lat: number, 
+  lng: number, 
+  stateCode?: string
+): Promise<WaterQualityData> {
+  // Try API first
+  const apiResult = await fetchHardnessFromAPI(lat, lng);
+  if (apiResult) {
+    return apiResult;
+  }
+  
+  // Fall back to state-based estimate if we have a state code
+  if (stateCode) {
+    return getFallbackHardness(stateCode);
+  }
+  
+  // Default fallback
+  return getFallbackHardness('DEFAULT');
+}
+
+/**
  * Get location-based hardness using browser geolocation
  * Falls back to null if geolocation unavailable or denied
  * 
