@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
@@ -11,9 +12,11 @@ import {
   AlertCircle,
   CheckCircle,
   AlertTriangle,
-  Zap
+  Zap,
+  Gauge,
+  HelpCircle
 } from 'lucide-react';
-import type { TanklessInspection } from '@/types/technicianInspection';
+import type { TanklessInspection, WaterMeasurements } from '@/types/technicianInspection';
 import type { FuelType, FlameRodStatus, InletFilterStatus, VentStatus } from '@/lib/opterraAlgorithm';
 
 const FLAME_ROD_OPTIONS: { value: FlameRodStatus; label: string; color: string }[] = [
@@ -40,15 +43,39 @@ const ERROR_COUNT_OPTIONS = [
   { value: 3, label: '3+', color: 'border-red-500 bg-red-50' },
 ];
 
+type FlowRateMode = 'display' | 'unknown' | 'off';
+
 interface TanklessCheckStepProps {
   data: TanklessInspection;
+  measurements: WaterMeasurements;
   fuelType: FuelType;
   onUpdate: (data: Partial<TanklessInspection>) => void;
+  onUpdateMeasurements: (data: Partial<WaterMeasurements>) => void;
   onNext: () => void;
 }
 
-export function TanklessCheckStep({ data, fuelType, onUpdate, onNext }: TanklessCheckStepProps) {
+export function TanklessCheckStep({ data, measurements, fuelType, onUpdate, onUpdateMeasurements, onNext }: TanklessCheckStepProps) {
   const isGas = fuelType === 'TANKLESS_GAS';
+  
+  // Determine initial flow rate mode
+  const getInitialMode = (): FlowRateMode => {
+    if (measurements.flowRateUnknown) return 'unknown';
+    if (measurements.flowRateGPM !== undefined) return 'display';
+    return 'off';
+  };
+  
+  const [flowRateMode, setFlowRateMode] = useState<FlowRateMode>(getInitialMode);
+  
+  const handleFlowModeChange = (mode: FlowRateMode) => {
+    setFlowRateMode(mode);
+    if (mode === 'unknown') {
+      onUpdateMeasurements({ flowRateUnknown: true, flowRateGPM: undefined });
+    } else if (mode === 'off') {
+      onUpdateMeasurements({ flowRateUnknown: false, flowRateGPM: undefined });
+    } else {
+      onUpdateMeasurements({ flowRateUnknown: false });
+    }
+  };
   
   const hasIssues = 
     data.flameRodStatus === 'FAILING' ||
@@ -67,8 +94,76 @@ export function TanklessCheckStep({ data, fuelType, onUpdate, onNext }: Tankless
         </div>
         <h2 className="text-xl font-semibold text-foreground">Tankless Unit Inspection</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Check tankless-specific components
+          Check tankless-specific components and flow rate
         </p>
+      </div>
+
+      {/* Current Flow Rate */}
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2">
+          <Gauge className="h-4 w-4" />
+          Current Flow Rate (GPM)
+        </Label>
+        
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => handleFlowModeChange('display')}
+            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+              flowRateMode === 'display' 
+                ? 'border-primary bg-primary/5 text-primary' 
+                : 'border-muted hover:bg-accent'
+            }`}
+          >
+            <Gauge className="h-4 w-4 mx-auto mb-1" />
+            On Display
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFlowModeChange('unknown')}
+            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+              flowRateMode === 'unknown' 
+                ? 'border-yellow-500 bg-yellow-50 text-yellow-700' 
+                : 'border-muted hover:bg-accent'
+            }`}
+          >
+            <HelpCircle className="h-4 w-4 mx-auto mb-1" />
+            Unknown
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFlowModeChange('off')}
+            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+              flowRateMode === 'off' 
+                ? 'border-muted-foreground bg-muted text-muted-foreground' 
+                : 'border-muted hover:bg-accent'
+            }`}
+          >
+            Unit Off
+          </button>
+        </div>
+        
+        {flowRateMode === 'display' && (
+          <div className="flex items-center gap-3">
+            <Input
+              type="number"
+              step="0.1"
+              min="0"
+              max="15"
+              value={measurements.flowRateGPM ?? ''}
+              onChange={(e) => onUpdateMeasurements({ flowRateGPM: parseFloat(e.target.value) || undefined })}
+              placeholder="Enter GPM from display"
+              className="text-lg"
+            />
+            <span className="text-muted-foreground font-medium">GPM</span>
+          </div>
+        )}
+        
+        {flowRateMode === 'unknown' && (
+          <p className="text-xs text-muted-foreground">
+            Flow rate will be estimated based on other factors
+          </p>
+        )}
       </div>
       
       {/* Flame Rod Status (Gas Only) */}

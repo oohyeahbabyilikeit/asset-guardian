@@ -1,15 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft } from 'lucide-react';
 import { 
   TechnicianInspectionData,
   DEFAULT_TECHNICIAN_DATA,
-  DEFAULT_ASSET_IDENTIFICATION,
-  DEFAULT_WATER_MEASUREMENTS,
-  DEFAULT_LOCATION_CONDITION,
-  DEFAULT_EQUIPMENT_CHECKLIST,
-  DEFAULT_SOFTENER_INSPECTION,
   DEFAULT_HYBRID_INSPECTION,
   DEFAULT_TANKLESS_INSPECTION,
   isTankless,
@@ -19,23 +14,30 @@ import type { FuelType } from '@/lib/opterraAlgorithm';
 
 import { AddressLookupStep, type NewPropertyAddress } from './steps/technician/AddressLookupStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
-import { MeasurementsStep } from './steps/technician/MeasurementsStep';
+import { PressureStep } from './steps/technician/PressureStep';
 import { LocationStep } from './steps/technician/LocationStep';
-import { EquipmentStep } from './steps/technician/EquipmentStep';
 import { SoftenerCheckStep } from './steps/technician/SoftenerCheckStep';
 import { HybridCheckStep } from './steps/technician/HybridCheckStep';
 import { TanklessCheckStep } from './steps/technician/TanklessCheckStep';
 import { HandoffStep } from './steps/technician/HandoffStep';
 
+// Optimized step order for minimal backtracking:
+// 1. Address Lookup (truck/driveway)
+// 2. Pressure (exterior hose bib)
+// 3. Asset Scan (at the unit)
+// 4. Location & Equipment (at the unit - merged for efficiency)
+// 5. Tankless/Hybrid specifics (at the unit - if applicable)
+// 6. Softener (different location - often separate area)
+// 7. Handoff
+
 type TechStep = 
   | 'address-lookup'
+  | 'pressure'
   | 'asset-scan'
-  | 'measurements'
   | 'location'
-  | 'equipment'
-  | 'softener'
-  | 'hybrid'
   | 'tankless'
+  | 'hybrid'
+  | 'softener'
   | 'handoff';
 
 interface SelectedProperty {
@@ -52,18 +54,21 @@ interface TechnicianFlowProps {
   initialStreetHardness?: number;
 }
 
-function getStepOrder(fuelType: FuelType, skipAddressLookup: boolean): TechStep[] {
-  const base: TechStep[] = skipAddressLookup 
-    ? ['asset-scan', 'measurements', 'location', 'equipment', 'softener']
-    : ['address-lookup', 'asset-scan', 'measurements', 'location', 'equipment', 'softener'];
+function getStepOrder(fuelType: FuelType): TechStep[] {
+  // Linear path optimized for physical location flow:
+  // Truck → Hose Bib → Water Heater → Softener → Done
+  const base: TechStep[] = ['address-lookup', 'pressure', 'asset-scan', 'location'];
   
-  if (isHybrid(fuelType)) {
-    return [...base, 'hybrid', 'handoff'];
-  }
+  // Add unit-specific checks while still at the water heater
   if (isTankless(fuelType)) {
-    return [...base, 'tankless', 'handoff'];
+    return [...base, 'tankless', 'softener', 'handoff'];
   }
-  return [...base, 'handoff'];
+  if (isHybrid(fuelType)) {
+    return [...base, 'hybrid', 'softener', 'handoff'];
+  }
+  
+  // Standard tank units go straight to softener check
+  return [...base, 'softener', 'handoff'];
 }
 
 export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 }: TechnicianFlowProps) {
@@ -76,9 +81,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
   const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
   
-  // Dynamic step order based on fuel type - address lookup is always first now
-  const hasAddress = selectedProperty !== null || newPropertyAddress !== null;
-  const stepOrder = getStepOrder(data.asset.fuelType, false);
+  const stepOrder = getStepOrder(data.asset.fuelType);
   const currentStepIndex = stepOrder.indexOf(currentStep);
   const progress = ((currentStepIndex + 1) / stepOrder.length) * 100;
   
@@ -154,17 +157,15 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     if (property) {
       setSelectedProperty(property);
     }
-    // Move to asset scan regardless
-    setCurrentStep('asset-scan');
+    setCurrentStep('pressure');
   }, []);
 
   const handleCreateNewProperty = useCallback((address: NewPropertyAddress) => {
     setNewPropertyAddress(address);
-    setCurrentStep('asset-scan');
+    setCurrentStep('pressure');
   }, []);
 
   const handleComplete = useCallback(() => {
-    // Ensure inspection timestamp is set
     const finalData: TechnicianInspectionData = {
       ...data,
       inspectedAt: new Date().toISOString(),
@@ -182,23 +183,23 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           />
         );
       
+      case 'pressure':
+        return (
+          <PressureStep
+            data={data.measurements}
+            fuelType={data.asset.fuelType}
+            streetHardnessGPG={data.streetHardnessGPG}
+            onUpdate={updateMeasurements}
+            onNext={goNext}
+          />
+        );
+      
       case 'asset-scan':
         return (
           <AssetScanStep
             data={data.asset}
             onUpdate={updateAsset}
             onAgeDetected={handleAgeDetected}
-            onNext={goNext}
-          />
-        );
-      
-      case 'measurements':
-        return (
-          <MeasurementsStep
-            data={data.measurements}
-            fuelType={data.asset.fuelType}
-            streetHardnessGPG={data.streetHardnessGPG}
-            onUpdate={updateMeasurements}
             onNext={goNext}
           />
         );
@@ -212,22 +213,14 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           />
         );
       
-      case 'equipment':
+      case 'tankless':
         return (
-          <EquipmentStep
-            data={data.equipment}
+          <TanklessCheckStep
+            data={data.tankless || DEFAULT_TANKLESS_INSPECTION}
+            measurements={data.measurements}
             fuelType={data.asset.fuelType}
-            housePsi={data.measurements.housePsi}
-            onUpdate={updateEquipment}
-            onNext={goNext}
-          />
-        );
-      
-      case 'softener':
-        return (
-          <SoftenerCheckStep
-            data={data.softener}
-            onUpdate={updateSoftener}
+            onUpdate={updateTankless}
+            onUpdateMeasurements={updateMeasurements}
             onNext={goNext}
           />
         );
@@ -241,12 +234,11 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           />
         );
       
-      case 'tankless':
+      case 'softener':
         return (
-          <TanklessCheckStep
-            data={data.tankless || DEFAULT_TANKLESS_INSPECTION}
-            fuelType={data.asset.fuelType}
-            onUpdate={updateTankless}
+          <SoftenerCheckStep
+            data={data.softener}
+            onUpdate={updateSoftener}
             onNext={goNext}
           />
         );
@@ -266,13 +258,12 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   
   const stepLabels: Record<TechStep, string> = {
     'address-lookup': 'Property Lookup',
+    'pressure': 'Pressure & Hardness',
     'asset-scan': 'Unit Identification',
-    'measurements': 'Pressure & Water',
-    'location': 'Location & Condition',
-    'equipment': 'Equipment Check',
-    'softener': 'Water Softener',
-    'hybrid': 'Heat Pump Check',
+    'location': 'Location & Equipment',
     'tankless': 'Tankless Check',
+    'hybrid': 'Heat Pump Check',
+    'softener': 'Water Softener',
     'handoff': 'Ready for Handoff',
   };
   

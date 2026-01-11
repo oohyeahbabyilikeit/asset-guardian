@@ -45,7 +45,7 @@ function getHardnessColor(gpg: number): string {
   return 'text-red-600 bg-red-100';
 }
 
-export function MeasurementsStep({ 
+export function PressureStep({ 
   data, 
   fuelType, 
   streetHardnessGPG,
