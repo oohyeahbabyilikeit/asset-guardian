@@ -287,58 +287,98 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         )}
       </div>
 
-      {/* Secondary Details - Collapsed */}
-      <ScanHeroSection 
-        title="Environment Details" 
-        defaultOpen={false}
-        badge={
-          data.isFinishedArea ? (
-            <Badge variant="secondary" className="text-xs">Finished Area</Badge>
-          ) : null
-        }
-      >
-        <div className="space-y-4">
-          {/* Finished Area */}
-          <StatusToggleRow
-            label="Finished Living Area?"
-            value={data.isFinishedArea ? 'poor' : 'good'}
-            onChange={(v) => onUpdate({ isFinishedArea: v !== 'good' })}
-            options={[
-              { value: 'good', label: 'No', color: 'green', icon: <span className="text-xs">✓</span> },
-              { value: 'poor', label: 'Yes', color: 'yellow', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-            ]}
-          />
-          
-          {/* Temperature Setting */}
-          <div className="space-y-2">
-            <Label className="text-sm">Temp Dial</Label>
-            <div className="flex gap-2">
-              {TEMP_CHIPS.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => onUpdate({ tempSetting: t.value })}
-                  className={`flex-1 py-2 rounded-lg border-2 transition-all text-sm font-medium
-                    ${data.tempSetting === t.value
-                      ? t.value === 'HOT' 
-                        ? "border-orange-500 bg-orange-50 text-orange-700"
-                        : "border-primary bg-primary text-primary-foreground"
-                      : "border-muted bg-muted/30 hover:border-primary/50"
-                    }`}
-                >
-                  <div>{t.label}</div>
-                  <div className="text-[10px] opacity-70">{t.temp}</div>
-                </button>
-              ))}
-            </div>
+      {/* Environment Details - Now Required */}
+      <div className="space-y-3 p-4 bg-muted/30 rounded-xl border">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <Label className="text-sm font-semibold">Environment Details (Required)</Label>
+        </div>
+        
+        {/* Finished Area */}
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+          <div>
+            <p className="text-sm font-medium">Finished Living Area?</p>
+            <p className="text-xs text-muted-foreground">Unit in living space (higher damage risk)</p>
+          </div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => onUpdate({ isFinishedArea: false })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${data.isFinishedArea === false
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              No
+            </button>
+            <button
+              type="button"
+              onClick={() => onUpdate({ isFinishedArea: true })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${data.isFinishedArea === true
+                  ? "bg-amber-500 text-white"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              Yes
+            </button>
           </div>
         </div>
-      </ScanHeroSection>
+        
+        {/* Temperature Setting */}
+        <div className="p-3 bg-background rounded-lg border">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-medium">Temp Dial Setting</p>
+              <p className="text-xs text-muted-foreground">Current thermostat position</p>
+            </div>
+            {data.tempSetting && (
+              <Badge variant={data.tempSetting === 'HOT' ? 'destructive' : 'secondary'}>
+                {data.tempSetting}
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {TEMP_CHIPS.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => onUpdate({ tempSetting: t.value })}
+                className={`flex-1 py-2.5 rounded-lg border-2 transition-all text-sm font-medium
+                  ${data.tempSetting === t.value
+                    ? t.value === 'HOT' 
+                      ? "border-orange-500 bg-orange-500 text-white"
+                      : "border-primary bg-primary text-primary-foreground"
+                    : "border-muted bg-muted/30 hover:border-primary/50"
+                  }`}
+              >
+                <div>{t.label}</div>
+                <div className="text-[10px] opacity-70">{t.temp}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Validation warning for environment */}
+        {(data.isFinishedArea === undefined || !data.tempSetting) && (
+          <p className="text-xs text-amber-600 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Please complete environment details
+          </p>
+        )}
+      </div>
       
       <Button 
         onClick={onNext} 
         className="w-full h-12 font-semibold"
-        disabled={equipmentData.hasExpTank === null || equipmentData.hasPrv === null || equipmentData.hasCircPump === null}
+        disabled={
+          equipmentData.hasExpTank === null || 
+          equipmentData.hasPrv === null || 
+          equipmentData.hasCircPump === null ||
+          data.isFinishedArea === undefined ||
+          !data.tempSetting
+        }
       >
         Continue
       </Button>
