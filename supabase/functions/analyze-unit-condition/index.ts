@@ -41,11 +41,36 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: `Analyze this water heater photo for visual condition issues. Look for:
+                text: `Analyze this water heater photo for visual condition and equipment. Look for:
 
 1. RUST/CORROSION: Any orange/brown discoloration, flaking metal, oxidation on tank or fittings
 2. LEAKING: Water stains, wet spots, mineral deposits from water drips, puddles, moisture trails
 3. GENERAL CONDITION: Overall state of the unit
+
+4. TEMPERATURE DIAL: Look for the thermostat dial/setting on the unit
+   - LOW (vacation/pilot mode, ~90-100°F)
+   - NORMAL (A/B setting, ~120°F)
+   - HOT (high setting, ~140°F+)
+   - Not visible
+
+5. EXPANSION TANK: Look for a small tank (usually blue/gray) connected to cold water inlet above/near the water heater
+   - Present and appears normal
+   - Present but shows corrosion/age
+   - Not visible in photo
+
+6. PRESSURE REDUCING VALVE (PRV): Bell-shaped brass valve on the main water line
+   - Present
+   - Not visible
+
+7. ANODE ROD PORT: Hex bolt on top of tank (may require looking at top of unit)
+   - Clean/serviced appearance
+   - Corroded/never serviced appearance
+   - Not visible
+
+8. DRAIN VALVE CONDITION: Look at bottom drain spigot
+   - Clean (flushed recently)
+   - Mineral buildup visible (needs flush)
+   - Leaking/dripping
 
 Respond with a JSON object (no markdown):
 {
@@ -56,6 +81,12 @@ Respond with a JSON object (no markdown):
   "rustDetails": "description of rust location and extent",
   "leakDetails": "description of leak indicators",
   "overallCondition": "good" | "fair" | "poor" | "critical",
+  "tempDialSetting": "LOW" | "NORMAL" | "HOT" | null,
+  "hasExpTankVisible": boolean | null,
+  "expTankCondition": "good" | "aged" | null,
+  "hasPrvVisible": boolean | null,
+  "anodePortCondition": "serviced" | "corroded" | "not_visible",
+  "drainValveCondition": "clean" | "mineral_buildup" | "leaking" | "not_visible",
   "confidence": number 0-100
 }`
               },
@@ -101,6 +132,12 @@ Respond with a JSON object (no markdown):
         rustDetails: "Could not analyze image",
         leakDetails: "Could not analyze image",
         overallCondition: "unknown",
+        tempDialSetting: null,
+        hasExpTankVisible: null,
+        expTankCondition: null,
+        hasPrvVisible: null,
+        anodePortCondition: "not_visible",
+        drainValveCondition: "not_visible",
         confidence: 0
       };
     }

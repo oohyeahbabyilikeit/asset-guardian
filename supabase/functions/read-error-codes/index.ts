@@ -45,7 +45,8 @@ serve(async (req) => {
                 type: "text",
                 text: `${brandContext}
 
-Analyze this tankless water heater display photo. Extract:
+Analyze this tankless water heater display and surrounding area. Extract:
+
 1. Any ERROR CODES shown (e.g., E1, E2, 11, 12, LC, etc.)
 2. Current FLOW RATE if displayed (in GPM or L/min)
 3. Current TEMPERATURE if displayed
@@ -56,6 +57,22 @@ Common error codes by brand:
 - Navien: E003, E004, E012, E016, E030, E047, E109, E110, E302, E407, E515
 - Takagi: 031, 111, 121, 140, 211, 311, 391, 651, 661
 - Noritz: 10, 11, 12, 14, 16, 29, 31, 32, 33, 61, 65, 71, 90
+
+Also look for visible equipment in or near the photo:
+
+5. ISOLATION VALVES: Ball valves on water lines allowing service/descaling
+   - Present (can be descaled)
+   - Not visible/absent
+
+6. VENT/EXHAUST CONDITION: Look at exhaust pipe connection
+   - Clear/normal
+   - Showing corrosion or deposits
+   - Appears restricted/blocked
+
+7. SCALE DEPOSITS: White/tan mineral buildup on connections, pipes, or fittings
+   - None visible
+   - Minor deposits
+   - Heavy scale buildup
 
 Respond with a JSON object (no markdown):
 {
@@ -71,6 +88,9 @@ Respond with a JSON object (no markdown):
   "temperature": number or null,
   "temperatureUnit": "F" | "C" | null,
   "displayStatus": "normal" | "error" | "warning" | "standby",
+  "hasIsolationValves": boolean | null,
+  "ventCondition": "clear" | "corroded" | "restricted" | null,
+  "scaleDepositsVisible": "none" | "minor" | "heavy" | null,
   "confidence": number 0-100
 }`
               },
@@ -114,6 +134,9 @@ Respond with a JSON object (no markdown):
         temperature: null,
         temperatureUnit: null,
         displayStatus: "unknown",
+        hasIsolationValves: null,
+        ventCondition: null,
+        scaleDepositsVisible: null,
         confidence: 0
       };
     }

@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.analyze-filter-condition]
 verify_jwt = false
+
+[functions.analyze-installation-context]
+verify_jwt = false

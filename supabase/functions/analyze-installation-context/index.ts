@@ -25,7 +25,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Scanning softener data plate and condition...");
+    console.log("Analyzing installation context from wide-angle photo...");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -41,49 +41,62 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: `Analyze this water softener image. Extract from the data plate/label:
+                text: `Analyze this water heater installation area photo. This is a wide-angle view to identify equipment and installation context.
 
-1. BRAND/MANUFACTURER: Look for company names like Culligan, Kinetico, GE, Whirlpool, Morton, Fleck, Clack, Pentair, WaterBoss, Kenmore, Rainsoft, EcoWater, etc.
-2. MODEL NUMBER: Alphanumeric identifier
-3. SERIAL NUMBER: For age dating
-4. CAPACITY: In grains (e.g., 24,000, 32,000, 48,000, 64,000 grains)
-5. CONTROL TYPE: Digital/metered vs analog/timer
-6. MANUFACTURE DATE: Often encoded in serial or shown directly
+Look for and identify:
 
-Quality tier indicators:
-- CABINET: All-in-one units, compact design
-- STANDARD: Separate brine and resin tanks
-- PREMIUM: Kinetico, high-end Culligan, twin-tank systems
+1. EXPANSION TANK: Small tank (usually blue, gray, or white) connected near the water heater, typically on the cold water inlet above or beside the unit
+   - Approximate size if visible
 
-Also analyze the softener's physical condition:
+2. PRESSURE REDUCING VALVE (PRV): Bell-shaped brass valve, typically on the main water line entering the home
+   - May have adjustment screw on top
 
-7. IRON STAINING: Orange/rust-colored staining on tank, nearby surfaces, or in the brine tank
-   - Present (indicates well water with iron)
-   - Not visible
+3. RECIRCULATION PUMP: Small pump on the hot water line, or under a sink
+   - Grundfos, Watts, or similar brands
+   - May have timer/controller
 
-8. CARBON PRE-FILTER: Look for a separate filter canister installed BEFORE the softener on the water line
-   - Present (protects resin from chlorine)
-   - Not visible
+4. CHECK VALVE / BACKFLOW PREVENTER: Indicates a closed loop system
+   - Usually brass fitting on main line
+   - May be combined with PRV
 
-9. BRINE TANK CONDITION: If the salt tank is visible, check status
-   - Salt visible and appears normal
-   - Salt bridge (hard crust on top)
-   - Low/empty salt
-   - Water above salt level (brine failure)
+5. WATER SOFTENER: Two-tank system (brine tank + resin tank) or cabinet-style unit
+   - Note if present nearby
+
+6. WHOLE-HOUSE WATER FILTER: Filter canister on main water line
+   - May be clear or opaque housing
+
+7. DRAIN PAN: Metal or plastic pan under the water heater
+   - May have drain line attached
+
+8. PIPING MATERIAL: What type of piping is visible?
+   - Copper (orange/brown metal)
+   - PEX (red/blue/white plastic)
+   - CPVC (cream/yellow plastic)
+   - Galvanized (gray metal)
+   - Mixed
+
+9. LOCATION TYPE: Where is the water heater installed?
+   - Garage
+   - Basement
+   - Utility closet
+   - Attic
+   - Crawl space
+   - Other
 
 Respond with a JSON object (no markdown):
 {
-  "brand": "string or null",
-  "model": "string or null",
-  "serialNumber": "string or null",
-  "capacityGrains": number or null,
-  "qualityTier": "CABINET" | "STANDARD" | "PREMIUM" | null,
-  "controlHead": "DIGITAL" | "ANALOG" | null,
-  "manufactureYear": number or null,
-  "estimatedAge": number or null,
-  "visualIron": boolean,
-  "hasCarbonFilter": boolean | null,
-  "saltCondition": "normal" | "bridge" | "low" | "brine_failure" | null,
+  "hasExpTank": boolean | null,
+  "expTankSize": "small" | "medium" | "large" | null,
+  "hasPrv": boolean | null,
+  "hasRecircPump": boolean | null,
+  "hasBackflowPreventer": boolean | null,
+  "isClosedLoop": boolean | null,
+  "hasSoftener": boolean | null,
+  "hasWholeHouseFilter": boolean | null,
+  "hasDrainPan": boolean | null,
+  "pipingMaterial": "copper" | "pex" | "cpvc" | "galvanized" | "mixed" | null,
+  "locationType": "garage" | "basement" | "utility_closet" | "attic" | "crawl_space" | "other" | null,
+  "additionalNotes": "any other relevant observations",
   "confidence": number 0-100
 }`
               },
@@ -121,17 +134,18 @@ Respond with a JSON object (no markdown):
     } catch (parseError) {
       console.error("Parse error:", parseError);
       result = {
-        brand: null,
-        model: null,
-        serialNumber: null,
-        capacityGrains: null,
-        qualityTier: null,
-        controlHead: null,
-        manufactureYear: null,
-        estimatedAge: null,
-        visualIron: false,
-        hasCarbonFilter: null,
-        saltCondition: null,
+        hasExpTank: null,
+        expTankSize: null,
+        hasPrv: null,
+        hasRecircPump: null,
+        hasBackflowPreventer: null,
+        isClosedLoop: null,
+        hasSoftener: null,
+        hasWholeHouseFilter: null,
+        hasDrainPan: null,
+        pipingMaterial: null,
+        locationType: null,
+        additionalNotes: "Could not analyze image",
         confidence: 0
       };
     }
@@ -141,7 +155,7 @@ Respond with a JSON object (no markdown):
     });
 
   } catch (error) {
-    console.error("Error scanning softener plate:", error);
+    console.error("Error analyzing installation context:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

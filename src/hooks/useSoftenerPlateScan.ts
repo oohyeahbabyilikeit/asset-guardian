@@ -12,6 +12,10 @@ export interface SoftenerPlateScanResult {
   controlHead: ControlHead | null;
   manufactureYear: number | null;
   estimatedAge: number | null;
+  // New fields for algorithm
+  visualIron: boolean;
+  hasCarbonFilter: boolean | null;
+  saltCondition: 'normal' | 'bridge' | 'low' | 'brine_failure' | null;
   confidence: number;
 }
 
@@ -56,7 +60,7 @@ export function useSoftenerPlateScan() {
     setResult(null);
     
     try {
-      toast.loading('Scanning softener label...', { id: 'softener-scan' });
+      toast.loading('Scanning softener...', { id: 'softener-scan' });
       
       const imageBase64 = await processImage(file);
       
@@ -69,13 +73,26 @@ export function useSoftenerPlateScan() {
       const scanResult = data as SoftenerPlateScanResult;
       setResult(scanResult);
       
+      // Build summary
       const extracted = [];
       if (scanResult.brand) extracted.push(scanResult.brand);
       if (scanResult.capacityGrains) extracted.push(`${scanResult.capacityGrains.toLocaleString()} grains`);
       if (scanResult.estimatedAge) extracted.push(`~${scanResult.estimatedAge} years old`);
       
+      const conditions = [];
+      if (scanResult.visualIron) conditions.push('iron staining');
+      if (scanResult.hasCarbonFilter) conditions.push('carbon filter ✓');
+      if (scanResult.saltCondition && scanResult.saltCondition !== 'normal') {
+        conditions.push(`salt: ${scanResult.saltCondition.replace('_', ' ')}`);
+      }
+      
       if (extracted.length > 0) {
-        toast.success(`Found: ${extracted.join(', ')}`, { id: 'softener-scan' });
+        const msg = conditions.length > 0 
+          ? `${extracted.join(', ')} | ${conditions.join(', ')}`
+          : extracted.join(', ');
+        toast.success(`Found: ${msg}`, { id: 'softener-scan' });
+      } else if (conditions.length > 0) {
+        toast.info(`Observations: ${conditions.join(', ')}`, { id: 'softener-scan' });
       } else {
         toast.info('Limited data extracted - enter manually', { id: 'softener-scan' });
       }
@@ -83,7 +100,7 @@ export function useSoftenerPlateScan() {
       return scanResult;
     } catch (error) {
       console.error('Softener scan error:', error);
-      toast.error('Failed to scan label', { id: 'softener-scan' });
+      toast.error('Failed to scan softener', { id: 'softener-scan' });
       return null;
     } finally {
       setIsScanning(false);
