@@ -88,10 +88,11 @@ interface AssetScanStepProps {
   data: AssetIdentification;
   onUpdate: (data: Partial<AssetIdentification>) => void;
   onAgeDetected: (age: number) => void;
+  onAIDetection?: (fields: Record<string, boolean>) => void;
   onNext: () => void;
 }
 
-export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetScanStepProps) {
+export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, onNext }: AssetScanStepProps) {
   const [decodedAge, setDecodedAge] = useState<ReturnType<typeof decodeSerialNumber> | null>(null);
   const { isScanning, scannedData, scanImage } = useDataPlateScan();
   
@@ -104,16 +105,42 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onNext }: AssetSc
     
     if (result) {
       const updates: Partial<AssetIdentification> = {};
+      const aiFields: Record<string, boolean> = {};
       
-      if (result.brand) updates.brand = normalizeBrand(result.brand);
-      if (result.model) updates.model = result.model;
-      if (result.serialNumber) updates.serialNumber = result.serialNumber;
-      if (result.fuelType) updates.fuelType = result.fuelType;
-      if (result.capacity) updates.tankCapacity = result.capacity;
-      if (result.flowRate) updates.ratedFlowGPM = result.flowRate;
-      if (result.warrantyYears) updates.warrantyYears = result.warrantyYears;
+      if (result.brand) {
+        updates.brand = normalizeBrand(result.brand);
+        aiFields.brand = true;
+      }
+      if (result.model) {
+        updates.model = result.model;
+        aiFields.model = true;
+      }
+      if (result.serialNumber) {
+        updates.serialNumber = result.serialNumber;
+        aiFields.serialNumber = true;
+      }
+      if (result.fuelType) {
+        updates.fuelType = result.fuelType;
+        aiFields.fuelType = true;
+      }
+      if (result.capacity) {
+        updates.tankCapacity = result.capacity;
+        aiFields.tankCapacity = true;
+      }
+      if (result.flowRate) {
+        updates.ratedFlowGPM = result.flowRate;
+      }
+      if (result.warrantyYears) {
+        updates.warrantyYears = result.warrantyYears;
+        aiFields.warrantyYears = true;
+      }
       
       onUpdate(updates);
+      
+      // Report AI-detected fields
+      if (Object.keys(aiFields).length > 0) {
+        onAIDetection?.(aiFields);
+      }
     }
   };
   

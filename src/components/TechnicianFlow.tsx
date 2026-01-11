@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Check, ChevronDown, Lock, MapPin, Gauge, Scan, Navigation, Flame, Zap, Droplets, Flag } from 'lucide-react';
+import { ChevronLeft, Check, ChevronDown, Lock, MapPin, Gauge, Scan, Navigation, Flame, Zap, Droplets, Flag, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
@@ -24,6 +24,7 @@ import { LocationStep } from './steps/technician/LocationStep';
 import { SoftenerCheckStep } from './steps/technician/SoftenerCheckStep';
 import { HybridCheckStep } from './steps/technician/HybridCheckStep';
 import { TanklessCheckStep } from './steps/technician/TanklessCheckStep';
+import { ReviewStep, type AIDetectedFields } from './steps/technician/ReviewStep';
 import { HandoffStep } from './steps/technician/HandoffStep';
 
 // Optimized step order for minimal backtracking:
@@ -33,7 +34,8 @@ import { HandoffStep } from './steps/technician/HandoffStep';
 // 4. Location & Equipment (at the unit - merged for efficiency)
 // 5. Tankless/Hybrid specifics (at the unit - if applicable)
 // 6. Softener (different location - often separate area)
-// 7. Handoff
+// 7. Review (verify all AI-detected and algorithm-affecting values)
+// 8. Handoff
 
 type TechStep = 
   | 'address-lookup'
@@ -43,6 +45,7 @@ type TechStep =
   | 'tankless'
   | 'hybrid'
   | 'softener'
+  | 'review'
   | 'handoff';
 
 interface SelectedProperty {
@@ -61,19 +64,19 @@ interface TechnicianFlowProps {
 
 function getStepOrder(fuelType: FuelType): TechStep[] {
   // Linear path optimized for physical location flow:
-  // Truck → Hose Bib → Water Heater → Softener → Done
+  // Truck → Hose Bib → Water Heater → Softener → Review → Done
   const base: TechStep[] = ['address-lookup', 'pressure', 'asset-scan', 'location'];
   
   // Add unit-specific checks while still at the water heater
   if (isTankless(fuelType)) {
-    return [...base, 'tankless', 'softener', 'handoff'];
+    return [...base, 'tankless', 'softener', 'review', 'handoff'];
   }
   if (isHybrid(fuelType)) {
-    return [...base, 'hybrid', 'softener', 'handoff'];
+    return [...base, 'hybrid', 'softener', 'review', 'handoff'];
   }
   
-  // Standard tank units go straight to softener check
-  return [...base, 'softener', 'handoff'];
+  // Standard tank units go straight to softener check, then review
+  return [...base, 'softener', 'review', 'handoff'];
 }
 
 export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 }: TechnicianFlowProps) {
@@ -106,6 +109,9 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
   const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Track which fields were detected by AI for the review step
+  const [aiDetectedFields, setAIDetectedFields] = useState<AIDetectedFields>({});
   
   // Track which steps have been visited for free navigation
   const [visitedSteps, setVisitedSteps] = useState<Set<TechStep>>(new Set(['address-lookup']));
@@ -234,6 +240,13 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   
   const handleAgeDetected = useCallback((age: number) => {
     setData(prev => ({ ...prev, calendarAge: age }));
+    // Age detection from serial decoder is also AI-assisted
+    setAIDetectedFields(prev => ({ ...prev, calendarAge: true }));
+  }, []);
+  
+  // Handler for tracking AI-detected fields from scans
+  const handleAIDetection = useCallback((fields: Record<string, boolean>) => {
+    setAIDetectedFields(prev => ({ ...prev, ...fields }));
   }, []);
   
   const handlePropertySelect = useCallback((property: SelectedProperty | null, coords?: { lat: number; lng: number }) => {
@@ -301,6 +314,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             data={data.asset}
             onUpdate={updateAsset}
             onAgeDetected={handleAgeDetected}
+            onAIDetection={handleAIDetection}
             onNext={goNext}
           />
         );
@@ -310,6 +324,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           <LocationStep
             data={data.location}
             onUpdate={updateLocation}
+            onAIDetection={handleAIDetection}
             onNext={goNext}
           />
         );
@@ -322,6 +337,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             fuelType={data.asset.fuelType}
             onUpdate={updateTankless}
             onUpdateMeasurements={updateMeasurements}
+            onAIDetection={handleAIDetection}
             onNext={goNext}
           />
         );
@@ -341,6 +357,16 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             data={data.softener}
             onUpdate={updateSoftener}
             onNext={goNext}
+          />
+        );
+      
+      case 'review':
+        return (
+          <ReviewStep
+            data={data}
+            aiDetectedFields={aiDetectedFields}
+            onUpdate={(updates) => setData(prev => ({ ...prev, ...updates }))}
+            onConfirm={goNext}
           />
         );
       
@@ -365,6 +391,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     'tankless': 'Tankless Check',
     'hybrid': 'Heat Pump Check',
     'softener': 'Water Softener',
+    'review': 'Review & Verify',
     'handoff': 'Ready for Handoff',
   };
   
@@ -376,6 +403,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     'tankless': <Flame className="h-4 w-4" />,
     'hybrid': <Zap className="h-4 w-4" />,
     'softener': <Droplets className="h-4 w-4" />,
+    'review': <ClipboardCheck className="h-4 w-4" />,
     'handoff': <Flag className="h-4 w-4" />,
   };
   

@@ -30,6 +30,7 @@ interface TanklessCheckStepProps {
   fuelType: FuelType;
   onUpdate: (data: Partial<TanklessInspection>) => void;
   onUpdateMeasurements: (data: Partial<WaterMeasurements>) => void;
+  onAIDetection?: (fields: Record<string, boolean>) => void;
   onNext: () => void;
 }
 
@@ -40,7 +41,7 @@ const SCALE_CHIPS = [
   { value: 90, label: 'Severe', sublabel: '90%+', variant: 'danger' as const },
 ];
 
-export function TanklessCheckStep({ data, measurements, fuelType, onUpdate, onUpdateMeasurements, onNext }: TanklessCheckStepProps) {
+export function TanklessCheckStep({ data, measurements, fuelType, onUpdate, onUpdateMeasurements, onAIDetection, onNext }: TanklessCheckStepProps) {
   const isGas = fuelType === 'TANKLESS_GAS';
   
   const { scanErrorCodes, isScanning: isScanningErrors, result: errorResult } = useErrorCodeScan();
@@ -68,11 +69,27 @@ export function TanklessCheckStep({ data, measurements, fuelType, onUpdate, onUp
   const handleErrorCodeScan = async (file: File) => {
     const result = await scanErrorCodes(file);
     if (result) {
+      const aiFields: Record<string, boolean> = { errorCodeCount: true };
+      
       onUpdate({ errorCodeCount: Math.min(result.errorCount, 3) });
+      
       if (result.flowRateGPM) {
         onUpdateMeasurements({ flowRateGPM: result.flowRateGPM, flowRateUnknown: false });
         setFlowRateMode('display');
       }
+      
+      // Track enhanced fields from AI scan
+      if (result.hasIsolationValves !== undefined) {
+        aiFields.hasIsolationValves = true;
+      }
+      if (result.ventCondition) {
+        aiFields.ventCondition = true;
+      }
+      if (result.scaleDepositsVisible) {
+        aiFields.scaleDepositsVisible = true;
+      }
+      
+      onAIDetection?.(aiFields);
     }
   };
   

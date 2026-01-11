@@ -36,20 +36,40 @@ const TEMP_CHIPS: { value: TempSetting; label: string; temp: string }[] = [
 interface LocationStepProps {
   data: LocationCondition;
   onUpdate: (data: Partial<LocationCondition>) => void;
+  onAIDetection?: (fields: Record<string, boolean>) => void;
   onNext: () => void;
 }
 
-export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
+export function LocationStep({ data, onUpdate, onAIDetection, onNext }: LocationStepProps) {
   const hasIssue = data.isLeaking || data.visualRust;
   const { scanCondition, isScanning, result } = useConditionScan();
   
   const handleScanImage = async (file: File) => {
     const scanResult = await scanCondition(file);
     if (scanResult) {
+      const aiFields: Record<string, boolean> = {};
+      
       onUpdate({
         visualRust: scanResult.visualRust,
         isLeaking: scanResult.isLeaking,
       });
+      
+      // Track AI-detected fields
+      aiFields.visualRust = true;
+      aiFields.isLeaking = true;
+      
+      // Track additional fields from enhanced scan
+      if (scanResult.tempDialSetting) {
+        aiFields.tempDialSetting = true;
+      }
+      if (scanResult.hasExpTankVisible !== undefined) {
+        aiFields.hasExpTankVisible = true;
+      }
+      if (scanResult.hasPrvVisible !== undefined) {
+        aiFields.hasPrvVisible = true;
+      }
+      
+      onAIDetection?.(aiFields);
     }
   };
 
