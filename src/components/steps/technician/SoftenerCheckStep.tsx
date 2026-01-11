@@ -68,22 +68,45 @@ export function SoftenerCheckStep({ data, onUpdate, onNext }: SoftenerCheckStepP
     </div>
   );
   
+  // Track if user has made an explicit choice
+  const hasAnswered = data.hasSoftener !== undefined;
+  
   return (
     <div className="space-y-5">
-      {/* Primary Toggle */}
-      <div className="p-4 rounded-xl border-2 border-dashed bg-muted/30">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Droplets className="h-7 w-7 text-blue-500" />
-            <div>
-              <p className="font-semibold">Water Softener?</p>
-              <p className="text-xs text-muted-foreground">Tall tank with control head</p>
-            </div>
-          </div>
-          <Switch
-            checked={data.hasSoftener}
-            onCheckedChange={(checked) => onUpdate({ hasSoftener: checked })}
-          />
+      {/* Primary Yes/No Selection - Required */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold flex items-center gap-2">
+          <Droplets className="h-5 w-5 text-blue-500" />
+          Is there a water softener? (Required)
+        </Label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => onUpdate({ hasSoftener: true })}
+            className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all
+              ${data.hasSoftener === true
+                ? "border-primary bg-primary/10"
+                : "border-muted hover:border-primary/50 bg-background"
+              }`}
+          >
+            <CheckCircle className={`h-8 w-8 ${data.hasSoftener === true ? 'text-primary' : 'text-muted-foreground'}`} />
+            <span className="font-semibold">Yes</span>
+            <span className="text-xs text-muted-foreground">Softener present</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => onUpdate({ hasSoftener: false })}
+            className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all
+              ${data.hasSoftener === false
+                ? "border-destructive bg-destructive/10"
+                : "border-muted hover:border-primary/50 bg-background"
+              }`}
+          >
+            <XCircle className={`h-8 w-8 ${data.hasSoftener === false ? 'text-destructive' : 'text-muted-foreground'}`} />
+            <span className="font-semibold">No</span>
+            <span className="text-xs text-muted-foreground">No softener</span>
+          </button>
         </div>
       </div>
       
@@ -232,8 +255,12 @@ export function SoftenerCheckStep({ data, onUpdate, onNext }: SoftenerCheckStepP
         </div>
       )}
       
-      <Button onClick={onNext} className="w-full h-12 font-semibold">
-        {data.hasSoftener ? 'Continue' : 'Skip'}
+      <Button 
+        onClick={onNext} 
+        className="w-full h-12 font-semibold"
+        disabled={data.hasSoftener === undefined}
+      >
+        Continue
       </Button>
     </div>
   );

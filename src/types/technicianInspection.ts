@@ -62,7 +62,7 @@ export interface EquipmentChecklist {
 
 // Step 5: Softener Inspection (if present)
 export interface SoftenerInspection {
-  hasSoftener: boolean;
+  hasSoftener?: boolean;  // undefined = not answered yet
   saltStatus?: SaltStatusType;
   qualityTier?: SoftenerQualityTier;
   controlHead?: ControlHead;
@@ -147,7 +147,7 @@ export const DEFAULT_EQUIPMENT_CHECKLIST: EquipmentChecklist = {
 };
 
 export const DEFAULT_SOFTENER_INSPECTION: SoftenerInspection = {
-  hasSoftener: false,
+  hasSoftener: undefined,  // Requires explicit selection
 };
 
 export const DEFAULT_HYBRID_INSPECTION: HybridInspection = {
