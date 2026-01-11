@@ -552,9 +552,12 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     sedFactor = CONSTANTS.SEDIMENT_FACTOR_GAS;
   }
   
-  // If softener is present, use near-zero hardness (anode sludge only)
-  // Softened water removes 95%+ of minerals; remaining sediment is primarily anode byproduct
-  const effectiveHardness = data.hasSoftener ? 0.5 : data.hardnessGPG;
+  // FIX v7.6: Trust measurement over checkbox ("Phantom Softener" Fix)
+  // If the tech measures hard water (>1.5 GPG), the softener is broken/bypassed.
+  // Only use softened rate (0.5 GPG) if BOTH softener exists AND water tests soft.
+  const effectiveHardness = (data.hasSoftener && data.hardnessGPG <= 1.5) 
+    ? 0.5 
+    : data.hardnessGPG;
   
   // Volume factor now uses the pre-calculated usageIntensity
   const volumeFactor = usageIntensity;
@@ -1075,6 +1078,21 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
       reason: 'Cathodic protection depleted. Replace anode to extend warranty life.',
       urgent: false,
       badgeColor: 'green',
+      badge: 'MONITOR'
+    };
+  }
+
+  // ============================================
+  // TIER 3.5: "FALSE SECURITY" GAP FIX (v7.6)
+  // Old tanks with depleted anodes can't be safely serviced, but they're NOT healthy.
+  // ============================================
+  if (metrics.shieldLife < 1 && data.calendarAge >= CONSTANTS.AGE_ANODE_LIMIT) {
+    return {
+      action: 'PASS',
+      title: 'Protection Depleted',
+      reason: 'Anode rod is depleted, but tank is too old to safely service. Monitor for leaks and budget for replacement.',
+      urgent: false,
+      badgeColor: 'yellow',
       badge: 'MONITOR'
     };
   }

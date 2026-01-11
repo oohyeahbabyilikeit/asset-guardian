@@ -156,7 +156,10 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // 2. SCALE ACCUMULATION (The "Artery Blockage")
   // Scale insulates the copper heat exchanger, causing overheating/cracking
   // =========================================
-  const effectiveHardness = data.hasSoftener ? 0.2 : data.hardnessGPG;
+  // FIX v7.6: Trust measurement over checkbox ("Phantom Softener" Fix)
+  const effectiveHardness = (data.hasSoftener && data.hardnessGPG <= 1.5) 
+    ? 0.2 
+    : data.hardnessGPG;
   const yearsSinceDescale = data.lastDescaleYearsAgo ?? data.calendarAge;
   
   const fuelFactor = data.fuelType === 'TANKLESS_ELECTRIC' 
@@ -178,14 +181,15 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // 3. FLOW DEGRADATION (The Vital Sign)
   // If Rated 10 GPM but measuring 7 GPM, the unit is choking
   // =========================================
+  // FIX v7.6: Only use MEASURED flow loss, don't infer from scale ("Tankless Insulator" Fix)
+  // Scale is a THERMAL insulator first, flow restrictor second.
+  // Thin scale can crack heat exchangers while barely affecting GPM.
   let flowLossPercent = 0;
   if (data.ratedFlowGPM && data.flowRateGPM) {
     flowLossPercent = ((data.ratedFlowGPM - data.flowRateGPM) / data.ratedFlowGPM) * 100;
     flowLossPercent = Math.max(0, flowLossPercent);
-  } else {
-    // If not measured, infer flow restriction from scale score
-    flowLossPercent = scaleBuildupScore * 0.6; 
   }
+  // If not measured, flow loss stays at 0 (unknown) — we warn on SCALE instead
 
   // =========================================
   // 4. STRESS FACTORS & BIO-AGE
@@ -261,8 +265,10 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // =========================================
   // 8. IDENTIFY PRIMARY STRESSOR
   // =========================================
+  // FIX v7.6: Correct physics terminology ("Tankless Insulator" Fix)
+  // Scale is a THERMAL problem (efficiency loss, overheating) not just flow restriction
   let primaryStressor = 'Normal Wear';
-  if (scaleBuildupScore > 15) primaryStressor = 'Scale Buildup';
+  if (scaleBuildupScore > 15) primaryStressor = 'Thermal Efficiency Loss';
   if (flowLossPercent > 15) primaryStressor = 'Flow Restriction';
   if (data.hasRecirculationLoop || data.hasCircPump) primaryStressor = 'Recirculation Fatigue';
   if ((data.errorCodeCount || 0) > 5) primaryStressor = 'System Electronics';
