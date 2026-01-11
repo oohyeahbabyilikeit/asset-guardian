@@ -14,6 +14,7 @@ export interface AssetData {
   paperAge: number; // Years since install
   biologicalAge: number; // Calculated wear age
   location: string;
+  photoUrl?: string; // Photo of the unit from technician scan
   specs: {
     capacity: string;
     fuelType: string;

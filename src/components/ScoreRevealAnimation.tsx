@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, Clock, Skull } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, CheckCircle, Clock, Skull, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OpterraResult } from '@/lib/opterraAlgorithm';
 
@@ -11,7 +12,7 @@ interface ScoreRevealAnimationProps {
 }
 
 export function ScoreRevealAnimation({ result, onComplete }: ScoreRevealAnimationProps) {
-  const [phase, setPhase] = useState<'counting' | 'badge' | 'projection' | 'complete'>('counting');
+  const [phase, setPhase] = useState<'counting' | 'badge' | 'projection' | 'ready'>('counting');
   const [displayScore, setDisplayScore] = useState(0);
 
   const targetScore = result.metrics.healthScore;
@@ -36,11 +37,11 @@ export function ScoreRevealAnimation({ result, onComplete }: ScoreRevealAnimatio
     return '5+ years';
   };
 
-  // Count-up animation
+  // Count-up animation - slower for more dramatic effect
   useEffect(() => {
     if (phase !== 'counting') return;
     
-    const duration = 1200; // ms
+    const duration = 1800; // Slower count-up (was 1200)
     const steps = 60;
     const increment = targetScore / steps;
     const stepDuration = duration / steps;
@@ -51,7 +52,7 @@ export function ScoreRevealAnimation({ result, onComplete }: ScoreRevealAnimatio
       if (current >= targetScore) {
         setDisplayScore(targetScore);
         clearInterval(timer);
-        setTimeout(() => setPhase('badge'), 200);
+        setTimeout(() => setPhase('badge'), 400); // Longer pause before badge
       } else {
         setDisplayScore(Math.floor(current));
       }
@@ -60,20 +61,21 @@ export function ScoreRevealAnimation({ result, onComplete }: ScoreRevealAnimatio
     return () => clearInterval(timer);
   }, [phase, targetScore]);
 
-  // Phase transitions
+  // Phase transitions - slower to let users absorb
   useEffect(() => {
     if (phase === 'badge') {
-      const timer = setTimeout(() => setPhase('projection'), 400);
+      const timer = setTimeout(() => setPhase('projection'), 1000); // Was 400ms
       return () => clearTimeout(timer);
     }
     if (phase === 'projection') {
-      const timer = setTimeout(() => {
-        setPhase('complete');
-        onComplete();
-      }, 600);
+      const timer = setTimeout(() => setPhase('ready'), 1200); // Was immediate onComplete
       return () => clearTimeout(timer);
     }
-  }, [phase, onComplete]);
+  }, [phase]);
+
+  const handleContinue = useCallback(() => {
+    onComplete();
+  }, [onComplete]);
 
   const getScoreColor = () => {
     if (displayScore >= 70) return 'text-green-400';
@@ -130,7 +132,7 @@ export function ScoreRevealAnimation({ result, onComplete }: ScoreRevealAnimatio
 
         {/* Status Badge */}
         <AnimatePresence>
-          {(phase === 'badge' || phase === 'projection' || phase === 'complete') && (
+          {(phase === 'badge' || phase === 'projection' || phase === 'ready') && (
             <motion.div
               initial={{ y: 20, opacity: 0, scale: 0.8 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -155,7 +157,7 @@ export function ScoreRevealAnimation({ result, onComplete }: ScoreRevealAnimatio
 
         {/* Projection */}
         <AnimatePresence>
-          {(phase === 'projection' || phase === 'complete') && (
+          {(phase === 'projection' || phase === 'ready') && (
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -175,7 +177,27 @@ export function ScoreRevealAnimation({ result, onComplete }: ScoreRevealAnimatio
           )}
         </AnimatePresence>
 
-        {/* Loading indicator during animation */}
+        {/* View Report Button - shows when ready */}
+        <AnimatePresence>
+          {phase === 'ready' && (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              <Button 
+                onClick={handleContinue}
+                size="lg"
+                className="h-14 px-8 text-lg font-semibold"
+              >
+                View Your Report
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Loading indicator during counting animation */}
         {phase === 'counting' && (
           <motion.div
             initial={{ opacity: 0 }}

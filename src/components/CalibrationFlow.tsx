@@ -78,10 +78,8 @@ export function CalibrationFlow({
   const handleRevealComplete = () => {
     setPhase('complete');
     if (opterraResult && calibratedInputs) {
-      // Small delay before transitioning to dashboard
-      setTimeout(() => {
-        onComplete(opterraResult, calibratedInputs);
-      }, 800);
+      // Navigate immediately when user clicks "View Your Report"
+      onComplete(opterraResult, calibratedInputs);
     }
   };
 
@@ -113,6 +111,8 @@ export function CalibrationFlow({
         <CalibrationCard
           hasSoftener={baseInputs.hasSoftener}
           defaultPeopleCount={baseInputs.peopleCount}
+          photoUrl={photoUrl}
+          brand={brand}
           onComplete={handleCalibrationComplete}
         />
       </div>
