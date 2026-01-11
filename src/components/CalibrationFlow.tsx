@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { TeaserDashboard } from './TeaserDashboard';
 import { CalibrationCard } from './CalibrationCard';
 import { ScoreRevealAnimation } from './ScoreRevealAnimation';
 import { calculateOpterraRisk, type ForensicInputs, type OpterraResult, type UsageType } from '@/lib/opterraAlgorithm';
@@ -22,16 +21,13 @@ interface CalibrationFlowProps {
   onComplete: (result: OpterraResult, calibratedInputs: ForensicInputs) => void;
 }
 
-type Phase = 'teaser' | 'reveal' | 'complete';
+type Phase = 'calibrate' | 'reveal' | 'complete';
 
 export function CalibrationFlow({
   baseInputs,
-  brand,
-  model,
-  photoUrl,
   onComplete,
 }: CalibrationFlowProps) {
-  const [phase, setPhase] = useState<Phase>('teaser');
+  const [phase, setPhase] = useState<Phase>('calibrate');
   const [calibrationData, setCalibrationData] = useState<CalibrationData | null>(null);
 
   // Map calibration data to ForensicInputs adjustments
@@ -96,17 +92,10 @@ export function CalibrationFlow({
   }
 
   return (
-    <TeaserDashboard
-      inputs={baseInputs}
-      brand={brand}
-      model={model}
-      photoUrl={photoUrl}
-    >
-      <CalibrationCard
-        hasSoftener={baseInputs.hasSoftener}
-        defaultPeopleCount={baseInputs.peopleCount}
-        onComplete={handleCalibrationComplete}
-      />
-    </TeaserDashboard>
+    <CalibrationCard
+      hasSoftener={baseInputs.hasSoftener}
+      defaultPeopleCount={baseInputs.peopleCount}
+      onComplete={handleCalibrationComplete}
+    />
   );
 }
