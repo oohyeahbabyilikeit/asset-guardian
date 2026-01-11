@@ -22,6 +22,9 @@ export type { SoftenerQualityTier, ControlHead, VisualHeight, SaltLevelState };
 // Salt status options (for technician quick-check)
 export type SaltStatusType = 'OK' | 'EMPTY' | 'UNKNOWN';
 
+// Visual condition for age estimation (when serial decode fails)
+export type SoftenerVisualCondition = 'NEW' | 'WEATHERED' | 'AGED';
+
 // Step 1: Asset Identification
 export interface AssetIdentification {
   brand: string;
@@ -69,6 +72,7 @@ export interface SoftenerInspection {
   visualHeight?: VisualHeight;
   visualIron?: boolean;
   hasCarbonFilter?: boolean;
+  visualCondition?: SoftenerVisualCondition;  // Visual age proxy for pre-existing units
 }
 
 // Step 6: Hybrid-Specific (if applicable)

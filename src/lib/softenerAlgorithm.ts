@@ -60,6 +60,9 @@ export interface SoftenerInputs {
   // NEW v1.3: Quality Tier (for dynamic "totaled" threshold)
   qualityTier?: SoftenerQualityTier;  // CABINET=$300, STANDARD=$500, PREMIUM=$800
   
+  // NEW v1.4: Professional Service Flag (suppresses salt alerts if true)
+  hasProfessionalService?: boolean;
+  
   // Legacy field (now derived from visualHeight)
   capacity: number;           // Grain capacity (default 32000)
 }
@@ -359,6 +362,16 @@ function calculateSaltUsage(data: SoftenerInputs, daysPerCycle: number): number 
 }
 
 function calculateSaltSchedule(data: SoftenerInputs, metrics: SoftenerMetrics): SaltCalculator {
+  // NEW v1.4: Suppress salt alerts for users with professional service (Culligan, Kinetico, etc.)
+  if (data.hasProfessionalService) {
+    return {
+      burnRateLbsPerMonth: 0,
+      daysUntilRefill: Infinity,
+      nextRefillDate: new Date('9999-12-31'),  // Never - service handles it
+      monthlyBags40Lb: 0,
+    };
+  }
+  
   const burnRate = metrics.saltUsageLbsPerMonth;
   
   // Assume 120 lbs tank capacity (3 bags worth)

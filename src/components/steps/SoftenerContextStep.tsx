@@ -246,15 +246,21 @@ export function SoftenerContextStep({
         </div>
       </div>
 
-      {/* CTA */}
+      {/* CTA - Water source is required */}
       <Button
         onClick={onNext}
         size="lg"
         className="w-full h-12 text-base font-medium rounded-lg"
+        disabled={!waterSource}
       >
         Continue
         <ChevronRight className="w-5 h-5 ml-2" />
       </Button>
+      {!waterSource && (
+        <p className="text-xs text-center text-muted-foreground">
+          Please select your water source to continue
+        </p>
+      )}
     </div>
   );
 }
