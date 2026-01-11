@@ -136,7 +136,7 @@ export function TechnicianFindingsPage({
         className="relative"
       >
         {/* Photo with gradient overlay */}
-        <div className="relative h-56 overflow-hidden">
+        <div className="relative h-48 overflow-hidden">
           <img 
             src={photoUrl || waterHeaterFallback} 
             alt="Your water heater"
@@ -145,44 +145,44 @@ export function TechnicianFindingsPage({
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/50 to-slate-950" />
           
           {/* Step indicator overlay */}
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-            <Badge variant="outline" className="bg-slate-950/60 backdrop-blur-sm border-slate-700 text-slate-300 text-xs">
+          <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+            <Badge variant="outline" className="bg-slate-950/60 backdrop-blur-sm border-slate-700 text-slate-300 text-[11px] px-2 py-0.5">
               Step 1 of 2
             </Badge>
-            <div className="flex gap-1.5">
-              <div className="w-8 h-1 rounded-full bg-primary" />
-              <div className="w-8 h-1 rounded-full bg-slate-700" />
+            <div className="flex gap-1">
+              <div className="w-6 h-0.5 rounded-full bg-primary" />
+              <div className="w-6 h-0.5 rounded-full bg-slate-700" />
             </div>
           </div>
         </div>
 
         {/* Unit Info Card - overlapping the photo */}
-        <div className="px-4 -mt-16 relative z-10">
+        <div className="px-4 -mt-12 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.4 }}
-            className="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl"
+            className="bg-slate-900 rounded-xl border border-slate-800 p-3"
           >
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg font-semibold text-white">{brand}</p>
-                {model && <p className="text-sm text-slate-400">{model}</p>}
+                <p className="text-base font-semibold text-white leading-tight">{brand}</p>
+                {model && <p className="text-xs text-slate-400 mt-0.5">{model}</p>}
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-white">
-                  {inputs.calendarAge}<span className="text-sm font-normal text-slate-400 ml-1">yrs</span>
+                <p className="text-xl font-bold text-white leading-none">
+                  {inputs.calendarAge}<span className="text-xs font-normal text-slate-400 ml-0.5">yrs</span>
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-800">
-              <span className="text-xs text-slate-500">{inputs.tankCapacity} gallon</span>
-              <span className="text-slate-700">•</span>
-              <span className="text-xs text-slate-500">{locationLabels[inputs.location] || inputs.location}</span>
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800">
+              <span className="text-[11px] text-slate-500">{inputs.tankCapacity} gal</span>
+              <span className="text-slate-700 text-[11px]">•</span>
+              <span className="text-[11px] text-slate-500">{locationLabels[inputs.location] || inputs.location}</span>
               {inputs.hasSoftener && (
                 <>
-                  <span className="text-slate-700">•</span>
-                  <span className="text-xs text-primary">Softener installed</span>
+                  <span className="text-slate-700 text-[11px]">•</span>
+                  <span className="text-[11px] text-primary">Softener</span>
                 </>
               )}
             </div>
@@ -191,15 +191,14 @@ export function TechnicianFindingsPage({
       </motion.div>
 
       {/* Content */}
-      <div className="flex-1 px-4 pt-5 pb-4 space-y-4 overflow-y-auto">
+      <div className="flex-1 px-4 pt-4 pb-4 space-y-3 overflow-y-auto">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <h2 className="text-base font-semibold text-white">Technician Observations</h2>
-          <p className="text-xs text-slate-500 mt-0.5">On-site inspection findings</p>
+          <h2 className="text-sm font-semibold text-white">Technician Observations</h2>
         </motion.div>
 
         {/* Status Summary Pills */}
@@ -207,30 +206,30 @@ export function TechnicianFindingsPage({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="flex gap-2"
+          className="flex gap-1.5"
         >
           {goodCount > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              <span className="text-xs font-medium text-emerald-400">{goodCount} Good</span>
+              <span className="text-[11px] font-medium text-emerald-400">{goodCount} Good</span>
             </div>
           )}
           {warningCount > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
               <AlertTriangle className="w-3 h-3 text-amber-400" />
-              <span className="text-xs font-medium text-amber-400">{warningCount} Warning</span>
+              <span className="text-[11px] font-medium text-amber-400">{warningCount} Warning</span>
             </div>
           )}
           {criticalCount > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
               <XCircle className="w-3 h-3 text-red-400" />
-              <span className="text-xs font-medium text-red-400">{criticalCount} Critical</span>
+              <span className="text-[11px] font-medium text-red-400">{criticalCount} Critical</span>
             </div>
           )}
         </motion.div>
 
         {/* Findings Grid */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {findings.map((finding, index) => {
             const styles = getStatusStyles(finding.status);
             return (
@@ -239,16 +238,16 @@ export function TechnicianFindingsPage({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 + index * 0.05 }}
-                className={`flex items-center justify-between p-3 rounded-xl ${styles.bg} border ${styles.border}`}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${styles.bg} border ${styles.border}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <div className={`${styles.icon}`}>
                     {finding.icon}
                   </div>
-                  <span className="text-sm text-slate-200">{finding.label}</span>
+                  <span className="text-[13px] text-slate-200">{finding.label}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-semibold ${styles.text}`}>{finding.value}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[13px] font-semibold ${styles.text}`}>{finding.value}</span>
                   <div className={styles.icon}>
                     {getStatusIcon(finding.status)}
                   </div>
@@ -263,24 +262,24 @@ export function TechnicianFindingsPage({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="pt-2"
+          className="pt-1"
         >
-          <p className="text-xs text-slate-500 mb-2">Safety Equipment</p>
-          <div className="flex flex-wrap gap-2">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
+          <p className="text-[11px] text-slate-500 mb-1.5 uppercase tracking-wide">Safety Equipment</p>
+          <div className="flex flex-wrap gap-1.5">
+            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium ${
               inputs.hasPrv 
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                 : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}>
-              {inputs.hasPrv ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+              {inputs.hasPrv ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
               PRV
             </div>
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
+            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium ${
               inputs.hasExpTank 
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                 : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}>
-              {inputs.hasExpTank ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+              {inputs.hasExpTank ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
               Expansion Tank
             </div>
           </div>
@@ -292,18 +291,18 @@ export function TechnicianFindingsPage({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
-        className="p-4 bg-gradient-to-t from-slate-950 via-slate-950 to-slate-950/80"
+        className="px-4 pb-4 pt-2"
       >
-        <p className="text-xs text-slate-500 text-center mb-3">
-          Answer 3 quick questions to generate your personalized health report
+        <p className="text-[11px] text-slate-500 text-center mb-2">
+          Answer 3 quick questions to generate your health report
         </p>
         <Button
           onClick={onContinue}
           size="lg"
-          className="w-full h-12 text-base font-medium rounded-xl bg-primary hover:bg-primary/90"
+          className="w-full h-11 text-sm font-medium rounded-lg bg-primary hover:bg-primary/90"
         >
           Continue to Health Report
-          <ArrowRight className="w-5 h-5 ml-2" />
+          <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </motion.div>
     </div>
