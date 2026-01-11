@@ -214,7 +214,10 @@ const Index = () => {
     if (mode === 'technician') {
       setCurrentScreen('technician');
     } else {
-      setCurrentScreen('welcome');
+      // Demo mode: Use demo data and go straight to calibration
+      setCurrentInputs(demoForensicInputs);
+      setCurrentAsset(demoAsset);
+      setCurrentScreen('calibration');
     }
   }, []);
 
