@@ -17,8 +17,15 @@ export interface ConditionScanResult {
   rustDetails: string;
   leakDetails: string;
   overallCondition: 'good' | 'fair' | 'poor' | 'critical' | 'unknown';
+  // New fields for algorithm
+  tempDialSetting: 'LOW' | 'NORMAL' | 'HOT' | null;
+  hasExpTankVisible: boolean | null;
+  expTankCondition: 'good' | 'aged' | null;
+  hasPrvVisible: boolean | null;
+  anodePortCondition: 'serviced' | 'corroded' | 'not_visible';
+  drainValveCondition: 'clean' | 'mineral_buildup' | 'leaking' | 'not_visible';
   confidence: number;
-  geoTag?: GeoTag; // Photo location metadata
+  geoTag?: GeoTag;
 }
 
 // Get current GPS position for geotagging
@@ -57,7 +64,7 @@ export function useConditionScan() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const maxSize = 1024;
+          const maxSize = 1200;
           let { width, height } = img;
           
           if (width > height && width > maxSize) {
@@ -72,7 +79,7 @@ export function useConditionScan() {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.onerror = reject;
         img.src = reader.result as string;
@@ -87,7 +94,7 @@ export function useConditionScan() {
     setResult(null);
     
     try {
-      toast.loading('Analyzing unit condition...', { id: 'condition-scan' });
+      toast.loading('Analyzing condition...', { id: 'condition-scan' });
       
       // Get geotag and process image in parallel
       const [imageBase64, geoTag] = await Promise.all([
@@ -109,14 +116,22 @@ export function useConditionScan() {
       
       setResult(scanResult);
       
+      // Build summary message
       const issues = [];
-      if (scanResult.visualRust) issues.push('rust detected');
-      if (scanResult.isLeaking) issues.push('leak indicators found');
+      if (scanResult.visualRust) issues.push(`rust (${scanResult.rustSeverity})`);
+      if (scanResult.isLeaking) issues.push(`leak (${scanResult.leakSeverity})`);
+      
+      const equipment = [];
+      if (scanResult.hasExpTankVisible) equipment.push('exp tank');
+      if (scanResult.hasPrvVisible) equipment.push('PRV');
+      if (scanResult.tempDialSetting) equipment.push(`temp: ${scanResult.tempDialSetting}`);
       
       if (issues.length > 0) {
-        toast.warning(`Issues found: ${issues.join(', ')}`, { id: 'condition-scan' });
+        toast.warning(`Found: ${issues.join(', ')}`, { id: 'condition-scan' });
+      } else if (equipment.length > 0) {
+        toast.success(`Condition: ${scanResult.overallCondition} | ${equipment.join(', ')}`, { id: 'condition-scan' });
       } else {
-        toast.success('Unit condition looks good!', { id: 'condition-scan' });
+        toast.success(`Condition: ${scanResult.overallCondition}`, { id: 'condition-scan' });
       }
       
       // Log geotag if available
@@ -127,7 +142,7 @@ export function useConditionScan() {
       return scanResult;
     } catch (error) {
       console.error('Condition scan error:', error);
-      toast.error('Failed to analyze photo', { id: 'condition-scan' });
+      toast.error('Failed to analyze condition', { id: 'condition-scan' });
       return null;
     } finally {
       setIsScanning(false);

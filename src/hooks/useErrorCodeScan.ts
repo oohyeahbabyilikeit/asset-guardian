@@ -15,6 +15,10 @@ export interface ErrorCodeScanResult {
   temperature: number | null;
   temperatureUnit: 'F' | 'C' | null;
   displayStatus: 'normal' | 'error' | 'warning' | 'standby' | 'unknown';
+  // New fields for algorithm
+  hasIsolationValves: boolean | null;
+  ventCondition: 'clear' | 'corroded' | 'restricted' | null;
+  scaleDepositsVisible: 'none' | 'minor' | 'heavy' | null;
   confidence: number;
 }
 
@@ -72,6 +76,9 @@ export function useErrorCodeScan() {
       const scanResult = data as ErrorCodeScanResult;
       setResult(scanResult);
       
+      // Build summary message
+      const info = [];
+      
       if (scanResult.errorCount > 0) {
         const criticalCount = scanResult.errorCodes.filter(e => e.severity === 'critical').length;
         if (criticalCount > 0) {
@@ -80,7 +87,18 @@ export function useErrorCodeScan() {
           toast.warning(`${scanResult.errorCount} error code(s) found`, { id: 'error-scan' });
         }
       } else {
-        toast.success('No error codes detected', { id: 'error-scan' });
+        if (scanResult.hasIsolationValves !== null) {
+          info.push(scanResult.hasIsolationValves ? 'isolation valves ✓' : 'no isolation valves');
+        }
+        if (scanResult.scaleDepositsVisible && scanResult.scaleDepositsVisible !== 'none') {
+          info.push(`scale: ${scanResult.scaleDepositsVisible}`);
+        }
+        
+        if (info.length > 0) {
+          toast.success(`No errors | ${info.join(', ')}`, { id: 'error-scan' });
+        } else {
+          toast.success('No error codes detected', { id: 'error-scan' });
+        }
       }
       
       return scanResult;
