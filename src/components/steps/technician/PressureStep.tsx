@@ -2,9 +2,9 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
-import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, ChevronDown, Beaker, Camera, X, ImageIcon, ShieldCheck } from 'lucide-react';
+import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, ChevronDown, Beaker, Camera, X, ShieldCheck } from 'lucide-react';
 import type { WaterMeasurements, EquipmentChecklist } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -126,24 +126,28 @@ export function PressureStep({
             </div>
           </div>
           
-          {/* Exact PSI Input + Photo */}
+          {/* PSI Slider + Photo */}
           <div className="p-4 border-t border-border/50 space-y-4">
             <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Label className="text-xs text-muted-foreground mb-1.5 block">PSI Reading</Label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="200"
-                    value={data.housePsi || ''}
-                    onChange={(e) => onUpdate({ housePsi: e.target.value ? parseInt(e.target.value) : 0 })}
-                    placeholder="65"
-                    className="text-2xl font-bold h-14 pr-12 text-center"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                    PSI
-                  </span>
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">PSI Reading</Label>
+                  <span className="text-2xl font-bold tabular-nums">{data.housePsi} <span className="text-sm font-medium text-muted-foreground">PSI</span></span>
+                </div>
+                <Slider
+                  value={[data.housePsi]}
+                  onValueChange={([val]) => onUpdate({ housePsi: val })}
+                  min={20}
+                  max={150}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+                  <span>20</span>
+                  <span>40</span>
+                  <span className="text-emerald-600 font-medium">60-80</span>
+                  <span>100</span>
+                  <span>150</span>
                 </div>
               </div>
               
@@ -275,23 +279,28 @@ export function PressureStep({
             </div>
             
             {flowRateMode === 'display' && (
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="15"
-                  value={data.flowRateGPM ?? ''}
-                  onChange={(e) => onUpdate({ 
-                    flowRateGPM: e.target.value ? parseFloat(e.target.value) : undefined,
+              <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Flow Rate</p>
+                  <span className="text-lg font-bold tabular-nums">{data.flowRateGPM?.toFixed(1) ?? '0.0'} <span className="text-xs font-medium text-muted-foreground">GPM</span></span>
+                </div>
+                <Slider
+                  value={[data.flowRateGPM ?? 0]}
+                  onValueChange={([val]) => onUpdate({ 
+                    flowRateGPM: val,
                     flowRateUnknown: false
                   })}
-                  placeholder="0.0"
-                  className="w-20 text-center font-mono text-lg"
+                  min={0}
+                  max={12}
+                  step={0.5}
+                  className="w-full"
                 />
-                <div>
-                  <p className="text-sm font-medium">GPM</p>
-                  <p className="text-xs text-muted-foreground">From unit display</p>
+                <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+                  <span>0</span>
+                  <span>3</span>
+                  <span>6</span>
+                  <span>9</span>
+                  <span>12</span>
                 </div>
               </div>
             )}
@@ -339,27 +348,32 @@ export function PressureStep({
               )} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="px-4 pb-4 pt-2">
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Input
-                    type="number"
-                    value={data.measuredHardnessGPG ?? ''}
-                    onChange={(e) => onUpdate({ 
-                      measuredHardnessGPG: e.target.value ? parseFloat(e.target.value) : undefined 
-                    })}
-                    placeholder={String(streetHardnessGPG)}
-                    className="w-20 text-center font-mono text-lg"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">GPG measured</p>
-                    <p className="text-xs text-muted-foreground">From test strip</p>
-                  </div>
-                  {data.measuredHardnessGPG && (
-                    <Badge variant={getHardnessVariant(effectiveHardness) as any} className="ml-auto">
-                      {getHardnessLabel(effectiveHardness)}
-                    </Badge>
-                  )}
+              <div className="px-4 pb-4 pt-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Measured Hardness</p>
+                  <span className="text-lg font-bold tabular-nums">
+                    {data.measuredHardnessGPG ?? streetHardnessGPG} <span className="text-xs font-medium text-muted-foreground">GPG</span>
+                  </span>
                 </div>
+                <Slider
+                  value={[data.measuredHardnessGPG ?? streetHardnessGPG]}
+                  onValueChange={([val]) => onUpdate({ measuredHardnessGPG: val })}
+                  min={0}
+                  max={30}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+                  <span>0 Soft</span>
+                  <span>7</span>
+                  <span>15</span>
+                  <span>30 Extreme</span>
+                </div>
+                {data.measuredHardnessGPG && (
+                  <Badge variant={getHardnessVariant(effectiveHardness) as any} className="mt-2">
+                    {getHardnessLabel(effectiveHardness)}
+                  </Badge>
+                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
