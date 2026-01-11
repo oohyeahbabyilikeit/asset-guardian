@@ -1,20 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
-import { ActionDock } from '@/components/ActionDock';
-import { RecommendationBanner } from '@/components/RecommendationBanner';
 import { ServiceHistory } from '@/components/ServiceHistory';
+import { ActionDock } from '@/components/ActionDock';
+import { MaintenancePlan } from '@/components/MaintenancePlan';
+import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
 import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
-import { EducationalDrawer, type EducationalTopic } from '@/components/EducationalDrawer';
-import { type VitalsData, type HealthScore, type AssetData } from '@/data/mockAsset';
-import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
-import { ServiceEvent } from '@/types/serviceHistory';
+import { calculateOpterraRisk, ForensicInputs } from '@/lib/opterraAlgorithm';
+import { AssetNavigation } from '@/components/AssetNavigation';
+import { TanklessDiagram } from '@/components/TanklessDiagram';
+import { VitalsGrid } from '@/components/VitalsGrid';
+import { SoftenerCenter } from '@/components/SoftenerCenter';
+import { HealthScore, AssetData } from '@/data/mockAsset';
+import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
 
-// Elegant easing curve for smooth, deliberate motion
-const elegantEase = [0.22, 1, 0.36, 1] as const;
+// Elegant easing curve for sophisticated feel - must be tuple for framer-motion
+const elegantEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 // Slow, deliberate stagger for "walking through the report" feel
 const containerVariants = {
@@ -24,48 +28,49 @@ const containerVariants = {
     transition: {
       staggerChildren: 0.9,
       delayChildren: 0.3,
-    },
-  },
-} as const;
+    }
+  }
+};
 
+// Individual animation variants with slower, more elegant timing
 const slideInLeft = {
-  hidden: { opacity: 0, x: -40 },
+  hidden: { opacity: 0, x: -60 },
   visible: { 
     opacity: 1, 
     x: 0,
     transition: { duration: 0.7, ease: elegantEase }
-  },
-} as const;
+  }
+};
 
 const slideInRight = {
-  hidden: { opacity: 0, x: 40 },
+  hidden: { opacity: 0, x: 60 },
   visible: { 
     opacity: 1, 
     x: 0,
     transition: { duration: 0.7, ease: elegantEase }
-  },
-} as const;
+  }
+};
 
 const popIn = {
-  hidden: { opacity: 0, scale: 0.85 },
+  hidden: { opacity: 0, scale: 0.9 },
   visible: { 
     opacity: 1, 
     scale: 1,
     transition: { duration: 0.6, ease: elegantEase }
-  },
-} as const;
+  }
+};
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 25 },
+  hidden: { opacity: 0, y: 30 },
   visible: { 
     opacity: 1, 
     y: 0,
     transition: { duration: 0.6, ease: elegantEase }
-  },
-} as const;
+  }
+};
 
 const slideUpBounce = {
-  hidden: { opacity: 0, y: 35 },
+  hidden: { opacity: 0, y: 40 },
   visible: { 
     opacity: 1, 
     y: 0,
@@ -74,201 +79,195 @@ const slideUpBounce = {
       stiffness: 80,
       damping: 12
     }
-  },
-} as const;
+  }
+};
+
+// Helper to map old topic strings to new EducationalTopic type
+function mapToEducationalTopic(topic: string): EducationalTopic {
+  const topicMap: Record<string, EducationalTopic> = {
+    'pressure': 'pressure',
+    'sediment': 'sediment',
+    'anode-rod': 'anode-rod',
+    'thermal-expansion': 'thermal-expansion',
+    'hardness': 'hardness',
+    'aging': 'aging',
+    'prv': 'prv',
+    'failure-rate': 'failure-rate',
+    'thermal': 'thermal',
+    'temperature': 'temperature',
+  };
+  return topicMap[topic] || 'pressure';
+}
+
+// Convert fail probability to health score (inverse relationship)
+function failProbToHealthScore(failProb: number): number {
+  const raw = Math.max(0, Math.min(100, 100 - failProb));
+  return Math.round(raw);
+}
+
+function getStatusFromValue(value: number, thresholdModerate: number, thresholdCritical: number): 'optimal' | 'warning' | 'critical' {
+  if (value >= thresholdCritical) return 'critical';
+  if (value >= thresholdModerate) return 'warning';
+  return 'optimal';
+}
+
 interface CommandCenterProps {
-  onPanicMode: () => void;
-  onServiceRequest: () => void;
-  onViewReport: () => void;
-  onTestHarness?: () => void;
-  onMaintenancePlan?: () => void;
   currentAsset: AssetData;
   currentInputs: ForensicInputs;
-  onInputsChange: (inputs: ForensicInputs) => void;
+  onTestHarness?: () => void;
   onRandomize?: () => void;
-  scenarioName?: string;
-  serviceHistory?: ServiceEvent[];
-  hasSoftener?: boolean;
+  onPanicMode?: () => void;
+  onServiceRequest?: () => void;
+  onMaintenancePlan?: () => void;
+  onViewReport?: () => void;
+  onInputsChange?: (inputs: ForensicInputs) => void;
   onSwitchAsset?: (asset: 'water-heater' | 'softener') => void;
+  scenarioName?: string;
+  serviceHistory?: any[];
+  hasSoftener?: boolean;
   waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
   softenerStatus?: 'optimal' | 'warning' | 'critical';
 }
 
-// Derive status from thresholds
-function getStatusFromValue(value: number, warningThreshold: number, criticalThreshold: number): 'optimal' | 'warning' | 'critical' {
-  if (value >= criticalThreshold) return 'critical';
-  if (value >= warningThreshold) return 'warning';
-  return 'optimal';
-}
-
-// Map string topics to valid EducationalTopic
-function mapToEducationalTopic(topic: string): EducationalTopic {
-  const mapping: Record<string, EducationalTopic> = {
-    'pressure': 'pressure',
-    'hardness': 'hardness',
-    'thermal': 'thermal-expansion',
-    'temperature': 'temperature',
-    'aging': 'aging',
-    'sediment': 'sediment',
-    'prv': 'prv',
-    'anode-rod': 'anode-rod',
-    'failure-rate': 'failure-rate',
-  };
-  return mapping[topic] || 'pressure';
-}
-
-export function CommandCenter({ 
-  onPanicMode, 
-  onServiceRequest, 
-  onViewReport,
-  onTestHarness,
-  onMaintenancePlan,
+export function CommandCenter({
   currentAsset,
   currentInputs,
-  onInputsChange,
+  onTestHarness,
   onRandomize,
-  scenarioName,
-  serviceHistory = [],
-  hasSoftener,
+  onPanicMode,
+  onServiceRequest,
+  onMaintenancePlan,
+  onViewReport,
+  onInputsChange,
   onSwitchAsset,
-  waterHeaterStatus,
+  scenarioName,
+  serviceHistory: propServiceHistory,
+  hasSoftener = false,
+  waterHeaterStatus = 'optimal',
   softenerStatus,
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
   
-  // Refs for each section to scroll to
-  const sectionRefs = {
-    profile: useRef<HTMLDivElement>(null),
-    health: useRef<HTMLDivElement>(null),
-    history: useRef<HTMLDivElement>(null),
-    benchmarks: useRef<HTMLDivElement>(null),
-    hardWater: useRef<HTMLDivElement>(null),
-    actionDock: useRef<HTMLDivElement>(null),
-  };
+  // Single container ref for smooth scrolling
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Refs for each section
+  const profileRef = useRef<HTMLDivElement>(null);
+  const healthRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const benchmarksRef = useRef<HTMLDivElement>(null);
+  const hardWaterRef = useRef<HTMLDivElement>(null);
+  const actionDockRef = useRef<HTMLDivElement>(null);
 
-  // Lock scroll and auto-scroll through sections during animation
+  // Smooth scroll to a specific position using requestAnimationFrame
+  const smoothScrollTo = useCallback((targetY: number, duration: number = 800) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    
+    const startY = container.scrollTop;
+    const diff = targetY - startY;
+    let startTime: number | null = null;
+    
+    const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
+    
+    const step = (currentTime: number) => {
+      if (!startTime) startTime = currentTime;
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      container.scrollTop = startY + diff * easeOutCubic(progress);
+      
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+    
+    requestAnimationFrame(step);
+  }, []);
+
+  // Calculate target scroll position for a section
+  const getScrollTarget = useCallback((ref: React.RefObject<HTMLDivElement>) => {
+    const container = scrollContainerRef.current;
+    const element = ref.current;
+    if (!container || !element) return 0;
+    
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+    
+    // Center the element in the viewport (with some offset for header)
+    const offset = (containerRect.height - elementRect.height) / 2 - 60;
+    return Math.max(0, relativeTop - Math.max(0, offset));
+  }, []);
+
+  // Orchestrated scroll animation - single sequential chain
   useEffect(() => {
     if (!isAnimating) return;
-
-    // Lock scroll on body
-    document.body.style.overflow = 'hidden';
-
-    // Animation timing: 0.3s delay + 0.9s stagger between each
-    // Section appears at: profile=0.3s, health=1.2s, history=2.1s, benchmarks=3.0s, hardWater=3.9s, actionDock=4.5s
-    const scrollTimings = [
-      { ref: sectionRefs.profile, delay: 300 },
-      { ref: sectionRefs.health, delay: 1200 },
-      { ref: sectionRefs.history, delay: 2100 },
-      { ref: sectionRefs.benchmarks, delay: 3000 },
-      { ref: sectionRefs.hardWater, delay: 3900 },
-      { ref: sectionRefs.actionDock, delay: 4500 },
+    
+    let animationFrame: number;
+    let currentTimeout: NodeJS.Timeout;
+    
+    const scrollSequence = [
+      { ref: profileRef, delay: 500, duration: 600 },
+      { ref: healthRef, delay: 1400, duration: 700 },
+      { ref: historyRef, delay: 2400, duration: 700 },
+      { ref: benchmarksRef, delay: 3400, duration: 700 },
+      { ref: hardWaterRef, delay: 4300, duration: 600 },
+      { ref: actionDockRef, delay: 5000, duration: 600 },
     ];
-
+    
     const timeouts: NodeJS.Timeout[] = [];
-
-    scrollTimings.forEach(({ ref, delay }) => {
+    
+    scrollSequence.forEach(({ ref, delay, duration }) => {
       const timeout = setTimeout(() => {
-        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (ref.current) {
+          const target = getScrollTarget(ref);
+          smoothScrollTo(target, duration);
+        }
       }, delay);
       timeouts.push(timeout);
     });
-
-    // Unlock scroll after animation completes (~5.5s total)
-    const unlockTimeout = setTimeout(() => {
-      document.body.style.overflow = '';
+    
+    // End animation after all scrolls complete
+    const endTimeout = setTimeout(() => {
       setIsAnimating(false);
-    }, 5500);
-    timeouts.push(unlockTimeout);
-
+    }, 5800);
+    timeouts.push(endTimeout);
+    
     return () => {
       timeouts.forEach(clearTimeout);
-      document.body.style.overflow = '';
     };
-  }, [isAnimating]);
+  }, [isAnimating, smoothScrollTo, getScrollTarget]);
 
   // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
-  const opterraMetrics = opterraResult.metrics;
-  const { bioAge, failProb, sedimentLbs, shieldLife, riskLevel, agingRate, lifeExtension, primaryStressor, sedimentRate, monthsToFlush, monthsToLockout, flushStatus, scaleBuildupScore, flowDegradation, descaleStatus } = opterraMetrics;
-  const recommendation = opterraResult.verdict;
-  const financial = opterraResult.financial;
-  const hardWaterTax = opterraResult.hardWaterTax;
+  const { metrics, verdict, financial, hardWaterTax } = opterraResult;
   
-  // Check if tankless unit
+  // Extract metrics for easier access
+  const {
+    failProb,
+    bioAge,
+    agingRate,
+    shieldLife,
+    sedimentLbs,
+    sedimentRate,
+    flushStatus,
+    monthsToFlush,
+    monthsToLockout,
+    riskLevel,
+    descaleStatus,
+    flowDegradation,
+    scaleBuildupScore,
+  } = metrics;
+  
+  const recommendation = verdict;
+  const serviceHistory = propServiceHistory || [];
+
+  // Check if this is a tankless unit
   const isTanklessUnit = currentInputs.fuelType === 'TANKLESS_GAS' || currentInputs.fuelType === 'TANKLESS_ELECTRIC';
 
-  // Derive dynamic vitals from algorithm output
-  // PRV implies closed loop (backpressure), so expansion tank is required if either condition is true
-  const isActuallyClosed = currentInputs.isClosedLoop || currentInputs.hasPrv;
-  const expansionTankRequired = isActuallyClosed;
-  const expansionTankMissing = expansionTankRequired && !currentInputs.hasExpTank;
-  
-  // PRV status calculation - recommend at 70+ PSI (cuts strain ~50% when reduced to 60)
-  const prvRequired = currentInputs.housePsi >= 70;
-  const prvFunctional = currentInputs.hasPrv && currentInputs.housePsi <= 75; // Working if pressure is controlled
-  const prvStatus: 'critical' | 'warning' | 'optimal' = 
-    !prvRequired && !currentInputs.hasPrv ? 'optimal' : // Not needed, not installed
-    currentInputs.hasPrv && prvFunctional ? 'optimal' : // Installed and working
-    currentInputs.hasPrv && !prvFunctional ? 'warning' : // Installed but failed (high pressure)
-    'critical'; // Needed but not installed
-  
-  // Usage impact status - warn if usage intensity > 1.5 or undersizing > 1.2
-  const usageIntensity = opterraMetrics.stressFactors.usageIntensity;
-  const undersizing = opterraMetrics.stressFactors.undersizing;
-  const usageStatus: 'critical' | 'warning' | 'optimal' = 
-    undersizing > 1.3 || usageIntensity > 2.5 ? 'critical' :
-    undersizing > 1.1 || usageIntensity > 1.5 ? 'warning' : 
-    'optimal';
-
-  const dynamicVitals: VitalsData = {
-    pressure: {
-      current: currentInputs.housePsi,
-      limit: 80,
-      status: getStatusFromValue(currentInputs.housePsi, 70, 80),
-    },
-    sedimentLoad: {
-      pounds: sedimentLbs,
-      gasLossEstimate: Math.round(sedimentLbs * 4.5),
-      status: getStatusFromValue(sedimentLbs, 10, 15),
-    },
-    liabilityStatus: {
-      insured: false,
-      location: currentAsset.location,
-      riskLevel: riskLevel,
-      status: riskLevel >= 3 ? 'critical' : riskLevel === 2 ? 'warning' : 'optimal',
-    },
-    biologicalAge: {
-      real: bioAge >= 20 ? '20+' : Math.round(bioAge * 10) / 10,
-      paper: currentInputs.calendarAge,
-      agingRate: agingRate,
-      lifeExtension: lifeExtension,
-      primaryStressor: primaryStressor,
-      status: getStatusFromValue(bioAge, 8, 12),
-    },
-    expansionTank: {
-      present: currentInputs.hasExpTank,
-      required: expansionTankRequired,
-      status: expansionTankMissing ? 'critical' : 'optimal',
-    },
-    prv: {
-      present: currentInputs.hasPrv,
-      required: prvRequired,
-      functional: prvFunctional,
-      status: prvStatus,
-    },
-    usageImpact: {
-      usageIntensity: usageIntensity,
-      undersizing: undersizing,
-      peopleCount: currentInputs.peopleCount,
-      usageType: currentInputs.usageType,
-      tankCapacity: currentInputs.tankCapacity,
-      status: usageStatus,
-    },
-  };
-
   // Derive dynamic health score from algorithm output
-  // Show "FAIL" for active leaks/breaches, otherwise cap at 85%
   const isBreach = currentInputs.isLeaking || currentInputs.visualRust;
   const dynamicHealthScore: HealthScore = {
     score: failProbToHealthScore(failProb),
@@ -277,12 +276,31 @@ export function CommandCenter({
     recommendation: recommendation.action,
   };
 
+  // Build dynamic vitals for display
+  const dynamicVitals = {
+    biologicalAge: {
+      real: bioAge,
+      paper: currentInputs.calendarAge,
+      agingRate,
+      lifeExtension: 0,
+      primaryStressor: metrics.primaryStressor || 'Normal wear',
+      status: getStatusFromValue(bioAge, 8, 12),
+    },
+  };
+
   const handleLearnMore = (topic: string) => {
     setEducationalTopic(mapToEducationalTopic(topic));
   };
 
   return (
-    <div className="min-h-screen bg-background pb-40 relative">
+    <div 
+      ref={scrollContainerRef}
+      className="min-h-screen bg-background pb-40 relative"
+      style={{ 
+        overflowY: isAnimating ? 'hidden' : 'auto',
+        height: '100vh',
+      }}
+    >
       {/* Tech grid background */}
       <div className="fixed inset-0 tech-grid-bg opacity-40 pointer-events-none" />
       
@@ -309,19 +327,19 @@ export function CommandCenter({
           className="space-y-3"
         >
           {/* DISCOVERY PHASE 1: Your Unit Profile */}
-          <motion.div ref={sectionRefs.profile} variants={popIn} className="px-4 pt-4">
+          <motion.div ref={profileRef} variants={popIn} className="px-4 pt-4">
             <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
           </motion.div>
 
           {/* DISCOVERY PHASE 1b: Health Gauge slides in from left */}
-          <motion.div ref={sectionRefs.health} variants={slideInLeft} className="px-4">
+          <motion.div ref={healthRef} variants={slideInLeft} className="px-4">
             <HealthGauge 
               healthScore={dynamicHealthScore} 
               location={currentAsset.location} 
               riskLevel={riskLevel}
               primaryStressor={dynamicVitals.biologicalAge.primaryStressor}
               estDamageCost={financial.estReplacementCost}
-              metrics={opterraMetrics}
+              metrics={metrics}
               recommendation={recommendation}
               isLeaking={currentInputs.isLeaking}
               visualRust={currentInputs.visualRust}
@@ -330,7 +348,7 @@ export function CommandCenter({
           </motion.div>
 
           {/* DISCOVERY PHASE 2: Tank Visualization slides in from right */}
-          <motion.div ref={sectionRefs.history} variants={slideInRight}>
+          <motion.div ref={historyRef} variants={slideInRight}>
             <ServiceHistory 
               calendarAge={currentInputs.calendarAge}
               sedimentLbs={sedimentLbs}
@@ -370,7 +388,7 @@ export function CommandCenter({
           </motion.div>
 
           {/* DISCOVERY PHASE 3: How Water Heaters Age - fades up */}
-          <motion.div ref={sectionRefs.benchmarks} variants={fadeUp} className="px-4">
+          <motion.div ref={benchmarksRef} variants={fadeUp} className="px-4">
             <IndustryBenchmarks 
               asset={currentAsset} 
               inputs={currentInputs}
@@ -383,7 +401,7 @@ export function CommandCenter({
 
           {/* Hard Water Tax Card - bounces up if shown */}
           {hardWaterTax.recommendation !== 'NONE' && (
-            <motion.div ref={sectionRefs.hardWater} variants={slideUpBounce} className="px-4">
+            <motion.div ref={hardWaterRef} variants={slideUpBounce} className="px-4">
               <HardWaterTaxCard hardWaterTax={hardWaterTax} />
             </motion.div>
           )}
@@ -391,10 +409,10 @@ export function CommandCenter({
 
         {/* Action Dock - slides up from bottom after all content */}
         <motion.div
-          ref={sectionRefs.actionDock}
+          ref={actionDockRef}
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 4.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: 4.5, duration: 0.6, ease: elegantEase }}
         >
           <ActionDock
             onPanicMode={onPanicMode}
