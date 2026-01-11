@@ -14,6 +14,8 @@ import { SoftenerMaintenancePlan } from '@/components/SoftenerMaintenancePlan';
 import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { SafetyAssessmentPage } from '@/components/SafetyAssessmentPage';
 import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
+import { ModeSelectScreen } from '@/components/ModeSelectScreen';
+import { TechnicianFlow } from '@/components/TechnicianFlow';
 import { RepairOption } from '@/data/repairOptions';
 import { demoAsset, demoForensicInputs, demoServiceHistory, getRandomScenario, type AssetData } from '@/data/mockAsset';
 import { type ForensicInputs, calculateOpterraRisk, OpterraMetrics } from '@/lib/opterraAlgorithm';
@@ -21,8 +23,12 @@ import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import { ServiceEvent, deriveInputsFromServiceHistory } from '@/types/serviceHistory';
 import { SoftenerInputs, DEFAULT_SOFTENER_INPUTS } from '@/lib/softenerAlgorithm';
 import { OnboardingData, mapOnboardingToForensicInputs, mapOnboardingToSoftenerInputs } from '@/types/onboarding';
+import { TechnicianInspectionData } from '@/types/technicianInspection';
+import { mapTechnicianToForensicInputs, mapTechnicianToAssetDisplay } from '@/types/technicianMapper';
 
 type Screen = 
+  | 'mode-select'
+  | 'technician'
   | 'welcome' 
   | 'onboarding' 
   | 'discovery' 
@@ -128,7 +134,8 @@ function convertMetricsToStressFactors(
 }
 
 const Index = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('mode-select');
+  const [technicianData, setTechnicianData] = useState<TechnicianInspectionData | null>(null);
   const [assetType, setAssetType] = useState<AssetType>('water-heater');
   const [selectedRepairs, setSelectedRepairs] = useState<RepairOption[]>([]);
   
@@ -201,6 +208,43 @@ const Index = () => {
     setCurrentScreen('onboarding');
   };
 
+  const handleModeSelect = useCallback((mode: 'technician' | 'demo') => {
+    if (mode === 'technician') {
+      setCurrentScreen('technician');
+    } else {
+      setCurrentScreen('welcome');
+    }
+  }, []);
+
+  const handleTechnicianComplete = useCallback((data: TechnicianInspectionData) => {
+    setTechnicianData(data);
+    
+    // Map technician data to ForensicInputs
+    const forensicInputs = mapTechnicianToForensicInputs(data);
+    setCurrentInputs(forensicInputs);
+    
+    // Map to asset display data
+    const assetDisplay = mapTechnicianToAssetDisplay(data);
+    setCurrentAsset({
+      ...currentAsset,
+      type: assetDisplay.type,
+      brand: assetDisplay.brand,
+      model: assetDisplay.model,
+      serialNumber: assetDisplay.serialNumber,
+      paperAge: assetDisplay.calendarAge,
+      location: assetDisplay.location,
+      specs: {
+        ...currentAsset.specs,
+        capacity: assetDisplay.specs.capacity,
+        fuelType: assetDisplay.specs.fuelType,
+        ventType: assetDisplay.specs.ventType,
+      },
+    });
+    
+    // Go to homeowner onboarding (they answer usage questions)
+    setCurrentScreen('onboarding');
+  }, [currentAsset]);
+
   const handleOnboardingComplete = (data: OnboardingData) => {
     const newForensicInputs = mapOnboardingToForensicInputs(data, currentInputs);
     const newSoftenerInputs = mapOnboardingToSoftenerInputs(data, softenerInputs);
@@ -227,6 +271,18 @@ const Index = () => {
 
   const renderScreen = () => {
     switch (currentScreen) {
+      case 'mode-select':
+        return <ModeSelectScreen onSelectMode={handleModeSelect} />;
+      
+      case 'technician':
+        return (
+          <TechnicianFlow
+            onComplete={handleTechnicianComplete}
+            onBack={() => setCurrentScreen('mode-select')}
+            initialStreetHardness={10}
+          />
+        );
+      
       case 'welcome':
         return <WelcomeScreen onBegin={handleWelcomeComplete} />;
       
