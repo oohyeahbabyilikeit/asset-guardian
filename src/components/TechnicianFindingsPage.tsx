@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, AlertTriangle, CheckCircle2, XCircle, Gauge, Droplets, Shield, Camera } from 'lucide-react';
+import { ChevronRight, AlertTriangle, CheckCircle2, XCircle, Gauge, Droplets, Shield, Camera, ClipboardList, ArrowRight, BarChart3, Clock, Wrench } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { ForensicInputs } from '@/lib/opterraAlgorithm';
 import waterHeaterFallback from '@/assets/water-heater-realistic.png';
@@ -128,14 +128,23 @@ export function TechnicianFindingsPage({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
-      {/* Header */}
+      {/* Header with Step Indicator */}
       <div className="p-4 border-b border-slate-700/50">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-          <span className="text-xs text-primary font-medium uppercase tracking-wider">
-            Inspection Complete
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-slate-400" />
+            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+              Step 1 of 2
+            </span>
+          </div>
+          <span className="text-xs text-slate-500">Field Observations</span>
         </div>
+      </div>
+      
+      {/* Section Title */}
+      <div className="px-4 pt-4">
+        <h1 className="text-xl font-semibold text-white">What Your Technician Found</h1>
+        <p className="text-sm text-slate-400 mt-1">On-site observations from today's inspection</p>
       </div>
 
       {/* Content */}
@@ -271,23 +280,58 @@ export function TechnicianFindingsPage({
         </motion.div>
       </div>
 
-      {/* CTA Footer */}
+      {/* What Happens Next Preview */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
+        className="px-4 pb-2"
+      >
+        <Card className="bg-slate-800/30 border-slate-700/50 border-dashed">
+          <CardContent className="p-3">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+              Coming up in your report
+            </p>
+            <div className="flex items-center gap-4 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-primary" />
+                <span>Health Score</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-primary" />
+                <span>Lifespan Estimate</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5 text-primary" />
+                <span>Next Steps</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* CTA Footer */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
         className="p-4 border-t border-slate-700/50 bg-slate-900/80 backdrop-blur-sm"
       >
-        <p className="text-xs text-slate-400 text-center mb-3">
-          Answer 3 quick questions to calculate your unit's health score
-        </p>
+        <div className="text-center mb-3">
+          <p className="text-xs text-slate-500 mb-1">
+            These are your technician's raw observations
+          </p>
+          <p className="text-sm text-slate-300">
+            Answer 3 quick questions to generate your personalized health report
+          </p>
+        </div>
         <Button
           onClick={onContinue}
           size="lg"
           className="w-full h-12 text-base font-medium rounded-xl bg-gradient-to-r from-primary to-cyan-500 hover:from-primary/90 hover:to-cyan-500/90"
         >
-          Continue
-          <ChevronRight className="w-5 h-5 ml-2" />
+          Generate My Health Report
+          <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
       </motion.div>
     </div>
