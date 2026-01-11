@@ -259,7 +259,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     if (coords) {
       setGpsCoords(coords);
     }
-    setCurrentStep('pressure');
+    setCurrentStep('unit-type');
   }, []);
 
   const handleCreateNewProperty = useCallback((address: NewPropertyAddress) => {
@@ -267,7 +267,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     if (address.gpsCoords) {
       setGpsCoords(address.gpsCoords);
     }
-    setCurrentStep('pressure');
+    setCurrentStep('unit-type');
   }, []);
 
   const handleComplete = useCallback(async () => {
