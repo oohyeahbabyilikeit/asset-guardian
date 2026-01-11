@@ -13,14 +13,17 @@ import { type VitalsData, type HealthScore, type AssetData } from '@/data/mockAs
 import { calculateOpterraRisk, failProbToHealthScore, type ForensicInputs } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
 
-// Staggered animation variants for dashboard sections
+// Elegant easing curve for smooth, deliberate motion
+const elegantEase = [0.22, 1, 0.36, 1] as const;
+
+// Slow, deliberate stagger for "walking through the report" feel
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.15,
-      delayChildren: 0.1,
+      staggerChildren: 0.9,
+      delayChildren: 0.3,
     },
   },
 } as const;
@@ -30,7 +33,7 @@ const slideInLeft = {
   visible: { 
     opacity: 1, 
     x: 0,
-    transition: { duration: 0.5 }
+    transition: { duration: 0.7, ease: elegantEase }
   },
 } as const;
 
@@ -39,37 +42,37 @@ const slideInRight = {
   visible: { 
     opacity: 1, 
     x: 0,
-    transition: { duration: 0.5 }
+    transition: { duration: 0.7, ease: elegantEase }
   },
 } as const;
 
 const popIn = {
-  hidden: { opacity: 0, scale: 0.92 },
+  hidden: { opacity: 0, scale: 0.85 },
   visible: { 
     opacity: 1, 
     scale: 1,
-    transition: { duration: 0.4 }
+    transition: { duration: 0.6, ease: elegantEase }
   },
 } as const;
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
+  hidden: { opacity: 0, y: 25 },
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { duration: 0.5 }
+    transition: { duration: 0.6, ease: elegantEase }
   },
 } as const;
 
 const slideUpBounce = {
-  hidden: { opacity: 0, y: 50 },
+  hidden: { opacity: 0, y: 35 },
   visible: { 
     opacity: 1, 
     y: 0,
     transition: { 
       type: "spring" as const,
-      stiffness: 100,
-      damping: 15
+      stiffness: 80,
+      damping: 12
     }
   },
 } as const;
@@ -335,11 +338,11 @@ export function CommandCenter({
           )}
         </motion.div>
 
-        {/* Action Dock - slides up from bottom */}
+        {/* Action Dock - slides up from bottom after all content */}
         <motion.div
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: 4.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
           <ActionDock
             onPanicMode={onPanicMode}
