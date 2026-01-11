@@ -39,6 +39,7 @@ export interface WaterMeasurements {
   housePsi: number;
   measuredHardnessGPG?: number;  // Optional test strip
   flowRateGPM?: number;          // Tankless: current flow
+  flowRateUnknown?: boolean;     // True if tech couldn't determine flow rate
 }
 
 // Step 3: Location & Condition
@@ -121,6 +122,7 @@ export const DEFAULT_ASSET_IDENTIFICATION: AssetIdentification = {
 
 export const DEFAULT_WATER_MEASUREMENTS: WaterMeasurements = {
   housePsi: 60,
+  flowRateUnknown: false,
 };
 
 export const DEFAULT_LOCATION_CONDITION: LocationCondition = {
