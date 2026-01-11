@@ -756,8 +756,8 @@ export function getRandomScenario(): DemoScenario {
   };
 }
 
-// Current demo data - using a replacement scenario (The Basement Time Bomb - needs replacement, no softener)
-const initialScenario = scenarios[8]; // "The Double Whammy" - hasSoftener: true for demo
+// Current demo data - using a healthy scenario (The Perfect Install)
+const initialScenario = scenarios[0]; // "The Perfect Install" - good condition
 export const demoAsset: AssetData = initialScenario.asset;
 export const demoForensicInputs: ForensicInputs = initialScenario.inputs;
 export const demoServiceHistory: ServiceEvent[] = generateServiceHistory(initialScenario);
