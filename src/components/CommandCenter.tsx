@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
@@ -135,6 +135,57 @@ export function CommandCenter({
   softenerStatus,
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
+  const [isAnimating, setIsAnimating] = useState(true);
+  
+  // Refs for each section to scroll to
+  const sectionRefs = {
+    profile: useRef<HTMLDivElement>(null),
+    health: useRef<HTMLDivElement>(null),
+    history: useRef<HTMLDivElement>(null),
+    benchmarks: useRef<HTMLDivElement>(null),
+    hardWater: useRef<HTMLDivElement>(null),
+    actionDock: useRef<HTMLDivElement>(null),
+  };
+
+  // Lock scroll and auto-scroll through sections during animation
+  useEffect(() => {
+    if (!isAnimating) return;
+
+    // Lock scroll on body
+    document.body.style.overflow = 'hidden';
+
+    // Animation timing: 0.3s delay + 0.9s stagger between each
+    // Section appears at: profile=0.3s, health=1.2s, history=2.1s, benchmarks=3.0s, hardWater=3.9s, actionDock=4.5s
+    const scrollTimings = [
+      { ref: sectionRefs.profile, delay: 300 },
+      { ref: sectionRefs.health, delay: 1200 },
+      { ref: sectionRefs.history, delay: 2100 },
+      { ref: sectionRefs.benchmarks, delay: 3000 },
+      { ref: sectionRefs.hardWater, delay: 3900 },
+      { ref: sectionRefs.actionDock, delay: 4500 },
+    ];
+
+    const timeouts: NodeJS.Timeout[] = [];
+
+    scrollTimings.forEach(({ ref, delay }) => {
+      const timeout = setTimeout(() => {
+        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, delay);
+      timeouts.push(timeout);
+    });
+
+    // Unlock scroll after animation completes (~5.5s total)
+    const unlockTimeout = setTimeout(() => {
+      document.body.style.overflow = '';
+      setIsAnimating(false);
+    }, 5500);
+    timeouts.push(unlockTimeout);
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+      document.body.style.overflow = '';
+    };
+  }, [isAnimating]);
 
   // Calculate all metrics using v6.0 algorithm
   const opterraResult = calculateOpterraRisk(currentInputs);
@@ -258,12 +309,12 @@ export function CommandCenter({
           className="space-y-3"
         >
           {/* DISCOVERY PHASE 1: Your Unit Profile */}
-          <motion.div variants={popIn} className="px-4 pt-4">
+          <motion.div ref={sectionRefs.profile} variants={popIn} className="px-4 pt-4">
             <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
           </motion.div>
 
           {/* DISCOVERY PHASE 1b: Health Gauge slides in from left */}
-          <motion.div variants={slideInLeft} className="px-4">
+          <motion.div ref={sectionRefs.health} variants={slideInLeft} className="px-4">
             <HealthGauge 
               healthScore={dynamicHealthScore} 
               location={currentAsset.location} 
@@ -279,7 +330,7 @@ export function CommandCenter({
           </motion.div>
 
           {/* DISCOVERY PHASE 2: Tank Visualization slides in from right */}
-          <motion.div variants={slideInRight}>
+          <motion.div ref={sectionRefs.history} variants={slideInRight}>
             <ServiceHistory 
               calendarAge={currentInputs.calendarAge}
               sedimentLbs={sedimentLbs}
@@ -319,7 +370,7 @@ export function CommandCenter({
           </motion.div>
 
           {/* DISCOVERY PHASE 3: How Water Heaters Age - fades up */}
-          <motion.div variants={fadeUp} className="px-4">
+          <motion.div ref={sectionRefs.benchmarks} variants={fadeUp} className="px-4">
             <IndustryBenchmarks 
               asset={currentAsset} 
               inputs={currentInputs}
@@ -332,7 +383,7 @@ export function CommandCenter({
 
           {/* Hard Water Tax Card - bounces up if shown */}
           {hardWaterTax.recommendation !== 'NONE' && (
-            <motion.div variants={slideUpBounce} className="px-4">
+            <motion.div ref={sectionRefs.hardWater} variants={slideUpBounce} className="px-4">
               <HardWaterTaxCard hardWaterTax={hardWaterTax} />
             </motion.div>
           )}
@@ -340,6 +391,7 @@ export function CommandCenter({
 
         {/* Action Dock - slides up from bottom after all content */}
         <motion.div
+          ref={sectionRefs.actionDock}
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 4.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
