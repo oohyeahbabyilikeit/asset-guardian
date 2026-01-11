@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Check, X, HelpCircle, Sparkles, Home, Clock, Users, Droplets, ShowerHead, Flame } from 'lucide-react';
+import { ChevronRight, Check, X, HelpCircle, Sparkles, Home, Clock, Users, Droplets, ShowerHead, Flame, CheckCircle2 } from 'lucide-react';
 import type { UsageType } from '@/lib/opterraAlgorithm';
 
 type FlushHistory = 'never' | 'recent' | 'unknown';
@@ -19,8 +18,12 @@ interface CalibrationData {
 interface CalibrationCardProps {
   hasSoftener: boolean;
   defaultPeopleCount?: number;
-  photoUrl?: string;
   brand?: string;
+  model?: string;
+  age?: number;
+  location?: string;
+  capacity?: string;
+  fuelType?: string;
   onComplete: (data: CalibrationData) => void;
 }
 
@@ -41,14 +44,15 @@ const slideVariants = {
   })
 };
 
-
-import waterHeaterImage from '@/assets/water-heater-realistic.png';
-
 export function CalibrationCard({ 
   hasSoftener, 
   defaultPeopleCount = 3,
-  photoUrl,
   brand,
+  model,
+  age,
+  location,
+  capacity,
+  fuelType,
   onComplete 
 }: CalibrationCardProps) {
   const [step, setStep] = useState<Step>('people');
@@ -122,19 +126,28 @@ export function CalibrationCard({
         </div>
       </div>
 
-      {/* Water Heater Photo - Trust Builder */}
-      <div className="flex flex-col items-center my-4 px-6">
-        <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-cyan-400/30 shadow-lg shadow-cyan-400/10">
-          <img 
-            src={photoUrl || waterHeaterImage} 
-            alt="Your water heater"
-            className="w-full h-full object-cover"
-          />
+      {/* Unit Summary Card - Trust Builder */}
+      {(brand || model || age) && (
+        <div className="mx-6 my-4 flex items-start gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+          <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-semibold text-white text-sm truncate">
+              {brand || 'Water Heater'}{model ? ` ${model}` : ''}
+            </span>
+            <span className="text-xs text-slate-400">
+              {[
+                age ? `${age} years old` : null,
+                location
+              ].filter(Boolean).join('  •  ')}
+            </span>
+            {(capacity || fuelType) && (
+              <span className="text-xs text-slate-400">
+                {[capacity, fuelType].filter(Boolean).join('  •  ')}
+              </span>
+            )}
+          </div>
         </div>
-        {brand && (
-          <p className="text-xs text-slate-400 mt-2 font-medium">{brand} Water Heater</p>
-        )}
-      </div>
+      )}
 
       {/* Step content - centered */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 overflow-hidden">

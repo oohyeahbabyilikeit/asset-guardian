@@ -18,7 +18,10 @@ interface CalibrationFlowProps {
   baseInputs: ForensicInputs;
   brand?: string;
   model?: string;
-  photoUrl?: string;
+  age?: number;
+  location?: string;
+  capacity?: string;
+  fuelType?: string;
   onComplete: (result: OpterraResult, calibratedInputs: ForensicInputs) => void;
 }
 
@@ -28,7 +31,10 @@ export function CalibrationFlow({
   baseInputs,
   brand,
   model,
-  photoUrl,
+  age,
+  location,
+  capacity,
+  fuelType,
   onComplete,
 }: CalibrationFlowProps) {
   const [phase, setPhase] = useState<Phase>('calibrate');
@@ -102,7 +108,6 @@ export function CalibrationFlow({
           inputs={baseInputs}
           brand={brand}
           model={model}
-          photoUrl={photoUrl}
         />
       </div>
       
@@ -111,8 +116,12 @@ export function CalibrationFlow({
         <CalibrationCard
           hasSoftener={baseInputs.hasSoftener}
           defaultPeopleCount={baseInputs.peopleCount}
-          photoUrl={photoUrl}
           brand={brand}
+          model={model}
+          age={age}
+          location={location}
+          capacity={capacity}
+          fuelType={fuelType}
           onComplete={handleCalibrationComplete}
         />
       </div>
