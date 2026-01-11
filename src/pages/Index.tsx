@@ -294,6 +294,7 @@ const Index = () => {
             baseInputs={currentInputs}
             brand={currentAsset.brand}
             model={currentAsset.model}
+            photoUrl={currentAsset.photoUrl}
             age={currentAsset.paperAge}
             location={currentAsset.location}
             capacity={currentAsset.specs?.capacity}
