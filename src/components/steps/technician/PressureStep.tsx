@@ -4,8 +4,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, ChevronDown, Beaker, Camera, X, ImageIcon } from 'lucide-react';
-import type { WaterMeasurements } from '@/types/technicianInspection';
+import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, ChevronDown, Beaker, Camera, X, ImageIcon, ShieldCheck } from 'lucide-react';
+import type { WaterMeasurements, EquipmentChecklist } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,9 @@ interface MeasurementsStepProps {
   fuelType: FuelType;
   streetHardnessGPG: number;
   pressurePhotoUrl?: string;
+  equipmentData: EquipmentChecklist;
   onUpdate: (data: Partial<WaterMeasurements>) => void;
+  onEquipmentUpdate: (data: Partial<EquipmentChecklist>) => void;
   onPressurePhoto: (photoUrl: string | undefined) => void;
   onNext: () => void;
 }
@@ -41,7 +43,9 @@ export function PressureStep({
   fuelType, 
   streetHardnessGPG,
   pressurePhotoUrl,
+  equipmentData,
   onUpdate, 
+  onEquipmentUpdate,
   onPressurePhoto,
   onNext 
 }: MeasurementsStepProps) {
@@ -194,6 +198,45 @@ export function PressureStep({
               {psiStatus.variant === 'danger' && (
                 <span className="text-xs font-normal ml-auto">PRV recommended</span>
               )}
+            </div>
+            
+            {/* PRV Question */}
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">PRV Installed?</p>
+                    <p className="text-xs text-muted-foreground">Pressure reducing valve on main line</p>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onEquipmentUpdate({ hasPrv: true })}
+                    className={cn(
+                      "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                      equipmentData.hasPrv === true
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEquipmentUpdate({ hasPrv: false })}
+                    className={cn(
+                      "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                      equipmentData.hasPrv === false
+                        ? "bg-destructive text-destructive-foreground"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

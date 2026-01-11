@@ -314,7 +314,9 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             fuelType={data.asset.fuelType}
             streetHardnessGPG={data.streetHardnessGPG}
             pressurePhotoUrl={pressurePhotoUrl}
+            equipmentData={data.equipment}
             onUpdate={updateMeasurements}
+            onEquipmentUpdate={updateEquipment}
             onPressurePhoto={setPressurePhotoUrl}
             onNext={goNext}
           />
