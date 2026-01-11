@@ -2,52 +2,25 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { 
   Flame, 
   Filter, 
   Wind, 
   AlertCircle,
-  CheckCircle,
-  AlertTriangle,
-  Zap,
   Gauge,
   HelpCircle,
-  Camera,
-  Loader2,
-  Sparkles,
-  Monitor
+  Monitor,
+  PowerOff,
+  Zap
 } from 'lucide-react';
 import type { TanklessInspection, WaterMeasurements } from '@/types/technicianInspection';
 import type { FuelType, FlameRodStatus, InletFilterStatus, VentStatus } from '@/lib/opterraAlgorithm';
 import { useErrorCodeScan } from '@/hooks/useErrorCodeScan';
 import { useFilterScan } from '@/hooks/useFilterScan';
-
-const FLAME_ROD_OPTIONS: { value: FlameRodStatus; label: string; color: string }[] = [
-  { value: 'GOOD', label: 'Good', color: 'border-green-500 bg-green-50' },
-  { value: 'WORN', label: 'Worn', color: 'border-yellow-500 bg-yellow-50' },
-  { value: 'FAILING', label: 'Failing', color: 'border-red-500 bg-red-50' },
-];
-
-const FILTER_OPTIONS: { value: InletFilterStatus; label: string; color: string }[] = [
-  { value: 'CLEAN', label: 'Clean', color: 'border-green-500 bg-green-50' },
-  { value: 'DIRTY', label: 'Dirty', color: 'border-yellow-500 bg-yellow-50' },
-  { value: 'CLOGGED', label: 'Clogged', color: 'border-red-500 bg-red-50' },
-];
-
-const VENT_OPTIONS: { value: VentStatus; label: string; color: string }[] = [
-  { value: 'CLEAR', label: 'Clear', color: 'border-green-500 bg-green-50' },
-  { value: 'RESTRICTED', label: 'Restricted', color: 'border-yellow-500 bg-yellow-50' },
-  { value: 'BLOCKED', label: 'Blocked', color: 'border-red-500 bg-red-50' },
-];
-
-const ERROR_COUNT_OPTIONS = [
-  { value: 0, label: 'None', color: 'border-green-500 bg-green-50' },
-  { value: 1, label: '1-2', color: 'border-yellow-500 bg-yellow-50' },
-  { value: 3, label: '3+', color: 'border-red-500 bg-red-50' },
-];
+import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
+import { StatusToggleRow, StatusGrid } from '@/components/ui/StatusToggleRow';
+import { QuickSelectChips } from '@/components/ui/QuickSelectChips';
 
 type FlowRateMode = 'display' | 'unknown' | 'off';
 
@@ -60,16 +33,19 @@ interface TanklessCheckStepProps {
   onNext: () => void;
 }
 
+const SCALE_CHIPS = [
+  { value: 0, label: 'None', sublabel: '0%', variant: 'success' as const },
+  { value: 30, label: 'Light', sublabel: '~30%' },
+  { value: 60, label: 'Moderate', sublabel: '~60%', variant: 'warning' as const },
+  { value: 90, label: 'Severe', sublabel: '90%+', variant: 'danger' as const },
+];
+
 export function TanklessCheckStep({ data, measurements, fuelType, onUpdate, onUpdateMeasurements, onNext }: TanklessCheckStepProps) {
   const isGas = fuelType === 'TANKLESS_GAS';
-  
-  const errorCodeInputRef = useRef<HTMLInputElement>(null);
-  const filterInputRef = useRef<HTMLInputElement>(null);
   
   const { scanErrorCodes, isScanning: isScanningErrors, result: errorResult } = useErrorCodeScan();
   const { scanFilter, isScanning: isScanningFilter, result: filterResult } = useFilterScan();
   
-  // Determine initial flow rate mode
   const getInitialMode = (): FlowRateMode => {
     if (measurements.flowRateUnknown) return 'unknown';
     if (measurements.flowRateGPM !== undefined) return 'display';
@@ -89,14 +65,7 @@ export function TanklessCheckStep({ data, measurements, fuelType, onUpdate, onUp
     }
   };
   
-  const handleErrorCodeScan = () => {
-    errorCodeInputRef.current?.click();
-  };
-  
-  const handleErrorCodeFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
+  const handleErrorCodeScan = async (file: File) => {
     const result = await scanErrorCodes(file);
     if (result) {
       onUpdate({ errorCodeCount: Math.min(result.errorCount, 3) });
@@ -105,407 +74,256 @@ export function TanklessCheckStep({ data, measurements, fuelType, onUpdate, onUp
         setFlowRateMode('display');
       }
     }
-    
-    if (errorCodeInputRef.current) {
-      errorCodeInputRef.current.value = '';
-    }
   };
   
-  const handleFilterScan = () => {
-    filterInputRef.current?.click();
-  };
-  
-  const handleFilterFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
+  const handleFilterScan = async (file: File) => {
     const result = await scanFilter(file, 'inlet');
     if (result) {
       onUpdate({ inletFilterStatus: result.status });
     }
-    
-    if (filterInputRef.current) {
-      filterInputRef.current.value = '';
-    }
   };
-  
-  const hasIssues = 
-    data.flameRodStatus === 'FAILING' ||
-    data.inletFilterStatus === 'CLOGGED' ||
-    data.tanklessVentStatus === 'BLOCKED' ||
-    data.errorCodeCount >= 3;
+
+  // Count issues for badge
+  const issueCount = [
+    data.flameRodStatus === 'FAILING',
+    data.inletFilterStatus === 'CLOGGED',
+    data.tanklessVentStatus === 'BLOCKED',
+    data.errorCodeCount >= 3,
+  ].filter(Boolean).length;
+
+  const errorScanSummary = errorResult && (
+    <div className="space-y-1 text-sm">
+      <p className={errorResult.errorCount > 0 ? 'text-red-600' : 'text-green-600'}>
+        {errorResult.errorCount} error code{errorResult.errorCount !== 1 ? 's' : ''} detected
+      </p>
+      {errorResult.flowRateGPM && (
+        <p className="text-muted-foreground">Flow: {errorResult.flowRateGPM} GPM</p>
+      )}
+    </div>
+  );
   
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary mb-3">
-          {isGas ? <Flame className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-          <span className="text-sm font-medium">
-            Tankless {isGas ? 'Gas' : 'Electric'}
-          </span>
-        </div>
-        <h2 className="text-xl font-semibold text-foreground">Tankless Unit Inspection</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Check tankless-specific components and flow rate
-        </p>
+    <div className="space-y-5">
+      {/* Type Badge */}
+      <div className="flex items-center justify-center gap-2 py-1">
+        <Badge variant="outline" className="gap-1">
+          {isGas ? <Flame className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+          Tankless {isGas ? 'Gas' : 'Electric'}
+        </Badge>
       </div>
 
-      {/* AI Error Code Scanner */}
-      <div className="space-y-3">
-        <Label className="flex items-center gap-2">
-          <AlertCircle className="h-4 w-4" />
-          Error Code History
-        </Label>
-        
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full h-auto py-3 flex items-center gap-3 border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary/5"
-          onClick={handleErrorCodeScan}
-          disabled={isScanningErrors}
-        >
-          {isScanningErrors ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span>Reading display...</span>
-            </>
-          ) : (
-            <>
-              <div className="relative">
-                <Monitor className="h-5 w-5 text-primary" />
-                <Sparkles className="h-3 w-3 text-amber-500 absolute -top-1 -right-1" />
-              </div>
-              <div className="text-left">
-                <p className="font-medium text-sm">📸 Scan Display for Error Codes</p>
-                <p className="text-xs text-muted-foreground">AI reads codes + flow rate</p>
-              </div>
-            </>
-          )}
-        </Button>
-        
-        <input
-          ref={errorCodeInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleErrorCodeFile}
-          className="hidden"
-        />
-        
-        {errorResult && errorResult.errorCodes.length > 0 && (
-          <div className="p-3 bg-accent/50 rounded-lg border space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                Detected Error Codes
-              </span>
-              <Badge variant={errorResult.errorCount > 2 ? 'destructive' : 'secondary'}>
-                {errorResult.errorCount} code(s)
-              </Badge>
-            </div>
-            <div className="space-y-1">
-              {errorResult.errorCodes.map((ec, idx) => (
-                <div key={idx} className={`text-xs p-2 rounded ${
-                  ec.severity === 'critical' ? 'bg-red-100 text-red-700' :
-                  ec.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-blue-100 text-blue-700'
-                }`}>
-                  <span className="font-mono font-bold">{ec.code}</span>: {ec.description}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <RadioGroup
-          value={String(data.errorCodeCount)}
-          onValueChange={(value) => onUpdate({ errorCodeCount: parseInt(value) })}
-          className="grid grid-cols-3 gap-2"
-        >
-          {ERROR_COUNT_OPTIONS.map((option) => (
-            <div key={option.value}>
-              <RadioGroupItem
-                value={String(option.value)}
-                id={`errors-${option.value}`}
-                className="peer sr-only"
-              />
-              <Label
-                htmlFor={`errors-${option.value}`}
-                className={`flex items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-all hover:bg-accent peer-data-[state=checked]:${option.color}`}
+      {/* Error Code Scanner - Hero */}
+      <ScanHeroCard
+        title="Error Codes"
+        subtitle="Photo the unit display"
+        isScanning={isScanningErrors}
+        hasScanned={!!errorResult}
+        scanSummary={errorScanSummary}
+        onScanImage={handleErrorCodeScan}
+        scanLabel="📸 Scan Display"
+      >
+        {/* Manual error count selection */}
+        <div className="space-y-3">
+          <Label className="text-sm">Error Codes in History</Label>
+          <div className="flex gap-2">
+            {[
+              { value: 0, label: 'None', color: 'green' },
+              { value: 1, label: '1-2', color: 'yellow' },
+              { value: 3, label: '3+', color: 'red' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onUpdate({ errorCodeCount: opt.value })}
+                className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-all
+                  ${data.errorCodeCount === opt.value
+                    ? opt.color === 'green' ? 'border-green-500 bg-green-50 text-green-700'
+                    : opt.color === 'yellow' ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                    : 'border-red-500 bg-red-50 text-red-700'
+                    : 'border-muted hover:border-primary/50'
+                  }`}
               >
-                {option.label}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </ScanHeroCard>
 
-      {/* Current Flow Rate */}
+      {/* Flow Rate - Compact */}
       <div className="space-y-3">
-        <Label className="flex items-center gap-2">
+        <Label className="flex items-center gap-2 text-sm">
           <Gauge className="h-4 w-4" />
-          Current Flow Rate (GPM)
+          Current Flow Rate
         </Label>
         
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => handleFlowModeChange('display')}
-            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
-              flowRateMode === 'display' 
-                ? 'border-primary bg-primary/5 text-primary' 
-                : 'border-muted hover:bg-accent'
-            }`}
-          >
-            <Gauge className="h-4 w-4 mx-auto mb-1" />
-            On Display
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFlowModeChange('unknown')}
-            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
-              flowRateMode === 'unknown' 
-                ? 'border-yellow-500 bg-yellow-50 text-yellow-700' 
-                : 'border-muted hover:bg-accent'
-            }`}
-          >
-            <HelpCircle className="h-4 w-4 mx-auto mb-1" />
-            Unknown
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFlowModeChange('off')}
-            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
-              flowRateMode === 'off' 
-                ? 'border-muted-foreground bg-muted text-muted-foreground' 
-                : 'border-muted hover:bg-accent'
-            }`}
-          >
-            Unit Off
-          </button>
+        <div className="flex gap-2">
+          {[
+            { mode: 'display' as const, icon: <Monitor className="h-3.5 w-3.5" />, label: 'Display' },
+            { mode: 'unknown' as const, icon: <HelpCircle className="h-3.5 w-3.5" />, label: 'Unknown' },
+            { mode: 'off' as const, icon: <PowerOff className="h-3.5 w-3.5" />, label: 'Off' },
+          ].map(({ mode, icon, label }) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => handleFlowModeChange(mode)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 text-xs font-medium transition-all
+                ${flowRateMode === mode 
+                  ? 'border-primary bg-primary/5 text-primary' 
+                  : 'border-muted hover:border-primary/50'
+                }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
         </div>
         
         {flowRateMode === 'display' && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Input
               type="number"
               step="0.1"
-              min="0"
-              max="15"
               value={measurements.flowRateGPM ?? ''}
               onChange={(e) => onUpdateMeasurements({ flowRateGPM: parseFloat(e.target.value) || undefined })}
-              placeholder="Enter GPM from display"
-              className="text-lg"
+              placeholder="0.0"
+              className="w-20 text-center font-mono"
             />
-            <span className="text-muted-foreground font-medium">GPM</span>
+            <span className="text-sm text-muted-foreground">GPM</span>
           </div>
         )}
-        
-        {flowRateMode === 'unknown' && (
-          <p className="text-xs text-muted-foreground">
-            Flow rate will be estimated based on other factors
-          </p>
-        )}
       </div>
-      
-      {/* Flame Rod Status (Gas Only) */}
-      {isGas && (
-        <div className="space-y-3">
-          <Label className="flex items-center gap-2">
-            <Flame className="h-4 w-4" />
-            Flame Rod Status
-          </Label>
-          <RadioGroup
-            value={data.flameRodStatus}
-            onValueChange={(value) => onUpdate({ flameRodStatus: value as FlameRodStatus })}
-            className="grid grid-cols-3 gap-2"
-          >
-            {FLAME_ROD_OPTIONS.map((option) => (
-              <div key={option.value}>
-                <RadioGroupItem
-                  value={option.value}
-                  id={`flame-${option.value}`}
-                  className="peer sr-only"
-                />
-                <Label
-                  htmlFor={`flame-${option.value}`}
-                  className={`flex items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-all hover:bg-accent peer-data-[state=checked]:${option.color}`}
-                >
-                  {option.label}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-        </div>
-      )}
-      
-      {/* Inlet Filter Status with AI Scan */}
+
+      {/* Component Status - Compact Grid */}
       <div className="space-y-3">
-        <Label className="flex items-center gap-2">
-          <Filter className="h-4 w-4" />
-          Inlet Filter Status
-        </Label>
-        
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full flex items-center gap-2 border-dashed"
-          onClick={handleFilterScan}
-          disabled={isScanningFilter}
-        >
-          {isScanningFilter ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Analyzing filter...</span>
-            </>
-          ) : (
-            <>
-              <Camera className="h-4 w-4" />
-              <Sparkles className="h-3 w-3 text-amber-500" />
-              <span>📸 Scan Filter Condition</span>
-            </>
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Component Status</Label>
+          {issueCount > 0 && (
+            <Badge variant="destructive" className="text-xs">{issueCount} issue{issueCount > 1 ? 's' : ''}</Badge>
           )}
-        </Button>
+        </div>
         
-        <input
-          ref={filterInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFilterFile}
-          className="hidden"
-        />
-        
-        {filterResult && (
-          <div className={`p-2 rounded-lg text-sm ${
-            filterResult.status === 'CLOGGED' ? 'bg-red-100 text-red-700' :
-            filterResult.status === 'DIRTY' ? 'bg-yellow-100 text-yellow-700' :
-            'bg-green-100 text-green-700'
-          }`}>
-            AI: {filterResult.description}
-          </div>
-        )}
-        
-        <RadioGroup
-          value={data.inletFilterStatus}
-          onValueChange={(value) => onUpdate({ inletFilterStatus: value as InletFilterStatus })}
-          className="grid grid-cols-3 gap-2"
-        >
-          {FILTER_OPTIONS.map((option) => (
-            <div key={option.value}>
-              <RadioGroupItem
-                value={option.value}
-                id={`filter-${option.value}`}
-                className="peer sr-only"
-              />
-              <Label
-                htmlFor={`filter-${option.value}`}
-                className={`flex items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-all hover:bg-accent peer-data-[state=checked]:${option.color}`}
-              >
-                {option.label}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
-      
-      {/* Vent Status (Gas Only) */}
-      {isGas && (
-        <div className="space-y-3">
-          <Label className="flex items-center gap-2">
-            <Wind className="h-4 w-4" />
-            Vent Status
-          </Label>
-          <RadioGroup
-            value={data.tanklessVentStatus}
-            onValueChange={(value) => onUpdate({ tanklessVentStatus: value as VentStatus })}
-            className="grid grid-cols-3 gap-2"
-          >
-            {VENT_OPTIONS.map((option) => (
-              <div key={option.value}>
-                <RadioGroupItem
-                  value={option.value}
-                  id={`vent-${option.value}`}
-                  className="peer sr-only"
-                />
-                <Label
-                  htmlFor={`vent-${option.value}`}
-                  className={`flex items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-all hover:bg-accent peer-data-[state=checked]:${option.color}`}
+        <div className="space-y-2">
+          {/* Flame Rod (Gas only) */}
+          {isGas && (
+            <StatusToggleRow
+              label="Flame Rod"
+              value={
+                data.flameRodStatus === 'GOOD' ? 'good' : 
+                data.flameRodStatus === 'WORN' ? 'fair' : 'poor'
+              }
+              onChange={(v) => onUpdate({ 
+                flameRodStatus: v === 'good' ? 'GOOD' : v === 'fair' ? 'WORN' : 'FAILING' 
+              })}
+              icon={<Flame className="h-4 w-4" />}
+            />
+          )}
+          
+          {/* Filter with AI scan button */}
+          <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium flex-1">Inlet Filter</span>
+            
+            {/* AI Scan */}
+            <ScanHeroCard
+              title=""
+              isScanning={isScanningFilter}
+              hasScanned={!!filterResult}
+              onScanImage={handleFilterScan}
+              scanLabel="📷"
+            >
+              <div />
+            </ScanHeroCard>
+            
+            {/* Quick toggles */}
+            <div className="flex gap-1">
+              {(['CLEAN', 'DIRTY', 'CLOGGED'] as const).map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => onUpdate({ inletFilterStatus: status })}
+                  className={`w-8 h-8 rounded-md flex items-center justify-center transition-all
+                    ${data.inletFilterStatus === status
+                      ? status === 'CLEAN' ? 'bg-green-500 text-white'
+                      : status === 'DIRTY' ? 'bg-yellow-500 text-white'
+                      : 'bg-red-500 text-white'
+                      : 'bg-muted/50 hover:bg-muted'
+                    }`}
+                  title={status}
                 >
-                  {option.label}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
+                  <span className="text-xs font-bold">{status[0]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Vent (Gas only) */}
+          {isGas && (
+            <StatusToggleRow
+              label="Vent Status"
+              value={
+                data.tanklessVentStatus === 'CLEAR' ? 'good' : 
+                data.tanklessVentStatus === 'RESTRICTED' ? 'fair' : 'poor'
+              }
+              onChange={(v) => onUpdate({ 
+                tanklessVentStatus: v === 'good' ? 'CLEAR' : v === 'fair' ? 'RESTRICTED' : 'BLOCKED' 
+              })}
+              icon={<Wind className="h-4 w-4" />}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Scale & Health - Collapsed Advanced */}
+      <ScanHeroSection 
+        title="Scale & Health" 
+        defaultOpen={false}
+        badge={<Badge variant="outline" className="text-xs">Optional</Badge>}
+      >
+        <div className="space-y-4">
+          <QuickSelectChips
+            label="Scale Buildup"
+            value={data.scaleBuildup ?? 0}
+            onChange={(v) => onUpdate({ scaleBuildup: v })}
+            options={SCALE_CHIPS}
+          />
+          
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label className="text-sm">{isGas ? 'Igniter' : 'Element'} Health</Label>
+              <span className="text-sm font-mono">
+                {isGas ? (data.igniterHealth ?? 100) : (data.elementHealth ?? 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="10"
+              value={isGas ? (data.igniterHealth ?? 100) : (data.elementHealth ?? 100)}
+              onChange={(e) => onUpdate(
+                isGas 
+                  ? { igniterHealth: parseInt(e.target.value) } 
+                  : { elementHealth: parseInt(e.target.value) }
+              )}
+              className="w-full accent-primary"
+            />
+          </div>
+        </div>
+      </ScanHeroSection>
+
+      {/* Issues Summary */}
+      {issueCount > 0 && (
+        <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+          <p className="text-sm font-medium text-orange-800 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {issueCount} issue{issueCount > 1 ? 's' : ''} found
+          </p>
         </div>
       )}
       
-      {/* Scale Buildup Estimate */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label>Scale Buildup Estimate</Label>
-          <Badge variant="outline">
-            {data.scaleBuildup ?? 0}%
-          </Badge>
-        </div>
-        
-        <Slider
-          value={[data.scaleBuildup ?? 0]}
-          onValueChange={([value]) => onUpdate({ scaleBuildup: value })}
-          min={0}
-          max={100}
-          step={10}
-        />
-        
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>None</span>
-          <span>Moderate</span>
-          <span>Severe</span>
-        </div>
-      </div>
-      
-      {/* Element/Igniter Health (Unit Type Specific) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label>{isGas ? 'Igniter Health' : 'Element Health'}</Label>
-          <Badge variant="outline">
-            {isGas ? (data.igniterHealth ?? 100) : (data.elementHealth ?? 100)}%
-          </Badge>
-        </div>
-        
-        <Slider
-          value={[isGas ? (data.igniterHealth ?? 100) : (data.elementHealth ?? 100)]}
-          onValueChange={([value]) => onUpdate(isGas ? { igniterHealth: value } : { elementHealth: value })}
-          min={0}
-          max={100}
-          step={5}
-        />
-      </div>
-      
-      {/* Summary */}
-      {hasIssues && (
-        <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-          <h4 className="font-medium text-orange-800 mb-2">Issues Found</h4>
-          <ul className="text-sm text-orange-700 space-y-1">
-            {data.flameRodStatus === 'FAILING' && (
-              <li>• Flame rod needs replacement</li>
-            )}
-            {data.inletFilterStatus === 'CLOGGED' && (
-              <li>• Inlet filter needs cleaning</li>
-            )}
-            {data.tanklessVentStatus === 'BLOCKED' && (
-              <li>• Vent obstruction detected</li>
-            )}
-            {data.errorCodeCount >= 3 && (
-              <li>• Multiple error codes in history</li>
-            )}
-          </ul>
-        </div>
-      )}
-      
-      <Button onClick={onNext} className="w-full">
-        Continue to Handoff
+      <Button onClick={onNext} className="w-full h-12 font-semibold">
+        Continue
       </Button>
     </div>
   );
