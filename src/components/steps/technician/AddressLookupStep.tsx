@@ -1,0 +1,321 @@
+import React, { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { 
+  MapPin, 
+  Search, 
+  Home, 
+  Droplets, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  Plus,
+  ChevronRight,
+  Loader2
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow, differenceInDays } from 'date-fns';
+
+interface PropertyWithAssets {
+  id: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string;
+  zip_code: string;
+  waterHeaters: {
+    id: string;
+    manufacturer: string | null;
+    fuel_type: string;
+    tank_capacity_gallons: number;
+    lastAssessment: {
+      created_at: string;
+      health_score: number | null;
+    } | null;
+  }[];
+  waterSofteners: {
+    id: string;
+    manufacturer: string | null;
+  }[];
+}
+
+interface AddressLookupStepProps {
+  onSelectProperty: (property: PropertyWithAssets | null) => void;
+  onCreateNew: () => void;
+}
+
+function getInspectionStatus(lastAssessment: { created_at: string } | null): {
+  needed: boolean;
+  label: string;
+  color: string;
+  icon: React.ReactNode;
+} {
+  if (!lastAssessment) {
+    return {
+      needed: true,
+      label: 'Never Inspected',
+      color: 'text-destructive bg-destructive/10',
+      icon: <AlertTriangle className="h-3.5 w-3.5" />,
+    };
+  }
+
+  const daysSince = differenceInDays(new Date(), new Date(lastAssessment.created_at));
+  
+  if (daysSince >= 365) {
+    return {
+      needed: true,
+      label: `${Math.floor(daysSince / 365)}y ago — Due`,
+      color: 'text-amber-600 bg-amber-100',
+      icon: <Clock className="h-3.5 w-3.5" />,
+    };
+  }
+  
+  return {
+    needed: false,
+    label: formatDistanceToNow(new Date(lastAssessment.created_at), { addSuffix: true }),
+    color: 'text-green-600 bg-green-100',
+    icon: <CheckCircle className="h-3.5 w-3.5" />,
+  };
+}
+
+export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLookupStepProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<PropertyWithAssets[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const searchAddress = useCallback(async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setError(null);
+    setHasSearched(true);
+    
+    try {
+      // Search properties by address
+      const { data: properties, error: propError } = await supabase
+        .from('properties')
+        .select('id, address_line1, address_line2, city, state, zip_code')
+        .or(`address_line1.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%,zip_code.ilike.%${searchQuery}%`)
+        .limit(10);
+      
+      if (propError) throw propError;
+      
+      if (!properties || properties.length === 0) {
+        setResults([]);
+        setIsSearching(false);
+        return;
+      }
+      
+      // For each property, fetch water heaters and their latest assessment
+      const propertiesWithAssets: PropertyWithAssets[] = await Promise.all(
+        properties.map(async (prop) => {
+          // Get water heaters
+          const { data: heaters } = await supabase
+            .from('water_heaters')
+            .select('id, manufacturer, fuel_type, tank_capacity_gallons')
+            .eq('property_id', prop.id);
+          
+          // Get assessments for each heater
+          const heatersWithAssessments = await Promise.all(
+            (heaters || []).map(async (heater) => {
+              const { data: assessments } = await supabase
+                .from('assessments')
+                .select('created_at, health_score')
+                .eq('water_heater_id', heater.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+              
+              return {
+                ...heater,
+                lastAssessment: assessments?.[0] || null,
+              };
+            })
+          );
+          
+          // Get water softeners
+          const { data: softeners } = await supabase
+            .from('water_softeners')
+            .select('id, manufacturer')
+            .eq('property_id', prop.id);
+          
+          return {
+            ...prop,
+            waterHeaters: heatersWithAssessments,
+            waterSofteners: softeners || [],
+          };
+        })
+      );
+      
+      setResults(propertiesWithAssets);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError('Failed to search properties. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [searchQuery]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      searchAddress();
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
+          <MapPin className="h-8 w-8 text-primary" />
+        </div>
+        <h2 className="text-xl font-semibold text-foreground">Property Lookup</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Search by address to see existing equipment and inspection status
+        </p>
+      </div>
+      
+      {/* Search Input */}
+      <div className="space-y-3">
+        <Label>Address Search</Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="123 Main St or 85004"
+              className="pl-9"
+            />
+          </div>
+          <Button onClick={searchAddress} disabled={isSearching || !searchQuery.trim()}>
+            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+          </Button>
+        </div>
+      </div>
+      
+      {error && (
+        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      
+      {/* Results */}
+      {hasSearched && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-muted-foreground">
+              {results.length > 0 
+                ? `${results.length} ${results.length === 1 ? 'property' : 'properties'} found`
+                : 'No properties found'
+              }
+            </Label>
+          </div>
+          
+          {results.length === 0 && !isSearching && (
+            <Card className="p-6 text-center border-dashed">
+              <Home className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground mb-4">
+                No existing records for this address
+              </p>
+              <Button onClick={onCreateNew} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Inspection
+              </Button>
+            </Card>
+          )}
+          
+          {results.map((property) => {
+            // Check if any heater needs inspection
+            const needsInspection = property.waterHeaters.length === 0 || 
+              property.waterHeaters.some(h => getInspectionStatus(h.lastAssessment).needed);
+            
+            return (
+              <Card 
+                key={property.id}
+                className={`p-4 cursor-pointer transition-all hover:shadow-md ${
+                  needsInspection ? 'border-amber-300 bg-amber-50/50' : 'border-green-300 bg-green-50/50'
+                }`}
+                onClick={() => onSelectProperty(property)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Home className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <p className="font-medium text-foreground truncate">
+                        {property.address_line1}
+                      </p>
+                    </div>
+                    <p className="text-sm text-muted-foreground ml-6">
+                      {property.city}, {property.state} {property.zip_code}
+                    </p>
+                    
+                    {/* Assets Summary */}
+                    <div className="mt-3 ml-6 space-y-2">
+                      {property.waterHeaters.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">No water heaters on file</p>
+                      ) : (
+                        property.waterHeaters.map((heater) => {
+                          const status = getInspectionStatus(heater.lastAssessment);
+                          return (
+                            <div key={heater.id} className="flex items-center gap-2 text-sm">
+                              <Droplets className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                              <span className="truncate">
+                                {heater.manufacturer || 'Unknown'} • {heater.fuel_type} • {heater.tank_capacity_gallons}gal
+                              </span>
+                              <Badge className={`${status.color} text-xs gap-1 shrink-0`}>
+                                {status.icon}
+                                {status.label}
+                              </Badge>
+                            </div>
+                          );
+                        })
+                      )}
+                      
+                      {property.waterSofteners.length > 0 && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="ml-5">+ {property.waterSofteners.length} water softener(s)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end gap-2">
+                    {needsInspection ? (
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-300">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Inspection Needed
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-700 border-green-300">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Up to Date
+                      </Badge>
+                    )}
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      
+      {/* Skip / New Inspection */}
+      <div className="pt-4 border-t">
+        <Button 
+          variant="outline" 
+          onClick={onCreateNew}
+          className="w-full gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Start New Inspection (No Address Lookup)
+        </Button>
+      </div>
+    </div>
+  );
+}

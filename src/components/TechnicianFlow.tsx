@@ -17,6 +17,7 @@ import {
 } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 
+import { AddressLookupStep } from './steps/technician/AddressLookupStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
 import { MeasurementsStep } from './steps/technician/MeasurementsStep';
 import { LocationStep } from './steps/technician/LocationStep';
@@ -27,6 +28,7 @@ import { TanklessCheckStep } from './steps/technician/TanklessCheckStep';
 import { HandoffStep } from './steps/technician/HandoffStep';
 
 type TechStep = 
+  | 'address-lookup'
   | 'asset-scan'
   | 'measurements'
   | 'location'
@@ -36,14 +38,24 @@ type TechStep =
   | 'tankless'
   | 'handoff';
 
+interface SelectedProperty {
+  id: string;
+  address_line1: string;
+  city: string;
+  state: string;
+  zip_code: string;
+}
+
 interface TechnicianFlowProps {
   onComplete: (data: TechnicianInspectionData) => void;
   onBack: () => void;
   initialStreetHardness?: number;
 }
 
-function getStepOrder(fuelType: FuelType): TechStep[] {
-  const base: TechStep[] = ['asset-scan', 'measurements', 'location', 'equipment', 'softener'];
+function getStepOrder(fuelType: FuelType, skipAddressLookup: boolean): TechStep[] {
+  const base: TechStep[] = skipAddressLookup 
+    ? ['asset-scan', 'measurements', 'location', 'equipment', 'softener']
+    : ['address-lookup', 'asset-scan', 'measurements', 'location', 'equipment', 'softener'];
   
   if (isHybrid(fuelType)) {
     return [...base, 'hybrid', 'handoff'];
@@ -60,10 +72,12 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     streetHardnessGPG: initialStreetHardness,
   });
   
-  const [currentStep, setCurrentStep] = useState<TechStep>('asset-scan');
+  const [selectedProperty, setSelectedProperty] = useState<SelectedProperty | null>(null);
+  const [skipAddressLookup, setSkipAddressLookup] = useState(false);
+  const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
   
-  // Dynamic step order based on fuel type
-  const stepOrder = getStepOrder(data.asset.fuelType);
+  // Dynamic step order based on fuel type and whether address lookup is skipped
+  const stepOrder = getStepOrder(data.asset.fuelType, skipAddressLookup);
   const currentStepIndex = stepOrder.indexOf(currentStep);
   const progress = ((currentStepIndex + 1) / stepOrder.length) * 100;
   
@@ -135,6 +149,19 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     setData(prev => ({ ...prev, calendarAge: age }));
   }, []);
   
+  const handlePropertySelect = useCallback((property: SelectedProperty | null) => {
+    if (property) {
+      setSelectedProperty(property);
+    }
+    // Move to asset scan regardless
+    setCurrentStep('asset-scan');
+  }, []);
+
+  const handleSkipLookup = useCallback(() => {
+    setSkipAddressLookup(true);
+    setCurrentStep('asset-scan');
+  }, []);
+
   const handleComplete = useCallback(() => {
     // Ensure inspection timestamp is set
     const finalData: TechnicianInspectionData = {
@@ -146,6 +173,14 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   
   const renderStep = () => {
     switch (currentStep) {
+      case 'address-lookup':
+        return (
+          <AddressLookupStep
+            onSelectProperty={handlePropertySelect}
+            onCreateNew={handleSkipLookup}
+          />
+        );
+      
       case 'asset-scan':
         return (
           <AssetScanStep
@@ -229,6 +264,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   };
   
   const stepLabels: Record<TechStep, string> = {
+    'address-lookup': 'Property Lookup',
     'asset-scan': 'Unit Identification',
     'measurements': 'Pressure & Water',
     'location': 'Location & Condition',
