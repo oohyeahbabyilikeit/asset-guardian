@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Check, X, HelpCircle, Sparkles, Home, Clock } from 'lucide-react';
+import { ChevronRight, Check, X, HelpCircle, Sparkles, Home, Clock, Users, Droplets, ShowerHead, Flame } from 'lucide-react';
 import type { UsageType } from '@/lib/opterraAlgorithm';
 
 type FlushHistory = 'never' | 'recent' | 'unknown';
@@ -39,12 +39,6 @@ const slideVariants = {
   })
 };
 
-const getPeopleEmoji = (count: number) => {
-  if (count <= 1) return '👤';
-  if (count <= 2) return '👫';
-  if (count <= 4) return '👨‍👩‍👧‍👦';
-  return '👨‍👩‍👧‍👦👴👵';
-};
 
 export function CalibrationCard({ 
   hasSoftener, 
@@ -139,7 +133,9 @@ export function CalibrationCard({
               className="w-full max-w-sm space-y-8"
             >
               <div className="text-center space-y-4">
-                <span className="text-5xl">{getPeopleEmoji(peopleCount)}</span>
+                <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto">
+                  <Users className="w-8 h-8 text-primary" />
+                </div>
                 <h2 className="text-3xl font-bold text-white">How many people?</h2>
               </div>
 
@@ -193,7 +189,9 @@ export function CalibrationCard({
                   onClick={() => handleUsageSelect('light')}
                   className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-blue-400 hover:bg-blue-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
                 >
-                  <span className="text-4xl">💧</span>
+                  <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Droplets className="w-7 h-7 text-blue-400" />
+                  </div>
                   <span className="text-white font-semibold">Light</span>
                 </button>
 
@@ -201,7 +199,9 @@ export function CalibrationCard({
                   onClick={() => handleUsageSelect('normal')}
                   className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-green-400 hover:bg-green-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
                 >
-                  <span className="text-4xl">🚿</span>
+                  <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <ShowerHead className="w-7 h-7 text-green-400" />
+                  </div>
                   <span className="text-white font-semibold">Normal</span>
                 </button>
 
@@ -209,7 +209,9 @@ export function CalibrationCard({
                   onClick={() => handleUsageSelect('heavy')}
                   className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-orange-400 hover:bg-orange-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
                 >
-                  <span className="text-4xl">🔥</span>
+                  <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center">
+                    <Flame className="w-7 h-7 text-orange-400" />
+                  </div>
                   <span className="text-white font-semibold">Heavy</span>
                 </button>
               </div>
