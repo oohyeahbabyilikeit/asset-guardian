@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -10,9 +10,13 @@ import {
   Mountain, 
   Trees,
   AlertTriangle,
-  Droplet
+  Droplet,
+  Gauge,
+  RotateCw,
+  Container,
+  HelpCircle
 } from 'lucide-react';
-import type { LocationCondition } from '@/types/technicianInspection';
+import type { LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
 import type { LocationType, TempSetting } from '@/lib/opterraAlgorithm';
 import { useConditionScan } from '@/hooks/useConditionScan';
 import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
@@ -35,12 +39,14 @@ const TEMP_CHIPS: { value: TempSetting; label: string; temp: string }[] = [
 
 interface LocationStepProps {
   data: LocationCondition;
+  equipmentData: EquipmentChecklist;
   onUpdate: (data: Partial<LocationCondition>) => void;
+  onEquipmentUpdate: (data: Partial<EquipmentChecklist>) => void;
   onAIDetection?: (fields: Record<string, boolean>) => void;
   onNext: () => void;
 }
 
-export function LocationStep({ data, onUpdate, onAIDetection, onNext }: LocationStepProps) {
+export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate, onAIDetection, onNext }: LocationStepProps) {
   const hasIssue = data.isLeaking || data.visualRust;
   const { scanCondition, isScanning, result } = useConditionScan();
   
@@ -160,6 +166,127 @@ export function LocationStep({ data, onUpdate, onAIDetection, onNext }: Location
         </div>
       )}
 
+      {/* CRITICAL: Equipment Verification - Required Questions */}
+      <div className="space-y-3 p-4 bg-accent/30 rounded-xl border-2 border-accent">
+        <div className="flex items-center gap-2 mb-3">
+          <HelpCircle className="h-5 w-5 text-primary" />
+          <Label className="text-sm font-semibold">Equipment Present? (Required)</Label>
+        </div>
+        
+        {/* Expansion Tank */}
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+          <div className="flex items-center gap-3">
+            <Container className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Expansion Tank</p>
+              <p className="text-xs text-muted-foreground">Thermal expansion protection</p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => onEquipmentUpdate({ hasExpTank: true })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${equipmentData.hasExpTank === true
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => onEquipmentUpdate({ hasExpTank: false })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${equipmentData.hasExpTank === false
+                  ? "bg-destructive text-destructive-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              No
+            </button>
+          </div>
+        </div>
+
+        {/* PRV */}
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+          <div className="flex items-center gap-3">
+            <Gauge className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">PRV (Pressure Reducing Valve)</p>
+              <p className="text-xs text-muted-foreground">Regulates incoming pressure</p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => onEquipmentUpdate({ hasPrv: true })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${equipmentData.hasPrv === true
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => onEquipmentUpdate({ hasPrv: false })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${equipmentData.hasPrv === false
+                  ? "bg-destructive text-destructive-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              No
+            </button>
+          </div>
+        </div>
+
+        {/* Circulation Pump */}
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+          <div className="flex items-center gap-3">
+            <RotateCw className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Recirculation Pump</p>
+              <p className="text-xs text-muted-foreground">Hot water recirculation system</p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => onEquipmentUpdate({ hasCircPump: true })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${equipmentData.hasCircPump === true
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => onEquipmentUpdate({ hasCircPump: false })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${equipmentData.hasCircPump === false
+                  ? "bg-destructive text-destructive-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              No
+            </button>
+          </div>
+        </div>
+
+        {/* Validation warning */}
+        {(equipmentData.hasExpTank === null || equipmentData.hasPrv === null || equipmentData.hasCircPump === null) && (
+          <p className="text-xs text-amber-600 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Please answer all equipment questions
+          </p>
+        )}
+      </div>
+
       {/* Secondary Details - Collapsed */}
       <ScanHeroSection 
         title="Environment Details" 
@@ -208,7 +335,11 @@ export function LocationStep({ data, onUpdate, onAIDetection, onNext }: Location
         </div>
       </ScanHeroSection>
       
-      <Button onClick={onNext} className="w-full h-12 font-semibold">
+      <Button 
+        onClick={onNext} 
+        className="w-full h-12 font-semibold"
+        disabled={equipmentData.hasExpTank === null || equipmentData.hasPrv === null || equipmentData.hasCircPump === null}
+      >
         Continue
       </Button>
     </div>
