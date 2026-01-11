@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Check } from 'lucide-react';
+import { ChevronLeft, Check, ChevronDown, Lock, MapPin, Gauge, Scan, Navigation, Flame, Zap, Droplets, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { 
   TechnicianInspectionData,
   DEFAULT_TECHNICIAN_DATA,
@@ -367,6 +368,28 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     'handoff': 'Ready for Handoff',
   };
   
+  const stepIcons: Record<TechStep, React.ReactNode> = {
+    'address-lookup': <MapPin className="h-4 w-4" />,
+    'pressure': <Gauge className="h-4 w-4" />,
+    'asset-scan': <Scan className="h-4 w-4" />,
+    'location': <Navigation className="h-4 w-4" />,
+    'tankless': <Flame className="h-4 w-4" />,
+    'hybrid': <Zap className="h-4 w-4" />,
+    'softener': <Droplets className="h-4 w-4" />,
+    'handoff': <Flag className="h-4 w-4" />,
+  };
+  
+  const [stepDrawerOpen, setStepDrawerOpen] = useState(false);
+  
+  const handleStepSelect = useCallback((step: TechStep) => {
+    const stepIndex = stepOrder.indexOf(step);
+    const canNavigate = visitedSteps.has(step) || stepIndex === currentStepIndex + 1;
+    if (canNavigate && stepIndex !== -1) {
+      setCurrentStep(step);
+      setStepDrawerOpen(false);
+    }
+  }, [stepOrder, visitedSteps, currentStepIndex]);
+  
   return (
     <TooltipProvider delayDuration={300}>
       <div className="min-h-screen bg-background flex flex-col">
@@ -401,11 +424,77 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
                 onManualSync={syncPendingInspections}
               />
               
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                <span className="font-medium text-foreground">{currentStepIndex + 1}</span>
-                <span>/</span>
-                <span>{stepOrder.length}</span>
-              </div>
+              {/* Step counter with drawer trigger */}
+              <Drawer open={stepDrawerOpen} onOpenChange={setStepDrawerOpen}>
+                <DrawerTrigger asChild>
+                  <button className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted px-2.5 py-1 rounded-full hover:bg-muted/80 transition-colors">
+                    <span className="font-medium text-foreground">{currentStepIndex + 1}</span>
+                    <span>/</span>
+                    <span>{stepOrder.length}</span>
+                    <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
+                  </button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader className="pb-2">
+                    <DrawerTitle>Inspection Steps</DrawerTitle>
+                  </DrawerHeader>
+                  <div className="px-4 pb-6 space-y-1">
+                    {stepOrder.map((step, index) => {
+                      const isVisited = visitedSteps.has(step);
+                      const isCurrent = step === currentStep;
+                      const isNext = index === currentStepIndex + 1;
+                      const canNavigate = (isVisited || isNext) && !isCurrent;
+                      
+                      return (
+                        <button
+                          key={step}
+                          onClick={() => handleStepSelect(step)}
+                          disabled={!canNavigate && !isCurrent}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors",
+                            isCurrent && "bg-primary/10 text-primary",
+                            canNavigate && "hover:bg-muted cursor-pointer",
+                            !canNavigate && !isCurrent && "opacity-50 cursor-not-allowed"
+                          )}
+                        >
+                          <div className={cn(
+                            "flex items-center justify-center w-8 h-8 rounded-full shrink-0",
+                            isCurrent && "bg-primary text-primary-foreground",
+                            isVisited && !isCurrent && "bg-primary/20 text-primary",
+                            !isVisited && !isCurrent && "bg-muted text-muted-foreground"
+                          )}>
+                            {isVisited && !isCurrent ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              stepIcons[step]
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={cn(
+                              "font-medium truncate",
+                              isCurrent && "text-primary",
+                              !isCurrent && "text-foreground"
+                            )}>
+                              {stepLabels[step]}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Step {index + 1} of {stepOrder.length}
+                            </p>
+                          </div>
+                          {!canNavigate && !isCurrent && (
+                            <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          {isCurrent && (
+                            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                              Current
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </DrawerContent>
+              </Drawer>
             </div>
             
             {/* Clickable step navigation */}
