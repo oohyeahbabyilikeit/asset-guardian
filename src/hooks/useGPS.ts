@@ -48,12 +48,25 @@ export function useGPS(): UseGPSResult {
     setError(null);
 
     try {
+      // Try low accuracy first for faster response, then upgrade if needed
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 60000, // Cache for 1 minute
-        });
+        // First try with cached/low accuracy for speed
+        navigator.geolocation.getCurrentPosition(
+          resolve, 
+          () => {
+            // If low accuracy fails, try high accuracy
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 8000,
+              maximumAge: 0,
+            });
+          }, 
+          {
+            enableHighAccuracy: false,
+            timeout: 3000,
+            maximumAge: 300000, // Accept 5 min old cache
+          }
+        );
       });
 
       const geoPos: GeoPosition = {
@@ -86,7 +99,10 @@ export function useGPS(): UseGPSResult {
     setIsReverseGeocoding(true);
     
     try {
-      // Use free Nominatim API for reverse geocoding (OpenStreetMap)
+      // Use free Nominatim API with 5s timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
         {
@@ -94,8 +110,11 @@ export function useGPS(): UseGPSResult {
             'Accept-Language': 'en',
             'User-Agent': 'WaterHeaterInspectionApp/1.0',
           },
+          signal: controller.signal,
         }
       );
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error('Geocoding failed');
