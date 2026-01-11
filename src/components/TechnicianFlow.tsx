@@ -17,7 +17,7 @@ import {
 } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 
-import { AddressLookupStep } from './steps/technician/AddressLookupStep';
+import { AddressLookupStep, type NewPropertyAddress } from './steps/technician/AddressLookupStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
 import { MeasurementsStep } from './steps/technician/MeasurementsStep';
 import { LocationStep } from './steps/technician/LocationStep';
@@ -73,11 +73,12 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   });
   
   const [selectedProperty, setSelectedProperty] = useState<SelectedProperty | null>(null);
-  const [skipAddressLookup, setSkipAddressLookup] = useState(false);
+  const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
   const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
   
-  // Dynamic step order based on fuel type and whether address lookup is skipped
-  const stepOrder = getStepOrder(data.asset.fuelType, skipAddressLookup);
+  // Dynamic step order based on fuel type - address lookup is always first now
+  const hasAddress = selectedProperty !== null || newPropertyAddress !== null;
+  const stepOrder = getStepOrder(data.asset.fuelType, false);
   const currentStepIndex = stepOrder.indexOf(currentStep);
   const progress = ((currentStepIndex + 1) / stepOrder.length) * 100;
   
@@ -157,8 +158,8 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     setCurrentStep('asset-scan');
   }, []);
 
-  const handleSkipLookup = useCallback(() => {
-    setSkipAddressLookup(true);
+  const handleCreateNewProperty = useCallback((address: NewPropertyAddress) => {
+    setNewPropertyAddress(address);
     setCurrentStep('asset-scan');
   }, []);
 
@@ -177,7 +178,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
         return (
           <AddressLookupStep
             onSelectProperty={handlePropertySelect}
-            onCreateNew={handleSkipLookup}
+            onCreateNew={handleCreateNewProperty}
           />
         );
       
