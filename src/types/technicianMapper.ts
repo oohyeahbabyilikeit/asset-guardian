@@ -1,4 +1,4 @@
-import type { TechnicianInspectionData } from './technicianInspection';
+import type { TechnicianInspectionData, SoftenerVisualCondition } from './technicianInspection';
 import type { ForensicInputs } from '@/lib/opterraAlgorithm';
 import type { SoftenerInputs, SaltLevelState } from '@/lib/softenerAlgorithm';
 
@@ -79,6 +79,19 @@ export function mapTechnicianToForensicInputs(
 }
 
 /**
+ * Estimate softener age from visual condition
+ * Used as fallback when serial decode fails and unit is pre-existing
+ */
+function getAgeFromVisualCondition(condition?: SoftenerVisualCondition): number {
+  switch (condition) {
+    case 'NEW': return 3;       // Looks new: ~3 years (conservative)
+    case 'WEATHERED': return 8; // Yellowing, faded labels: ~8 years
+    case 'AGED': return 12;     // Brittle plastic, illegible: 10+ years
+    default: return 5;          // Unknown = conservative mid-range
+  }
+}
+
+/**
  * Map technician softener inspection to SoftenerInputs
  */
 export function mapTechnicianToSoftenerInputs(
@@ -89,8 +102,11 @@ export function mapTechnicianToSoftenerInputs(
     return null;
   }
   
+  // Use visual condition to estimate age (key fix for pre-existing softeners)
+  const visualAge = getAgeFromVisualCondition(tech.softener.visualCondition);
+  
   const baseInputs: SoftenerInputs = {
-    ageYears: 0,  // Will be set by homeowner
+    ageYears: visualAge,  // Now uses visual condition, not 0
     hardnessGPG: tech.streetHardnessGPG,
     people: 3,  // Default, overwritten by homeowner
     isCityWater: true,  // Default, overwritten by homeowner

@@ -100,22 +100,32 @@ export function mapOnboardingToSoftenerInputs(
     return baseInputs;
   }
   
-  // Calculate softener age
+  // Calculate softener age with priority logic:
+  // 1. If homeowner installed it, use their stated age
+  // 2. If pre-existing, use MAX of technician's visual age estimate vs residency fallback
+  // This fixes the "softener age blind spot" where inherited old units were under-aged
   let softenerAge: number;
   if (onboarding.softenerWasHereWhenMoved === true) {
-    // Was here when moved - assume it's older
-    softenerAge = onboarding.yearsAtAddress + 3; // Conservative estimate
+    // Pre-existing softener: Use technician's visual assessment as floor
+    // Fall back to yearsAtAddress + 3 if tech didn't assess
+    const residencyFallback = onboarding.yearsAtAddress + 3;
+    softenerAge = Math.max(baseInputs.ageYears, residencyFallback);
   } else if (onboarding.softenerInstallYearsAgo !== null) {
+    // Homeowner knows when it was installed
     softenerAge = onboarding.softenerInstallYearsAgo;
   } else {
     softenerAge = baseInputs.ageYears;
   }
+  
+  // Determine if user has professional salt service (suppresses salt alerts)
+  const hasProfessionalService = onboarding.softenerServiceFrequency === 'professional';
   
   return {
     ...baseInputs,
     people: onboarding.peopleCount,
     ageYears: softenerAge,
     isCityWater: onboarding.waterSource === 'city',
+    hasProfessionalService,  // NEW v1.4: Suppress salt alerts if professional service
     // v1.1: Visual proxies default to conservative values
     // These will be updated by technician inspection or user input
     visualHeight: baseInputs.visualHeight,

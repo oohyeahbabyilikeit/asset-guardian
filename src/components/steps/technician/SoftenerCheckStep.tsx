@@ -9,9 +9,10 @@ import {
   Settings, 
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
-import type { SoftenerInspection, SaltStatusType } from '@/types/technicianInspection';
+import type { SoftenerInspection, SaltStatusType, SoftenerVisualCondition } from '@/types/technicianInspection';
 import type { SoftenerQualityTier, ControlHead, VisualHeight } from '@/lib/softenerAlgorithm';
 import { useSoftenerPlateScan } from '@/hooks/useSoftenerPlateScan';
 import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
@@ -27,6 +28,13 @@ const VISUAL_HEIGHTS: { value: VisualHeight; label: string; capacity: string }[]
   { value: 'KNEE', label: 'Knee', capacity: '~24k' },
   { value: 'WAIST', label: 'Waist', capacity: '~32k' },
   { value: 'CHEST', label: 'Chest', capacity: '~48k' },
+];
+
+// Visual condition options for age estimation when serial decode fails
+const VISUAL_CONDITIONS: { value: SoftenerVisualCondition; label: string; description: string; years: string }[] = [
+  { value: 'NEW', label: 'Looks New', description: 'White/clean housing, crisp labels', years: '<5 yrs' },
+  { value: 'WEATHERED', label: 'Weathered', description: 'Yellowing, faded labels, minor stains', years: '5-10 yrs' },
+  { value: 'AGED', label: 'Yellowed/Brittle', description: 'Brittle plastic, heavy yellowing, illegible labels', years: '10+ yrs' },
 ];
 
 interface SoftenerCheckStepProps {
@@ -225,6 +233,39 @@ export function SoftenerCheckStep({ data, onUpdate, onNext }: SoftenerCheckStepP
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Visual Condition (Age Proxy) */}
+              <div className="space-y-2">
+                <Label className="text-sm flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Visual Condition (Age Estimate)
+                </Label>
+                <div className="space-y-2">
+                  {VISUAL_CONDITIONS.map((cond) => (
+                    <button
+                      key={cond.value}
+                      type="button"
+                      onClick={() => onUpdate({ visualCondition: cond.value })}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left
+                        ${data.visualCondition === cond.value
+                          ? 'border-primary bg-primary/10'
+                          : 'border-muted hover:border-primary/50'
+                        }`}
+                    >
+                      <div>
+                        <div className="font-medium text-sm">{cond.label}</div>
+                        <div className="text-xs text-muted-foreground">{cond.description}</div>
+                      </div>
+                      <Badge variant="outline" className="ml-2 shrink-0">
+                        {cond.years}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Used when serial number can't determine age (e.g., pre-existing unit)
+                </p>
               </div>
             </div>
           </ScanHeroCard>
