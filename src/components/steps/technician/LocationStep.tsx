@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -13,10 +13,14 @@ import {
   Trees,
   AlertTriangle,
   Thermometer,
-  Droplet
+  Droplet,
+  Camera,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import type { LocationCondition } from '@/types/technicianInspection';
 import type { LocationType, TempSetting } from '@/lib/opterraAlgorithm';
+import { useConditionScan } from '@/hooks/useConditionScan';
 
 const LOCATIONS: { value: LocationType; label: string; icon: React.ReactNode; riskNote?: string }[] = [
   { value: 'GARAGE', label: 'Garage', icon: <Warehouse className="h-5 w-5" /> },
@@ -41,6 +45,30 @@ interface LocationStepProps {
 
 export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
   const hasActiveIssue = data.isLeaking || data.visualRust;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { scanCondition, isScanning, result } = useConditionScan();
+  
+  const handleScanClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const scanResult = await scanCondition(file);
+    if (scanResult) {
+      onUpdate({
+        visualRust: scanResult.visualRust,
+        isLeaking: scanResult.isLeaking,
+      });
+    }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -49,6 +77,89 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
         <p className="text-sm text-muted-foreground mt-1">
           Where is the unit installed and what's its condition?
         </p>
+      </div>
+      
+      {/* AI Visual Condition Scanner */}
+      <div className="space-y-3">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-auto py-4 flex items-center gap-3 border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary/5"
+          onClick={handleScanClick}
+          disabled={isScanning}
+        >
+          {isScanning ? (
+            <>
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <div className="text-left">
+                <p className="font-medium">Analyzing Photo...</p>
+                <p className="text-xs text-muted-foreground">Detecting rust, leaks, and corrosion</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative">
+                <Camera className="h-6 w-6 text-primary" />
+                <Sparkles className="h-3 w-3 text-amber-500 absolute -top-1 -right-1" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium">📸 Scan Unit Condition</p>
+                <p className="text-xs text-muted-foreground">AI detects rust & leaks from photo</p>
+              </div>
+            </>
+          )}
+        </Button>
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        
+        {result && result.confidence > 0 && (
+          <div className="p-3 bg-accent/50 rounded-lg border space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                AI Analysis
+              </span>
+              <Badge variant="outline" className={
+                result.confidence >= 80 ? 'text-green-600 border-green-600' :
+                result.confidence >= 60 ? 'text-yellow-600 border-yellow-600' :
+                'text-muted-foreground'
+              }>
+                {result.confidence}% confident
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className={`p-2 rounded ${result.visualRust ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                Rust: {result.rustSeverity}
+              </div>
+              <div className={`p-2 rounded ${result.isLeaking ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                Leak: {result.leakSeverity}
+              </div>
+            </div>
+            {(result.rustDetails || result.leakDetails) && (
+              <p className="text-xs text-muted-foreground">
+                {result.rustDetails !== 'Could not analyze image' && result.rustDetails}
+                {result.rustDetails && result.leakDetails && ' • '}
+                {result.leakDetails !== 'Could not analyze image' && result.leakDetails}
+              </p>
+            )}
+          </div>
+        )}
+        
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-muted" />
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="bg-background px-2 text-muted-foreground">or select manually</span>
+          </div>
+        </div>
       </div>
       
       {/* Location Grid */}

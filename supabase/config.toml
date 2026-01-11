@@ -41,3 +41,15 @@ verify_jwt = false
 
 [functions.scan-data-plate]
 verify_jwt = false
+
+[functions.analyze-unit-condition]
+verify_jwt = false
+
+[functions.read-error-codes]
+verify_jwt = false
+
+[functions.scan-softener-plate]
+verify_jwt = false
+
+[functions.analyze-filter-condition]
+verify_jwt = false

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -11,10 +11,14 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import type { SoftenerInspection, SaltStatusType } from '@/types/technicianInspection';
 import type { SoftenerQualityTier, ControlHead, VisualHeight } from '@/lib/softenerAlgorithm';
+import { useSoftenerPlateScan } from '@/hooks/useSoftenerPlateScan';
 
 const SALT_STATUS_OPTIONS: { value: SaltStatusType; label: string; icon: React.ReactNode; color: string }[] = [
   { value: 'OK', label: 'Salt OK', icon: <CheckCircle className="h-5 w-5" />, color: 'border-green-500 bg-green-50' },
@@ -46,6 +50,48 @@ interface SoftenerCheckStepProps {
 }
 
 export function SoftenerCheckStep({ data, onUpdate, onNext }: SoftenerCheckStepProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { scanSoftenerPlate, isScanning, result } = useSoftenerPlateScan();
+  
+  const handleScanClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const scanResult = await scanSoftenerPlate(file);
+    if (scanResult) {
+      const updates: Partial<SoftenerInspection> = {
+        hasSoftener: true,
+      };
+      
+      if (scanResult.qualityTier) {
+        updates.qualityTier = scanResult.qualityTier;
+      }
+      if (scanResult.controlHead) {
+        updates.controlHead = scanResult.controlHead;
+      }
+      // Map capacity to visual height
+      if (scanResult.capacityGrains) {
+        if (scanResult.capacityGrains <= 28000) {
+          updates.visualHeight = 'KNEE';
+        } else if (scanResult.capacityGrains <= 40000) {
+          updates.visualHeight = 'WAIST';
+        } else {
+          updates.visualHeight = 'CHEST';
+        }
+      }
+      
+      onUpdate(updates);
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -77,6 +123,101 @@ export function SoftenerCheckStep({ data, onUpdate, onNext }: SoftenerCheckStepP
       {/* Softener Details (if present) */}
       {data.hasSoftener && (
         <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
+          
+          {/* AI Softener Plate Scanner */}
+          <div className="space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-auto py-4 flex items-center gap-3 border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary/5"
+              onClick={handleScanClick}
+              disabled={isScanning}
+            >
+              {isScanning ? (
+                <>
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <div className="text-left">
+                    <p className="font-medium">Scanning Label...</p>
+                    <p className="text-xs text-muted-foreground">Reading brand, capacity, age</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Camera className="h-6 w-6 text-primary" />
+                    <Sparkles className="h-3 w-3 text-amber-500 absolute -top-1 -right-1" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">📸 Scan Softener Label</p>
+                    <p className="text-xs text-muted-foreground">AI reads brand, capacity & age</p>
+                  </div>
+                </>
+              )}
+            </Button>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            
+            {result && result.confidence > 0 && (
+              <div className="p-3 bg-accent/50 rounded-lg border space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    Detected Info
+                  </span>
+                  <Badge variant="outline" className={
+                    result.confidence >= 80 ? 'text-green-600 border-green-600' :
+                    result.confidence >= 60 ? 'text-yellow-600 border-yellow-600' :
+                    'text-muted-foreground'
+                  }>
+                    {result.confidence}% confident
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {result.brand && (
+                    <div className="p-2 rounded bg-muted">
+                      <span className="text-xs text-muted-foreground">Brand</span>
+                      <p className="font-medium">{result.brand}</p>
+                    </div>
+                  )}
+                  {result.capacityGrains && (
+                    <div className="p-2 rounded bg-muted">
+                      <span className="text-xs text-muted-foreground">Capacity</span>
+                      <p className="font-medium">{result.capacityGrains.toLocaleString()} grains</p>
+                    </div>
+                  )}
+                  {result.estimatedAge && (
+                    <div className="p-2 rounded bg-muted">
+                      <span className="text-xs text-muted-foreground">Est. Age</span>
+                      <p className="font-medium">~{result.estimatedAge} years</p>
+                    </div>
+                  )}
+                  {result.controlHead && (
+                    <div className="p-2 rounded bg-muted">
+                      <span className="text-xs text-muted-foreground">Control</span>
+                      <p className="font-medium">{result.controlHead}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-muted" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-background px-2 text-muted-foreground">or enter manually</span>
+              </div>
+            </div>
+          </div>
+          
           {/* Quick Salt Status */}
           <div className="space-y-3">
             <Label className="flex items-center gap-2">
