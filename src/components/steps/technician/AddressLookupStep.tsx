@@ -42,9 +42,16 @@ interface PropertyWithAssets {
   }[];
 }
 
+export interface NewPropertyAddress {
+  address_line1: string;
+  city: string;
+  state: string;
+  zip_code: string;
+}
+
 interface AddressLookupStepProps {
   onSelectProperty: (property: PropertyWithAssets | null) => void;
-  onCreateNew: () => void;
+  onCreateNew: (address: NewPropertyAddress) => void;
 }
 
 function getInspectionStatus(lastAssessment: { created_at: string } | null): {
@@ -87,6 +94,15 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   const [results, setResults] = useState<PropertyWithAssets[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // New address entry mode
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [newAddress, setNewAddress] = useState<NewPropertyAddress>({
+    address_line1: '',
+    city: '',
+    state: '',
+    zip_code: '',
+  });
 
   const searchAddress = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -166,6 +182,109 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
     }
   };
 
+  const handleStartNewInspection = () => {
+    setShowAddressForm(true);
+    // Pre-fill with search query if it looks like an address
+    if (searchQuery.trim()) {
+      setNewAddress(prev => ({ ...prev, address_line1: searchQuery.trim() }));
+    }
+  };
+
+  const handleSubmitNewAddress = () => {
+    if (!newAddress.address_line1.trim() || !newAddress.city.trim() || 
+        !newAddress.state.trim() || !newAddress.zip_code.trim()) {
+      setError('Please fill in all address fields');
+      return;
+    }
+    onCreateNew(newAddress);
+  };
+
+  const isAddressValid = newAddress.address_line1.trim() && newAddress.city.trim() && 
+                         newAddress.state.trim() && newAddress.zip_code.trim();
+
+  // Show address entry form
+  if (showAddressForm) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
+            <Plus className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">New Property</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Enter the property address for this inspection
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Street Address</Label>
+            <Input
+              value={newAddress.address_line1}
+              onChange={(e) => setNewAddress(prev => ({ ...prev, address_line1: e.target.value }))}
+              placeholder="123 Main Street"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>City</Label>
+              <Input
+                value={newAddress.city}
+                onChange={(e) => setNewAddress(prev => ({ ...prev, city: e.target.value }))}
+                placeholder="Phoenix"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>State</Label>
+              <Input
+                value={newAddress.state}
+                onChange={(e) => setNewAddress(prev => ({ ...prev, state: e.target.value.toUpperCase().slice(0, 2) }))}
+                placeholder="AZ"
+                maxLength={2}
+                className="uppercase"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>ZIP Code</Label>
+            <Input
+              value={newAddress.zip_code}
+              onChange={(e) => setNewAddress(prev => ({ ...prev, zip_code: e.target.value.replace(/\D/g, '').slice(0, 5) }))}
+              placeholder="85004"
+              maxLength={5}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowAddressForm(false)}
+            className="flex-1"
+          >
+            Back
+          </Button>
+          <Button 
+            onClick={handleSubmitNewAddress}
+            disabled={!isAddressValid}
+            className="flex-1 gap-2"
+          >
+            Continue
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -222,9 +341,9 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
               <p className="text-sm text-muted-foreground mb-4">
                 No existing records for this address
               </p>
-              <Button onClick={onCreateNew} className="gap-2">
+              <Button onClick={handleStartNewInspection} className="gap-2">
                 <Plus className="h-4 w-4" />
-                New Inspection
+                Add New Property
               </Button>
             </Card>
           )}
@@ -309,11 +428,11 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
       <div className="pt-4 border-t">
         <Button 
           variant="outline" 
-          onClick={onCreateNew}
+          onClick={handleStartNewInspection}
           className="w-full gap-2"
         >
           <Plus className="h-4 w-4" />
-          Start New Inspection (No Address Lookup)
+          Add New Property
         </Button>
       </div>
     </div>
