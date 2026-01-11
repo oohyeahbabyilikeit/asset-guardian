@@ -12,6 +12,8 @@ import {
 } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 import { getHardnessFromCoordinates, getFallbackHardness } from '@/lib/services/waterQualityService';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { OfflineSyncIndicator } from './OfflineSyncIndicator';
 
 import { AddressLookupStep, type NewPropertyAddress } from './steps/technician/AddressLookupStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
@@ -78,7 +80,26 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     streetHardnessGPG: initialStreetHardness,
   });
   const [pressurePhotoUrl, setPressurePhotoUrl] = useState<string | undefined>();
+  
+  // Offline sync
+  const {
+    isOnline,
+    isSyncing,
+    pendingCount,
+    lastSyncAt,
+    lastError,
+    saveInspection,
+    syncPendingInspections,
+    startNewInspection,
+  } = useOfflineSync({
+    onSyncComplete: (id) => console.log('Synced inspection:', id),
+    onSyncError: (id, error) => console.error('Sync failed for', id, error),
+  });
 
+  // Start a new inspection session on mount
+  useEffect(() => {
+    startNewInspection();
+  }, [startNewInspection]);
   const [selectedProperty, setSelectedProperty] = useState<SelectedProperty | null>(null);
   const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
   const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
@@ -194,13 +215,23 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     setCurrentStep('pressure');
   }, []);
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback(async () => {
     const finalData: TechnicianInspectionData = {
       ...data,
       inspectedAt: new Date().toISOString(),
     };
+    
+    // Collect photos for offline storage
+    const photos: { url: string; type: 'pressure' | 'condition' | 'dataplate' | 'other' }[] = [];
+    if (pressurePhotoUrl) {
+      photos.push({ url: pressurePhotoUrl, type: 'pressure' });
+    }
+    
+    // Save to offline storage (will auto-sync if online)
+    await saveInspection(finalData, selectedProperty?.id, photos);
+    
     onComplete(finalData);
-  }, [data, onComplete]);
+  }, [data, pressurePhotoUrl, selectedProperty?.id, saveInspection, onComplete]);
   
   const renderStep = () => {
     switch (currentStep) {
@@ -320,6 +351,17 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
                 {stepLabels[currentStep]}
               </p>
             </div>
+            
+            {/* Offline sync indicator */}
+            <OfflineSyncIndicator
+              isOnline={isOnline}
+              isSyncing={isSyncing}
+              pendingCount={pendingCount}
+              lastSyncAt={lastSyncAt}
+              lastError={lastError}
+              onManualSync={syncPendingInspections}
+            />
+            
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
               <span className="font-medium text-foreground">{currentStepIndex + 1}</span>
               <span>/</span>
