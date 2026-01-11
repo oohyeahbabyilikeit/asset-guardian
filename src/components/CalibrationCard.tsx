@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
-import { Droplet, ShowerHead, Flame, Users, Clock, Sparkles, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ChevronRight, Check, X, HelpCircle, Sparkles, Home, Clock } from 'lucide-react';
 import type { UsageType } from '@/lib/opterraAlgorithm';
 
 type FlushHistory = 'never' | 'recent' | 'unknown';
@@ -23,12 +24,35 @@ interface CalibrationCardProps {
 
 type Step = 'people' | 'usage' | 'flush' | 'softener';
 
+const slideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 300 : -300,
+    opacity: 0
+  }),
+  center: {
+    x: 0,
+    opacity: 1
+  },
+  exit: (direction: number) => ({
+    x: direction < 0 ? 300 : -300,
+    opacity: 0
+  })
+};
+
+const getPeopleEmoji = (count: number) => {
+  if (count <= 1) return '👤';
+  if (count <= 2) return '👫';
+  if (count <= 4) return '👨‍👩‍👧‍👦';
+  return '👨‍👩‍👧‍👦👴👵';
+};
+
 export function CalibrationCard({ 
   hasSoftener, 
   defaultPeopleCount = 3,
   onComplete 
 }: CalibrationCardProps) {
   const [step, setStep] = useState<Step>('people');
+  const [direction, setDirection] = useState(1);
   const [peopleCount, setPeopleCount] = useState(defaultPeopleCount);
   const [usageType, setUsageType] = useState<UsageType | null>(null);
   const [flushHistory, setFlushHistory] = useState<FlushHistory | null>(null);
@@ -36,22 +60,25 @@ export function CalibrationCard({
 
   const totalSteps = hasSoftener ? 4 : 3;
   const currentStepNum = step === 'people' ? 1 : step === 'usage' ? 2 : step === 'flush' ? 3 : 4;
+  const progress = (currentStepNum / totalSteps) * 100;
 
   const handlePeopleNext = () => {
+    setDirection(1);
     setStep('usage');
   };
 
   const handleUsageSelect = (type: UsageType) => {
     setUsageType(type);
+    setDirection(1);
     setStep('flush');
   };
 
   const handleFlushSelect = (history: FlushHistory) => {
     setFlushHistory(history);
     if (hasSoftener) {
+      setDirection(1);
       setStep('softener');
     } else {
-      // Complete!
       onComplete({
         peopleCount,
         usageType: usageType!,
@@ -72,192 +99,223 @@ export function CalibrationCard({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
-      {/* Progress dots */}
-      <div className="pt-8 pb-4 flex justify-center gap-2">
-        {Array.from({ length: totalSteps }).map((_, i) => (
-          <div 
-            key={i}
-            className={cn(
-              "w-2 h-2 rounded-full transition-all duration-300",
-              i < currentStepNum ? "bg-primary" : "bg-slate-600"
-            )}
+      {/* Header with branding */}
+      <div className="pt-6 px-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">O</span>
+            </div>
+            <span className="text-white/60 text-sm font-medium">OPTERRA</span>
+          </div>
+          <span className="text-white/40 text-sm">Step {currentStepNum} of {totalSteps}</span>
+        </div>
+        
+        {/* Progress bar */}
+        <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
+          <motion.div 
+            className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
           />
-        ))}
+        </div>
       </div>
 
       {/* Step content - centered */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        
-        {/* Step 1: People */}
-        {step === 'people' && (
-          <div className="w-full max-w-sm space-y-8 animate-fade-in">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-full mb-4">
-                <Users className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">How many people use hot water?</h2>
-              <p className="text-slate-400">Slide to select</p>
-            </div>
-
-            <div className="space-y-6">
-              <div className="text-center">
-                <span className="text-6xl font-bold text-white">{peopleCount}</span>
-              </div>
-              <Slider
-                value={[peopleCount]}
-                onValueChange={(value) => setPeopleCount(value[0])}
-                min={1}
-                max={8}
-                step={1}
-                className="w-full"
-              />
-              <div className="flex justify-between text-sm text-slate-500">
-                <span>1</span>
-                <span>8</span>
-              </div>
-            </div>
-
-            <Button 
-              onClick={handlePeopleNext}
-              className="w-full h-14 text-lg"
+      <div className="flex-1 flex flex-col items-center justify-center px-6 overflow-hidden">
+        <AnimatePresence mode="wait" custom={direction}>
+          
+          {/* Step 1: People */}
+          {step === 'people' && (
+            <motion.div
+              key="people"
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full max-w-sm space-y-8"
             >
-              Continue
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-        )}
-
-        {/* Step 2: Usage */}
-        {step === 'usage' && (
-          <div className="w-full max-w-sm space-y-8 animate-fade-in">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-full mb-4">
-                <ShowerHead className="w-8 h-8 text-primary" />
+              <div className="text-center space-y-4">
+                <span className="text-5xl">{getPeopleEmoji(peopleCount)}</span>
+                <h2 className="text-3xl font-bold text-white">How many people?</h2>
               </div>
-              <h2 className="text-2xl font-bold text-white">How heavy is your hot water usage?</h2>
-              <p className="text-slate-400">Tap to select</p>
-            </div>
 
-            <div className="space-y-3">
-              <button
-                onClick={() => handleUsageSelect('light')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-primary hover:bg-primary/10 transition-all text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <Droplet className="w-8 h-8 text-blue-400" />
-                  <div>
-                    <p className="text-lg font-semibold text-white">Light</p>
-                    <p className="text-sm text-slate-400">Quick showers, minimal usage</p>
-                  </div>
+              <div className="space-y-6">
+                <div className="text-center">
+                  <span className="text-8xl font-bold text-white tabular-nums">{peopleCount}</span>
                 </div>
-              </button>
-
-              <button
-                onClick={() => handleUsageSelect('normal')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-primary hover:bg-primary/10 transition-all text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <ShowerHead className="w-8 h-8 text-green-400" />
-                  <div>
-                    <p className="text-lg font-semibold text-white">Normal</p>
-                    <p className="text-sm text-slate-400">Regular showers and dishes</p>
-                  </div>
+                <Slider
+                  value={[peopleCount]}
+                  onValueChange={(value) => setPeopleCount(value[0])}
+                  min={1}
+                  max={8}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-sm text-slate-500 px-1">
+                  <span>1</span>
+                  <span>8</span>
                 </div>
-              </button>
-
-              <button
-                onClick={() => handleUsageSelect('heavy')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-primary hover:bg-primary/10 transition-all text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <Flame className="w-8 h-8 text-orange-400" />
-                  <div>
-                    <p className="text-lg font-semibold text-white">Heavy</p>
-                    <p className="text-sm text-slate-400">Long showers, we run out sometimes</p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Flush History */}
-        {step === 'flush' && (
-          <div className="w-full max-w-sm space-y-8 animate-fade-in">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-full mb-4">
-                <Clock className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold text-white">When was the tank last flushed?</h2>
-              <p className="text-slate-400">Tap to select</p>
-            </div>
 
-            <div className="space-y-3">
-              <button
-                onClick={() => handleFlushSelect('recent')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-primary hover:bg-primary/10 transition-all text-left"
+              <Button 
+                onClick={handlePeopleNext}
+                className="w-full h-14 text-lg font-semibold"
+                size="lg"
               >
-                <p className="text-lg font-semibold text-white">Within the last year</p>
-                <p className="text-sm text-slate-400">A technician flushed it recently</p>
-              </button>
+                Next
+                <ChevronRight className="w-5 h-5 ml-1" />
+              </Button>
+            </motion.div>
+          )}
 
-              <button
-                onClick={() => handleFlushSelect('never')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-primary hover:bg-primary/10 transition-all text-left"
-              >
-                <p className="text-lg font-semibold text-white">Never</p>
-                <p className="text-sm text-slate-400">It has never been flushed</p>
-              </button>
-
-              <button
-                onClick={() => handleFlushSelect('unknown')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-primary hover:bg-primary/10 transition-all text-left"
-              >
-                <p className="text-lg font-semibold text-white">Not sure</p>
-                <p className="text-sm text-slate-400">I honestly have no idea</p>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Softener Age (conditional) */}
-        {step === 'softener' && (
-          <div className="w-full max-w-sm space-y-8 animate-fade-in">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-500/20 rounded-full mb-4">
-                <Droplet className="w-8 h-8 text-blue-400" />
+          {/* Step 2: Usage */}
+          {step === 'usage' && (
+            <motion.div
+              key="usage"
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full max-w-sm space-y-8"
+            >
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-white">Hot water usage?</h2>
               </div>
-              <h2 className="text-2xl font-bold text-white">How old is the water softener?</h2>
-              <p className="text-slate-400">Tap to select</p>
-            </div>
 
-            <div className="space-y-3">
-              <button
-                onClick={() => handleSoftenerSelect('new')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-all text-left"
-              >
-                <p className="text-lg font-semibold text-white">New</p>
-                <p className="text-sm text-slate-400">Installed in the last 5 years</p>
-              </button>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => handleUsageSelect('light')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-blue-400 hover:bg-blue-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <span className="text-4xl">💧</span>
+                  <span className="text-white font-semibold">Light</span>
+                </button>
 
-              <button
-                onClick={() => handleSoftenerSelect('came_with_house')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-all text-left"
-              >
-                <p className="text-lg font-semibold text-white">Came with the house</p>
-                <p className="text-sm text-slate-400">It was here when I moved in</p>
-              </button>
+                <button
+                  onClick={() => handleUsageSelect('normal')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-green-400 hover:bg-green-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <span className="text-4xl">🚿</span>
+                  <span className="text-white font-semibold">Normal</span>
+                </button>
 
-              <button
-                onClick={() => handleSoftenerSelect('old')}
-                className="w-full p-5 rounded-xl border-2 border-slate-600 bg-slate-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-all text-left"
-              >
-                <p className="text-lg font-semibold text-white">Old</p>
-                <p className="text-sm text-slate-400">10+ years, yellowed or worn</p>
-              </button>
-            </div>
-          </div>
-        )}
+                <button
+                  onClick={() => handleUsageSelect('heavy')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-orange-400 hover:bg-orange-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <span className="text-4xl">🔥</span>
+                  <span className="text-white font-semibold">Heavy</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 3: Flush History */}
+          {step === 'flush' && (
+            <motion.div
+              key="flush"
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full max-w-sm space-y-8"
+            >
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-white">Last tank flush?</h2>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => handleFlushSelect('recent')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-green-400 hover:bg-green-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-7 h-7 text-green-400" />
+                  </div>
+                  <span className="text-white font-semibold text-sm">Recent</span>
+                </button>
+
+                <button
+                  onClick={() => handleFlushSelect('never')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-red-400 hover:bg-red-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <X className="w-7 h-7 text-red-400" />
+                  </div>
+                  <span className="text-white font-semibold text-sm">Never</span>
+                </button>
+
+                <button
+                  onClick={() => handleFlushSelect('unknown')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-slate-400 hover:bg-slate-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-slate-500/20 flex items-center justify-center">
+                    <HelpCircle className="w-7 h-7 text-slate-400" />
+                  </div>
+                  <span className="text-white font-semibold text-sm">Not Sure</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 4: Softener Age (conditional) */}
+          {step === 'softener' && (
+            <motion.div
+              key="softener"
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full max-w-sm space-y-8"
+            >
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-white">Softener age?</h2>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => handleSoftenerSelect('new')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-blue-400 hover:bg-blue-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Sparkles className="w-7 h-7 text-blue-400" />
+                  </div>
+                  <span className="text-white font-semibold text-sm">New</span>
+                </button>
+
+                <button
+                  onClick={() => handleSoftenerSelect('came_with_house')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-amber-400 hover:bg-amber-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <Home className="w-7 h-7 text-amber-400" />
+                  </div>
+                  <span className="text-white font-semibold text-sm text-center leading-tight">Came With</span>
+                </button>
+
+                <button
+                  onClick={() => handleSoftenerSelect('old')}
+                  className="aspect-square rounded-2xl border-2 border-slate-600 bg-slate-800/50 hover:border-slate-400 hover:bg-slate-400/10 active:scale-95 transition-all flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-slate-500/20 flex items-center justify-center">
+                    <Clock className="w-7 h-7 text-slate-400" />
+                  </div>
+                  <span className="text-white font-semibold text-sm">Old</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
