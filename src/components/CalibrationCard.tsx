@@ -92,7 +92,7 @@ export function CalibrationCard({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-900/80 backdrop-blur-md flex flex-col">
       {/* Header with branding */}
       <div className="pt-6 px-6">
         <div className="flex items-center justify-between mb-4">
