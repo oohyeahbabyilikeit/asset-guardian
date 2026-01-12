@@ -10,7 +10,7 @@ interface VitalsGridProps {
   // Tankless-specific props
   scaleBuildupScore?: number;
   flowDegradation?: number;
-  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible';
+  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure';
   hasIsolationValves?: boolean;
   igniterHealth?: number;
   elementHealth?: number;

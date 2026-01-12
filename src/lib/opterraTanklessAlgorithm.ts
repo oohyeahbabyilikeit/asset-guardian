@@ -287,11 +287,21 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // 6. MAINTENANCE STATUS (Descale Eligibility)
   // =========================================
   // CRITICAL: Check scale lockout FIRST - if scale is too high, unit needs replacement
-  // regardless of valve status. Installing valves won't help at 40%+ scale.
-  let descaleStatus: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' = 'optimal';
+  // regardless of valve status. Installing valves won't help at 60%+ scale.
+  // FIX v7.9 "Descale Liability": Add "Point of No Return" for never-flushed old units
+  // Descaling reveals pinholes that were plugged by scale - tech gets blamed for "breaking it"
+  let descaleStatus: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure' = 'optimal';
+  
+  // FIX v7.9: Point of No Return - Old units that have NEVER been descaled
+  // The scale is now structural - removing it will reveal hidden pinhole leaks
+  const neverDescaled = data.lastDescaleYearsAgo === undefined || data.lastDescaleYearsAgo === null;
+  const isOldNeverFlushed = data.calendarAge > 5 && neverDescaled;
   
   if (scaleBuildupScore > TANKLESS.LIMIT_SCALE_LOCKOUT) {
     descaleStatus = 'lockout'; // Scale too high - acid flush risks pinhole leaks, replacement needed
+  } else if (isOldNeverFlushed && scaleBuildupScore > 20) {
+    // FIX v7.9: Run to failure - descaling now is high liability
+    descaleStatus = 'run_to_failure';
   } else if (!data.hasIsolationValves && data.calendarAge > 1) {
     descaleStatus = 'impossible'; // Cannot be flushed without valves
   } else if (scaleBuildupScore > 25) {
@@ -363,9 +373,10 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
     riskLevel: getTanklessLocationRisk(data.location, data.isFinishedArea),
     sedimentRate: 0, // N/A
     monthsToFlush: descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12,
-    monthsToLockout: scaleBuildupScore > 30 ? Math.round((40 - scaleBuildupScore) * 2) : null,
+    monthsToLockout: scaleBuildupScore > 30 ? Math.round((60 - scaleBuildupScore) * 2) : null,
     flushStatus: descaleStatus === 'impossible' ? 'lockout' : 
                  descaleStatus === 'lockout' ? 'lockout' :
+                 descaleStatus === 'run_to_failure' ? 'lockout' :  // Map to lockout for UI
                  descaleStatus === 'critical' ? 'due' : 
                  descaleStatus === 'due' ? 'schedule' : 'optimal',
     
@@ -415,6 +426,23 @@ export function getTanklessRecommendation(metrics: OpterraMetrics, data: Forensi
       urgent: true, 
       badgeColor: 'red', 
       badge: 'SERVICE' 
+    };
+  }
+  
+  // =========================================
+  // FIX v7.9: Run to Failure (Descale Liability)
+  // Never-flushed old units have scale acting as sealant for pinholes
+  // Descaling now reveals leaks - high liability for technician
+  // =========================================
+  if (metrics.descaleStatus === 'run_to_failure') {
+    return { 
+      action: 'PASS', 
+      title: 'Run to Failure', 
+      reason: `Unit is ${data.calendarAge} years old and never descaled. Scale may be plugging pinholes. Descaling now risks exposing leaks. Budget for replacement.`, 
+      urgent: false, 
+      badgeColor: 'yellow', 
+      badge: 'MONITOR',
+      note: 'Descale Liability: Do not recommend maintenance that could reveal hidden damage'
     };
   }
 
