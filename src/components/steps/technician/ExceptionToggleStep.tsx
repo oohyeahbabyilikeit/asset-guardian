@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   CheckCircle, 
@@ -179,15 +179,18 @@ export function ExceptionToggleStep({
 }: ExceptionToggleStepProps) {
   const isGasUnit = assetData.fuelType === 'GAS' || assetData.fuelType === 'TANKLESS_GAS';
   
-  // Build step list based on unit type
-  const steps: StepId[] = isGasUnit 
-    ? ['location', 'temp', 'condition', 'venting', 'equipment']
-    : ['location', 'temp', 'condition', 'equipment'];
+  // Build step list based on unit type - memoized to prevent stale references
+  const steps = useMemo<StepId[]>(() => 
+    isGasUnit 
+      ? ['location', 'temp', 'condition', 'venting', 'equipment']
+      : ['location', 'temp', 'condition', 'equipment'],
+    [isGasUnit]
+  );
   
   // Current active step
   const [activeStep, setActiveStep] = useState<StepId>('location');
   
-  // Completion checks
+  // Completion checks - memoized for stable references
   const locationComplete = locationData.location !== null && locationData.location !== undefined;
   const tempComplete = locationData.tempSetting !== null && locationData.tempSetting !== undefined;
   const conditionComplete = locationData.visualRust !== undefined && locationData.isLeaking !== undefined;
@@ -198,16 +201,16 @@ export function ExceptionToggleStep({
     equipmentData.hasPrv !== undefined && 
     equipmentData.hasDrainPan !== undefined;
 
-  const stepCompletion: Record<StepId, boolean> = {
+  const stepCompletion = useMemo<Record<StepId, boolean>>(() => ({
     location: locationComplete,
     temp: tempComplete,
     condition: conditionComplete,
     venting: ventingComplete,
     equipment: equipmentComplete,
-  };
+  }), [locationComplete, tempComplete, conditionComplete, ventingComplete, equipmentComplete]);
 
-  // Get current step index
-  const currentStepIndex = steps.indexOf(activeStep);
+  // Get current step index - memoized
+  const currentStepIndex = useMemo(() => steps.indexOf(activeStep), [steps, activeStep]);
   
   // Calculate progress
   const completedCount = steps.filter(s => stepCompletion[s]).length;
@@ -216,7 +219,7 @@ export function ExceptionToggleStep({
   // Auto-advance when step completes
   useEffect(() => {
     const currentComplete = stepCompletion[activeStep];
-    if (currentComplete) {
+    if (currentComplete && activeStep !== steps[steps.length - 1]) {
       // Find next incomplete step
       const nextIncompleteIndex = steps.findIndex((s, i) => i > currentStepIndex && !stepCompletion[s]);
       if (nextIncompleteIndex !== -1) {
@@ -226,7 +229,7 @@ export function ExceptionToggleStep({
         return () => clearTimeout(timer);
       }
     }
-  }, [locationData, equipmentData, assetData, activeStep]);
+  }, [stepCompletion, activeStep, steps, currentStepIndex]);
 
   // Summary values for completed chips
   const getSummaryValue = (step: StepId): { value: string; warning: boolean } => {
