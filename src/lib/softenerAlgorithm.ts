@@ -63,6 +63,10 @@ export interface SoftenerInputs {
   // NEW v1.4: Professional Service Flag (suppresses salt alerts if true)
   hasProfessionalService?: boolean;
   
+  // NEW v1.5: Sanitizer Type ("Chloramine Meltdown" Fix)
+  // Chloramines (Ammonia + Chlorine) destroy standard resin 2x faster than chlorine
+  sanitizerType?: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';
+  
   // Legacy field (now derived from visualHeight)
   capacity: number;           // Grain capacity (default 32000)
 }
@@ -142,6 +146,12 @@ const CONSTANTS = {
   // 10% decay implied a hard 10-year limit. 6% allows 15+ year lifespan.
   CITY_WATER_DECAY: 6.0,          // Chlorine kills resin (was 10.0)
   CITY_WATER_CARBON_DECAY: 3.5,   // Carbon filter protects (reduced proportionally)
+  
+  // NEW v1.5: Chloramine accelerators ("Chloramine Meltdown" Fix)
+  // Chloramines are 2x more destructive than chlorine - swells rubber, turns resin to mush
+  CITY_WATER_CHLORAMINE_DECAY: 12.0,         // Chloramine without carbon filter
+  CITY_WATER_CHLORAMINE_CARBON_DECAY: 7.0,   // Carbon helps but still aggressive
+  
   WELL_WATER_DECAY: 12.0,         // Iron/sediment coating
   WELL_WATER_IRON_DECAY: 20.0,    // NEW v1.1: Iron staining = faster decay
 
@@ -306,14 +316,25 @@ function calculateResinHealth(data: SoftenerInputs): number {
   let decayRate: number;
 
   if (data.isCityWater) {
+    // FIX v1.5 "Chloramine Meltdown": Check sanitizer type
+    const isChloramine = data.sanitizerType === 'CHLORAMINE';
+    
     if (data.hasCarbonFilter) {
       // v1.2: CARBON EXPIRY — Carbon only protects for first 5 years
       const carbonLife = CONSTANTS.CARBON_LIFE_YEARS;
       const carbonAge = data.carbonAgeYears ?? data.ageYears; // Assume same age as unit if unknown
       
+      // Select base rates based on sanitizer type
+      const protectedRate = isChloramine 
+        ? CONSTANTS.CITY_WATER_CHLORAMINE_CARBON_DECAY 
+        : CONSTANTS.CITY_WATER_CARBON_DECAY;
+      const nakedRate = isChloramine 
+        ? CONSTANTS.CITY_WATER_CHLORAMINE_DECAY 
+        : CONSTANTS.CITY_WATER_DECAY;
+      
       if (carbonAge <= carbonLife) {
         // Fully Protected — Carbon is fresh
-        decayRate = CONSTANTS.CITY_WATER_CARBON_DECAY; // 5%
+        decayRate = protectedRate;
       } else {
         // Partially Protected — Weighted Average Decay
         // A 10yr old unit was protected for 5 years, naked for 5 years.
@@ -321,13 +342,15 @@ function calculateResinHealth(data: SoftenerInputs): number {
         const nakedYears = Math.max(0, data.ageYears - carbonLife);
         
         // Calculate total damage points then average
-        const totalDamage = (protectedYears * CONSTANTS.CITY_WATER_CARBON_DECAY) + 
-                           (nakedYears * CONSTANTS.CITY_WATER_DECAY);
+        const totalDamage = (protectedYears * protectedRate) + (nakedYears * nakedRate);
         decayRate = totalDamage / data.ageYears;
       }
     } else {
-      // No Carbon = 10% rot/year
-      decayRate = CONSTANTS.CITY_WATER_DECAY;
+      // No Carbon = full exposure to sanitizer
+      // FIX v1.5: Chloramine is 2x more destructive than chlorine
+      decayRate = isChloramine 
+        ? CONSTANTS.CITY_WATER_CHLORAMINE_DECAY 
+        : CONSTANTS.CITY_WATER_DECAY;
     }
   } else {
     // Well Water - Check for iron staining
