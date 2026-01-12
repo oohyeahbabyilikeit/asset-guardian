@@ -828,8 +828,8 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
     if (!lookupResult) return;
     updateInput('streetHardnessGPG', lookupResult.hardnessGPG);
     updateInput('hardnessGPG', lookupResult.hardnessGPG);
-    // NEW v7.10: Also apply sanitizer type to algorithm inputs
-    if (lookupResult.sanitizerType && lookupResult.sanitizerType !== 'UNKNOWN') {
+    // v7.11: Always apply sanitizer type from API (including UNKNOWN)
+    if (lookupResult.sanitizerType) {
       updateInput('sanitizerType', lookupResult.sanitizerType);
     }
   };
@@ -847,7 +847,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             </Button>
             <div>
               <h1 className="text-lg font-bold">OPTERRA Test Harness</h1>
-              <p className="text-xs text-muted-foreground">v7.10 Physics Engine - Chloramine Corrosion</p>
+              <p className="text-xs text-muted-foreground">v7.11 Physics Engine - Complete Sanitizer Sync</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={resetInputs}>
