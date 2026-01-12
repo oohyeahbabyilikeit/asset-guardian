@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap, Wrench } from 'lucide-react';
+import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap, Wrench, Users, Thermometer, Waves, Wind, Activity, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -7,16 +7,28 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
 import { 
   calculateOpterraRisk, 
   getRiskLevelInfo,
   projectFutureHealth,
+  isTankless,
   type ForensicInputs, 
   type OpterraResult,
   type FuelType,
   type TempSetting,
   type LocationType,
-  type AirFilterStatus 
+  type AirFilterStatus,
+  type InletFilterStatus,
+  type FlameRodStatus,
+  type VentStatus,
+  type VentType,
+  type ExpansionTankStatus,
+  type LeakSource,
+  type ConnectionType,
+  type RoomVolumeType,
+  type SoftenerSaltStatus,
+  type UsageType,
 } from '@/lib/opterraAlgorithm';
 
 interface AlgorithmTestHarnessProps {
@@ -24,28 +36,80 @@ interface AlgorithmTestHarnessProps {
 }
 
 const DEFAULT_INPUTS: ForensicInputs = {
+  // Age & Warranty
   calendarAge: 5,
-  housePsi: 60,
   warrantyYears: 6,
-  fuelType: 'GAS',
-  hardnessGPG: 8,
-  hasSoftener: false,
-  hasCircPump: false,
-  isClosedLoop: false,
-  hasExpTank: true,
+  
+  // Pressure System
+  housePsi: 60,
   hasPrv: true,
-  location: 'GARAGE',
-  isFinishedArea: false,
-  visualRust: false,
-  tempSetting: 'NORMAL',
-  lastAnodeReplaceYearsAgo: undefined,
-  lastFlushYearsAgo: undefined,
+  hasExpTank: true,
+  expTankStatus: 'FUNCTIONAL',
+  isClosedLoop: false,
+  
+  // Usage Calibration
   peopleCount: 3,
   usageType: 'normal',
   tankCapacity: 50,
+  
+  // Water Quality
+  hardnessGPG: 8,
+  streetHardnessGPG: undefined,
+  measuredHardnessGPG: undefined,
+  hasSoftener: false,
+  softenerSaltStatus: undefined,
+  
+  // Equipment
+  fuelType: 'GAS',
+  ventType: 'ATMOSPHERIC',
+  ventingScenario: 'SHARED_FLUE',
+  tempSetting: 'NORMAL',
+  hasCircPump: false,
+  isAnnuallyMaintained: false,
+  
+  // Location
+  location: 'GARAGE',
+  isFinishedArea: false,
+  hasDrainPan: false,
+  
+  // Physical Condition
+  visualRust: false,
+  isLeaking: false,
+  leakSource: 'NONE',
+  connectionType: 'DIELECTRIC',
+  anodeCount: 1,
+  
+  // Service History
+  lastAnodeReplaceYearsAgo: undefined,
+  lastFlushYearsAgo: undefined,
+  
   // Hybrid (Heat Pump) defaults
   airFilterStatus: 'CLEAN',
   isCondensateClear: true,
+  compressorHealth: 100,
+  roomVolumeType: 'OPEN',
+  
+  // Tankless defaults
+  flowRateGPM: undefined,
+  ratedFlowGPM: 9.5,
+  lastDescaleYearsAgo: undefined,
+  hasIsolationValves: true,
+  inletWaterTemp: 55,
+  scaleBuildup: 0,
+  errorCodeCount: 0,
+  
+  // Tankless Gas
+  igniterHealth: 100,
+  flameRodStatus: 'GOOD',
+  tanklessVentStatus: 'CLEAR',
+  gasLineSize: '3/4',
+  gasRunLength: 20,
+  btuRating: 199000,
+  
+  // Tankless Electric
+  elementHealth: 100,
+  inletFilterStatus: 'CLEAN',
+  hasRecirculationLoop: false,
 };
 
 interface Issue {
@@ -59,16 +123,47 @@ interface Issue {
 function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[] {
   const issues: Issue[] = [];
   const { metrics, verdict } = result;
+  const isTanklessUnit = isTankless(inputs.fuelType);
 
+  // =====================
   // CRITICAL ISSUES
+  // =====================
+  
+  // Leak Detection (v7.8 Leak Source Classification)
   if (inputs.isLeaking) {
-    issues.push({
-      id: 'leak',
-      severity: 'critical',
-      title: 'Active Leak Detected',
-      detail: 'Tank containment has failed. Immediate replacement required.',
-      value: 'BREACH'
-    });
+    if (inputs.leakSource === 'TANK_BODY') {
+      issues.push({
+        id: 'leak_tank_body',
+        severity: 'critical',
+        title: 'Tank Body Leak - Condemned',
+        detail: 'Tank containment has failed. Replacement required immediately.',
+        value: 'BREACH'
+      });
+    } else if (inputs.leakSource === 'FITTING_VALVE') {
+      issues.push({
+        id: 'leak_fitting',
+        severity: 'warning',
+        title: 'Fitting/Valve Leak',
+        detail: 'Leak at connection point - repairable with fitting replacement.',
+        value: 'REPAIRABLE'
+      });
+    } else if (inputs.leakSource === 'DRAIN_PAN') {
+      issues.push({
+        id: 'leak_drain_pan',
+        severity: 'warning',
+        title: 'Drain Pan Water',
+        detail: 'Water in drain pan - inspect T&P relief and condensation.',
+        value: 'INVESTIGATE'
+      });
+    } else {
+      issues.push({
+        id: 'leak_unknown',
+        severity: 'critical',
+        title: 'Active Leak Detected',
+        detail: 'Source unknown - immediate investigation required.',
+        value: 'BREACH'
+      });
+    }
   }
 
   if (inputs.visualRust) {
@@ -81,6 +176,7 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     });
   }
 
+  // Pressure Issues
   if (inputs.housePsi > 150) {
     issues.push({
       id: 'explosion',
@@ -99,6 +195,7 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     });
   }
 
+  // Bio Age / Failure Probability
   if (metrics.bioAge >= 20) {
     issues.push({
       id: 'bio_age_critical',
@@ -119,25 +216,150 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     });
   }
 
-  // Closed loop without expansion tank
+  // Expansion Tank Issues (v7.8 Zombie Tank Fix)
   const isClosedLoop = inputs.isClosedLoop || inputs.hasPrv;
-  if (isClosedLoop && !inputs.hasExpTank) {
+  if (isClosedLoop) {
+    if (!inputs.hasExpTank || inputs.expTankStatus === 'MISSING') {
+      issues.push({
+        id: 'no_exp_tank',
+        severity: 'critical',
+        title: 'Missing Expansion Tank',
+        detail: 'Closed loop system without expansion tank causes thermal pressure spikes up to 120+ PSI.',
+        value: 'MISSING'
+      });
+    } else if (inputs.expTankStatus === 'WATERLOGGED') {
+      issues.push({
+        id: 'exp_tank_waterlogged',
+        severity: 'critical',
+        title: 'Waterlogged Expansion Tank',
+        detail: 'Expansion tank bladder has failed. Tank provides zero protection - replace immediately.',
+        value: 'DEAD BLADDER'
+      });
+    }
+  }
+
+  // Connection Type (v7.9 Galvanic Blind Spot)
+  if (inputs.connectionType === 'DIRECT_COPPER') {
     issues.push({
-      id: 'no_exp_tank',
+      id: 'galvanic_corrosion',
       severity: 'critical',
-      title: 'Missing Expansion Tank',
-      detail: 'Closed loop system without expansion tank causes thermal pressure spikes up to 120+ PSI.',
-      value: 'MISSING'
+      title: 'Galvanic Corrosion Risk',
+      detail: 'Direct copper-to-steel connection causes accelerated electrochemical corrosion. Install dielectric unions.',
+      value: 'DIRECT COPPER'
     });
   }
 
+  // Legionella Warning
+  if (metrics.bacterialGrowthWarning) {
+    issues.push({
+      id: 'legionella',
+      severity: 'critical',
+      title: 'Legionella Risk',
+      detail: 'Temperature setting below 120°F allows harmful bacteria growth. Raise to 120°F minimum.',
+      value: '<120°F'
+    });
+  }
+
+  // High-Risk Location without Drain Pan (v7.8 Attic Bomb)
+  if ((inputs.location === 'ATTIC' || inputs.location === 'UPPER_FLOOR') && !inputs.hasDrainPan) {
+    issues.push({
+      id: 'no_drain_pan_attic',
+      severity: 'critical',
+      title: 'No Drain Pan in High-Risk Location',
+      detail: `${inputs.location} installation without drain pan. Leak would cause catastrophic ceiling damage.`,
+      value: 'CODE VIOLATION'
+    });
+  }
+
+  // Hybrid in Sealed Closet (v7.9 Suffocation)
+  if (inputs.fuelType === 'HYBRID' && inputs.roomVolumeType === 'CLOSET_SEALED') {
+    issues.push({
+      id: 'hybrid_suffocation',
+      severity: 'critical',
+      title: 'Hybrid Suffocation Risk',
+      detail: 'Heat pump requires 700+ cu ft of air. Sealed closet starves compressor - efficiency drops 50%+.',
+      value: 'SEALED CLOSET'
+    });
+  }
+
+  // =====================
+  // TANKLESS CRITICAL
+  // =====================
+  if (isTanklessUnit) {
+    // Scale Lockout
+    if ((inputs.scaleBuildup ?? 0) >= 80) {
+      issues.push({
+        id: 'scale_lockout',
+        severity: 'critical',
+        title: 'Scale Lockout - Unit Condemned',
+        detail: `Heat exchanger ${inputs.scaleBuildup}% blocked. Descaling impossible - replacement required.`,
+        value: 'LOCKOUT'
+      });
+    }
+
+    // No Isolation Valves - Maintenance Impossible
+    if (inputs.hasIsolationValves === false) {
+      issues.push({
+        id: 'no_isolation_valves',
+        severity: 'critical',
+        title: 'No Isolation Valves',
+        detail: 'Unit cannot be descaled without isolation valves. Install valves or run to failure.',
+        value: 'RUN TO FAIL'
+      });
+    }
+
+    // Gas Starvation (v7.8)
+    if (inputs.fuelType === 'TANKLESS_GAS' && inputs.gasLineSize && inputs.btuRating) {
+      const maxBtuByPipe: Record<string, number> = {
+        '1/2': 120000,
+        '3/4': 260000,
+        '1': 500000,
+      };
+      const maxBtu = maxBtuByPipe[inputs.gasLineSize] || 260000;
+      if (inputs.btuRating > maxBtu) {
+        issues.push({
+          id: 'gas_starvation',
+          severity: 'critical',
+          title: 'Gas Line Undersized',
+          detail: `${inputs.gasLineSize}" line maxes at ${maxBtu.toLocaleString()} BTU but unit is ${inputs.btuRating.toLocaleString()} BTU. Unit will short-cycle.`,
+          value: 'UNDERSIZED'
+        });
+      }
+    }
+
+    // Flame Rod Failing (Gas Tankless)
+    if (inputs.flameRodStatus === 'FAILING') {
+      issues.push({
+        id: 'flame_rod_failing',
+        severity: 'critical',
+        title: 'Flame Rod Failing',
+        detail: 'Flame rod degraded - unit will lockout on ignition failure. Replace immediately.',
+        value: 'REPLACE NOW'
+      });
+    }
+
+    // Vent Blocked (Gas Tankless)
+    if (inputs.tanklessVentStatus === 'BLOCKED') {
+      issues.push({
+        id: 'vent_blocked',
+        severity: 'critical',
+        title: 'Vent Blocked - Safety Hazard',
+        detail: 'Blocked vent prevents combustion exhaust. CO poisoning risk - do not operate.',
+        value: 'CO RISK'
+      });
+    }
+  }
+
+  // =====================
   // WARNING ISSUES
+  // =====================
+  
   if (inputs.housePsi >= 70 && inputs.housePsi <= 80) {
     issues.push({
       id: 'pressure_elevated',
       severity: 'warning',
       title: 'Elevated Pressure',
-      detail: `Pressure ${inputs.housePsi} PSI is within warranty threshold but elevated. PRV would reduce stress.`,
+      detail: `Pressure ${inputs.housePsi} PSI is within code but elevated. PRV would reduce stress.`,
       value: `${inputs.housePsi} PSI`
     });
   }
@@ -162,6 +384,7 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     });
   }
 
+  // Sediment Issues
   if (metrics.sedimentLbs >= 5 && metrics.sedimentLbs <= 15) {
     issues.push({
       id: 'sediment_service',
@@ -175,11 +398,12 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
       id: 'sediment_lockout',
       severity: 'critical',
       title: 'Sediment Lockout',
-      detail: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment - too hardite flush safely. Flush could cause leaks.`,
+      detail: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment - too hard to flush safely. Flush could cause leaks.`,
       value: `${metrics.sedimentLbs.toFixed(1)} lbs`
     });
   }
 
+  // Anode Issues
   if (metrics.shieldLife <= 0) {
     issues.push({
       id: 'anode_depleted',
@@ -198,14 +422,33 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     });
   }
 
+  // Water Quality / Softener
   if (inputs.hasSoftener) {
-    issues.push({
-      id: 'softener',
-      severity: 'warning',
-      title: 'Water Softener Active',
-      detail: 'Softener increases conductivity, accelerating anode consumption by 2.4x.',
-      value: 'ACTIVE'
-    });
+    if (inputs.softenerSaltStatus === 'EMPTY') {
+      issues.push({
+        id: 'softener_empty',
+        severity: 'warning',
+        title: 'Softener Salt Empty',
+        detail: 'Softener has no salt - running on hard water. Refill immediately.',
+        value: 'EMPTY'
+      });
+    } else if (inputs.softenerSaltStatus === 'UNKNOWN') {
+      issues.push({
+        id: 'softener_unknown',
+        severity: 'info',
+        title: 'Softener Salt Unknown',
+        detail: 'Salt level not verified - may be bridged. Check and verify operation.',
+        value: 'CHECK'
+      });
+    } else {
+      issues.push({
+        id: 'softener_active',
+        severity: 'info',
+        title: 'Water Softener Active',
+        detail: 'Softener increases conductivity, accelerating anode consumption by 2.4x.',
+        value: 'ACTIVE'
+      });
+    }
   }
 
   if (inputs.hasCircPump) {
@@ -268,7 +511,31 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     });
   }
 
-  // Hybrid/Heat Pump specific issues
+  // Connection Type Warning
+  if (inputs.connectionType === 'BRASS') {
+    issues.push({
+      id: 'brass_connection',
+      severity: 'info',
+      title: 'Brass Connections',
+      detail: 'Brass nipples provide some galvanic protection but not as effective as dielectric unions.',
+      value: 'BRASS'
+    });
+  }
+
+  // Venting Scenario Warning (v7.9)
+  if (inputs.ventingScenario === 'ORPHANED_FLUE') {
+    issues.push({
+      id: 'orphaned_flue',
+      severity: 'warning',
+      title: 'Orphaned Flue Detected',
+      detail: 'Water heater is only appliance on masonry chimney. Replacement will require chimney liner (~$2,000).',
+      value: '+$2,000'
+    });
+  }
+
+  // =====================
+  // HYBRID ISSUES
+  // =====================
   if (inputs.fuelType === 'HYBRID') {
     if (inputs.airFilterStatus === 'CLOGGED') {
       issues.push({
@@ -295,6 +562,149 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
         title: 'Condensate Drain Blocked',
         detail: 'Blocked condensate drain can cause water damage and unit shutdown.',
         value: 'BLOCKED'
+      });
+    }
+
+    if ((inputs.compressorHealth ?? 100) < 50) {
+      issues.push({
+        id: 'compressor_failing',
+        severity: 'critical',
+        title: 'Compressor Failing',
+        detail: `Compressor health at ${inputs.compressorHealth}%. Unit will fail soon.`,
+        value: `${inputs.compressorHealth}%`
+      });
+    } else if ((inputs.compressorHealth ?? 100) < 75) {
+      issues.push({
+        id: 'compressor_degraded',
+        severity: 'warning',
+        title: 'Compressor Degraded',
+        detail: `Compressor health at ${inputs.compressorHealth}%. Efficiency reduced.`,
+        value: `${inputs.compressorHealth}%`
+      });
+    }
+
+    if (inputs.roomVolumeType === 'CLOSET_LOUVERED') {
+      issues.push({
+        id: 'hybrid_louvered',
+        severity: 'info',
+        title: 'Louvered Closet Installation',
+        detail: 'Louvered doors provide some airflow but efficiency may be reduced 10-20%.',
+        value: 'LOUVERED'
+      });
+    }
+  }
+
+  // =====================
+  // TANKLESS WARNINGS
+  // =====================
+  if (isTanklessUnit) {
+    // Scale Buildup Warning
+    if ((inputs.scaleBuildup ?? 0) >= 30 && (inputs.scaleBuildup ?? 0) < 80) {
+      issues.push({
+        id: 'scale_buildup',
+        severity: 'warning',
+        title: 'Scale Buildup Detected',
+        detail: `Heat exchanger ${inputs.scaleBuildup}% blocked. Schedule descaling soon.`,
+        value: `${inputs.scaleBuildup}%`
+      });
+    }
+
+    // Descaling Due
+    if ((inputs.lastDescaleYearsAgo ?? 0) >= 2 && inputs.hardnessGPG > 7) {
+      issues.push({
+        id: 'descale_due',
+        severity: 'warning',
+        title: 'Descaling Overdue',
+        detail: `Last descale ${inputs.lastDescaleYearsAgo} years ago with hard water. Schedule maintenance.`,
+        value: 'OVERDUE'
+      });
+    }
+
+    // Flow Degradation
+    if (inputs.flowRateGPM && inputs.ratedFlowGPM) {
+      const degradation = ((inputs.ratedFlowGPM - inputs.flowRateGPM) / inputs.ratedFlowGPM) * 100;
+      if (degradation >= 30) {
+        issues.push({
+          id: 'flow_degraded',
+          severity: 'warning',
+          title: 'Flow Rate Degraded',
+          detail: `Flow ${inputs.flowRateGPM} GPM vs ${inputs.ratedFlowGPM} GPM rated (${degradation.toFixed(0)}% loss).`,
+          value: `${degradation.toFixed(0)}% LOSS`
+        });
+      }
+    }
+
+    // Igniter Health
+    if ((inputs.igniterHealth ?? 100) < 50 && inputs.fuelType === 'TANKLESS_GAS') {
+      issues.push({
+        id: 'igniter_weak',
+        severity: 'warning',
+        title: 'Weak Igniter',
+        detail: `Igniter health at ${inputs.igniterHealth}%. May fail to light on cold starts.`,
+        value: `${inputs.igniterHealth}%`
+      });
+    }
+
+    // Flame Rod Worn
+    if (inputs.flameRodStatus === 'WORN') {
+      issues.push({
+        id: 'flame_rod_worn',
+        severity: 'warning',
+        title: 'Flame Rod Worn',
+        detail: 'Flame rod showing wear. Schedule replacement before failure.',
+        value: 'WORN'
+      });
+    }
+
+    // Vent Restricted
+    if (inputs.tanklessVentStatus === 'RESTRICTED') {
+      issues.push({
+        id: 'vent_restricted',
+        severity: 'warning',
+        title: 'Vent Restricted',
+        detail: 'Restricted vent reduces combustion efficiency and may trigger error codes.',
+        value: 'RESTRICTED'
+      });
+    }
+
+    // Inlet Filter
+    if (inputs.inletFilterStatus === 'CLOGGED') {
+      issues.push({
+        id: 'inlet_filter_clogged',
+        severity: 'warning',
+        title: 'Inlet Filter Clogged',
+        detail: 'Clogged inlet filter restricts water flow. Clean immediately.',
+        value: 'CLOGGED'
+      });
+    } else if (inputs.inletFilterStatus === 'DIRTY') {
+      issues.push({
+        id: 'inlet_filter_dirty',
+        severity: 'info',
+        title: 'Inlet Filter Dirty',
+        detail: 'Inlet filter collecting debris. Clean during next service.',
+        value: 'DIRTY'
+      });
+    }
+
+    // Error Codes
+    if ((inputs.errorCodeCount ?? 0) >= 3) {
+      issues.push({
+        id: 'error_codes',
+        severity: 'warning',
+        title: 'Frequent Error Codes',
+        detail: `${inputs.errorCodeCount} error codes logged. Unit may have underlying issues.`,
+        value: `${inputs.errorCodeCount} ERRORS`
+      });
+    }
+
+    // Element Health (Electric Tankless)
+    if ((inputs.elementHealth ?? 100) < 50 && inputs.fuelType === 'TANKLESS_ELECTRIC') {
+      issues.push({
+        id: 'element_failing',
+        severity: 'warning',
+        title: 'Heating Element Degraded',
+        detail: `Element health at ${inputs.elementHealth}%. Heating capacity reduced.`,
+        value: `${inputs.elementHealth}%`
       });
     }
   }
@@ -324,6 +734,11 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
 export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
   const [inputs, setInputs] = useState<ForensicInputs>(DEFAULT_INPUTS);
   const [result, setResult] = useState<OpterraResult | null>(null);
+
+  const isTanklessUnit = isTankless(inputs.fuelType);
+  const isGasTankless = inputs.fuelType === 'TANKLESS_GAS';
+  const isElectricTankless = inputs.fuelType === 'TANKLESS_ELECTRIC';
+  const isHybrid = inputs.fuelType === 'HYBRID';
 
   // Auto-run calculation on input change
   useEffect(() => {
@@ -361,7 +776,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             </Button>
             <div>
               <h1 className="text-lg font-bold">OPTERRA Test Harness</h1>
-              <p className="text-xs text-muted-foreground">v6.6 Physics Engine</p>
+              <p className="text-xs text-muted-foreground">v7.9 Physics Engine - Complete</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={resetInputs}>
@@ -373,9 +788,12 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left Panel - Inputs */}
-        <ScrollArea className="lg:w-80 lg:border-r border-border">
+        <ScrollArea className="lg:w-96 lg:border-r border-border">
           <div className="p-4 space-y-6">
-            {/* Core Metrics */}
+            
+            {/* ==================== */}
+            {/* AGE & WARRANTY */}
+            {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5" /> Age & Warranty
@@ -397,9 +815,22 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="6">6 Years</SelectItem>
-                      <SelectItem value="9">9 Years</SelectItem>
-                      <SelectItem value="12">12 Years</SelectItem>
+                      <SelectItem value="6">6 Years (Builder)</SelectItem>
+                      <SelectItem value="9">9 Years (Standard)</SelectItem>
+                      <SelectItem value="12">12 Years (Pro)</SelectItem>
+                      <SelectItem value="15">15 Years (Premium)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Anode Count</Label>
+                  <Select value={String(inputs.anodeCount ?? 1)} onValueChange={(v) => updateInput('anodeCount', Number(v) as 1 | 2)}>
+                    <SelectTrigger className="mt-1 h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 Anode (Standard)</SelectItem>
+                      <SelectItem value="2">2 Anodes (Pro/Premium)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -408,75 +839,163 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
 
             <Separator />
 
-            {/* Service History */}
+            {/* ==================== */}
+            {/* USAGE CALIBRATION */}
+            {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                <Wrench className="w-3.5 h-3.5" /> Service History
+                <Users className="w-3.5 h-3.5" /> Usage Calibration
               </h2>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-xs">Anode Replaced (years ago)</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={inputs.calendarAge}
-                      value={inputs.lastAnodeReplaceYearsAgo ?? ''}
-                      placeholder="Never"
-                      onChange={(e) => updateInput('lastAnodeReplaceYearsAgo', e.target.value ? Number(e.target.value) : undefined)}
-                      className="h-9"
-                    />
-                    {inputs.lastAnodeReplaceYearsAgo !== undefined && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => updateInput('lastAnodeReplaceYearsAgo', undefined)}
-                        className="h-9 px-2 text-xs"
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">Leave empty if anode was never replaced</p>
+                  <Label className="text-xs">People in Household</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={inputs.peopleCount}
+                    onChange={(e) => updateInput('peopleCount', Number(e.target.value))}
+                    className="mt-1 h-9"
+                  />
                 </div>
                 <div>
-                  <Label className="text-xs">Last Flush (years ago)</Label>
-                  <div className="flex gap-2 mt-1">
+                  <Label className="text-xs">Usage Style</Label>
+                  <Select value={inputs.usageType} onValueChange={(v) => updateInput('usageType', v as UsageType)}>
+                    <SelectTrigger className="mt-1 h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Light (Quick showers)</SelectItem>
+                      <SelectItem value="normal">Normal (Average use)</SelectItem>
+                      <SelectItem value="heavy">Heavy (Long showers, high demand)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {!isTanklessUnit && (
+                  <div>
+                    <Label className="text-xs">Tank Capacity (gallons)</Label>
                     <Input
                       type="number"
-                      min={0}
-                      max={inputs.calendarAge}
-                      value={inputs.lastFlushYearsAgo ?? ''}
-                      placeholder="Never"
-                      onChange={(e) => updateInput('lastFlushYearsAgo', e.target.value ? Number(e.target.value) : undefined)}
-                      className="h-9"
+                      min={20}
+                      max={100}
+                      value={inputs.tankCapacity}
+                      onChange={(e) => updateInput('tankCapacity', Number(e.target.value))}
+                      className="mt-1 h-9"
                     />
-                    {inputs.lastFlushYearsAgo !== undefined && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => updateInput('lastFlushYearsAgo', undefined)}
-                        className="h-9 px-2 text-xs"
-                      >
-                        Clear
-                      </Button>
-                    )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">Leave empty if tank was never flushed</p>
-                </div>
+                )}
               </div>
             </section>
 
             <Separator />
 
-            {/* Pressure */}
+            {/* ==================== */}
+            {/* SERVICE HISTORY */}
+            {/* ==================== */}
+            <section>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                <Wrench className="w-3.5 h-3.5" /> Service History
+              </h2>
+              <div className="space-y-3">
+                {!isTanklessUnit && (
+                  <>
+                    <div>
+                      <Label className="text-xs">Anode Replaced (years ago)</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={inputs.calendarAge}
+                          value={inputs.lastAnodeReplaceYearsAgo ?? ''}
+                          placeholder="Never"
+                          onChange={(e) => updateInput('lastAnodeReplaceYearsAgo', e.target.value ? Number(e.target.value) : undefined)}
+                          className="h-9"
+                        />
+                        {inputs.lastAnodeReplaceYearsAgo !== undefined && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => updateInput('lastAnodeReplaceYearsAgo', undefined)}
+                            className="h-9 px-2 text-xs"
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Last Flush (years ago)</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={inputs.calendarAge}
+                          value={inputs.lastFlushYearsAgo ?? ''}
+                          placeholder="Never"
+                          onChange={(e) => updateInput('lastFlushYearsAgo', e.target.value ? Number(e.target.value) : undefined)}
+                          className="h-9"
+                        />
+                        {inputs.lastFlushYearsAgo !== undefined && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => updateInput('lastFlushYearsAgo', undefined)}
+                            className="h-9 px-2 text-xs"
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                      <Label className="text-xs">Annually Maintained</Label>
+                      <Switch 
+                        checked={inputs.isAnnuallyMaintained ?? false} 
+                        onCheckedChange={(v) => updateInput('isAnnuallyMaintained', v)} 
+                      />
+                    </div>
+                  </>
+                )}
+                {isTanklessUnit && (
+                  <div>
+                    <Label className="text-xs">Last Descale (years ago)</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={inputs.lastDescaleYearsAgo ?? ''}
+                        placeholder="Never"
+                        onChange={(e) => updateInput('lastDescaleYearsAgo', e.target.value ? Number(e.target.value) : undefined)}
+                        className="h-9"
+                      />
+                      {inputs.lastDescaleYearsAgo !== undefined && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => updateInput('lastDescaleYearsAgo', undefined)}
+                          className="h-9 px-2 text-xs"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* ==================== */}
+            {/* PRESSURE SYSTEM */}
+            {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
                 <Gauge className="w-3.5 h-3.5" /> Pressure System
               </h2>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-xs">House PSI</Label>
+                  <Label className="text-xs">House PSI (Static)</Label>
                   <Input
                     type="number"
                     value={inputs.housePsi}
@@ -489,43 +1008,112 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   <Switch checked={inputs.hasPrv} onCheckedChange={(v) => updateInput('hasPrv', v)} />
                 </div>
                 <div className="flex items-center justify-between py-1">
-                  <Label className="text-xs">Expansion Tank</Label>
-                  <Switch checked={inputs.hasExpTank} onCheckedChange={(v) => updateInput('hasExpTank', v)} />
-                </div>
-                <div className="flex items-center justify-between py-1">
-                  <Label className="text-xs">Closed Loop</Label>
+                  <Label className="text-xs">Closed Loop System</Label>
                   <Switch checked={inputs.isClosedLoop} onCheckedChange={(v) => updateInput('isClosedLoop', v)} />
                 </div>
+                {!isTanklessUnit && (
+                  <>
+                    <div className="flex items-center justify-between py-1">
+                      <Label className="text-xs">Has Expansion Tank</Label>
+                      <Switch checked={inputs.hasExpTank} onCheckedChange={(v) => updateInput('hasExpTank', v)} />
+                    </div>
+                    {inputs.hasExpTank && (
+                      <div>
+                        <Label className="text-xs">Expansion Tank Status</Label>
+                        <Select 
+                          value={inputs.expTankStatus || 'FUNCTIONAL'} 
+                          onValueChange={(v) => updateInput('expTankStatus', v as ExpansionTankStatus)}
+                        >
+                          <SelectTrigger className="mt-1 h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="FUNCTIONAL">Functional</SelectItem>
+                            <SelectItem value="WATERLOGGED">Waterlogged (Dead Bladder)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </section>
 
             <Separator />
 
-            {/* Water Quality */}
+            {/* ==================== */}
+            {/* WATER QUALITY */}
+            {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
                 <Droplets className="w-3.5 h-3.5" /> Water Quality
               </h2>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-xs">Hardness (GPG)</Label>
+                  <Label className="text-xs">Street Hardness (GPG) - From API</Label>
                   <Input
                     type="number"
-                    value={inputs.hardnessGPG}
-                    onChange={(e) => updateInput('hardnessGPG', Number(e.target.value))}
+                    value={inputs.streetHardnessGPG ?? inputs.hardnessGPG}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      updateInput('streetHardnessGPG', val);
+                      updateInput('hardnessGPG', val);
+                    }}
                     className="mt-1 h-9"
                   />
+                </div>
+                <div>
+                  <Label className="text-xs">Measured Hardness (GPG) - Test Strip</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="number"
+                      value={inputs.measuredHardnessGPG ?? ''}
+                      placeholder="Optional override"
+                      onChange={(e) => updateInput('measuredHardnessGPG', e.target.value ? Number(e.target.value) : undefined)}
+                      className="h-9"
+                    />
+                    {inputs.measuredHardnessGPG !== undefined && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => updateInput('measuredHardnessGPG', undefined)}
+                        className="h-9 px-2 text-xs"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <Label className="text-xs">Water Softener</Label>
                   <Switch checked={inputs.hasSoftener} onCheckedChange={(v) => updateInput('hasSoftener', v)} />
                 </div>
+                {inputs.hasSoftener && (
+                  <div>
+                    <Label className="text-xs">Salt Level Status</Label>
+                    <Select 
+                      value={inputs.softenerSaltStatus || 'UNKNOWN'} 
+                      onValueChange={(v) => updateInput('softenerSaltStatus', v as SoftenerSaltStatus)}
+                    >
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OK">OK - Salt Verified Full</SelectItem>
+                        <SelectItem value="EMPTY">Empty - No Salt</SelectItem>
+                        <SelectItem value="UNKNOWN">Unknown - Not Verified</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </section>
 
             <Separator />
 
-            {/* Equipment */}
+            {/* ==================== */}
+            {/* EQUIPMENT */}
+            {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
                 <Zap className="w-3.5 h-3.5" /> Equipment
@@ -538,20 +1126,55 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="GAS">Gas</SelectItem>
-                      <SelectItem value="ELECTRIC">Electric</SelectItem>
+                      <SelectItem value="GAS">Gas Tank</SelectItem>
+                      <SelectItem value="ELECTRIC">Electric Tank</SelectItem>
                       <SelectItem value="HYBRID">Heat Pump / Hybrid</SelectItem>
+                      <SelectItem value="TANKLESS_GAS">Tankless Gas</SelectItem>
+                      <SelectItem value="TANKLESS_ELECTRIC">Tankless Electric</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {!isTanklessUnit && (
+                  <div>
+                    <Label className="text-xs">Vent Type</Label>
+                    <Select value={inputs.ventType || 'ATMOSPHERIC'} onValueChange={(v) => updateInput('ventType', v as VentType)}>
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ATMOSPHERIC">Atmospheric</SelectItem>
+                        <SelectItem value="POWER_VENT">Power Vent (+$800)</SelectItem>
+                        <SelectItem value="DIRECT_VENT">Direct Vent (+$600)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {inputs.fuelType === 'GAS' && (
+                  <div>
+                    <Label className="text-xs">Venting Scenario</Label>
+                    <Select 
+                      value={inputs.ventingScenario || 'SHARED_FLUE'} 
+                      onValueChange={(v) => updateInput('ventingScenario', v as 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT')}
+                    >
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SHARED_FLUE">Shared Flue (with furnace)</SelectItem>
+                        <SelectItem value="ORPHANED_FLUE">Orphaned Flue (+$2,000 liner)</SelectItem>
+                        <SelectItem value="DIRECT_VENT">Direct Vent (self-contained)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
-                  <Label className="text-xs">Temperature</Label>
+                  <Label className="text-xs">Temperature Setting</Label>
                   <Select value={inputs.tempSetting} onValueChange={(v) => updateInput('tempSetting', v as TempSetting)}>
                     <SelectTrigger className="mt-1 h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="LOW">Low (&lt;120°F)</SelectItem>
+                      <SelectItem value="LOW">Low (&lt;120°F) ⚠️ Legionella</SelectItem>
                       <SelectItem value="NORMAL">Normal (120-130°F)</SelectItem>
                       <SelectItem value="HOT">Hot (&gt;130°F)</SelectItem>
                     </SelectContent>
@@ -564,13 +1187,15 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               </div>
             </section>
 
-            {/* Heat Pump Maintenance - Only show for HYBRID */}
-            {inputs.fuelType === 'HYBRID' && (
+            {/* ==================== */}
+            {/* HYBRID / HEAT PUMP */}
+            {/* ==================== */}
+            {isHybrid && (
               <>
                 <Separator />
                 <section>
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                    <Zap className="w-3.5 h-3.5" /> Heat Pump Maintenance
+                    <Wind className="w-3.5 h-3.5" /> Heat Pump Specifics
                   </h2>
                   <div className="space-y-3">
                     <div>
@@ -583,9 +1208,9 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="CLEAN">Clean - Good Airflow</SelectItem>
-                          <SelectItem value="DIRTY">Dirty - Reduced Efficiency</SelectItem>
-                          <SelectItem value="CLOGGED">Clogged - Compressor at Risk</SelectItem>
+                          <SelectItem value="CLEAN">Clean</SelectItem>
+                          <SelectItem value="DIRTY">Dirty</SelectItem>
+                          <SelectItem value="CLOGGED">Clogged</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -596,6 +1221,250 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                         onCheckedChange={(v) => updateInput('isCondensateClear', v)} 
                       />
                     </div>
+                    <div>
+                      <Label className="text-xs">Compressor Health: {inputs.compressorHealth ?? 100}%</Label>
+                      <Slider 
+                        value={[inputs.compressorHealth ?? 100]}
+                        onValueChange={([v]) => updateInput('compressorHealth', v)}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Room Volume</Label>
+                      <Select 
+                        value={inputs.roomVolumeType || 'OPEN'} 
+                        onValueChange={(v) => updateInput('roomVolumeType', v as RoomVolumeType)}
+                      >
+                        <SelectTrigger className="mt-1 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="OPEN">Open Area (700+ cu ft)</SelectItem>
+                          <SelectItem value="CLOSET_LOUVERED">Louvered Closet</SelectItem>
+                          <SelectItem value="CLOSET_SEALED">Sealed Closet ⚠️</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* ==================== */}
+            {/* TANKLESS DIAGNOSTICS */}
+            {/* ==================== */}
+            {isTanklessUnit && (
+              <>
+                <Separator />
+                <section>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5" /> Tankless Diagnostics
+                  </h2>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Current Flow Rate (GPM)</Label>
+                      <Input
+                        type="number"
+                        step={0.1}
+                        value={inputs.flowRateGPM ?? ''}
+                        placeholder="Measured"
+                        onChange={(e) => updateInput('flowRateGPM', e.target.value ? Number(e.target.value) : undefined)}
+                        className="mt-1 h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Rated Flow Rate (GPM)</Label>
+                      <Input
+                        type="number"
+                        step={0.1}
+                        value={inputs.ratedFlowGPM ?? 9.5}
+                        onChange={(e) => updateInput('ratedFlowGPM', Number(e.target.value))}
+                        className="mt-1 h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Inlet Water Temp (°F)</Label>
+                      <Input
+                        type="number"
+                        value={inputs.inletWaterTemp ?? 55}
+                        onChange={(e) => updateInput('inletWaterTemp', Number(e.target.value))}
+                        className="mt-1 h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Scale Buildup: {inputs.scaleBuildup ?? 0}%</Label>
+                      <Slider 
+                        value={[inputs.scaleBuildup ?? 0]}
+                        onValueChange={([v]) => updateInput('scaleBuildup', v)}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                      <Label className="text-xs">Has Isolation Valves</Label>
+                      <Switch 
+                        checked={inputs.hasIsolationValves ?? true} 
+                        onCheckedChange={(v) => updateInput('hasIsolationValves', v)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                      <Label className="text-xs">Has Recirculation Loop</Label>
+                      <Switch 
+                        checked={inputs.hasRecirculationLoop ?? false} 
+                        onCheckedChange={(v) => updateInput('hasRecirculationLoop', v)} 
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Error Code Count</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={inputs.errorCodeCount ?? 0}
+                        onChange={(e) => updateInput('errorCodeCount', Number(e.target.value))}
+                        className="mt-1 h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Inlet Filter Status</Label>
+                      <Select 
+                        value={inputs.inletFilterStatus || 'CLEAN'} 
+                        onValueChange={(v) => updateInput('inletFilterStatus', v as InletFilterStatus)}
+                      >
+                        <SelectTrigger className="mt-1 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CLEAN">Clean</SelectItem>
+                          <SelectItem value="DIRTY">Dirty</SelectItem>
+                          <SelectItem value="CLOGGED">Clogged</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* ==================== */}
+            {/* GAS TANKLESS SPECIFIC */}
+            {/* ==================== */}
+            {isGasTankless && (
+              <>
+                <Separator />
+                <section>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-orange-500 mb-3 flex items-center gap-2">
+                    <Flame className="w-3.5 h-3.5" /> Gas Tankless
+                  </h2>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Igniter Health: {inputs.igniterHealth ?? 100}%</Label>
+                      <Slider 
+                        value={[inputs.igniterHealth ?? 100]}
+                        onValueChange={([v]) => updateInput('igniterHealth', v)}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Flame Rod Status</Label>
+                      <Select 
+                        value={inputs.flameRodStatus || 'GOOD'} 
+                        onValueChange={(v) => updateInput('flameRodStatus', v as FlameRodStatus)}
+                      >
+                        <SelectTrigger className="mt-1 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GOOD">Good</SelectItem>
+                          <SelectItem value="WORN">Worn</SelectItem>
+                          <SelectItem value="FAILING">Failing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Vent Status</Label>
+                      <Select 
+                        value={inputs.tanklessVentStatus || 'CLEAR'} 
+                        onValueChange={(v) => updateInput('tanklessVentStatus', v as VentStatus)}
+                      >
+                        <SelectTrigger className="mt-1 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CLEAR">Clear</SelectItem>
+                          <SelectItem value="RESTRICTED">Restricted</SelectItem>
+                          <SelectItem value="BLOCKED">Blocked ⚠️ CO Risk</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Gas Line Size</Label>
+                      <Select 
+                        value={inputs.gasLineSize || '3/4'} 
+                        onValueChange={(v) => updateInput('gasLineSize', v as '1/2' | '3/4' | '1')}
+                      >
+                        <SelectTrigger className="mt-1 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1/2">1/2" (max 120k BTU)</SelectItem>
+                          <SelectItem value="3/4">3/4" (max 260k BTU)</SelectItem>
+                          <SelectItem value="1">1" (max 500k BTU)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Gas Run Length (feet)</Label>
+                      <Input
+                        type="number"
+                        value={inputs.gasRunLength ?? 20}
+                        onChange={(e) => updateInput('gasRunLength', Number(e.target.value))}
+                        className="mt-1 h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">BTU Rating</Label>
+                      <Input
+                        type="number"
+                        value={inputs.btuRating ?? 199000}
+                        onChange={(e) => updateInput('btuRating', Number(e.target.value))}
+                        className="mt-1 h-9"
+                      />
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* ==================== */}
+            {/* ELECTRIC TANKLESS */}
+            {/* ==================== */}
+            {isElectricTankless && (
+              <>
+                <Separator />
+                <section>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-blue-500 mb-3 flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5" /> Electric Tankless
+                  </h2>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Element Health: {inputs.elementHealth ?? 100}%</Label>
+                      <Slider 
+                        value={[inputs.elementHealth ?? 100]}
+                        onValueChange={([v]) => updateInput('elementHealth', v)}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="mt-2"
+                      />
+                    </div>
                   </div>
                 </section>
               </>
@@ -603,7 +1472,9 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
 
             <Separator />
 
-            {/* Location */}
+            {/* ==================== */}
+            {/* LOCATION */}
+            {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5" /> Location
@@ -616,8 +1487,8 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ATTIC">Attic</SelectItem>
-                      <SelectItem value="UPPER_FLOOR">Upper Floor</SelectItem>
+                      <SelectItem value="ATTIC">Attic ⚠️ High Risk</SelectItem>
+                      <SelectItem value="UPPER_FLOOR">Upper Floor ⚠️ High Risk</SelectItem>
                       <SelectItem value="MAIN_LIVING">Main Floor</SelectItem>
                       <SelectItem value="BASEMENT">Basement</SelectItem>
                       <SelectItem value="GARAGE">Garage</SelectItem>
@@ -630,12 +1501,18 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   <Label className="text-xs">Finished Area</Label>
                   <Switch checked={inputs.isFinishedArea} onCheckedChange={(v) => updateInput('isFinishedArea', v)} />
                 </div>
+                <div className="flex items-center justify-between py-1">
+                  <Label className="text-xs">Has Drain Pan</Label>
+                  <Switch checked={inputs.hasDrainPan ?? false} onCheckedChange={(v) => updateInput('hasDrainPan', v)} />
+                </div>
               </div>
             </section>
 
             <Separator />
 
-            {/* Physical Condition */}
+            {/* ==================== */}
+            {/* PHYSICAL CONDITION */}
+            {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-destructive mb-3 flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5" /> Physical Condition
@@ -649,6 +1526,43 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   <Label className="text-xs text-destructive">Active Leak</Label>
                   <Switch checked={inputs.isLeaking ?? false} onCheckedChange={(v) => updateInput('isLeaking', v)} />
                 </div>
+                {inputs.isLeaking && (
+                  <div>
+                    <Label className="text-xs">Leak Source</Label>
+                    <Select 
+                      value={inputs.leakSource || 'NONE'} 
+                      onValueChange={(v) => updateInput('leakSource', v as LeakSource)}
+                    >
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="TANK_BODY">Tank Body ⚠️ Condemned</SelectItem>
+                        <SelectItem value="FITTING_VALVE">Fitting/Valve (Repairable)</SelectItem>
+                        <SelectItem value="DRAIN_PAN">Drain Pan (Investigate)</SelectItem>
+                        <SelectItem value="NONE">Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {!isTanklessUnit && (
+                  <div>
+                    <Label className="text-xs">Connection Type</Label>
+                    <Select 
+                      value={inputs.connectionType || 'DIELECTRIC'} 
+                      onValueChange={(v) => updateInput('connectionType', v as ConnectionType)}
+                    >
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DIELECTRIC">Dielectric Unions ✓</SelectItem>
+                        <SelectItem value="BRASS">Brass Nipples</SelectItem>
+                        <SelectItem value="DIRECT_COPPER">Direct Copper ⚠️</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </section>
           </div>
@@ -690,7 +1604,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 </div>
 
                 {/* Issue Summary */}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {criticalCount > 0 && (
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/30">
                       <XCircle className="w-4 h-4 text-destructive" />
@@ -720,7 +1634,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 {/* Issues List */}
                 {issues.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">All Detected Issues</h3>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">All Detected Issues ({issues.length})</h3>
                     <div className="space-y-2">
                       {issues.map((issue) => (
                         <div
@@ -784,6 +1698,12 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       status={result.metrics.yearsLeftCurrent <= 0 ? 'critical' : result.metrics.yearsLeftCurrent <= 2 ? 'warning' : 'ok'}
                     />
                     <MetricCard 
+                      icon={<Gauge className="w-4 h-4" />}
+                      label="Effective PSI" 
+                      value={`${result.metrics.effectivePsi} PSI`} 
+                      status={result.metrics.effectivePsi > 100 ? 'critical' : result.metrics.effectivePsi > 80 ? 'warning' : 'ok'}
+                    />
+                    <MetricCard 
                       icon={<Droplets className="w-4 h-4" />}
                       label="Sediment" 
                       value={`${result.metrics.sedimentLbs.toFixed(1)} lbs`} 
@@ -801,8 +1721,72 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       value={riskInfo?.label || 'Unknown'} 
                       status={result.metrics.riskLevel >= 4 ? 'critical' : result.metrics.riskLevel >= 3 ? 'warning' : 'ok'}
                     />
+                    <MetricCard 
+                      icon={<Activity className="w-4 h-4" />}
+                      label="Health Score" 
+                      value={`${result.metrics.healthScore}`} 
+                      status={result.metrics.healthScore < 40 ? 'critical' : result.metrics.healthScore < 70 ? 'warning' : 'ok'}
+                    />
+                    <MetricCard 
+                      icon={<Thermometer className="w-4 h-4" />}
+                      label="Aging Rate" 
+                      value={`${result.metrics.agingRate.toFixed(2)}x`} 
+                      status={result.metrics.agingRate > 3 ? 'critical' : result.metrics.agingRate > 1.5 ? 'warning' : 'ok'}
+                    />
                   </div>
                 </div>
+
+                {/* Tankless-Specific Metrics */}
+                {isTanklessUnit && result.metrics.descaleStatus && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tankless Metrics</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <MetricCard 
+                        icon={<Waves className="w-4 h-4" />}
+                        label="Scale Buildup" 
+                        value={`${result.metrics.scaleBuildupScore?.toFixed(0) ?? 0}%`} 
+                        status={(result.metrics.scaleBuildupScore ?? 0) >= 80 ? 'critical' : (result.metrics.scaleBuildupScore ?? 0) >= 30 ? 'warning' : 'ok'}
+                      />
+                      <MetricCard 
+                        icon={<Activity className="w-4 h-4" />}
+                        label="Flow Loss" 
+                        value={`${result.metrics.flowDegradation?.toFixed(0) ?? 0}%`} 
+                        status={(result.metrics.flowDegradation ?? 0) >= 30 ? 'warning' : 'ok'}
+                      />
+                      <MetricCard 
+                        icon={<Wrench className="w-4 h-4" />}
+                        label="Descale Status" 
+                        value={result.metrics.descaleStatus?.toUpperCase() ?? 'N/A'} 
+                        status={result.metrics.descaleStatus === 'lockout' || result.metrics.descaleStatus === 'impossible' ? 'critical' : result.metrics.descaleStatus === 'critical' || result.metrics.descaleStatus === 'due' ? 'warning' : 'ok'}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Safety Warnings */}
+                {(result.metrics.bacterialGrowthWarning || (isHybrid && result.hardWaterTax.elementBurnoutRisk !== undefined && result.hardWaterTax.elementBurnoutRisk > 50)) && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-destructive">Safety Warnings</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {result.metrics.bacterialGrowthWarning && (
+                        <MetricCard 
+                          icon={<AlertCircle className="w-4 h-4" />}
+                          label="Legionella Risk" 
+                          value="ACTIVE" 
+                          status="critical"
+                        />
+                      )}
+                      {isHybrid && result.hardWaterTax.elementBurnoutRisk !== undefined && result.hardWaterTax.elementBurnoutRisk > 50 && (
+                        <MetricCard 
+                          icon={<Zap className="w-4 h-4" />}
+                          label="Element Burnout" 
+                          value={`${result.hardWaterTax.elementBurnoutRisk}%`} 
+                          status={result.hardWaterTax.elementBurnoutRisk > 75 ? 'critical' : 'warning'}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Stress Factors */}
                 <div className="space-y-2">
@@ -852,7 +1836,49 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   </div>
                 </div>
 
-                {/* Financial Forecast (NEW v6.4) */}
+                {/* Hard Water Tax */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hard Water Tax</h3>
+                  <div className={`p-4 rounded-lg border ${
+                    result.hardWaterTax.recommendation === 'RECOMMEND' ? 'bg-orange-500/10 border-orange-500/30' :
+                    result.hardWaterTax.recommendation === 'CONSIDER' ? 'bg-yellow-500/10 border-yellow-500/30' :
+                    result.hardWaterTax.recommendation === 'PROTECTED' ? 'bg-emerald-500/10 border-emerald-500/30' :
+                    'bg-card border-border'
+                  }`}>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center mb-3">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Hardness</div>
+                        <div className="text-sm font-bold">{result.hardWaterTax.hardnessGPG} GPG</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Annual Loss</div>
+                        <div className="text-sm font-bold text-destructive">${result.hardWaterTax.totalAnnualLoss}/yr</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Net Savings</div>
+                        <div className={`text-sm font-bold ${result.hardWaterTax.netAnnualSavings > 0 ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                          ${result.hardWaterTax.netAnnualSavings}/yr
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Payback</div>
+                        <div className="text-sm font-bold">{result.hardWaterTax.paybackYears.toFixed(1)} yrs</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`shrink-0 px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                        result.hardWaterTax.badgeColor === 'orange' ? 'bg-orange-500/20 text-orange-600' :
+                        result.hardWaterTax.badgeColor === 'yellow' ? 'bg-yellow-500/20 text-yellow-700' :
+                        'bg-emerald-500/20 text-emerald-600'
+                      }`}>
+                        {result.hardWaterTax.recommendation}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{result.hardWaterTax.reason}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Forecast */}
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Forecast</h3>
                   <div className={`p-4 rounded-lg border ${
@@ -875,7 +1901,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       <div>
                         <div className="text-xs text-muted-foreground">Est. Cost</div>
                         <div className="text-sm font-bold font-mono">
-                          ${result.financial.estReplacementCost.toLocaleString()}
+                          ${result.financial.estReplacementCostMin.toLocaleString()}-${result.financial.estReplacementCostMax.toLocaleString()}
                         </div>
                       </div>
                       <div>
@@ -899,6 +1925,16 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                         {result.financial.budgetUrgency}
                       </div>
                       <p className="text-xs text-muted-foreground">{result.financial.recommendation}</p>
+                    </div>
+                    {/* Tier Info */}
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <div className="text-xs text-muted-foreground mb-1">Current Tier: <span className="font-semibold text-foreground">{result.financial.currentTier.tierLabel}</span></div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Like-for-like: ${result.financial.likeForLikeCost.toLocaleString()} 
+                        {result.financial.upgradeTier && (
+                          <> · Upgrade to {result.financial.upgradeTier.tierLabel}: ${result.financial.upgradeCost?.toLocaleString()}</>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
