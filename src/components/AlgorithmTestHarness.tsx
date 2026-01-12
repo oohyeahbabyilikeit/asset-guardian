@@ -114,6 +114,153 @@ const DEFAULT_INPUTS: ForensicInputs = {
   hasRecirculationLoop: false,
 };
 
+// Test scenario presets for rapid edge-case testing
+type TestScenario = {
+  name: string;
+  description: string;
+  inputs: Partial<ForensicInputs>;
+};
+
+const TEST_SCENARIOS: TestScenario[] = [
+  {
+    name: 'Attic Time Bomb',
+    description: 'Old unit in finished attic, no pan, thermal expansion risk',
+    inputs: {
+      calendarAge: 12,
+      warrantyYears: 6,
+      location: 'ATTIC',
+      isFinishedArea: true,
+      hasDrainPan: false,
+      hasExpTank: false,
+      isClosedLoop: true,
+      housePsi: 80,
+      hardnessGPG: 15,
+      lastAnodeReplaceYearsAgo: undefined,
+      lastFlushYearsAgo: undefined,
+    }
+  },
+  {
+    name: 'Zombie Expansion Tank',
+    description: 'Failed expansion tank with high pressure in closed loop',
+    inputs: {
+      calendarAge: 8,
+      hasExpTank: true,
+      expTankStatus: 'WATERLOGGED',
+      isClosedLoop: true,
+      housePsi: 90,
+      hasPrv: false,
+    }
+  },
+  {
+    name: 'Gas Starvation',
+    description: 'Undersized gas line causing tankless issues',
+    inputs: {
+      fuelType: 'TANKLESS_GAS',
+      calendarAge: 3,
+      gasLineSize: '1/2',
+      gasRunLength: 50,
+      btuRating: 199000,
+      errorCodeCount: 3,
+      igniterHealth: 70,
+    }
+  },
+  {
+    name: 'Chloramine + Hard Water',
+    description: 'Aggressive water chemistry accelerating corrosion',
+    inputs: {
+      hardnessGPG: 22,
+      sanitizerType: 'CHLORAMINE',
+      hasSoftener: false,
+      calendarAge: 6,
+      tempSetting: 'HOT',
+      lastFlushYearsAgo: undefined,
+    }
+  },
+  {
+    name: 'Orphaned Flue',
+    description: 'Shared flue after furnace upgrade - backdraft risk',
+    inputs: {
+      fuelType: 'GAS',
+      ventType: 'ATMOSPHERIC',
+      ventingScenario: 'ORPHANED_FLUE',
+      calendarAge: 10,
+    }
+  },
+  {
+    name: 'Galvanic Nightmare',
+    description: 'Copper-to-steel with no dielectric, leaking connections',
+    inputs: {
+      connectionType: 'DIRECT_COPPER',
+      isLeaking: true,
+      leakSource: 'FITTING_VALVE',
+      calendarAge: 7,
+      visualRust: true,
+    }
+  },
+  {
+    name: 'Hybrid Suffocation',
+    description: 'Heat pump in closet with blocked airflow',
+    inputs: {
+      fuelType: 'HYBRID',
+      calendarAge: 4,
+      roomVolumeType: 'CLOSET_SEALED',
+      airFilterStatus: 'CLOGGED',
+      compressorHealth: 60,
+      isCondensateClear: false,
+    }
+  },
+  {
+    name: 'Tankless Scale Crisis',
+    description: 'Heavily scaled tankless never descaled',
+    inputs: {
+      fuelType: 'TANKLESS_GAS',
+      calendarAge: 5,
+      hardnessGPG: 18,
+      scaleBuildup: 4,
+      lastDescaleYearsAgo: undefined,
+      hasIsolationValves: false,
+      flowRateGPM: 2.5,
+      ratedFlowGPM: 9.5,
+    }
+  },
+  {
+    name: 'Legionella Risk',
+    description: 'Low temp setting with stagnant water',
+    inputs: {
+      tempSetting: 'LOW',
+      peopleCount: 1,
+      tankCapacity: 80,
+      usageType: 'light',
+      calendarAge: 8,
+    }
+  },
+  {
+    name: 'Perfect Unit',
+    description: 'Well-maintained premium unit with ideal conditions',
+    inputs: {
+      calendarAge: 2,
+      warrantyYears: 12,
+      hardnessGPG: 3,
+      hasSoftener: true,
+      softenerSaltStatus: 'OK',
+      housePsi: 55,
+      hasPrv: true,
+      hasExpTank: true,
+      expTankStatus: 'FUNCTIONAL',
+      isClosedLoop: false,
+      lastAnodeReplaceYearsAgo: 1,
+      lastFlushYearsAgo: 0.5,
+      isAnnuallyMaintained: true,
+      connectionType: 'DIELECTRIC',
+      visualRust: false,
+      isLeaking: false,
+      location: 'GARAGE',
+      isFinishedArea: false,
+      hasDrainPan: true,
+    }
+  },
+];
+
 interface Issue {
   id: string;
   severity: 'critical' | 'warning' | 'info';
@@ -788,6 +935,17 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
     setZipCode('');
     setLookupResult(null);
     setLookupError(null);
+    setSelectedScenario('');
+  };
+
+  const [selectedScenario, setSelectedScenario] = useState('');
+  
+  const applyScenario = (scenarioName: string) => {
+    const scenario = TEST_SCENARIOS.find(s => s.name === scenarioName);
+    if (scenario) {
+      setInputs({ ...DEFAULT_INPUTS, ...scenario.inputs });
+      setSelectedScenario(scenarioName);
+    }
   };
 
   const updateInput = <K extends keyof ForensicInputs>(key: K, value: ForensicInputs[K]) => {
@@ -847,13 +1005,29 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             </Button>
             <div>
               <h1 className="text-lg font-bold">OPTERRA Test Harness</h1>
-              <p className="text-xs text-muted-foreground">v7.11 Physics Engine - Complete Sanitizer Sync</p>
+              <p className="text-xs text-muted-foreground">v7.12 Physics Engine - Scenario Presets</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={resetInputs}>
-            <RotateCcw className="w-4 h-4 mr-1" />
-            Reset
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={selectedScenario} onValueChange={applyScenario}>
+              <SelectTrigger className="w-44 h-8 text-xs">
+                <SelectValue placeholder="Load Scenario..." />
+              </SelectTrigger>
+              <SelectContent>
+                {TEST_SCENARIOS.map(scenario => (
+                  <SelectItem key={scenario.name} value={scenario.name}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{scenario.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={resetInputs}>
+              <RotateCcw className="w-4 h-4 mr-1" />
+              Reset
+            </Button>
+          </div>
         </div>
       </header>
 
