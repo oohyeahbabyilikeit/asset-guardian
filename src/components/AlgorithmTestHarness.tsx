@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap, Wrench, Users, Thermometer, Waves, Wind, Activity, AlertCircle } from 'lucide-react';
+import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap, Wrench, Users, Thermometer, Waves, Wind, Activity, AlertCircle, Search, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -731,9 +732,24 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
   return issues;
 }
 
+interface WaterQualityLookupResult {
+  utilityName: string;
+  sanitizerType: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';
+  hardnessGPG: number;
+  confidence: number;
+  sourceUrl?: string;
+  fromCache?: boolean;
+}
+
 export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
   const [inputs, setInputs] = useState<ForensicInputs>(DEFAULT_INPUTS);
   const [result, setResult] = useState<OpterraResult | null>(null);
+  
+  // Water quality lookup state
+  const [zipCode, setZipCode] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<WaterQualityLookupResult | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   const isTanklessUnit = isTankless(inputs.fuelType);
   const isGasTankless = inputs.fuelType === 'TANKLESS_GAS';
@@ -757,10 +773,49 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
 
   const resetInputs = () => {
     setInputs(DEFAULT_INPUTS);
+    setZipCode('');
+    setLookupResult(null);
+    setLookupError(null);
   };
 
   const updateInput = <K extends keyof ForensicInputs>(key: K, value: ForensicInputs[K]) => {
     setInputs(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleWaterQualityLookup = async () => {
+    if (zipCode.length !== 5) return;
+    
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookupResult(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-water-quality', {
+        body: { zipCode }
+      });
+      
+      if (error) throw error;
+      
+      setLookupResult({
+        utilityName: data.utilityName || 'Unknown Utility',
+        sanitizerType: data.sanitizerType || 'UNKNOWN',
+        hardnessGPG: data.hardnessGPG ?? 8,
+        confidence: data.confidence ?? 0,
+        sourceUrl: data.sourceUrl,
+        fromCache: data.fromCache || false,
+      });
+    } catch (err) {
+      console.error('Water quality lookup failed:', err);
+      setLookupError(err instanceof Error ? err.message : 'Lookup failed');
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const applyLookupValues = () => {
+    if (!lookupResult) return;
+    updateInput('streetHardnessGPG', lookupResult.hardnessGPG);
+    updateInput('hardnessGPG', lookupResult.hardnessGPG);
   };
 
   const riskInfo = result ? getRiskLevelInfo(result.metrics.riskLevel) : null;
@@ -1049,6 +1104,87 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 <Droplets className="w-3.5 h-3.5" /> Water Quality
               </h2>
               <div className="space-y-3">
+                {/* ZIP Code Lookup */}
+                <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-3">
+                  <Label className="text-xs font-semibold">ZIP Code Lookup</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      maxLength={5}
+                      value={zipCode}
+                      placeholder="Enter ZIP"
+                      onChange={(e) => setZipCode(e.target.value.replace(/\D/g, ''))}
+                      className="h-9 flex-1"
+                    />
+                    <Button 
+                      size="sm" 
+                      className="h-9"
+                      disabled={zipCode.length !== 5 || lookupLoading}
+                      onClick={handleWaterQualityLookup}
+                    >
+                      {lookupLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {lookupError && (
+                    <div className="text-xs text-destructive">{lookupError}</div>
+                  )}
+                  
+                  {lookupResult && (
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Utility</span>
+                        <span className="font-medium truncate max-w-[180px]">{lookupResult.utilityName}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Sanitizer</span>
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                          lookupResult.sanitizerType === 'CHLORAMINE' 
+                            ? 'bg-orange-500/20 text-orange-600' 
+                            : lookupResult.sanitizerType === 'CHLORINE'
+                            ? 'bg-emerald-500/20 text-emerald-600'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {lookupResult.sanitizerType || 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Hardness</span>
+                        <span className="font-medium">{lookupResult.hardnessGPG} GPG</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Confidence</span>
+                        <span className={`font-medium ${
+                          lookupResult.confidence >= 80 ? 'text-emerald-600' :
+                          lookupResult.confidence >= 60 ? 'text-yellow-600' :
+                          'text-destructive'
+                        }`}>{lookupResult.confidence}%</span>
+                      </div>
+                      {lookupResult.fromCache && (
+                        <div className="text-muted-foreground italic">From cache</div>
+                      )}
+                      {lookupResult.sanitizerType === 'CHLORAMINE' && (
+                        <div className="flex items-center gap-1.5 p-2 rounded bg-orange-500/10 border border-orange-500/30 text-orange-600">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                          <span>Chloramine accelerates softener resin degradation</span>
+                        </div>
+                      )}
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="w-full h-8 text-xs mt-2"
+                        onClick={applyLookupValues}
+                      >
+                        Use These Values
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <Label className="text-xs">Street Hardness (GPG) - From API</Label>
                   <Input
