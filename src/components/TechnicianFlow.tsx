@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Check, ChevronDown, Lock, MapPin, Gauge, Scan, Navigation, Flame, Zap, Droplets, Flag, ClipboardCheck, Building2 } from 'lucide-react';
+import { ChevronLeft, Check, ChevronDown, Lock, MapPin, Gauge, Scan, Settings2, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
@@ -23,37 +23,39 @@ import { BuildingTypeStep } from './steps/technician/BuildingTypeStep';
 import { UnitTypeStep } from './steps/technician/UnitTypeStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
 import { PressureStep } from './steps/technician/PressureStep';
-import { LocationStep } from './steps/technician/LocationStep';
+import { ExceptionToggleStep } from './steps/technician/ExceptionToggleStep';
 import { SoftenerCheckStep } from './steps/technician/SoftenerCheckStep';
 import { HybridCheckStep } from './steps/technician/HybridCheckStep';
 import { TanklessCheckStep } from './steps/technician/TanklessCheckStep';
 import { ReviewStep, type AIDetectedFields } from './steps/technician/ReviewStep';
 import { HandoffStep } from './steps/technician/HandoffStep';
 
-// Optimized step order for minimal backtracking:
-// 1. Address Lookup (truck/driveway)
-// 2. Building Type (residential, multifamily, commercial)
-// 3. Unit Type Selection (before we know what questions to ask)
-// 4. Pressure (exterior hose bib)
-// 5. Asset Scan (at the unit)
-// 6. Location & Equipment (at the unit - merged for efficiency)
-// 7. Tankless/Hybrid specifics (at the unit - if applicable)
-// 8. Softener (different location - often separate area)
-// 9. Review (verify all AI-detected and algorithm-affecting values)
-// 10. Handoff
+/**
+ * TechnicianFlow v8.0 - "5-Minute Flow" Optimization
+ * 
+ * CONSOLIDATED from 11 steps to 6 steps:
+ * 
+ * 1. setup (address + building + unit type) - 30 sec
+ * 2. readings (pressure + hardness) - 60 sec  
+ * 3. asset-scan (AI-powered ID) - 60 sec
+ * 4. exceptions (Standard Install + toggles) - 90 sec
+ * 5. unit-check (tankless/hybrid specific, or softener) - 30 sec
+ * 6. confirm (review + handoff combined) - 60 sec
+ */
 
 type TechStep = 
-  | 'address-lookup'
-  | 'building-type'
-  | 'unit-type'
-  | 'pressure'
-  | 'asset-scan'
-  | 'location'
-  | 'tankless'
-  | 'hybrid'
-  | 'softener'
-  | 'review'
-  | 'handoff';
+  | 'setup'        // address + building-type + unit-type
+  | 'readings'     // Pressure + hardness  
+  | 'asset-scan'   // AI data plate scan
+  | 'exceptions'   // Standard Install button + exception toggles
+  | 'unit-check'   // Tankless/Hybrid specific OR softener
+  | 'confirm';     // Review + handoff
+
+// Sub-steps within 'setup'
+type SetupSubStep = 'address' | 'building' | 'unit';
+
+// Sub-steps within 'unit-check'
+type UnitCheckSubStep = 'tankless' | 'hybrid' | 'softener';
 
 interface SelectedProperty {
   id: string;
@@ -69,22 +71,7 @@ interface TechnicianFlowProps {
   initialStreetHardness?: number;
 }
 
-function getStepOrder(fuelType: FuelType): TechStep[] {
-  // Linear path optimized for physical location flow:
-  // Truck → Building Type → Unit Type → Hose Bib → Water Heater → Softener → Review → Done
-  const base: TechStep[] = ['address-lookup', 'building-type', 'unit-type', 'pressure', 'asset-scan', 'location'];
-  
-  // Add unit-specific checks while still at the water heater
-  if (isTankless(fuelType)) {
-    return [...base, 'tankless', 'softener', 'review', 'handoff'];
-  }
-  if (isHybrid(fuelType)) {
-    return [...base, 'hybrid', 'softener', 'review', 'handoff'];
-  }
-  
-  // Standard tank units go straight to softener check, then review
-  return [...base, 'softener', 'review', 'handoff'];
-}
+const STEP_ORDER: TechStep[] = ['setup', 'readings', 'asset-scan', 'exceptions', 'unit-check', 'confirm'];
 
 export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 }: TechnicianFlowProps) {
   const [data, setData] = useState<TechnicianInspectionData>({
@@ -112,16 +99,32 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   useEffect(() => {
     startNewInspection();
   }, [startNewInspection]);
+  
   const [selectedProperty, setSelectedProperty] = useState<SelectedProperty | null>(null);
   const [newPropertyAddress, setNewPropertyAddress] = useState<NewPropertyAddress | null>(null);
-  const [currentStep, setCurrentStep] = useState<TechStep>('address-lookup');
+  const [currentStep, setCurrentStep] = useState<TechStep>('setup');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Sub-step tracking for multi-part steps
+  const [setupSubStep, setSetupSubStep] = useState<SetupSubStep>('address');
+  const [unitCheckSubStep, setUnitCheckSubStep] = useState<UnitCheckSubStep>('softener');
   
   // Track which fields were detected by AI for the review step
   const [aiDetectedFields, setAIDetectedFields] = useState<AIDetectedFields>({});
   
   // Track which steps have been visited for free navigation
-  const [visitedSteps, setVisitedSteps] = useState<Set<TechStep>>(new Set(['address-lookup']));
+  const [visitedSteps, setVisitedSteps] = useState<Set<TechStep>>(new Set(['setup']));
+  
+  // Determine which unit-check sub-step to show based on fuel type
+  useEffect(() => {
+    if (isTankless(data.asset.fuelType)) {
+      setUnitCheckSubStep('tankless');
+    } else if (isHybrid(data.asset.fuelType)) {
+      setUnitCheckSubStep('hybrid');
+    } else {
+      setUnitCheckSubStep('softener');
+    }
+  }, [data.asset.fuelType]);
 
   // Auto-fetch water hardness when GPS coordinates become available
   useEffect(() => {
@@ -136,15 +139,13 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
         })
         .catch(console.error);
     } else if (selectedProperty?.state || newPropertyAddress?.state) {
-      // Fallback to state-based estimate if no GPS
       const stateCode = selectedProperty?.state || newPropertyAddress?.state || 'DEFAULT';
       const fallback = getFallbackHardness(stateCode);
       setData(prev => ({ ...prev, streetHardnessGPG: fallback.hardnessGPG }));
     }
   }, [gpsCoords, selectedProperty?.state, newPropertyAddress?.state]);
   
-  const stepOrder = getStepOrder(data.asset.fuelType);
-  const currentStepIndex = stepOrder.indexOf(currentStep);
+  const currentStepIndex = STEP_ORDER.indexOf(currentStep);
   
   // Mark current step as visited whenever it changes
   useEffect(() => {
@@ -154,47 +155,43 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     });
   }, [currentStep]);
   
-  // Handle fuel type changes - reset type-specific step visits
-  const previousFuelTypeRef = React.useRef(data.asset.fuelType);
-  useEffect(() => {
-    if (previousFuelTypeRef.current !== data.asset.fuelType) {
-      previousFuelTypeRef.current = data.asset.fuelType;
-      const commonSteps: TechStep[] = ['address-lookup', 'building-type', 'unit-type', 'pressure', 'asset-scan', 'location', 'softener', 'handoff'];
-      setVisitedSteps(prev => {
-        const filtered = new Set<TechStep>();
-        prev.forEach(step => {
-          if (commonSteps.includes(step)) {
-            filtered.add(step);
-          }
-        });
-        return filtered;
-      });
-    }
-  }, [data.asset.fuelType]);
-  
   // Navigation to a specific step (for clickable indicators)
   const goToStep = useCallback((step: TechStep) => {
-    const stepIndex = stepOrder.indexOf(step);
+    const stepIndex = STEP_ORDER.indexOf(step);
     const canNavigate = visitedSteps.has(step) || stepIndex === currentStepIndex + 1;
     if (canNavigate && stepIndex !== -1) {
       setCurrentStep(step);
     }
-  }, [stepOrder, visitedSteps, currentStepIndex]);
+  }, [visitedSteps, currentStepIndex]);
   
   const goNext = useCallback(() => {
     const nextIndex = currentStepIndex + 1;
-    if (nextIndex < stepOrder.length) {
-      setCurrentStep(stepOrder[nextIndex]);
+    if (nextIndex < STEP_ORDER.length) {
+      setCurrentStep(STEP_ORDER[nextIndex]);
     }
-  }, [currentStepIndex, stepOrder]);
+  }, [currentStepIndex]);
   
   const goBack = useCallback(() => {
+    // Handle sub-step navigation first
+    if (currentStep === 'setup') {
+      if (setupSubStep === 'unit') {
+        setSetupSubStep('building');
+        return;
+      } else if (setupSubStep === 'building') {
+        setSetupSubStep('address');
+        return;
+      } else {
+        onBack();
+        return;
+      }
+    }
+    
     if (currentStepIndex > 0) {
-      setCurrentStep(stepOrder[currentStepIndex - 1]);
+      setCurrentStep(STEP_ORDER[currentStepIndex - 1]);
     } else {
       onBack();
     }
-  }, [currentStepIndex, stepOrder, onBack]);
+  }, [currentStep, setupSubStep, currentStepIndex, onBack]);
   
   const updateAsset = useCallback((updates: Partial<typeof data.asset>) => {
     setData(prev => ({
@@ -247,11 +244,9 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   
   const handleAgeDetected = useCallback((age: number) => {
     setData(prev => ({ ...prev, calendarAge: age }));
-    // Age detection from serial decoder is also AI-assisted
     setAIDetectedFields(prev => ({ ...prev, calendarAge: true }));
   }, []);
   
-  // Handler for tracking AI-detected fields from scans
   const handleAIDetection = useCallback((fields: Record<string, boolean>) => {
     setAIDetectedFields(prev => ({ ...prev, ...fields }));
   }, []);
@@ -263,7 +258,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     if (coords) {
       setGpsCoords(coords);
     }
-    setCurrentStep('building-type');
+    setSetupSubStep('building');
   }, []);
 
   const handleCreateNewProperty = useCallback((address: NewPropertyAddress) => {
@@ -271,7 +266,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     if (address.gpsCoords) {
       setGpsCoords(address.gpsCoords);
     }
-    setCurrentStep('building-type');
+    setSetupSubStep('building');
   }, []);
   
   const updateBuildingType = useCallback((buildingType: BuildingType) => {
@@ -284,52 +279,50 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
       inspectedAt: new Date().toISOString(),
     };
     
-    // Collect photos for offline storage
     const photos: { url: string; type: 'pressure' | 'condition' | 'dataplate' | 'other' }[] = [];
     if (pressurePhotoUrl) {
       photos.push({ url: pressurePhotoUrl, type: 'pressure' });
     }
     
-    // Save to offline storage (will auto-sync if online)
     await saveInspection(finalData, selectedProperty?.id, photos);
-    
     onComplete(finalData);
   }, [data, pressurePhotoUrl, selectedProperty?.id, saveInspection, onComplete]);
   
+  // Render the current step
   const renderStep = () => {
     switch (currentStep) {
-      case 'address-lookup':
-        return (
-          <AddressLookupStep
-            onSelectProperty={handlePropertySelect}
-            onCreateNew={handleCreateNewProperty}
-          />
-        );
+      case 'setup':
+        // Multi-part setup step
+        if (setupSubStep === 'address') {
+          return (
+            <AddressLookupStep
+              onSelectProperty={handlePropertySelect}
+              onCreateNew={handleCreateNewProperty}
+            />
+          );
+        } else if (setupSubStep === 'building') {
+          return (
+            <BuildingTypeStep
+              selectedType={data.buildingType || null}
+              onSelect={updateBuildingType}
+              onNext={() => setSetupSubStep('unit')}
+            />
+          );
+        } else {
+          return (
+            <UnitTypeStep
+              selectedType={data.asset.fuelType}
+              onSelect={(type) => updateAsset({ fuelType: type })}
+              onNext={goNext}
+              onCannotInspect={(reason) => {
+                console.log(`Cannot inspect: ${reason}`);
+                onBack();
+              }}
+            />
+          );
+        }
       
-      case 'building-type':
-        return (
-          <BuildingTypeStep
-            selectedType={data.buildingType || null}
-            onSelect={updateBuildingType}
-            onNext={goNext}
-          />
-        );
-      
-      case 'unit-type':
-        return (
-          <UnitTypeStep
-            selectedType={data.asset.fuelType}
-            onSelect={(type) => updateAsset({ fuelType: type })}
-            onNext={goNext}
-            onCannotInspect={(reason) => {
-              // For boiler or no access, go back to mode select
-              console.log(`Cannot inspect: ${reason}`);
-              onBack();
-            }}
-          />
-        );
-      
-      case 'pressure':
+      case 'readings':
         return (
           <PressureStep
             data={data.measurements}
@@ -355,60 +348,53 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           />
         );
       
-      case 'location':
+      case 'exceptions':
         return (
-          <LocationStep
-            data={data.location}
+          <ExceptionToggleStep
+            locationData={data.location}
             equipmentData={data.equipment}
-            onUpdate={updateLocation}
+            softenerData={data.softener}
+            onLocationUpdate={updateLocation}
             onEquipmentUpdate={updateEquipment}
-            onAIDetection={handleAIDetection}
+            onSoftenerUpdate={updateSoftener}
             onNext={goNext}
           />
         );
       
-      case 'tankless':
-        return (
-          <TanklessCheckStep
-            data={data.tankless || DEFAULT_TANKLESS_INSPECTION}
-            measurements={data.measurements}
-            fuelType={data.asset.fuelType}
-            onUpdate={updateTankless}
-            onUpdateMeasurements={updateMeasurements}
-            onAIDetection={handleAIDetection}
-            onNext={goNext}
-          />
-        );
+      case 'unit-check':
+        // Show unit-specific checks based on fuel type
+        if (unitCheckSubStep === 'tankless') {
+          return (
+            <TanklessCheckStep
+              data={data.tankless || DEFAULT_TANKLESS_INSPECTION}
+              measurements={data.measurements}
+              fuelType={data.asset.fuelType}
+              onUpdate={updateTankless}
+              onUpdateMeasurements={updateMeasurements}
+              onAIDetection={handleAIDetection}
+              onNext={goNext}
+            />
+          );
+        } else if (unitCheckSubStep === 'hybrid') {
+          return (
+            <HybridCheckStep
+              data={data.hybrid || DEFAULT_HYBRID_INSPECTION}
+              onUpdate={updateHybrid}
+              onNext={goNext}
+            />
+          );
+        } else {
+          return (
+            <SoftenerCheckStep
+              data={data.softener}
+              onUpdate={updateSoftener}
+              onNext={goNext}
+            />
+          );
+        }
       
-      case 'hybrid':
-        return (
-          <HybridCheckStep
-            data={data.hybrid || DEFAULT_HYBRID_INSPECTION}
-            onUpdate={updateHybrid}
-            onNext={goNext}
-          />
-        );
-      
-      case 'softener':
-        return (
-          <SoftenerCheckStep
-            data={data.softener}
-            onUpdate={updateSoftener}
-            onNext={goNext}
-          />
-        );
-      
-      case 'review':
-        return (
-          <ReviewStep
-            data={data}
-            aiDetectedFields={aiDetectedFields}
-            onUpdate={(updates) => setData(prev => ({ ...prev, ...updates }))}
-            onConfirm={goNext}
-          />
-        );
-      
-      case 'handoff':
+      case 'confirm':
+        // Combined review + handoff
         return (
           <HandoffStep
             data={data}
@@ -422,43 +408,35 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
   };
   
   const stepLabels: Record<TechStep, string> = {
-    'address-lookup': 'Property Lookup',
-    'building-type': 'Building Type',
-    'unit-type': 'Unit Type',
-    'pressure': 'Pressure & Hardness',
+    'setup': setupSubStep === 'address' ? 'Property Lookup' : 
+             setupSubStep === 'building' ? 'Building Type' : 'Unit Type',
+    'readings': 'Pressure & Hardness',
     'asset-scan': 'Unit Identification',
-    'location': 'Location & Equipment',
-    'tankless': 'Tankless Check',
-    'hybrid': 'Heat Pump Check',
-    'softener': 'Water Softener',
-    'review': 'Review & Verify',
-    'handoff': 'Ready for Handoff',
+    'exceptions': 'Installation Check',
+    'unit-check': unitCheckSubStep === 'tankless' ? 'Tankless Check' :
+                  unitCheckSubStep === 'hybrid' ? 'Heat Pump Check' : 'Softener Check',
+    'confirm': 'Confirm & Complete',
   };
   
   const stepIcons: Record<TechStep, React.ReactNode> = {
-    'address-lookup': <MapPin className="h-4 w-4" />,
-    'building-type': <Building2 className="h-4 w-4" />,
-    'unit-type': <Flame className="h-4 w-4" />,
-    'pressure': <Gauge className="h-4 w-4" />,
+    'setup': <MapPin className="h-4 w-4" />,
+    'readings': <Gauge className="h-4 w-4" />,
     'asset-scan': <Scan className="h-4 w-4" />,
-    'location': <Navigation className="h-4 w-4" />,
-    'tankless': <Flame className="h-4 w-4" />,
-    'hybrid': <Zap className="h-4 w-4" />,
-    'softener': <Droplets className="h-4 w-4" />,
-    'review': <ClipboardCheck className="h-4 w-4" />,
-    'handoff': <Flag className="h-4 w-4" />,
+    'exceptions': <Settings2 className="h-4 w-4" />,
+    'unit-check': <Settings2 className="h-4 w-4" />,
+    'confirm': <CheckCircle className="h-4 w-4" />,
   };
   
   const [stepDrawerOpen, setStepDrawerOpen] = useState(false);
   
   const handleStepSelect = useCallback((step: TechStep) => {
-    const stepIndex = stepOrder.indexOf(step);
+    const stepIndex = STEP_ORDER.indexOf(step);
     const canNavigate = visitedSteps.has(step) || stepIndex === currentStepIndex + 1;
     if (canNavigate && stepIndex !== -1) {
       setCurrentStep(step);
       setStepDrawerOpen(false);
     }
-  }, [stepOrder, visitedSteps, currentStepIndex]);
+  }, [visitedSteps, currentStepIndex]);
   
   return (
     <TooltipProvider delayDuration={300}>
@@ -477,7 +455,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
               </Button>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-primary font-medium uppercase tracking-wider">
-                  Technician Inspection
+                  5-Min Assessment
                 </p>
                 <p className="text-base font-semibold text-foreground truncate">
                   {stepLabels[currentStep]}
@@ -500,7 +478,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
                   <button className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted px-2.5 py-1 rounded-full hover:bg-muted/80 transition-colors">
                     <span className="font-medium text-foreground">{currentStepIndex + 1}</span>
                     <span>/</span>
-                    <span>{stepOrder.length}</span>
+                    <span>{STEP_ORDER.length}</span>
                     <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
                   </button>
                 </DrawerTrigger>
@@ -509,7 +487,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
                     <DrawerTitle>Inspection Steps</DrawerTitle>
                   </DrawerHeader>
                   <div className="px-4 pb-6 space-y-1">
-                    {stepOrder.map((step, index) => {
+                    {STEP_ORDER.map((step, index) => {
                       const isVisited = visitedSteps.has(step);
                       const isCurrent = step === currentStep;
                       const isNext = index === currentStepIndex + 1;
@@ -548,7 +526,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
                               {stepLabels[step]}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Step {index + 1} of {stepOrder.length}
+                              Step {index + 1} of {STEP_ORDER.length}
                             </p>
                           </div>
                           {!canNavigate && !isCurrent && (
@@ -569,7 +547,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             
             {/* Clickable step navigation */}
             <div className="flex justify-between items-center gap-1">
-              {stepOrder.map((step, index) => {
+              {STEP_ORDER.map((step, index) => {
                 const isVisited = visitedSteps.has(step);
                 const isCurrent = step === currentStep;
                 const isNext = index === currentStepIndex + 1;
