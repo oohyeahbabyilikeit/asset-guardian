@@ -86,8 +86,13 @@ export function OnboardingFlow({
           <HeaterHistoryStep
             lastFlushYearsAgo={data.lastFlushYearsAgo}
             lastAnodeReplaceYearsAgo={data.lastAnodeReplaceYearsAgo}
+            isAnnuallyMaintained={data.isAnnuallyMaintained}
+            lastDescaleYearsAgo={data.lastDescaleYearsAgo}
+            isTankless={false} // TODO: Pass from parent when unit type is known
             onFlushChange={(years) => updateData('lastFlushYearsAgo', years)}
             onAnodeChange={(years) => updateData('lastAnodeReplaceYearsAgo', years)}
+            onMaintenanceChange={(maintained) => updateData('isAnnuallyMaintained', maintained)}
+            onDescaleChange={(years) => updateData('lastDescaleYearsAgo', years)}
             onNext={goNext}
           />
         );

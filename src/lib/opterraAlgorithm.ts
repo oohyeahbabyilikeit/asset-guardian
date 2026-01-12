@@ -655,9 +655,99 @@ function getPressureProfile(data: ForensicInputs): { effectivePsi: number; isTra
   return { effectivePsi, isTransient };
 }
 
+// --- SMART PROXY LAYER v8.0 ("5-Minute Tech Flow" Optimization) ---
+
+/**
+ * SMART PROXY LAYER
+ * 
+ * Automatically infers missing fields from available data, allowing technicians
+ * to skip high-effort/low-value inputs while maintaining algorithm accuracy.
+ * 
+ * Philosophy: "Observe, don't measure" - Techs are Data Verifiers, not Forensic Engineers.
+ * 
+ * PROXY MAPPING:
+ * - flameRodStatus → Inferred from errorCodeCount (gas tankless)
+ * - igniterHealth → Inferred from errorCodeCount (gas tankless)
+ * - elementHealth → Inferred from errorCodeCount (electric tankless/tank)
+ * - compressorHealth → Inferred from errorCodeCount (hybrid)
+ * - anodeCount → Inferred from warrantyYears (tank units)
+ * - isClosedLoop → Inferred from hasPrv || hasExpTank
+ * - flowRateGPM → Derived from ratedFlowGPM + scaleBuildup (tankless)
+ * - inletWaterTemp → Default to 55°F national average
+ */
+export function applySmartProxies(inputs: ForensicInputs): ForensicInputs {
+  const proxied = { ...inputs };
+  
+  // PROXY 1: Flame Rod Status from Error Codes (Gas Tankless)
+  // Logic: If no errors, flame sensor is likely OK. If errors, likely failing.
+  if (proxied.flameRodStatus === undefined && isTankless(proxied.fuelType) && proxied.fuelType === 'TANKLESS_GAS') {
+    proxied.flameRodStatus = (proxied.errorCodeCount ?? 0) > 0 ? 'FAILING' : 'GOOD';
+  }
+  
+  // PROXY 2: Igniter Health from Error Codes (Gas Tankless)
+  // Logic: No errors = 100%, Any errors = 50% (conservative assumption)
+  if (proxied.igniterHealth === undefined && proxied.fuelType === 'TANKLESS_GAS') {
+    proxied.igniterHealth = (proxied.errorCodeCount ?? 0) === 0 ? 100 : 50;
+  }
+  
+  // PROXY 3: Element Health from Error Codes (Electric Tank/Tankless)
+  // Logic: No errors = 100%, Errors = 75% (elements are more robust than igniters)
+  if (proxied.elementHealth === undefined && 
+      (proxied.fuelType === 'TANKLESS_ELECTRIC' || proxied.fuelType === 'ELECTRIC')) {
+    proxied.elementHealth = (proxied.errorCodeCount ?? 0) === 0 ? 100 : 75;
+  }
+  
+  // PROXY 4: Compressor Health from Error Codes (Hybrid)
+  // Logic: No errors = 100%, Errors = 60% (compressor issues often throw codes)
+  if (proxied.compressorHealth === undefined && proxied.fuelType === 'HYBRID') {
+    proxied.compressorHealth = (proxied.errorCodeCount ?? 0) === 0 ? 100 : 60;
+  }
+  
+  // PROXY 5: Anode Count from Warranty Years (Tank Units)
+  // Logic: 6-8yr warranty = 1 anode, 9+ year warranty = 2 anodes
+  // This is physically accurate: "premium" tanks have extra anodes, not thicker steel
+  if (proxied.anodeCount === undefined && !isTankless(proxied.fuelType)) {
+    proxied.anodeCount = (proxied.warrantyYears ?? 6) >= 9 ? 2 : 1;
+  }
+  
+  // PROXY 6: Closed Loop from PRV/Expansion Tank Presence
+  // Logic: If either exists, system is likely closed (check valve somewhere)
+  if (proxied.isClosedLoop === undefined || proxied.isClosedLoop === null) {
+    proxied.isClosedLoop = proxied.hasPrv || proxied.hasExpTank;
+  }
+  
+  // PROXY 7: Flow Rate from Scale Buildup (Tankless)
+  // Logic: Scale restricts flow. Use rated flow * (1 - scaleLoss)
+  // Max 50% flow loss at 100% scale buildup
+  if (proxied.flowRateGPM === undefined && isTankless(proxied.fuelType)) {
+    const ratedFlow = proxied.ratedFlowGPM ?? 8; // Default 8 GPM for unknown tankless
+    const scalePercent = proxied.scaleBuildup ?? 0;
+    const scaleLoss = (scalePercent / 100) * 0.5; // Max 50% loss
+    proxied.flowRateGPM = ratedFlow * (1 - scaleLoss);
+  }
+  
+  // PROXY 8: Inlet Water Temp Default
+  // Logic: 55°F is national average groundwater temp. 
+  // TODO: Could enhance with ZIP + season API lookup
+  if (proxied.inletWaterTemp === undefined) {
+    proxied.inletWaterTemp = 55;
+  }
+  
+  // PROXY 9: Room Volume Type → Confined Space (Hybrid Simplification)
+  // If roomVolumeType not specified, assume OPEN (most common)
+  // This was a toggle simplification - sealed closets are rare
+  if (proxied.roomVolumeType === undefined && proxied.fuelType === 'HYBRID') {
+    proxied.roomVolumeType = 'OPEN';
+  }
+  
+  return proxied;
+}
+
 // --- CORE CALCULATION ENGINE ---
 
-export function calculateHealth(data: ForensicInputs): OpterraMetrics {
+export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
+  // STEP 0: Apply smart proxies to fill missing fields
+  const data = applySmartProxies(rawInputs);
   
   // ============================================
   // USAGE INTENSITY CALCULATION (NEW v6.9)
