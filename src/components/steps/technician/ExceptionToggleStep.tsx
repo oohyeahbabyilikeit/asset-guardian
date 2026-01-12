@@ -161,21 +161,12 @@ function BinaryChoice({
   );
 }
 
-// Step content wrapper with animation
-function StepContent({ children, stepId }: { children: React.ReactNode; stepId: string }) {
-  return (
-    <motion.div
-      key={stepId}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="space-y-4"
-    >
-      {children}
-    </motion.div>
-  );
-}
+// Animation variants for steps
+const stepVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+};
 
 export function ExceptionToggleStep({
   assetData,
@@ -354,7 +345,15 @@ export function ExceptionToggleStep({
       <AnimatePresence mode="wait">
         {/* Location Step */}
         {activeStep === 'location' && (
-          <StepContent stepId="location">
+          <motion.div
+            key="location"
+            variants={stepVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="space-y-4"
+          >
             <div className="bg-card border rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-3">
                 {stepIcons.location}
@@ -386,12 +385,20 @@ export function ExceptionToggleStep({
                 ))}
               </div>
             </div>
-          </StepContent>
+          </motion.div>
         )}
 
         {/* Temperature Step */}
         {activeStep === 'temp' && (
-          <StepContent stepId="temp">
+          <motion.div
+            key="temp"
+            variants={stepVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="space-y-4"
+          >
             <div className="bg-card border rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-3">
                 {stepIcons.temp}
@@ -418,12 +425,20 @@ export function ExceptionToggleStep({
                 ))}
               </div>
             </div>
-          </StepContent>
+          </motion.div>
         )}
 
         {/* Condition Step */}
         {activeStep === 'condition' && (
-          <StepContent stepId="condition">
+          <motion.div
+            key="condition"
+            variants={stepVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="space-y-4"
+          >
             <div className="bg-card border rounded-xl p-5 space-y-5">
               <div className="flex items-center gap-3">
                 {stepIcons.condition}
@@ -444,12 +459,20 @@ export function ExceptionToggleStep({
                 />
               </div>
             </div>
-          </StepContent>
+          </motion.div>
         )}
 
         {/* Venting Step (Gas only) */}
         {activeStep === 'venting' && isGasUnit && (
-          <StepContent stepId="venting">
+          <motion.div
+            key="venting"
+            variants={stepVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="space-y-4"
+          >
             <div className="bg-card border rounded-xl p-5 space-y-5">
               <div className="flex items-center gap-3">
                 {stepIcons.venting}
@@ -513,12 +536,20 @@ export function ExceptionToggleStep({
                 )}
               </div>
             </div>
-          </StepContent>
+          </motion.div>
         )}
 
         {/* Equipment Step */}
         {activeStep === 'equipment' && (
-          <StepContent stepId="equipment">
+          <motion.div
+            key="equipment"
+            variants={stepVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="space-y-4"
+          >
             <div className="bg-card border rounded-xl p-5 space-y-5">
               <div className="flex items-center gap-3">
                 {stepIcons.equipment}
@@ -586,7 +617,7 @@ export function ExceptionToggleStep({
                 )}
               </div>
             </div>
-          </StepContent>
+          </motion.div>
         )}
       </AnimatePresence>
 
