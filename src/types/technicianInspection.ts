@@ -161,16 +161,18 @@ export const DEFAULT_WATER_MEASUREMENTS: WaterMeasurements = {
 export const DEFAULT_LOCATION_CONDITION: LocationCondition = {
   location: 'GARAGE',
   isFinishedArea: undefined,  // Requires explicit selection
-  visualRust: false,
-  isLeaking: false,
+  visualRust: undefined as unknown as boolean,  // Requires explicit selection
+  isLeaking: undefined as unknown as boolean,   // Requires explicit selection
   tempSetting: undefined,  // Requires explicit selection
 };
 
 export const DEFAULT_EQUIPMENT_CHECKLIST: EquipmentChecklist = {
-  hasExpTank: false,
-  hasPrv: false,
+  hasExpTank: undefined as unknown as boolean,   // Requires explicit selection
+  hasPrv: undefined as unknown as boolean,       // Requires explicit selection
   hasCircPump: false,
   isClosedLoop: false,
+  hasDrainPan: undefined,                        // Requires explicit selection
+  connectionType: undefined,                      // Requires explicit selection
 };
 
 export const DEFAULT_SOFTENER_INSPECTION: SoftenerInspection = {
