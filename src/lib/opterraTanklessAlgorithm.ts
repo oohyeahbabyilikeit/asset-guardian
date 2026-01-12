@@ -40,7 +40,10 @@ const TANKLESS = {
   SCALE_FACTOR_ELEC: 0.8,  // Lower heat intensity
   
   // Thresholds
-  LIMIT_SCALE_LOCKOUT: 40, // % Blockage: Flushing risks pinhole leaks
+  // FIX v7.7 "3-Year Lockout": Raised from 40 to 60
+  // At 40, 15 GPG water hit lockout in Year 3 (20% of life). Too aggressive.
+  // At 60, units get a descaling chance before condemnation.
+  LIMIT_SCALE_LOCKOUT: 60, // % Blockage: Flushing risks pinhole leaks (was 40)
   LIMIT_SCALE_DUE: 10,     // % Blockage: Efficiency dropping
   LIMIT_FLOW_LOSS: 20,     // % GPM Loss: Critical restriction
   
