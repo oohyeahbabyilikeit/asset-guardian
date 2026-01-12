@@ -64,6 +64,14 @@ export type ExpansionTankStatus = 'FUNCTIONAL' | 'WATERLOGGED' | 'MISSING';
 // Only TANK_BODY leaks warrant 99.9% failure - fittings are repairable
 export type LeakSource = 'NONE' | 'TANK_BODY' | 'FITTING_VALVE' | 'DRAIN_PAN';
 
+// NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix)
+// Direct copper connections cause accelerated galvanic corrosion
+export type ConnectionType = 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER';
+
+// NEW v7.9: Room Volume Type ("Hybrid Suffocation" Fix)
+// Heat pump units need ~700 cu ft of air volume to work efficiently
+export type RoomVolumeType = 'OPEN' | 'CLOSET_LOUVERED' | 'CLOSET_SEALED';
+
 export interface TierProfile {
   tier: QualityTier;
   tierLabel: string;
@@ -160,10 +168,26 @@ export interface ForensicInputs {
   // NEW v7.5: Tankless isolation valves (critical for maintenance eligibility)
   hasIsolationValves?: boolean;       // Can the unit be descaled?
   
-  // NEW v7.8: Gas Starvation Detection ("Gas Starvation" Fix)
+// NEW v7.8: Gas Starvation Detection ("Gas Starvation" Fix)
   gasLineSize?: '1/2' | '3/4' | '1';  // Inch diameter
   gasRunLength?: number;              // Feet from meter
   btuRating?: number;                 // Unit BTU rating (e.g., 199000)
+  
+  // NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix)
+  // Direct copper-to-steel connections cause accelerated galvanic corrosion
+  connectionType?: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER';
+  
+  // NEW v7.9: Venting Scenario ("Orphaned Vent Liability" Fix)
+  // Orphaned flues require expensive chimney liners during replacement
+  ventingScenario?: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT';
+  
+  // NEW v7.9: Room Volume for Hybrid ("Hybrid Suffocation" Fix)
+  // Heat pump units need ~700 cu ft of air to harvest heat efficiently
+  roomVolumeType?: 'OPEN' | 'CLOSET_LOUVERED' | 'CLOSET_SEALED';
+  
+  // NEW v7.9: Anode Count ("Sticker Slap" Fix)
+  // A 12-year tank is often the same steel vessel as a 6-year with an extra anode rod
+  anodeCount?: 1 | 2;
 }
 
 export interface OpterraMetrics {
@@ -211,7 +235,7 @@ export interface OpterraMetrics {
   // NEW v7.5: Tankless-specific metrics
   scaleBuildupScore?: number;    // 0-100% heat exchanger blockage
   flowDegradation?: number;      // % GPM loss vs rated
-  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible';
+  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure';
   
   // NEW v7.8: Safety Warnings ("Legionella Liability" Fix)
   bacterialGrowthWarning?: boolean;  // True if temp setting creates Legionella risk
@@ -345,6 +369,26 @@ const VENT_COST_ADDERS: Record<VentType, number> = {
   DIRECT_VENT: 600,   // Concentric vent kit, wall termination
 };
 
+// NEW v7.9: Venting Scenario cost adders ("Orphaned Vent Liability" Fix)
+// When a gas water heater is the only appliance on a masonry chimney (furnace upgraded to HE),
+// the single unit cannot generate enough heat to draft properly → CO backdraft risk.
+// Code requires a chimney liner during replacement.
+export type VentingScenario = 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT';
+const VENTING_SCENARIO_ADDERS: Record<VentingScenario, number> = {
+  SHARED_FLUE: 0,           // Shared with furnace - adequate draft
+  ORPHANED_FLUE: 2000,      // Chimney liner required ($1,500-$2,500)
+  DIRECT_VENT: 0,           // Already self-contained
+};
+
+// NEW v7.9: Code Upgrade Adders ("codeAdder Ghost Variable" Fix)
+// Mandatory code upgrades when replacing water heaters (often missed in quotes)
+const CODE_UPGRADE_COSTS = {
+  EXPANSION_TANK: 250,      // Required if closed loop / PRV
+  DRAIN_PAN: 150,           // Required in attic / upper floor
+  SEISMIC_STRAPS: 100,      // Required in earthquake zones (CA, WA, etc.)
+  VACUUM_BREAKER: 75,       // Required on drain valves in some jurisdictions
+};
+
 const CONSTANTS = {
   // Weibull Reliability Parameters
   ETA: 11.5,               
@@ -365,6 +409,7 @@ const CONSTANTS = {
   SEDIMENT_FACTOR_ELEC: 0.08,
   SEDIMENT_FACTOR_HYBRID: 0.06,  // NEW v7.3: Heat pumps - lower than electric due to efficiency
   FLUSH_EFFICIENCY: 0.5,  // 50% sediment removal per flush (conservative estimate)
+  FLUSH_EFFICIENCY_HARDITE: 0.05,  // NEW v7.9: Calcified sediment (>5 years) is nearly permanent
   
   // Limits
   MAX_STRESS_CAP: 12.0,    
@@ -629,9 +674,18 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Penalty kicks in when tank is undersized by >20%
   const undersizingPenalty = sizingRatio > 1.2 ? 1 + (sizingRatio - 1) * 0.25 : 1.0;
   
-  // 1. ANODE SHIELD LIFE (Quality Credit - use warranty as baseline)
-  // A 12-year warranty tank has ~2x the sacrificial metal mass of a 6-year tank
-  const baseAnodeLife = data.warrantyYears > 0 ? data.warrantyYears : 6;
+  // 1. ANODE SHIELD LIFE (Quality Credit - use anode count, not warranty sticker)
+  // FIX v7.9 "Sticker Slap": A 12-year tank is often the same steel vessel as a 6-year
+  // with a second anode rod screwed into the hot port. Physics is anode mass, not warranty.
+  // Base: 6 years for single anode. If anodeCount specified, use that; else infer from warranty.
+  let baseAnodeLife: number;
+  if (data.anodeCount !== undefined) {
+    // Direct measurement: 6 years per anode rod
+    baseAnodeLife = data.anodeCount * 6;
+  } else {
+    // Fallback to warranty-based inference (less accurate)
+    baseAnodeLife = data.warrantyYears > 0 ? Math.min(data.warrantyYears, 12) : 6;
+  }
   
   // Decay rate multiplier (higher = faster anode consumption)
   let anodeDecayRate = 1.0;
@@ -643,6 +697,15 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Formula: 0.02 per GPG above 5 (max ~0.4 for very hard water at 25+ GPG)
   const hardnessAboveBaseline = Math.max(0, data.hardnessGPG - 5);
   anodeDecayRate += hardnessAboveBaseline * 0.02;
+  
+  // NEW v7.9 "Galvanic Blind Spot": Direct copper-to-steel connections create a battery
+  // Galvanic corrosion accelerates anode consumption dramatically (3x faster)
+  if (data.connectionType === 'DIRECT_COPPER') {
+    anodeDecayRate *= 3.0;  // Galvanic cell effect - rapid electrochemical attack
+  } else if (data.connectionType === 'BRASS') {
+    anodeDecayRate *= 1.3;  // Brass is better but not ideal
+  }
+  // DIELECTRIC unions block galvanic current - no penalty
   
   // NEW v6.9: Usage intensity accelerates electrochemical reactions
   // More hot water draws = more anode consumption (sqrt dampening for realism)
@@ -680,6 +743,7 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Flushing removes ~50% of sediment (conservative estimate for DIY flushes)
   // Residual sediment remains and new sediment accumulates on top
   // FIX v7.7 "Sediment Amnesia": Account for lifetime maintenance, not just last flush
+  // FIX v7.9 "Concrete Flush Fallacy": Calcified sediment (>5 years) is nearly permanent
   let sedimentLbs: number;
   if (data.isAnnuallyMaintained) {
     // FIX v7.7: Well-maintained tank - each annual flush removes 50%
@@ -693,7 +757,21 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     // Tank was flushed once - calculate residual + new accumulation
     const ageAtFlush = data.calendarAge - data.lastFlushYearsAgo;
     const sedimentAtFlush = ageAtFlush * effectiveHardness * sedFactor * volumeFactor;
-    const residualLbs = sedimentAtFlush * (1 - CONSTANTS.FLUSH_EFFICIENCY);
+    
+    // FIX v7.9 "Concrete Flush Fallacy": Dynamic flush efficiency based on sediment age
+    // Fresh sediment (< 3 years): Loose sand, ~50% removable
+    // Old sediment (3-5 years): Calcifying calcium carbonate, ~25% removable
+    // Ancient sediment (> 5 years): Hardite concrete, ~5% removable
+    let flushEfficiency: number;
+    if (ageAtFlush <= 3) {
+      flushEfficiency = CONSTANTS.FLUSH_EFFICIENCY;  // 50%
+    } else if (ageAtFlush <= 5) {
+      flushEfficiency = 0.25;  // 25% - hardening
+    } else {
+      flushEfficiency = CONSTANTS.FLUSH_EFFICIENCY_HARDITE;  // 5% - too late
+    }
+    
+    const residualLbs = sedimentAtFlush * (1 - flushEfficiency);
     const newAccumulationLbs = data.lastFlushYearsAgo * effectiveHardness * sedFactor * volumeFactor;
     sedimentLbs = residualLbs + newAccumulationLbs;
   } else {
@@ -799,9 +877,33 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // We reduced the penalty here because the pressure penalty is now handled 
   // correctly in 'pressureStress' via the getEffectivePressure() function.
   const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;
+  
+  // FIX v7.9 "Hybrid Suffocation": Heat pump efficiency penalty for poor air volume
+  // Hybrids need ~700 cu ft of air to harvest heat. Sealed closets cause suffocation.
+  let hybridSuffocationPenalty = 1.0;
+  if (data.fuelType === 'HYBRID') {
+    if (data.roomVolumeType === 'CLOSET_SEALED') {
+      hybridSuffocationPenalty = 2.0;  // Unit runs on expensive resistance heat
+    } else if (data.roomVolumeType === 'CLOSET_LOUVERED') {
+      hybridSuffocationPenalty = 1.2;  // Some efficiency loss
+    }
+    // OPEN = 1.0 (full efficiency)
+  }
+  
+  // FIX v7.9 "Hybrid Vampire": Use compressorHealth if provided (dead = resistance mode)
+  let compressorPenalty = 1.0;
+  if (data.fuelType === 'HYBRID' && data.compressorHealth !== undefined) {
+    if (data.compressorHealth < 25) {
+      compressorPenalty = 2.5;  // Dead compressor = expensive resistance-only operation
+    } else if (data.compressorHealth < 50) {
+      compressorPenalty = 1.5;  // Degraded heat pump efficiency
+    } else if (data.compressorHealth < 75) {
+      compressorPenalty = 1.2;  // Minor efficiency loss
+    }
+  }
 
-  // Combine chemical stresses
-  const chemicalStress = tempChemical * circStress * loopPenalty;
+  // Combine chemical stresses (includes Hybrid-specific penalties)
+  const chemicalStress = tempChemical * circStress * loopPenalty * hybridSuffocationPenalty * compressorPenalty;
 
   // Legacy: corrosionStress for backward compatibility (includes all old factors)
   const corrosionStress = tempStressRaw * circStress * loopPenalty * sedimentStress;
@@ -1461,12 +1563,31 @@ function calculateTierCost(profile: TierProfile, data: ForensicInputs): number {
   if (data.location === 'ATTIC' || data.location === 'UPPER_FLOOR') locationAdder = 600;
   else if (data.location === 'CRAWLSPACE') locationAdder = 400;
   
-  // Code upgrade adders
+  // FIX v7.9 "codeAdder Ghost Variable": Itemized code upgrade adders instead of undefined
+  // These are mandatory code upgrades that contractors must include but often miss in quotes
+  let codeAdder = 0;
   const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
-  const needsCodeUpgrade = (!data.hasPrv && data.housePsi > 80) || (!data.hasExpTank && isActuallyClosed);
-  const codeAdder = needsCodeUpgrade ? 450 : 0;
   
-  return baseCost + ventAdder + locationAdder + codeAdder;
+  // Expansion tank required if closed loop / PRV and missing
+  if (!data.hasExpTank && isActuallyClosed) {
+    codeAdder += CODE_UPGRADE_COSTS.EXPANSION_TANK;
+  }
+  
+  // Drain pan required in attic / upper floor locations
+  if ((data.location === 'ATTIC' || data.location === 'UPPER_FLOOR') && !data.hasDrainPan) {
+    codeAdder += CODE_UPGRADE_COSTS.DRAIN_PAN;
+  }
+  
+  // Vacuum breaker on drain (some jurisdictions)
+  codeAdder += CODE_UPGRADE_COSTS.VACUUM_BREAKER;
+  
+  // FIX v7.9 "Orphaned Vent Liability": Add chimney liner cost for orphaned flues
+  // This is the "$2,000 Surprise" that contractors often miss
+  const ventingScenarioAdder = data.ventingScenario 
+    ? VENTING_SCENARIO_ADDERS[data.ventingScenario] 
+    : 0;
+  
+  return baseCost + ventAdder + locationAdder + codeAdder + ventingScenarioAdder;
 }
 
 /**

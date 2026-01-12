@@ -43,7 +43,7 @@ interface ServiceHistoryProps {
   errorCodeCount?: number;
   // NEW: Tankless algorithm outputs
   hasIsolationValves?: boolean;
-  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible';
+  descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure';
   flowDegradation?: number;
 }
 
