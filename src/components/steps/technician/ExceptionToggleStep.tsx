@@ -1,34 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { 
   CheckCircle, 
   AlertTriangle, 
-  Droplets,
   MapPin,
   Thermometer,
-  Circle,
   Eye,
   Wrench,
-  Wind
+  Wind,
+  ChevronRight,
+  Edit2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { LocationCondition, EquipmentChecklist, AssetIdentification } from '@/types/technicianInspection';
 import type { TempSetting, LocationType, VentType } from '@/lib/opterraAlgorithm';
 
 /**
- * ExceptionToggleStep v8.2 - "Required Verification" Pattern
+ * ExceptionToggleStep v9.0 - Progressive Disclosure Pattern
  * 
- * NO PRESETS. Every category requires an explicit selection.
- * Fast chip-style buttons, but mandatory choices.
- * 
- * Categories:
- * 1. Location (required)
- * 2. Temperature (required)
- * 3. Visual Condition (required - rust/leak)
- * 4. Vent Type & Flue (required for gas units)
- * 5. Connections & Equipment (required)
- * 6. Softener Present (required)
+ * Shows one category at a time to reduce cognitive load.
+ * Auto-advances when a category is completed.
+ * Completed steps shown as compact, editable chips.
  */
 
 interface ExceptionToggleStepProps {
@@ -41,6 +34,7 @@ interface ExceptionToggleStepProps {
   onNext: () => void;
 }
 
+// Options data
 const LOCATION_OPTIONS: { value: LocationType; label: string; isHighRisk?: boolean }[] = [
   { value: 'GARAGE', label: 'Garage' },
   { value: 'BASEMENT', label: 'Basement' },
@@ -74,6 +68,43 @@ const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_
   { value: 'ORPHANED_FLUE', label: 'Orphaned', description: 'Alone in chimney', variant: 'warning' },
   { value: 'DIRECT_VENT', label: 'Direct/PVC', description: 'To exterior' },
 ];
+
+type StepId = 'location' | 'temp' | 'condition' | 'venting' | 'equipment';
+
+// Completed step chip component
+function CompletedChip({ 
+  icon, 
+  value, 
+  warning,
+  onClick 
+}: { 
+  icon: React.ReactNode;
+  value: string;
+  warning?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+        "hover:scale-105 active:scale-95",
+        warning 
+          ? "bg-orange-100 text-orange-800 border border-orange-300"
+          : "bg-green-100 text-green-800 border border-green-300"
+      )}
+    >
+      {warning ? (
+        <AlertTriangle className="h-3.5 w-3.5" />
+      ) : (
+        <CheckCircle className="h-3.5 w-3.5" />
+      )}
+      {value}
+      <Edit2 className="h-3 w-3 opacity-50" />
+    </button>
+  );
+}
 
 // Binary choice component
 function BinaryChoice({ 
@@ -130,31 +161,19 @@ function BinaryChoice({
   );
 }
 
-// Category header with completion status
-function CategoryHeader({ 
-  icon, 
-  title, 
-  isComplete,
-  isRequired = true
-}: { 
-  icon: React.ReactNode; 
-  title: string; 
-  isComplete: boolean;
-  isRequired?: boolean;
-}) {
+// Step content wrapper with animation
+function StepContent({ children, stepId }: { children: React.ReactNode; stepId: string }) {
   return (
-    <div className="flex items-center justify-between mb-2">
-      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-        {icon}
-        {title}
-        {isRequired && <span className="text-red-500">*</span>}
-      </Label>
-      {isComplete ? (
-        <CheckCircle className="h-4 w-4 text-green-500" />
-      ) : (
-        <Circle className="h-4 w-4 text-muted-foreground/40" />
-      )}
-    </div>
+    <motion.div
+      key={stepId}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="space-y-4"
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -167,336 +186,423 @@ export function ExceptionToggleStep({
   onEquipmentUpdate,
   onNext,
 }: ExceptionToggleStepProps) {
-  // Check if gas unit (needs vent type selection)
   const isGasUnit = assetData.fuelType === 'GAS' || assetData.fuelType === 'TANKLESS_GAS';
   
-  // Validation state - each category must be explicitly answered
-  const locationSelected = locationData.location !== null && locationData.location !== undefined;
-  const tempSelected = locationData.tempSetting !== null && locationData.tempSetting !== undefined;
-  const rustChecked = locationData.visualRust !== undefined;
-  const leakChecked = locationData.isLeaking !== undefined;
-  const ventTypeSelected = !isGasUnit || (assetData.ventType !== undefined);
-  const flueSelected = !isGasUnit || (assetData.ventingScenario !== undefined);
-  const panChecked = equipmentData.hasDrainPan !== undefined;
-  const connectionChecked = equipmentData.connectionType !== undefined;
-  const expTankChecked = equipmentData.hasExpTank !== undefined;
-  const prvChecked = equipmentData.hasPrv !== undefined;
+  // Build step list based on unit type
+  const steps: StepId[] = isGasUnit 
+    ? ['location', 'temp', 'condition', 'venting', 'equipment']
+    : ['location', 'temp', 'condition', 'equipment'];
+  
+  // Current active step
+  const [activeStep, setActiveStep] = useState<StepId>('location');
+  
+  // Completion checks
+  const locationComplete = locationData.location !== null && locationData.location !== undefined;
+  const tempComplete = locationData.tempSetting !== null && locationData.tempSetting !== undefined;
+  const conditionComplete = locationData.visualRust !== undefined && locationData.isLeaking !== undefined;
+  const ventingComplete = !isGasUnit || (assetData.ventType !== undefined && assetData.ventingScenario !== undefined);
+  const equipmentComplete = 
+    equipmentData.connectionType !== undefined && 
+    equipmentData.hasExpTank !== undefined && 
+    equipmentData.hasPrv !== undefined && 
+    equipmentData.hasDrainPan !== undefined;
 
-  // Category completion
-  const locationComplete = locationSelected;
-  const tempComplete = tempSelected;
-  const conditionComplete = rustChecked && leakChecked;
-  const ventingComplete = !isGasUnit || (ventTypeSelected && flueSelected);
-  const equipmentComplete = connectionChecked && expTankChecked && prvChecked && panChecked;
+  const stepCompletion: Record<StepId, boolean> = {
+    location: locationComplete,
+    temp: tempComplete,
+    condition: conditionComplete,
+    venting: ventingComplete,
+    equipment: equipmentComplete,
+  };
 
-  // Build category array based on unit type (softener is on next step)
-  const categories = isGasUnit 
-    ? [locationComplete, tempComplete, conditionComplete, ventingComplete, equipmentComplete]
-    : [locationComplete, tempComplete, conditionComplete, equipmentComplete];
+  // Get current step index
+  const currentStepIndex = steps.indexOf(activeStep);
+  
+  // Calculate progress
+  const completedCount = steps.filter(s => stepCompletion[s]).length;
+  const allComplete = steps.every(s => stepCompletion[s]);
 
-  // Overall form validity
-  const canContinue = categories.every(Boolean);
+  // Auto-advance when step completes
+  useEffect(() => {
+    const currentComplete = stepCompletion[activeStep];
+    if (currentComplete) {
+      // Find next incomplete step
+      const nextIncompleteIndex = steps.findIndex((s, i) => i > currentStepIndex && !stepCompletion[s]);
+      if (nextIncompleteIndex !== -1) {
+        const timer = setTimeout(() => {
+          setActiveStep(steps[nextIncompleteIndex]);
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [locationData, equipmentData, assetData, activeStep]);
 
-  // Progress count
-  const completedCount = categories.filter(Boolean).length;
-  const totalCategories = categories.length;
+  // Summary values for completed chips
+  const getSummaryValue = (step: StepId): { value: string; warning: boolean } => {
+    switch (step) {
+      case 'location':
+        const loc = LOCATION_OPTIONS.find(l => l.value === locationData.location);
+        return { 
+          value: loc?.label || '', 
+          warning: loc?.isHighRisk || false 
+        };
+      case 'temp':
+        const temp = TEMP_OPTIONS.find(t => t.value === locationData.tempSetting);
+        return { 
+          value: `${temp?.label} ${temp?.temp}`, 
+          warning: temp?.variant === 'warning' 
+        };
+      case 'condition':
+        const hasIssue = locationData.visualRust || locationData.isLeaking;
+        return { 
+          value: hasIssue 
+            ? [locationData.visualRust && 'Rust', locationData.isLeaking && 'Leak'].filter(Boolean).join(', ')
+            : 'Good condition', 
+          warning: hasIssue || false 
+        };
+      case 'venting':
+        const vent = VENT_TYPE_OPTIONS.find(v => v.value === assetData.ventType);
+        const flue = FLUE_SCENARIO_OPTIONS.find(f => f.value === assetData.ventingScenario);
+        return { 
+          value: `${vent?.label || ''} / ${flue?.label || ''}`, 
+          warning: assetData.ventingScenario === 'ORPHANED_FLUE' 
+        };
+      case 'equipment':
+        const issues = [
+          equipmentData.connectionType === 'DIRECT_COPPER' && 'Direct Cu',
+          equipmentData.hasExpTank === false && 'No exp tank',
+          equipmentData.hasPrv === false && 'No PRV',
+        ].filter(Boolean);
+        return { 
+          value: issues.length > 0 ? issues.join(', ') : 'All present', 
+          warning: issues.length > 0 
+        };
+      default:
+        return { value: '', warning: false };
+    }
+  };
+
+  // Step icons
+  const stepIcons: Record<StepId, React.ReactNode> = {
+    location: <MapPin className="h-5 w-5" />,
+    temp: <Thermometer className="h-5 w-5" />,
+    condition: <Eye className="h-5 w-5" />,
+    venting: <Wind className="h-5 w-5" />,
+    equipment: <Wrench className="h-5 w-5" />,
+  };
+
+  const stepTitles: Record<StepId, string> = {
+    location: 'Where is the unit?',
+    temp: 'Temperature setting?',
+    condition: 'Visual condition?',
+    venting: 'Venting type?',
+    equipment: 'Equipment present?',
+  };
 
   const isHighRiskLocation = ['ATTIC', 'UPPER_FLOOR', 'MAIN_LIVING'].includes(locationData.location);
 
-  // Count flagged issues for summary
-  const flaggedIssues = [
-    locationData.visualRust && 'Visible rust',
-    locationData.isLeaking && 'Active leak',
-    equipmentData.connectionType === 'DIRECT_COPPER' && 'Direct copper',
-    locationData.tempSetting === 'HOT' && 'High temp setting',
-    isHighRiskLocation && `${locationData.location} location`,
-    isHighRiskLocation && equipmentData.hasDrainPan === false && 'Missing drain pan',
-    assetData.ventingScenario === 'ORPHANED_FLUE' && 'Orphaned flue (+liner cost)',
-  ].filter(Boolean) as string[];
-
   return (
-    <div className="space-y-5">
-      {/* Header with Progress */}
-      <div className="text-center space-y-2">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="text-center space-y-1">
         <h2 className="text-xl font-bold text-foreground">Verify Installation</h2>
         <p className="text-sm text-muted-foreground">
-          Confirm each category • {completedCount}/{totalCategories} complete
+          Step {currentStepIndex + 1} of {steps.length}
         </p>
         
-        {/* Progress bar */}
-        <div className="flex gap-1 mt-3">
-          {categories.map((complete, i) => (
+        {/* Progress dots */}
+        <div className="flex justify-center gap-1.5 pt-2">
+          {steps.map((step, i) => (
             <div 
-              key={i} 
+              key={step}
               className={cn(
-                "flex-1 h-1.5 rounded-full transition-colors",
-                complete ? "bg-green-500" : "bg-muted"
-              )} 
+                "h-2 w-2 rounded-full transition-all",
+                stepCompletion[step] 
+                  ? "bg-green-500" 
+                  : i === currentStepIndex 
+                    ? "bg-primary w-6" 
+                    : "bg-muted"
+              )}
             />
           ))}
         </div>
       </div>
 
-      {/* Category 1: Location */}
-      <div className="space-y-2">
-        <CategoryHeader 
-          icon={<MapPin className="h-3.5 w-3.5" />} 
-          title="Location" 
-          isComplete={locationComplete} 
-        />
-        <div className="flex flex-wrap gap-2">
-          {LOCATION_OPTIONS.map((loc) => (
-            <button
-              key={loc.value}
-              type="button"
-              onClick={() => onLocationUpdate({ location: loc.value })}
-              className={cn(
-                "px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all",
-                locationData.location === loc.value
-                  ? loc.isHighRisk
-                    ? "border-orange-500 bg-orange-500/10 text-orange-700"
-                    : "border-primary bg-primary text-primary-foreground"
-                  : "border-muted bg-card hover:border-muted-foreground/30"
-              )}
-            >
-              {loc.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Category 2: Temperature */}
-      <div className="space-y-2">
-        <CategoryHeader 
-          icon={<Thermometer className="h-3.5 w-3.5" />} 
-          title="Temperature Setting" 
-          isComplete={tempComplete} 
-        />
-        <div className="flex gap-2">
-          {TEMP_OPTIONS.map((temp) => (
-            <button
-              key={temp.value}
-              type="button"
-              onClick={() => onLocationUpdate({ tempSetting: temp.value })}
-              className={cn(
-                "flex-1 py-3 rounded-lg border-2 text-sm font-medium transition-all",
-                locationData.tempSetting === temp.value
-                  ? temp.variant === 'warning'
-                    ? "border-orange-500 bg-orange-500/10 text-orange-700"
-                    : "border-primary bg-primary text-primary-foreground"
-                  : "border-muted bg-card hover:border-muted-foreground/30"
-              )}
-            >
-              <div>{temp.label}</div>
-              <div className="text-xs opacity-70">{temp.temp}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Category 3: Visual Condition */}
-      <div className="space-y-3 p-4 rounded-xl border border-border bg-card/50">
-        <CategoryHeader 
-          icon={<Eye className="h-3.5 w-3.5" />} 
-          title="Visual Condition" 
-          isComplete={conditionComplete} 
-        />
-        <div className="space-y-3">
-          <BinaryChoice
-            label="Rust visible?"
-            value={locationData.visualRust}
-            onChange={(val) => onLocationUpdate({ visualRust: val })}
-            yesVariant="danger"
-          />
-          <BinaryChoice
-            label="Active leak?"
-            value={locationData.isLeaking}
-            onChange={(val) => onLocationUpdate({ isLeaking: val })}
-            yesVariant="danger"
-          />
-        </div>
-      </div>
-
-      {/* Category 4: Venting (Gas Units Only) */}
-      {isGasUnit && (
-        <div className="space-y-3 p-4 rounded-xl border border-border bg-card/50">
-          <CategoryHeader 
-            icon={<Wind className="h-3.5 w-3.5" />} 
-            title="Venting" 
-            isComplete={ventingComplete} 
-          />
-          
-          {/* Vent Type */}
-          <div className="space-y-2">
-            <span className="text-sm font-medium text-foreground">Vent Type</span>
-            <div className="flex gap-2">
-              {VENT_TYPE_OPTIONS.map((vent) => (
-                <button
-                  key={vent.value}
-                  type="button"
-                  onClick={() => onAssetUpdate({ ventType: vent.value })}
-                  className={cn(
-                    "flex-1 py-2 rounded-lg border-2 text-sm transition-all",
-                    assetData.ventType === vent.value
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted bg-card hover:border-muted-foreground/30"
-                  )}
-                >
-                  <div className="font-medium">{vent.label}</div>
-                  <div className="text-xs opacity-70">{vent.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Flue Scenario */}
-          <div className="space-y-2 pt-2">
-            <span className="text-sm font-medium text-foreground">Flue Scenario</span>
-            <div className="flex gap-2">
-              {FLUE_SCENARIO_OPTIONS.map((flue) => (
-                <button
-                  key={flue.value}
-                  type="button"
-                  onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
-                  className={cn(
-                    "flex-1 py-2 rounded-lg border-2 text-sm transition-all",
-                    assetData.ventingScenario === flue.value
-                      ? flue.variant === 'warning'
-                        ? "border-orange-500 bg-orange-500/10 text-orange-700"
-                        : "border-primary bg-primary text-primary-foreground"
-                      : "border-muted bg-card hover:border-muted-foreground/30"
-                  )}
-                >
-                  <div className="font-medium">{flue.label}</div>
-                  <div className="text-xs opacity-70">{flue.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* Completed steps as chips */}
+      {completedCount > 0 && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-wrap gap-2 justify-center"
+        >
+          {steps.slice(0, currentStepIndex).filter(s => stepCompletion[s]).map((step) => {
+            const summary = getSummaryValue(step);
+            return (
+              <CompletedChip
+                key={step}
+                icon={stepIcons[step]}
+                value={summary.value}
+                warning={summary.warning}
+                onClick={() => setActiveStep(step)}
+              />
+            );
+          })}
+        </motion.div>
       )}
 
-      {/* Category 5: Connections & Equipment */}
-      <div className="space-y-3 p-4 rounded-xl border border-border bg-card/50">
-        <CategoryHeader 
-          icon={<Wrench className="h-3.5 w-3.5" />} 
-          title="Equipment" 
-          isComplete={equipmentComplete} 
-        />
-        
-        {/* Connection Type */}
-        <div className="space-y-2">
-          <span className="text-sm font-medium text-foreground">Pipe Connection</span>
-          <div className="flex gap-2">
-            {CONNECTION_OPTIONS.map((conn) => (
-              <button
-                key={conn.value}
-                type="button"
-                onClick={() => onEquipmentUpdate({ connectionType: conn.value })}
-                className={cn(
-                  "flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all",
-                  equipmentData.connectionType === conn.value
-                    ? conn.variant === 'warning'
-                      ? "border-orange-500 bg-orange-500/10 text-orange-700"
-                      : "border-primary bg-primary text-primary-foreground"
-                    : "border-muted bg-card hover:border-muted-foreground/30"
-                )}
-              >
-                {conn.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-3 pt-2">
-          <BinaryChoice
-            label="Expansion tank?"
-            value={equipmentData.hasExpTank}
-            onChange={(val) => onEquipmentUpdate({ hasExpTank: val })}
-            yesLabel="Present"
-            noLabel="None"
-            yesVariant="success"
-          />
-          <BinaryChoice
-            label="PRV at main?"
-            value={equipmentData.hasPrv}
-            onChange={(val) => onEquipmentUpdate({ hasPrv: val })}
-            yesLabel="Present"
-            noLabel="None"
-            yesVariant="success"
-          />
-          <BinaryChoice
-            label="Drain pan?"
-            value={equipmentData.hasDrainPan}
-            onChange={(val) => onEquipmentUpdate({ hasDrainPan: val })}
-            yesLabel="Present"
-            noLabel="None"
-            yesVariant={isHighRiskLocation ? 'success' : 'info'}
-          />
-        </div>
-      </div>
-      {/* NOTE: Softener check is on the next step */}
-
-      {/* High Risk Location Warning */}
-      {isHighRiskLocation && equipmentData.hasDrainPan === false && (
-        <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-orange-800 text-sm">Drain Pan Recommended</p>
-              <p className="text-xs text-orange-700/80 mt-1">
-                {locationData.location} location typically requires a drain pan for code compliance.
-              </p>
+      {/* Current Step Content */}
+      <AnimatePresence mode="wait">
+        {/* Location Step */}
+        {activeStep === 'location' && (
+          <StepContent stepId="location">
+            <div className="bg-card border rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                {stepIcons.location}
+                <h3 className="text-lg font-semibold">{stepTitles.location}</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {LOCATION_OPTIONS.map((loc) => (
+                  <button
+                    key={loc.value}
+                    type="button"
+                    onClick={() => onLocationUpdate({ location: loc.value })}
+                    className={cn(
+                      "p-4 rounded-xl border-2 text-left transition-all",
+                      locationData.location === loc.value
+                        ? loc.isHighRisk
+                          ? "border-orange-500 bg-orange-500/10"
+                          : "border-primary bg-primary/10"
+                        : "border-muted hover:border-muted-foreground/30"
+                    )}
+                  >
+                    <div className="font-medium">{loc.label}</div>
+                    {loc.isHighRisk && (
+                      <div className="text-xs text-orange-600 flex items-center gap-1 mt-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        High risk
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Orphaned Flue Warning */}
-      {assetData.ventingScenario === 'ORPHANED_FLUE' && (
-        <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-orange-800 text-sm">Orphaned Flue Detected</p>
-              <p className="text-xs text-orange-700/80 mt-1">
-                Chimney liner may be required if upgrading to high-efficiency unit. Add ~$2000 to quote.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Flagged Issues Summary */}
-      {flaggedIssues.length > 0 && (
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-          <p className="text-sm font-medium text-amber-800 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            {flaggedIssues.length} issue{flaggedIssues.length > 1 ? 's' : ''} flagged
-          </p>
-          <ul className="text-xs text-amber-700/80 mt-1 space-y-0.5">
-            {flaggedIssues.map((issue, i) => (
-              <li key={i}>• {issue}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Continue Button */}
-      <Button 
-        onClick={onNext} 
-        className="w-full h-12 font-semibold"
-        disabled={!canContinue}
-      >
-        {canContinue ? (
-          <>
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Continue
-          </>
-        ) : (
-          `Complete all categories (${completedCount}/${totalCategories})`
+          </StepContent>
         )}
-      </Button>
+
+        {/* Temperature Step */}
+        {activeStep === 'temp' && (
+          <StepContent stepId="temp">
+            <div className="bg-card border rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                {stepIcons.temp}
+                <h3 className="text-lg font-semibold">{stepTitles.temp}</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {TEMP_OPTIONS.map((temp) => (
+                  <button
+                    key={temp.value}
+                    type="button"
+                    onClick={() => onLocationUpdate({ tempSetting: temp.value })}
+                    className={cn(
+                      "p-5 rounded-xl border-2 text-center transition-all",
+                      locationData.tempSetting === temp.value
+                        ? temp.variant === 'warning'
+                          ? "border-orange-500 bg-orange-500/10"
+                          : "border-primary bg-primary/10"
+                        : "border-muted hover:border-muted-foreground/30"
+                    )}
+                  >
+                    <div className="text-2xl font-bold">{temp.label}</div>
+                    <div className="text-sm text-muted-foreground">{temp.temp}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </StepContent>
+        )}
+
+        {/* Condition Step */}
+        {activeStep === 'condition' && (
+          <StepContent stepId="condition">
+            <div className="bg-card border rounded-xl p-5 space-y-5">
+              <div className="flex items-center gap-3">
+                {stepIcons.condition}
+                <h3 className="text-lg font-semibold">{stepTitles.condition}</h3>
+              </div>
+              <div className="space-y-4">
+                <BinaryChoice
+                  label="Rust visible on tank?"
+                  value={locationData.visualRust}
+                  onChange={(val) => onLocationUpdate({ visualRust: val })}
+                  yesVariant="danger"
+                />
+                <BinaryChoice
+                  label="Active water leak?"
+                  value={locationData.isLeaking}
+                  onChange={(val) => onLocationUpdate({ isLeaking: val })}
+                  yesVariant="danger"
+                />
+              </div>
+            </div>
+          </StepContent>
+        )}
+
+        {/* Venting Step (Gas only) */}
+        {activeStep === 'venting' && isGasUnit && (
+          <StepContent stepId="venting">
+            <div className="bg-card border rounded-xl p-5 space-y-5">
+              <div className="flex items-center gap-3">
+                {stepIcons.venting}
+                <h3 className="text-lg font-semibold">{stepTitles.venting}</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-muted-foreground">Vent Type</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {VENT_TYPE_OPTIONS.map((vent) => (
+                      <button
+                        key={vent.value}
+                        type="button"
+                        onClick={() => onAssetUpdate({ ventType: vent.value })}
+                        className={cn(
+                          "p-3 rounded-xl border-2 text-center transition-all",
+                          assetData.ventType === vent.value
+                            ? "border-primary bg-primary/10"
+                            : "border-muted hover:border-muted-foreground/30"
+                        )}
+                      >
+                        <div className="font-medium text-sm">{vent.label}</div>
+                        <div className="text-xs text-muted-foreground">{vent.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-muted-foreground">Flue Scenario</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {FLUE_SCENARIO_OPTIONS.map((flue) => (
+                      <button
+                        key={flue.value}
+                        type="button"
+                        onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
+                        className={cn(
+                          "p-3 rounded-xl border-2 text-center transition-all",
+                          assetData.ventingScenario === flue.value
+                            ? flue.variant === 'warning'
+                              ? "border-orange-500 bg-orange-500/10"
+                              : "border-primary bg-primary/10"
+                            : "border-muted hover:border-muted-foreground/30"
+                        )}
+                      >
+                        <div className="font-medium text-sm">{flue.label}</div>
+                        <div className="text-xs text-muted-foreground">{flue.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {assetData.ventingScenario === 'ORPHANED_FLUE' && (
+                  <div className="p-3 bg-orange-100 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                    <p className="text-sm text-orange-800">
+                      Orphaned flue may require liner for replacement
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </StepContent>
+        )}
+
+        {/* Equipment Step */}
+        {activeStep === 'equipment' && (
+          <StepContent stepId="equipment">
+            <div className="bg-card border rounded-xl p-5 space-y-5">
+              <div className="flex items-center gap-3">
+                {stepIcons.equipment}
+                <h3 className="text-lg font-semibold">{stepTitles.equipment}</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-muted-foreground">Pipe Connection</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {CONNECTION_OPTIONS.map((conn) => (
+                      <button
+                        key={conn.value}
+                        type="button"
+                        onClick={() => onEquipmentUpdate({ connectionType: conn.value })}
+                        className={cn(
+                          "p-3 rounded-xl border-2 text-center transition-all",
+                          equipmentData.connectionType === conn.value
+                            ? conn.variant === 'warning'
+                              ? "border-orange-500 bg-orange-500/10"
+                              : "border-primary bg-primary/10"
+                            : "border-muted hover:border-muted-foreground/30"
+                        )}
+                      >
+                        <div className="font-medium text-sm">{conn.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <BinaryChoice
+                    label="Expansion tank present?"
+                    value={equipmentData.hasExpTank}
+                    onChange={(val) => onEquipmentUpdate({ hasExpTank: val })}
+                    yesLabel="Yes"
+                    noLabel="No"
+                    yesVariant="success"
+                  />
+                  <BinaryChoice
+                    label="PRV at main?"
+                    value={equipmentData.hasPrv}
+                    onChange={(val) => onEquipmentUpdate({ hasPrv: val })}
+                    yesLabel="Yes"
+                    noLabel="No"
+                    yesVariant="success"
+                  />
+                  <BinaryChoice
+                    label="Drain pan installed?"
+                    value={equipmentData.hasDrainPan}
+                    onChange={(val) => onEquipmentUpdate({ hasDrainPan: val })}
+                    yesLabel="Yes"
+                    noLabel="No"
+                    yesVariant={isHighRiskLocation ? 'success' : 'info'}
+                  />
+                </div>
+
+                {isHighRiskLocation && equipmentData.hasDrainPan === false && (
+                  <div className="p-3 bg-orange-100 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                    <p className="text-sm text-orange-800">
+                      Drain pan recommended for {locationData.location?.toLowerCase()} location
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </StepContent>
+        )}
+      </AnimatePresence>
+
+      {/* Continue Button - only show when all complete */}
+      {allComplete && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Button onClick={onNext} className="w-full h-12 font-semibold">
+            <span>Continue</span>
+            <ChevronRight className="h-5 w-5 ml-1" />
+          </Button>
+        </motion.div>
+      )}
     </div>
   );
 }
