@@ -13,7 +13,7 @@ import {
   Wind
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { LocationCondition, EquipmentChecklist, SoftenerInspection, AssetIdentification } from '@/types/technicianInspection';
+import type { LocationCondition, EquipmentChecklist, AssetIdentification } from '@/types/technicianInspection';
 import type { TempSetting, LocationType, VentType } from '@/lib/opterraAlgorithm';
 
 /**
@@ -35,11 +35,9 @@ interface ExceptionToggleStepProps {
   assetData: AssetIdentification;
   locationData: LocationCondition;
   equipmentData: EquipmentChecklist;
-  softenerData: SoftenerInspection;
   onAssetUpdate: (data: Partial<AssetIdentification>) => void;
   onLocationUpdate: (data: Partial<LocationCondition>) => void;
   onEquipmentUpdate: (data: Partial<EquipmentChecklist>) => void;
-  onSoftenerUpdate: (data: Partial<SoftenerInspection>) => void;
   onNext: () => void;
 }
 
@@ -164,11 +162,9 @@ export function ExceptionToggleStep({
   assetData,
   locationData,
   equipmentData,
-  softenerData,
   onAssetUpdate,
   onLocationUpdate,
   onEquipmentUpdate,
-  onSoftenerUpdate,
   onNext,
 }: ExceptionToggleStepProps) {
   // Check if gas unit (needs vent type selection)
@@ -185,7 +181,6 @@ export function ExceptionToggleStep({
   const connectionChecked = equipmentData.connectionType !== undefined;
   const expTankChecked = equipmentData.hasExpTank !== undefined;
   const prvChecked = equipmentData.hasPrv !== undefined;
-  const softenerChecked = softenerData.hasSoftener !== undefined;
 
   // Category completion
   const locationComplete = locationSelected;
@@ -193,12 +188,11 @@ export function ExceptionToggleStep({
   const conditionComplete = rustChecked && leakChecked;
   const ventingComplete = !isGasUnit || (ventTypeSelected && flueSelected);
   const equipmentComplete = connectionChecked && expTankChecked && prvChecked && panChecked;
-  const softenerComplete = softenerChecked;
 
-  // Build category array based on unit type
+  // Build category array based on unit type (softener is on next step)
   const categories = isGasUnit 
-    ? [locationComplete, tempComplete, conditionComplete, ventingComplete, equipmentComplete, softenerComplete]
-    : [locationComplete, tempComplete, conditionComplete, equipmentComplete, softenerComplete];
+    ? [locationComplete, tempComplete, conditionComplete, ventingComplete, equipmentComplete]
+    : [locationComplete, tempComplete, conditionComplete, equipmentComplete];
 
   // Overall form validity
   const canContinue = categories.every(Boolean);
@@ -441,23 +435,7 @@ export function ExceptionToggleStep({
           />
         </div>
       </div>
-
-      {/* Category 6: Softener */}
-      <div className="space-y-3 p-4 rounded-xl border border-border bg-card/50">
-        <CategoryHeader 
-          icon={<Droplets className="h-3.5 w-3.5" />} 
-          title="Water Softener" 
-          isComplete={softenerComplete} 
-        />
-        <BinaryChoice
-          label="Softener present?"
-          value={softenerData.hasSoftener}
-          onChange={(val) => onSoftenerUpdate({ hasSoftener: val })}
-          yesLabel="Yes"
-          noLabel="No"
-          yesVariant="info"
-        />
-      </div>
+      {/* NOTE: Softener check is on the next step */}
 
       {/* High Risk Location Warning */}
       {isHighRiskLocation && equipmentData.hasDrainPan === false && (
