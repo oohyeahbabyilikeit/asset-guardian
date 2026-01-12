@@ -57,11 +57,8 @@ const VENTING_SCENARIOS = [
   { value: 'DIRECT_VENT' as const, label: 'Direct', description: 'PVC to exterior' },
 ];
 
-// NEW v7.9: Anode count options
-const ANODE_COUNT_OPTIONS = [
-  { value: 1 as const, label: 'Single', description: '6-yr base life' },
-  { value: 2 as const, label: 'Dual', description: '12-yr base life' },
-];
+// NOTE v8.0: Anode count is now auto-proxied in algorithm from warranty years
+// Removed manual selection to streamline tech flow
 
 const CAPACITY_CHIPS = [
   { value: 40, label: '40 gal', sublabel: 'Small' },
@@ -348,28 +345,7 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
             </ScanHeroSection>
           )}
 
-          {/* NEW v7.9: Anode Count for Tank Units */}
-          {!isTankless && (
-            <ScanHeroSection title="Anode Rods" defaultOpen={false}>
-              <div className="flex gap-2">
-                {ANODE_COUNT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => onUpdate({ anodeCount: opt.value })}
-                    className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all
-                      ${data.anodeCount === opt.value
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-muted hover:border-primary/50'
-                      }`}
-                  >
-                    <div>{opt.label}</div>
-                    <div className="text-[10px] opacity-70">{opt.description}</div>
-                  </button>
-                ))}
-              </div>
-            </ScanHeroSection>
-          )}
+          {/* NOTE v8.0: Anode count is now auto-proxied from warranty years in the algorithm */}
         </div>
       </ScanHeroCard>
       

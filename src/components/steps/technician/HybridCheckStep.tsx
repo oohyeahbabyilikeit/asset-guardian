@@ -5,15 +5,27 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Wind, 
   Droplets, 
-  Activity,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Home
 } from 'lucide-react';
 import type { HybridInspection } from '@/types/technicianInspection';
-import type { AirFilterStatus } from '@/lib/opterraAlgorithm';
 import { useFilterScan } from '@/hooks/useFilterScan';
-import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
+import { ScanHeroCard } from '@/components/ui/ScanHeroCard';
 import { StatusToggleRow } from '@/components/ui/StatusToggleRow';
+
+/**
+ * HybridCheckStep v8.0 - "5-Minute Flow" Optimized
+ * 
+ * REMOVED (now auto-proxied in algorithm):
+ * - compressorHealth slider → Inferred from errorCodeCount
+ * - roomVolumeType detailed options → Simplified to isConfinedSpace toggle
+ * 
+ * KEPT (high-value, quick to collect):
+ * - Air filter scan (AI-powered)
+ * - Condensate drain check (binary toggle)
+ * - Confined space warning (simple toggle)
+ */
 
 interface HybridCheckStepProps {
   data: HybridInspection;
@@ -22,7 +34,6 @@ interface HybridCheckStepProps {
 }
 
 export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps) {
-  const hasIssues = data.airFilterStatus === 'CLOGGED' || !data.isCondensateClear;
   const { scanFilter, isScanning, result } = useFilterScan();
   
   const handleScanImage = async (file: File) => {
@@ -35,7 +46,7 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
   const scanSummary = result && (
     <div className="space-y-1 text-sm">
       <p className={
-        result.status === 'CLOGGED' ? 'text-red-600' :
+        result.status === 'CLOGGED' ? 'text-red-600 font-medium' :
         result.status === 'DIRTY' ? 'text-yellow-600' : 'text-green-600'
       }>
         Filter: {result.status} ({result.blockagePercent}% blocked)
@@ -50,7 +61,18 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
   const issueCount = [
     data.airFilterStatus === 'CLOGGED',
     !data.isCondensateClear,
+    data.roomVolumeType === 'CLOSET_SEALED',
   ].filter(Boolean).length;
+  
+  // Derive confined space from roomVolumeType for backwards compat
+  const isConfinedSpace = data.roomVolumeType === 'CLOSET_SEALED';
+  
+  const handleConfinedSpaceToggle = (confined: boolean) => {
+    // Map toggle to roomVolumeType for algorithm compatibility
+    onUpdate({ 
+      roomVolumeType: confined ? 'CLOSET_SEALED' : 'OPEN' 
+    });
+  };
   
   return (
     <div className="space-y-5">
@@ -101,7 +123,7 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
         </div>
       </ScanHeroCard>
 
-      {/* Condensate Drain */}
+      {/* Condensate Drain - Quick Toggle */}
       <StatusToggleRow
         label="Condensate Drain"
         value={data.isCondensateClear ? 'good' : 'poor'}
@@ -113,70 +135,48 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
         ]}
       />
 
-      {/* Compressor Health - Collapsed */}
-      <ScanHeroSection 
-        title="Compressor & Room" 
-        defaultOpen={false}
-        badge={<Badge variant="outline" className="text-xs">Optional</Badge>}
-      >
-        <div className="space-y-4">
-          {/* NEW v7.9: Room Volume Type */}
-          <div className="space-y-2">
-            <Label className="text-sm">Room Volume</Label>
-            <div className="flex gap-2">
-              {([
-                { value: 'OPEN' as const, label: 'Open Area', description: 'Garage, basement' },
-                { value: 'CLOSET_LOUVERED' as const, label: 'Louvered', description: 'Closet with vents' },
-                { value: 'CLOSET_SEALED' as const, label: 'Sealed', description: '⚠️ Suffocation risk' },
-              ]).map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onUpdate({ roomVolumeType: opt.value })}
-                  className={`flex-1 py-2 rounded-lg border-2 text-xs font-medium transition-all
-                    ${data.roomVolumeType === opt.value
-                      ? opt.value === 'CLOSET_SEALED' ? 'border-red-500 bg-red-50 text-red-700'
-                      : 'border-primary bg-primary text-primary-foreground'
-                      : 'border-muted hover:border-primary/50'
-                    }`}
-                  title={opt.description}
-                >
-                  {opt.label}
-                </button>
-              ))}
+      {/* Confined Space - Simplified Toggle */}
+      <div className="p-4 bg-muted/30 rounded-xl border space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Home className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Confined Space?</p>
+              <p className="text-xs text-muted-foreground">Sealed closet with no vents</p>
             </div>
-            {data.roomVolumeType === 'CLOSET_SEALED' && (
-              <p className="text-xs text-red-600">Heat pump needs ~700 cu ft of air - efficiency will suffer</p>
-            )}
           </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Compressor Health
-              </Label>
-              <span className="text-sm font-mono font-medium">
-                {data.compressorHealth ?? 100}%
-              </span>
-            </div>
-            
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              value={data.compressorHealth ?? 100}
-              onChange={(e) => onUpdate({ compressorHealth: parseInt(e.target.value) })}
-              className="w-full accent-primary"
-            />
-            
-            <p className="text-xs text-muted-foreground">
-              Based on sound, vibration, and performance
-            </p>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => handleConfinedSpaceToggle(false)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${!isConfinedSpace
+                  ? "bg-green-500 text-white"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              No
+            </button>
+            <button
+              type="button"
+              onClick={() => handleConfinedSpaceToggle(true)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${isConfinedSpace
+                  ? "bg-red-500 text-white"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+            >
+              Yes
+            </button>
           </div>
         </div>
-      </ScanHeroSection>
+        {isConfinedSpace && (
+          <p className="text-xs text-red-600 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Heat pump needs ~700 cu ft of air - efficiency will suffer significantly
+          </p>
+        )}
+      </div>
 
       {/* Issues Summary */}
       {issueCount > 0 && (
@@ -188,6 +188,7 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
           <ul className="text-xs text-orange-700 mt-1 space-y-0.5">
             {data.airFilterStatus === 'CLOGGED' && <li>• Air filter needs replacement</li>}
             {!data.isCondensateClear && <li>• Condensate drain blocked</li>}
+            {isConfinedSpace && <li>• Unit in confined space (efficiency impact)</li>}
           </ul>
         </div>
       )}
