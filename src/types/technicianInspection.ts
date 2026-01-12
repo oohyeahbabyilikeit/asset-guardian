@@ -35,6 +35,10 @@ export interface AssetIdentification {
   ratedFlowGPM?: number;      // GPM (tankless)
   ventType?: VentType;        // Gas units only
   warrantyYears: number;      // Derived from brand/model or manual
+  // NEW v7.9: Venting Scenario ("Orphaned Vent Liability" Fix)
+  ventingScenario?: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT';
+  // NEW v7.9: Anode Count ("Sticker Slap" Fix)
+  anodeCount?: 1 | 2;
 }
 
 // Step 2: Pressure & Water Measurements
@@ -52,6 +56,8 @@ export interface LocationCondition {
   visualRust: boolean;
   isLeaking: boolean;
   tempSetting?: TempSetting;  // undefined = not answered yet
+  // NEW v7.8: Leak Source Classification ("Leak False Positive" Fix)
+  leakSource?: 'NONE' | 'TANK_BODY' | 'FITTING_VALVE' | 'DRAIN_PAN';
 }
 
 // Step 4: Equipment Checklist
@@ -61,6 +67,12 @@ export interface EquipmentChecklist {
   hasCircPump: boolean;
   isClosedLoop: boolean;
   hasIsolationValves?: boolean;  // Tankless only
+  // NEW v7.8: Expansion Tank Status ("Zombie Tank" Fix)
+  expTankStatus?: 'FUNCTIONAL' | 'WATERLOGGED' | 'MISSING';
+  // NEW v7.8: Drain Pan ("Attic Bomb" Fix)
+  hasDrainPan?: boolean;
+  // NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix)
+  connectionType?: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER';
 }
 
 // Step 5: Softener Inspection (if present)
@@ -73,6 +85,8 @@ export interface SoftenerInspection {
   visualIron?: boolean;
   hasCarbonFilter?: boolean;
   visualCondition?: SoftenerVisualCondition;  // Visual age proxy for pre-existing units
+  // NEW v7.9: Sanitizer Type ("Chloramine Meltdown" Fix)
+  sanitizerType?: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';
 }
 
 // Step 6: Hybrid-Specific (if applicable)
@@ -80,6 +94,8 @@ export interface HybridInspection {
   airFilterStatus: AirFilterStatus;
   isCondensateClear: boolean;
   compressorHealth?: number;  // 0-100 (optional advanced)
+  // NEW v7.9: Room Volume Type ("Hybrid Suffocation" Fix)
+  roomVolumeType?: 'OPEN' | 'CLOSET_LOUVERED' | 'CLOSET_SEALED';
 }
 
 // Step 7: Tankless-Specific (if applicable)
@@ -91,6 +107,13 @@ export interface TanklessInspection {
   scaleBuildup?: number;               // 0-100 (if known)
   igniterHealth?: number;              // Gas only
   elementHealth?: number;              // Electric only
+  // NEW v7.8: Gas Starvation Detection
+  gasLineSize?: '1/2' | '3/4' | '1';   // Inch diameter
+  gasRunLength?: number;               // Feet from meter
+  // NEW v7.9: Descale Liability
+  lastDescaleYearsAgo?: number;        // Years since last descale
+  // NEW v7.7: Winter Flow Diagnosis
+  inletWaterTemp?: number;             // Degrees F (optional)
 }
 
 // Building type for inspection context

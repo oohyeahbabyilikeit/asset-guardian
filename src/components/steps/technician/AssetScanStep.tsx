@@ -50,6 +50,19 @@ const VENT_TYPES: { value: VentType; label: string }[] = [
   { value: 'DIRECT_VENT', label: 'Direct Vent' },
 ];
 
+// NEW v7.9: Venting scenario options
+const VENTING_SCENARIOS = [
+  { value: 'SHARED_FLUE' as const, label: 'Shared', description: 'With furnace' },
+  { value: 'ORPHANED_FLUE' as const, label: 'Orphaned', description: 'Alone in chimney (+$2000)' },
+  { value: 'DIRECT_VENT' as const, label: 'Direct', description: 'PVC to exterior' },
+];
+
+// NEW v7.9: Anode count options
+const ANODE_COUNT_OPTIONS = [
+  { value: 1 as const, label: 'Single', description: '6-yr base life' },
+  { value: 2 as const, label: 'Dual', description: '12-yr base life' },
+];
+
 const CAPACITY_CHIPS = [
   { value: 40, label: '40 gal', sublabel: 'Small' },
   { value: 50, label: '50 gal', sublabel: 'Standard' },
@@ -290,20 +303,68 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
           
           {/* Vent Type - Collapsible for Gas */}
           {isGasUnit && (
-            <ScanHeroSection title="Vent Type" defaultOpen={!!data.ventType}>
-              <div className="flex flex-wrap gap-2">
-                {VENT_TYPES.map((vent) => (
+            <ScanHeroSection title="Venting" defaultOpen={!!data.ventType}>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {VENT_TYPES.map((vent) => (
+                    <button
+                      key={vent.value}
+                      type="button"
+                      onClick={() => onUpdate({ ventType: vent.value })}
+                      className={`px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium
+                        ${data.ventType === vent.value
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-muted bg-muted/30 hover:border-primary/50"
+                        }`}
+                    >
+                      {vent.label}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* NEW v7.9: Venting Scenario */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Flue Scenario</Label>
+                  <div className="flex gap-2">
+                    {VENTING_SCENARIOS.map((s) => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => onUpdate({ ventingScenario: s.value })}
+                        className={`flex-1 py-2 rounded-lg border-2 text-xs font-medium transition-all
+                          ${data.ventingScenario === s.value
+                            ? s.value === 'ORPHANED_FLUE' ? 'border-orange-500 bg-orange-50 text-orange-700'
+                            : 'border-primary bg-primary text-primary-foreground'
+                            : 'border-muted hover:border-primary/50'
+                          }`}
+                        title={s.description}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </ScanHeroSection>
+          )}
+
+          {/* NEW v7.9: Anode Count for Tank Units */}
+          {!isTankless && (
+            <ScanHeroSection title="Anode Rods" defaultOpen={false}>
+              <div className="flex gap-2">
+                {ANODE_COUNT_OPTIONS.map((opt) => (
                   <button
-                    key={vent.value}
+                    key={opt.value}
                     type="button"
-                    onClick={() => onUpdate({ ventType: vent.value })}
-                    className={`px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium
-                      ${data.ventType === vent.value
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-muted bg-muted/30 hover:border-primary/50"
+                    onClick={() => onUpdate({ anodeCount: opt.value })}
+                    className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all
+                      ${data.anodeCount === opt.value
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-muted hover:border-primary/50'
                       }`}
                   >
-                    {vent.label}
+                    <div>{opt.label}</div>
+                    <div className="text-[10px] opacity-70">{opt.description}</div>
                   </button>
                 ))}
               </div>

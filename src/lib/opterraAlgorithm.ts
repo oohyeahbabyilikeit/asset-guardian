@@ -168,7 +168,10 @@ export interface ForensicInputs {
   // NEW v7.5: Tankless isolation valves (critical for maintenance eligibility)
   hasIsolationValves?: boolean;       // Can the unit be descaled?
   
-// NEW v7.8: Gas Starvation Detection ("Gas Starvation" Fix)
+  // NEW v7.7: Winter Flow Diagnosis
+  inletWaterTemp?: number;            // Inlet water temperature (degrees F) for winter flow calculation
+  
+  // NEW v7.8: Gas Starvation Detection ("Gas Starvation" Fix)
   gasLineSize?: '1/2' | '3/4' | '1';  // Inch diameter
   gasRunLength?: number;              // Feet from meter
   btuRating?: number;                 // Unit BTU rating (e.g., 199000)

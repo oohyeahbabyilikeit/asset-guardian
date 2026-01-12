@@ -25,6 +25,8 @@ export interface OnboardingData {
   // Step 3: Water Heater History
   lastFlushYearsAgo: number | null;      // null = never/unknown
   lastAnodeReplaceYearsAgo: number | null; // null = never/unknown
+  isAnnuallyMaintained?: boolean;        // NEW v7.7: Has tank been flushed yearly?
+  lastDescaleYearsAgo?: number | null;   // NEW v7.9: Tankless only
   
   // Step 4: Softener Context (if applicable)
   hasSoftener: boolean;
@@ -33,6 +35,7 @@ export interface OnboardingData {
   softenerServiceFrequency: 'professional' | 'diy_salt' | 'never' | 'unknown';
   softenerSaltStatus: SoftenerSaltStatus;   // NEW v7.6: Quick visual check
   waterSource: 'city' | 'well' | null;      // null = not answered yet
+  sanitizerType?: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';  // NEW v7.9: Chloramine Meltdown Fix
   
   // Step 5: Symptoms
   symptoms: Symptoms;
@@ -44,12 +47,15 @@ export const DEFAULT_ONBOARDING_DATA: OnboardingData = {
   yearsAtAddress: 5,
   lastFlushYearsAgo: null,
   lastAnodeReplaceYearsAgo: null,
+  isAnnuallyMaintained: false,
+  lastDescaleYearsAgo: null,
   hasSoftener: false,
   softenerWasHereWhenMoved: null,
   softenerInstallYearsAgo: null,
   softenerServiceFrequency: 'unknown',
   softenerSaltStatus: 'UNKNOWN',
   waterSource: null,
+  sanitizerType: 'UNKNOWN',
   symptoms: {
     notEnoughHotWater: false,
     lukewarmWater: false,
@@ -86,6 +92,8 @@ export function mapOnboardingToForensicInputs(
     softenerSaltStatus: onboarding.softenerSaltStatus, // NEW v7.6
     lastFlushYearsAgo,
     lastAnodeReplaceYearsAgo,
+    isAnnuallyMaintained: onboarding.isAnnuallyMaintained, // NEW v7.7
+    lastDescaleYearsAgo: onboarding.lastDescaleYearsAgo ?? undefined, // NEW v7.9
     visualRust,
     isLeaking,
   };
@@ -126,6 +134,7 @@ export function mapOnboardingToSoftenerInputs(
     ageYears: softenerAge,
     isCityWater: onboarding.waterSource === 'city',
     hasProfessionalService,  // NEW v1.4: Suppress salt alerts if professional service
+    sanitizerType: onboarding.sanitizerType || 'UNKNOWN',  // NEW v7.9: Chloramine fix
     // v1.1: Visual proxies default to conservative values
     // These will be updated by technician inspection or user input
     visualHeight: baseInputs.visualHeight,

@@ -40,15 +40,28 @@ export function mapTechnicianToForensicInputs(
     hasPrv: tech.equipment.hasPrv,
     isClosedLoop: tech.equipment.isClosedLoop,
     
+    // NEW v7.8: Expansion Tank Status ("Zombie Tank" Fix)
+    expTankStatus: tech.equipment.expTankStatus,
+    // NEW v7.8: Drain Pan ("Attic Bomb" Fix)
+    hasDrainPan: tech.equipment.hasDrainPan,
+    // NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix)
+    connectionType: tech.equipment.connectionType,
+    
     // Visual Inspection
     visualRust: tech.location.visualRust,
     isLeaking: tech.location.isLeaking,
+    // NEW v7.8: Leak Source Classification ("Leak False Positive" Fix)
+    leakSource: tech.location.leakSource,
     
     // Tank specs
     tankCapacity: tech.asset.tankCapacity || 50,
     
     // Vent type (gas units)
     ventType: tech.asset.ventType,
+    // NEW v7.9: Venting Scenario ("Orphaned Vent Liability" Fix)
+    ventingScenario: tech.asset.ventingScenario,
+    // NEW v7.9: Anode Count ("Sticker Slap" Fix)
+    anodeCount: tech.asset.anodeCount,
     
     // Usage defaults (will be overwritten by homeowner)
     peopleCount: 3,
@@ -60,6 +73,8 @@ export function mapTechnicianToForensicInputs(
     airFilterStatus: tech.hybrid?.airFilterStatus,
     isCondensateClear: tech.hybrid?.isCondensateClear,
     compressorHealth: tech.hybrid?.compressorHealth,
+    // NEW v7.9: Room Volume Type ("Hybrid Suffocation" Fix)
+    roomVolumeType: tech.hybrid?.roomVolumeType,
     
     // Tankless-specific
     flowRateGPM: tech.measurements.flowRateGPM,
@@ -72,6 +87,13 @@ export function mapTechnicianToForensicInputs(
     hasIsolationValves: tech.equipment.hasIsolationValves,
     igniterHealth: tech.tankless?.igniterHealth,
     elementHealth: tech.tankless?.elementHealth,
+    // NEW v7.8: Gas Starvation Detection
+    gasLineSize: tech.tankless?.gasLineSize,
+    gasRunLength: tech.tankless?.gasRunLength,
+    // NEW v7.9: Descale Liability
+    lastDescaleYearsAgo: tech.tankless?.lastDescaleYearsAgo,
+    // NEW v7.7: Winter Flow Diagnosis
+    inletWaterTemp: tech.tankless?.inletWaterTemp,
   };
   
   // Apply homeowner overrides if provided
@@ -118,6 +140,8 @@ export function mapTechnicianToSoftenerInputs(
     saltLevelState: mapSaltStatusToLevelState(tech.softener.saltStatus),
     qualityTier: tech.softener.qualityTier || 'STANDARD',
     capacity: getCapacityFromVisualHeight(tech.softener.visualHeight),
+    // NEW v7.9: Sanitizer Type ("Chloramine Meltdown" Fix)
+    sanitizerType: tech.softener.sanitizerType || 'UNKNOWN',
   };
   
   return { ...baseInputs, ...homeownerOverrides };

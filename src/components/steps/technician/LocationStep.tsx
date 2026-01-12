@@ -14,7 +14,10 @@ import {
   Gauge,
   RotateCw,
   Container,
-  HelpCircle
+  HelpCircle,
+  Link,
+  Unlink,
+  ShieldCheck
 } from 'lucide-react';
 import type { LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
 import type { LocationType, TempSetting } from '@/lib/opterraAlgorithm';
@@ -35,6 +38,27 @@ const TEMP_CHIPS: { value: TempSetting; label: string; temp: string }[] = [
   { value: 'LOW', label: 'Low', temp: '~110°F' },
   { value: 'NORMAL', label: 'Normal', temp: '~120°F' },
   { value: 'HOT', label: 'Hot', temp: '~140°F' },
+];
+
+// NEW v7.8: Expansion tank status options
+const EXP_TANK_STATUS_OPTIONS = [
+  { value: 'FUNCTIONAL' as const, label: 'Working', description: 'Bladder holds pressure' },
+  { value: 'WATERLOGGED' as const, label: 'Waterlogged', description: 'Dead bladder - solid feel' },
+  { value: 'MISSING' as const, label: 'Not Present', description: 'No tank installed' },
+];
+
+// NEW v7.8: Leak source options
+const LEAK_SOURCE_OPTIONS = [
+  { value: 'TANK_BODY' as const, label: 'Tank Body', description: 'Leak from tank itself (fatal)', color: 'red' },
+  { value: 'FITTING_VALVE' as const, label: 'Fitting/Valve', description: 'Repairable connection leak', color: 'yellow' },
+  { value: 'DRAIN_PAN' as const, label: 'Drain Pan', description: 'Water in pan, source unclear', color: 'orange' },
+];
+
+// NEW v7.9: Connection type options
+const CONNECTION_TYPE_OPTIONS = [
+  { value: 'DIELECTRIC' as const, label: 'Dielectric', description: 'Plastic isolator ring' },
+  { value: 'BRASS' as const, label: 'Brass Nipple', description: 'Brass transition' },
+  { value: 'DIRECT_COPPER' as const, label: 'Direct Copper', description: 'Copper to steel (⚠️ Galvanic risk)' },
 ];
 
 interface LocationStepProps {
@@ -153,14 +177,40 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         </div>
       </ScanHeroCard>
 
-      {/* Critical Leak Warning */}
+      {/* Critical Leak Warning with Source Classification */}
       {data.isLeaking && (
-        <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+        <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/30 space-y-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <div>
-              <p className="font-medium text-destructive text-sm">Active Leak</p>
-              <p className="text-xs text-muted-foreground">Unit flagged for replacement</p>
+              <p className="font-medium text-destructive text-sm">Active Leak Detected</p>
+              <p className="text-xs text-muted-foreground">Please identify the leak source</p>
+            </div>
+          </div>
+          
+          {/* NEW v7.8: Leak Source Classification */}
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Leak Source (Required)</Label>
+            <div className="space-y-1.5">
+              {LEAK_SOURCE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onUpdate({ leakSource: opt.value })}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-lg border-2 transition-all text-left
+                    ${data.leakSource === opt.value
+                      ? opt.color === 'red' ? 'border-red-500 bg-red-50'
+                      : opt.color === 'yellow' ? 'border-yellow-500 bg-yellow-50'
+                      : 'border-orange-500 bg-orange-50'
+                      : 'border-muted hover:border-primary/50'
+                    }`}
+                >
+                  <div>
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p className="text-xs text-muted-foreground">{opt.description}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -173,39 +223,39 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           <Label className="text-sm font-semibold">Equipment Present? (Required)</Label>
         </div>
         
-        {/* Expansion Tank */}
+        {/* Expansion Tank - NEW v7.8: Status instead of Yes/No */}
         <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
           <div className="flex items-center gap-3">
             <Container className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Expansion Tank</p>
-              <p className="text-xs text-muted-foreground">Thermal expansion protection</p>
+              <p className="text-sm font-medium">Expansion Tank Status</p>
+              <p className="text-xs text-muted-foreground">Check bladder by tapping tank</p>
             </div>
           </div>
-          <div className="flex gap-1">
+        </div>
+        <div className="flex gap-1 ml-10">
+          {EXP_TANK_STATUS_OPTIONS.map((opt) => (
             <button
+              key={opt.value}
               type="button"
-              onClick={() => onEquipmentUpdate({ hasExpTank: true })}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
-                ${equipmentData.hasExpTank === true
-                  ? "bg-primary text-primary-foreground"
+              onClick={() => {
+                onEquipmentUpdate({ 
+                  hasExpTank: opt.value !== 'MISSING',
+                  expTankStatus: opt.value 
+                });
+              }}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all
+                ${equipmentData.expTankStatus === opt.value
+                  ? opt.value === 'FUNCTIONAL' ? "bg-green-500 text-white"
+                  : opt.value === 'WATERLOGGED' ? "bg-orange-500 text-white"
+                  : "bg-muted text-muted-foreground"
                   : "bg-muted/50 text-muted-foreground hover:bg-muted"
                 }`}
+              title={opt.description}
             >
-              Yes
+              {opt.label}
             </button>
-            <button
-              type="button"
-              onClick={() => onEquipmentUpdate({ hasExpTank: false })}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
-                ${equipmentData.hasExpTank === false
-                  ? "bg-destructive text-destructive-foreground"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                }`}
-            >
-              No
-            </button>
-          </div>
+          ))}
         </div>
 
         {/* PRV */}
@@ -278,8 +328,39 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           </div>
         </div>
 
+        {/* NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix) */}
+        <ScanHeroSection title="Connection Type" defaultOpen={false}>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">How is copper connected to tank?</Label>
+            <div className="flex gap-2">
+              {CONNECTION_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onEquipmentUpdate({ connectionType: opt.value })}
+                  className={`flex-1 py-2 px-2 rounded-lg border-2 text-xs font-medium transition-all
+                    ${equipmentData.connectionType === opt.value
+                      ? opt.value === 'DIRECT_COPPER' ? 'border-red-500 bg-red-50 text-red-700'
+                      : 'border-primary bg-primary text-primary-foreground'
+                      : 'border-muted hover:border-primary/50'
+                    }`}
+                  title={opt.description}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {equipmentData.connectionType === 'DIRECT_COPPER' && (
+              <p className="text-xs text-red-600 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Galvanic corrosion risk - 3x accelerated aging
+              </p>
+            )}
+          </div>
+        </ScanHeroSection>
+
         {/* Validation warning */}
-        {(equipmentData.hasExpTank === null || equipmentData.hasPrv === null || equipmentData.hasCircPump === null) && (
+        {(equipmentData.expTankStatus === undefined || equipmentData.hasPrv === null || equipmentData.hasCircPump === null) && (
           <p className="text-xs text-amber-600 flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             Please answer all equipment questions
@@ -360,6 +441,43 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           </div>
         </div>
         
+        {/* NEW v7.8: Drain Pan - Required for high-risk locations */}
+        {(data.location === 'ATTIC' || data.location === 'UPPER_FLOOR' || data.location === 'MAIN_LIVING') && (
+          <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-amber-300">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-amber-600" />
+              <div>
+                <p className="text-sm font-medium">Drain Pan Present?</p>
+                <p className="text-xs text-muted-foreground">Required for high-risk location</p>
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => onEquipmentUpdate({ hasDrainPan: true })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                  ${equipmentData.hasDrainPan === true
+                    ? "bg-green-500 text-white"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  }`}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => onEquipmentUpdate({ hasDrainPan: false })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                  ${equipmentData.hasDrainPan === false
+                    ? "bg-red-500 text-white"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  }`}
+              >
+                No
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Validation warning for environment */}
         {(data.isFinishedArea === undefined || !data.tempSetting) && (
           <p className="text-xs text-amber-600 flex items-center gap-1">
@@ -373,11 +491,12 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         onClick={onNext} 
         className="w-full h-12 font-semibold"
         disabled={
-          equipmentData.hasExpTank === null || 
+          equipmentData.expTankStatus === undefined || 
           equipmentData.hasPrv === null || 
           equipmentData.hasCircPump === null ||
           data.isFinishedArea === undefined ||
-          !data.tempSetting
+          !data.tempSetting ||
+          (data.isLeaking && !data.leakSource)
         }
       >
         Continue

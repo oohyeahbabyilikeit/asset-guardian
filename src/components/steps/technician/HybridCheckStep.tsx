@@ -115,34 +115,66 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
 
       {/* Compressor Health - Collapsed */}
       <ScanHeroSection 
-        title="Compressor Health" 
+        title="Compressor & Room" 
         defaultOpen={false}
         badge={<Badge variant="outline" className="text-xs">Optional</Badge>}
       >
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <Label className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              Estimated Health
-            </Label>
-            <span className="text-sm font-mono font-medium">
-              {data.compressorHealth ?? 100}%
-            </span>
+        <div className="space-y-4">
+          {/* NEW v7.9: Room Volume Type */}
+          <div className="space-y-2">
+            <Label className="text-sm">Room Volume</Label>
+            <div className="flex gap-2">
+              {([
+                { value: 'OPEN' as const, label: 'Open Area', description: 'Garage, basement' },
+                { value: 'CLOSET_LOUVERED' as const, label: 'Louvered', description: 'Closet with vents' },
+                { value: 'CLOSET_SEALED' as const, label: 'Sealed', description: '⚠️ Suffocation risk' },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onUpdate({ roomVolumeType: opt.value })}
+                  className={`flex-1 py-2 rounded-lg border-2 text-xs font-medium transition-all
+                    ${data.roomVolumeType === opt.value
+                      ? opt.value === 'CLOSET_SEALED' ? 'border-red-500 bg-red-50 text-red-700'
+                      : 'border-primary bg-primary text-primary-foreground'
+                      : 'border-muted hover:border-primary/50'
+                    }`}
+                  title={opt.description}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {data.roomVolumeType === 'CLOSET_SEALED' && (
+              <p className="text-xs text-red-600">Heat pump needs ~700 cu ft of air - efficiency will suffer</p>
+            )}
           </div>
-          
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="5"
-            value={data.compressorHealth ?? 100}
-            onChange={(e) => onUpdate({ compressorHealth: parseInt(e.target.value) })}
-            className="w-full accent-primary"
-          />
-          
-          <p className="text-xs text-muted-foreground">
-            Based on sound, vibration, and performance
-          </p>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-sm flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Compressor Health
+              </Label>
+              <span className="text-sm font-mono font-medium">
+                {data.compressorHealth ?? 100}%
+              </span>
+            </div>
+            
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={data.compressorHealth ?? 100}
+              onChange={(e) => onUpdate({ compressorHealth: parseInt(e.target.value) })}
+              className="w-full accent-primary"
+            />
+            
+            <p className="text-xs text-muted-foreground">
+              Based on sound, vibration, and performance
+            </p>
+          </div>
         </div>
       </ScanHeroSection>
 
