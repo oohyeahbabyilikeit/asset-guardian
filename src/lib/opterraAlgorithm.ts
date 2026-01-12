@@ -119,6 +119,9 @@ export interface ForensicInputs {
   lastAnodeReplaceYearsAgo?: number;  // Years since last anode replacement
   lastFlushYearsAgo?: number;         // Years since last tank flush
   
+  // NEW v7.7: Sediment History ("Sediment Amnesia" Fix)
+  isAnnuallyMaintained?: boolean;     // Has tank been flushed yearly throughout its life?
+  
   // NEW v7.3: Hybrid (Heat Pump) specific fields
   airFilterStatus?: AirFilterStatus;  // HYBRID only: air filter condition
   isCondensateClear?: boolean;        // HYBRID only: condensate drain clear?
@@ -228,17 +231,20 @@ export interface FinancialForecast {
   upgradeValueProp?: string;      // Why upgrade is worth considering
 }
 
-// Hard Water Tax Interface (NEW v6.7, UPDATED v7.6 for Digital-First)
+// Hard Water Tax Interface (NEW v6.7, UPDATED v7.7 for Electric Burnout Risk)
 export interface HardWaterTax {
   hardnessGPG: number;          // Street hardness (for display)
   hasSoftener: boolean;
   
   // Annual Loss Breakdown
-  energyLoss: number;           // From sediment barrier
+  energyLoss: number;           // From sediment barrier (GAS ONLY - Electric is always 0)
   applianceDepreciation: number; // Accelerated aging
   detergentOverspend: number;   // Excess soap usage
   plumbingProtection: number;   // Fixture/pipe mineral damage (NEW v7.0)
   totalAnnualLoss: number;      // Sum of all losses
+  
+  // NEW v7.7: Electric/Hybrid tanks - sediment causes burnout, not efficiency loss
+  elementBurnoutRisk?: number;  // 0-100% risk scale for electric/hybrid tanks
   
   // ROI Analysis
   softenerAnnualCost: number;   // ~$250/year
@@ -495,17 +501,25 @@ export function resolveHardness(data: ForensicInputs): ResolvedHardness {
     confidence = 'HIGH';
   }
   // SCENARIO B: Frictionless assumption based on softener + salt status
+  // FIX v7.7 "Salt Blind Spot": Unverified softeners default to 3.0 GPG, not 0.5
   else if (data.hasSoftener) {
     if (data.softenerSaltStatus === 'EMPTY') {
       // Softener is dead → Use Street Hardness
       effectiveHardness = streetHardness;
       source = 'INFERRED';
       confidence = 'MEDIUM';
-    } else {
-      // Salt OK or Unknown → Assume working (0.5 GPG for tank)
+    } else if (data.softenerSaltStatus === 'OK') {
+      // Salt VERIFIED full → Likely working (0.5 GPG for tank)
       effectiveHardness = 0.5;
       source = 'INFERRED';
-      confidence = 'LOW';  // Could be wrong if softener broken
+      confidence = 'MEDIUM';  // Upgraded from LOW since salt was verified
+    } else {
+      // Salt status UNKNOWN → Could be bridged or failing
+      // FIX v7.7: Default to 3.0 GPG (partial treatment), not 0.5
+      // A bridged softener looks full but produces hard water
+      effectiveHardness = 3.0;
+      source = 'INFERRED';
+      confidence = 'LOW';  // Very low confidence - softener status unknown
     }
   }
   // SCENARIO C: Measured hardness is low despite "no softener" checkbox
@@ -635,9 +649,18 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // SERVICE HISTORY: Residual Sediment Model (v6.7)
   // Flushing removes ~50% of sediment (conservative estimate for DIY flushes)
   // Residual sediment remains and new sediment accumulates on top
+  // FIX v7.7 "Sediment Amnesia": Account for lifetime maintenance, not just last flush
   let sedimentLbs: number;
-  if (data.lastFlushYearsAgo !== undefined && data.lastFlushYearsAgo !== null) {
-    // Tank was flushed - calculate residual + new accumulation
+  if (data.isAnnuallyMaintained) {
+    // FIX v7.7: Well-maintained tank - each annual flush removes 50%
+    // After N years of annual flushing, approaches steady-state residual
+    // Geometric series: newAccum + 0.5*newAccum + 0.25*newAccum + ... ≈ 2*yearlyAccum
+    const yearlyAccumulation = effectiveHardness * sedFactor * volumeFactor;
+    const steadyStateResidual = yearlyAccumulation * 2; // Geometric series limit
+    // Well-maintained tanks stay in 1.5-2x yearly range, never exceed steady-state
+    sedimentLbs = Math.min(steadyStateResidual, yearlyAccumulation * 1.5);
+  } else if (data.lastFlushYearsAgo !== undefined && data.lastFlushYearsAgo !== null) {
+    // Tank was flushed once - calculate residual + new accumulation
     const ageAtFlush = data.calendarAge - data.lastFlushYearsAgo;
     const sedimentAtFlush = ageAtFlush * effectiveHardness * sedFactor * volumeFactor;
     const residualLbs = sedimentAtFlush * (1 - CONSTANTS.FLUSH_EFFICIENCY);
@@ -685,11 +708,13 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     const excessPsi = effectivePsi - CONSTANTS.PSI_SAFE_LIMIT;
     let rawPenalty = Math.pow(excessPsi / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
     
-    // DUTY CYCLE DAMPENER (v6.6)
-    // If this is a transient spike (heating only), apply 0.25x dampener (25% Duty Cycle).
-    // If this is static pressure (PRV failure), apply full 1.0x penalty.
+    // FIX v7.7 "Transient Pressure Inversion": CYCLIC stress is WORSE than static
+    // In pressure vessel mechanics, cyclic fatigue (fluctuation) is exponentially 
+    // more damaging to welds than static load. A tank cycling 60→120→60 PSI daily 
+    // experiences far more metal fatigue than one holding steady at 100 PSI.
+    // INVERTED from v6.6: Transient spikes now MULTIPLY penalty, not reduce it.
     if (isTransient) {
-      rawPenalty = rawPenalty * 0.25; 
+      rawPenalty = rawPenalty * 1.5; // Cyclic fatigue is 50% MORE damaging than static
     }
     
     pressureStress = 1.0 + rawPenalty;
@@ -1534,9 +1559,22 @@ export function calculateHardWaterTax(
   // v7.6: SOFTENER BROKEN or NO SOFTENER - Calculate actual losses
   
   // A. Energy Loss (from sediment barrier)
-  // Sediment acts as insulator - ~1% efficiency loss per lb
-  const sedimentPenalty = metrics.sedimentLbs * 0.01;
-  const energyLoss = Math.round(C.BASE_ENERGY_COST * sedimentPenalty);
+  // FIX v7.7 "Electric Efficiency Lie": Sediment only causes efficiency loss for GAS
+  // Electric immersion elements are 100% efficient (First Law of Thermodynamics).
+  // For Electric/Hybrid: Sediment causes ELEMENT BURNOUT, not efficiency loss.
+  let energyLoss = 0;
+  let elementBurnoutRisk = 0;
+  
+  if (data.fuelType === 'ELECTRIC' || data.fuelType === 'HYBRID') {
+    // Electric/Hybrid: Sediment causes element overheating → burnout
+    // Risk scales with sediment accumulation (0-100% scale)
+    energyLoss = 0;  // NO energy loss - physics doesn't work that way
+    elementBurnoutRisk = Math.min(100, metrics.sedimentLbs * 5); // 20 lbs = 100% risk
+  } else {
+    // GAS: Sediment insulates water from flame = real efficiency loss
+    const sedimentPenalty = metrics.sedimentLbs * 0.01;
+    energyLoss = Math.round(C.BASE_ENERGY_COST * sedimentPenalty);
+  }
   
   // B. Appliance Depreciation ("Asset Value Loss")
   // Hard water reduces lifespan - concrete GPG-to-lifespan mapping
@@ -1615,7 +1653,9 @@ export function calculateHardWaterTax(
     paybackYears,
     recommendation,
     reason,
-    badgeColor
+    badgeColor,
+    // NEW v7.7: Include element burnout risk for electric/hybrid tanks
+    elementBurnoutRisk: elementBurnoutRisk > 0 ? elementBurnoutRisk : undefined
   };
 }
 

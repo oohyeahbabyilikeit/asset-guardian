@@ -137,8 +137,11 @@ const CONSTANTS = {
   MOTOR_LIMIT: 1500,          // Cycles before replacement
 
   // Clock B: Resin Decay Rates (% per year)
-  CITY_WATER_DECAY: 10.0,         // Chlorine kills resin
-  CITY_WATER_CARBON_DECAY: 5.0,   // Carbon filter protects
+  // FIX v1.3 "City Water Death Clock": Reduced from 10.0 to 6.0
+  // High-quality 8-10% cross-link resin lasts 15-20 years on city water.
+  // 10% decay implied a hard 10-year limit. 6% allows 15+ year lifespan.
+  CITY_WATER_DECAY: 6.0,          // Chlorine kills resin (was 10.0)
+  CITY_WATER_CARBON_DECAY: 3.5,   // Carbon filter protects (reduced proportionally)
   WELL_WATER_DECAY: 12.0,         // Iron/sediment coating
   WELL_WATER_IRON_DECAY: 20.0,    // NEW v1.1: Iron staining = faster decay
 
