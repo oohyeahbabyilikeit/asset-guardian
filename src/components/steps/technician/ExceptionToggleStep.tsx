@@ -71,20 +71,19 @@ const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_
 
 type StepId = 'location' | 'temp' | 'condition' | 'venting' | 'equipment';
 
-// Completed step chip component
-function CompletedChip({ 
-  icon, 
-  value, 
-  warning,
-  onClick 
-}: { 
-  icon: React.ReactNode;
-  value: string;
-  warning?: boolean;
-  onClick: () => void;
-}) {
+// Completed step chip component - uses forwardRef to avoid ref warnings
+const CompletedChip = React.forwardRef<
+  HTMLButtonElement,
+  { 
+    icon: React.ReactNode;
+    value: string;
+    warning?: boolean;
+    onClick: () => void;
+  }
+>(({ icon, value, warning, onClick }, ref) => {
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       className={cn(
@@ -104,26 +103,23 @@ function CompletedChip({
       <Edit2 className="h-3 w-3 opacity-50" />
     </button>
   );
-}
+});
+CompletedChip.displayName = 'CompletedChip';
 
-// Binary choice component
-function BinaryChoice({ 
-  label, 
-  value, 
-  onChange, 
-  yesLabel = 'Yes', 
-  noLabel = 'No',
-  yesVariant = 'danger'
-}: { 
-  label: string; 
-  value: boolean | undefined; 
-  onChange: (val: boolean) => void;
-  yesLabel?: string;
-  noLabel?: string;
-  yesVariant?: 'danger' | 'warning' | 'success' | 'info';
-}) {
+// Binary choice component - uses forwardRef to avoid ref warnings
+const BinaryChoice = React.forwardRef<
+  HTMLDivElement,
+  { 
+    label: string; 
+    value: boolean | undefined; 
+    onChange: (val: boolean) => void;
+    yesLabel?: string;
+    noLabel?: string;
+    yesVariant?: 'danger' | 'warning' | 'success' | 'info';
+  }
+>(({ label, value, onChange, yesLabel = 'Yes', noLabel = 'No', yesVariant = 'danger' }, ref) => {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div ref={ref} className="flex items-center justify-between gap-3">
       <span className="text-sm font-medium text-foreground">{label}</span>
       <div className="flex gap-1.5">
         <button
@@ -159,7 +155,8 @@ function BinaryChoice({
       </div>
     </div>
   );
-}
+});
+BinaryChoice.displayName = 'BinaryChoice';
 
 // Animation variants for steps
 const stepVariants = {
@@ -465,8 +462,8 @@ export function ExceptionToggleStep({
           </motion.div>
         )}
 
-        {/* Venting Step (Gas only) */}
-        {activeStep === 'venting' && isGasUnit && (
+        {/* Venting Step (Gas only) - only render when activeStep is venting AND it's a gas unit */}
+        {activeStep === 'venting' && (
           <motion.div
             key="venting"
             variants={stepVariants}
@@ -476,69 +473,71 @@ export function ExceptionToggleStep({
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="space-y-4"
           >
-            <div className="bg-card border rounded-xl p-5 space-y-5">
-              <div className="flex items-center gap-3">
-                {stepIcons.venting}
-                <h3 className="text-lg font-semibold">{stepTitles.venting}</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-muted-foreground">Vent Type</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {VENT_TYPE_OPTIONS.map((vent) => (
-                      <button
-                        key={vent.value}
-                        type="button"
-                        onClick={() => onAssetUpdate({ ventType: vent.value })}
-                        className={cn(
-                          "p-3 rounded-xl border-2 text-center transition-all",
-                          assetData.ventType === vent.value
-                            ? "border-primary bg-primary/10"
-                            : "border-muted hover:border-muted-foreground/30"
-                        )}
-                      >
-                        <div className="font-medium text-sm">{vent.label}</div>
-                        <div className="text-xs text-muted-foreground">{vent.description}</div>
-                      </button>
-                    ))}
-                  </div>
+            {isGasUnit && (
+              <div className="bg-card border rounded-xl p-5 space-y-5">
+                <div className="flex items-center gap-3">
+                  {stepIcons.venting}
+                  <h3 className="text-lg font-semibold">{stepTitles.venting}</h3>
                 </div>
-
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-muted-foreground">Flue Scenario</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {FLUE_SCENARIO_OPTIONS.map((flue) => (
-                      <button
-                        key={flue.value}
-                        type="button"
-                        onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
-                        className={cn(
-                          "p-3 rounded-xl border-2 text-center transition-all",
-                          assetData.ventingScenario === flue.value
-                            ? flue.variant === 'warning'
-                              ? "border-orange-500 bg-orange-500/10"
-                              : "border-primary bg-primary/10"
-                            : "border-muted hover:border-muted-foreground/30"
-                        )}
-                      >
-                        <div className="font-medium text-sm">{flue.label}</div>
-                        <div className="text-xs text-muted-foreground">{flue.description}</div>
-                      </button>
-                    ))}
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-muted-foreground">Vent Type</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {VENT_TYPE_OPTIONS.map((vent) => (
+                        <button
+                          key={vent.value}
+                          type="button"
+                          onClick={() => onAssetUpdate({ ventType: vent.value })}
+                          className={cn(
+                            "p-3 rounded-xl border-2 text-center transition-all",
+                            assetData.ventType === vent.value
+                              ? "border-primary bg-primary/10"
+                              : "border-muted hover:border-muted-foreground/30"
+                          )}
+                        >
+                          <div className="font-medium text-sm">{vent.label}</div>
+                          <div className="text-xs text-muted-foreground">{vent.description}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-muted-foreground">Flue Scenario</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {FLUE_SCENARIO_OPTIONS.map((flue) => (
+                        <button
+                          key={flue.value}
+                          type="button"
+                          onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
+                          className={cn(
+                            "p-3 rounded-xl border-2 text-center transition-all",
+                            assetData.ventingScenario === flue.value
+                              ? flue.variant === 'warning'
+                                ? "border-orange-500 bg-orange-500/10"
+                                : "border-primary bg-primary/10"
+                              : "border-muted hover:border-muted-foreground/30"
+                          )}
+                        >
+                          <div className="font-medium text-sm">{flue.label}</div>
+                          <div className="text-xs text-muted-foreground">{flue.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {assetData.ventingScenario === 'ORPHANED_FLUE' && (
+                    <div className="p-3 bg-orange-100 rounded-lg flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                      <p className="text-sm text-orange-800">
+                        Orphaned flue may require liner for replacement
+                      </p>
+                    </div>
+                  )}
                 </div>
-
-                {assetData.ventingScenario === 'ORPHANED_FLUE' && (
-                  <div className="p-3 bg-orange-100 rounded-lg flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-                    <p className="text-sm text-orange-800">
-                      Orphaned flue may require liner for replacement
-                    </p>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
           </motion.div>
         )}
 
