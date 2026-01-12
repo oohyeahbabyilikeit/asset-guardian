@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { CheckCircle2, Edit2, Camera, Flame, Zap, AlertCircle } from 'lucide-react';
 import type { AssetIdentification } from '@/types/technicianInspection';
-import type { FuelType, VentType } from '@/lib/opterraAlgorithm';
+import type { FuelType } from '@/lib/opterraAlgorithm';
 import { decodeSerialNumber, getAgeDisplayString } from '@/lib/serialDecoder';
 import { useDataPlateScan, type ScannedDataPlate } from '@/hooks/useDataPlateScan';
 import { cn } from '@/lib/utils';
@@ -35,17 +35,7 @@ const BRANDS = [
   'Other',
 ] as const;
 
-const VENT_TYPES: { value: VentType; label: string }[] = [
-  { value: 'ATMOSPHERIC', label: 'Atmospheric' },
-  { value: 'POWER_VENT', label: 'Power Vent' },
-  { value: 'DIRECT_VENT', label: 'Direct Vent' },
-];
-
-const VENTING_SCENARIOS = [
-  { value: 'SHARED_FLUE' as const, label: 'Shared', description: 'With furnace' },
-  { value: 'ORPHANED_FLUE' as const, label: 'Orphaned', description: 'Alone in chimney (+$2000)' },
-  { value: 'DIRECT_VENT' as const, label: 'Direct', description: 'PVC to exterior' },
-];
+// NOTE: Vent type and flue scenario moved to ExceptionToggleStep - they're installation observations, not on data plate
 
 const CAPACITY_CHIPS = [
   { value: 40, label: '40 gal' },
@@ -145,10 +135,6 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
       if (result.warrantyYears) {
         updates.warrantyYears = result.warrantyYears;
         aiFields.warrantyYears = true;
-      }
-      if (result.ventType) {
-        updates.ventType = result.ventType;
-        aiFields.ventType = true;
       }
       
       onUpdate(updates);
@@ -436,53 +422,7 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                 </div>
               </div>
               
-              {/* Vent Type - Gas only */}
-              {isGasUnit && (
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">Vent Type</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {VENT_TYPES.map((vent) => (
-                      <button
-                        key={vent.value}
-                        type="button"
-                        onClick={() => onUpdate({ ventType: vent.value })}
-                        className={cn(
-                          "px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all",
-                          data.ventType === vent.value
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted hover:border-primary/50"
-                        )}
-                      >
-                        {vent.label}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {/* Venting Scenario */}
-                  <div className="mt-3 space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Flue Scenario</Label>
-                    <div className="flex gap-2">
-                      {VENTING_SCENARIOS.map((s) => (
-                        <button
-                          key={s.value}
-                          type="button"
-                          onClick={() => onUpdate({ ventingScenario: s.value })}
-                          className={cn(
-                            "flex-1 py-2 rounded-lg border-2 text-xs font-medium transition-all",
-                            data.ventingScenario === s.value
-                              ? s.value === 'ORPHANED_FLUE' ? 'border-orange-500 bg-orange-50 text-orange-700'
-                              : 'border-primary bg-primary text-primary-foreground'
-                              : 'border-muted hover:border-primary/50'
-                          )}
-                          title={s.description}
-                        >
-                          {s.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* NOTE: Vent Type and Flue Scenario moved to ExceptionToggleStep */}
             </div>
           )}
         </div>

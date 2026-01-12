@@ -351,9 +351,11 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
       case 'exceptions':
         return (
           <ExceptionToggleStep
+            assetData={data.asset}
             locationData={data.location}
             equipmentData={data.equipment}
             softenerData={data.softener}
+            onAssetUpdate={updateAsset}
             onLocationUpdate={updateLocation}
             onEquipmentUpdate={updateEquipment}
             onSoftenerUpdate={updateSoftener}
