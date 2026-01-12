@@ -91,6 +91,11 @@ export function isTankless(fuelType: FuelType): boolean {
 // Softener Salt Status for "Digital-First" hardness detection
 export type SoftenerSaltStatus = 'OK' | 'EMPTY' | 'UNKNOWN';
 
+// NEW v7.10: Sanitizer Type ("Chloramine Corrosion" Fix)
+// Chloramine (NH2Cl) is more stable than chlorine but more corrosive to copper, brass,
+// and rubber components. It also accelerates deterioration of softener resin by 30-50%.
+export type SanitizerType = 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';
+
 export interface ForensicInputs {
   calendarAge: number;     // Years
   warrantyYears: number;   // Standard is 6, 9, or 12
@@ -122,6 +127,7 @@ export interface ForensicInputs {
   // Equipment Flags
   hasSoftener: boolean;
   softenerSaltStatus?: SoftenerSaltStatus;  // NEW v7.6: Visual salt check (faster than test strip)
+  sanitizerType?: SanitizerType;            // NEW v7.10: Chlorine vs Chloramine (from ZIP lookup)
   hasCircPump: boolean;
   hasExpTank: boolean;
   // NEW v7.8: Expansion Tank Status ("Zombie Tank" Fix)
@@ -700,6 +706,15 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // Formula: 0.02 per GPG above 5 (max ~0.4 for very hard water at 25+ GPG)
   const hardnessAboveBaseline = Math.max(0, data.hardnessGPG - 5);
   anodeDecayRate += hardnessAboveBaseline * 0.02;
+  
+  // NEW v7.10 "Chloramine Corrosion": Chloramine is more stable but more aggressive
+  // Chloramine (vs chlorine) creates ammonia byproducts that accelerate metal corrosion
+  // - Brass dezincification risk (fittings, valves)
+  // - Rubber seal degradation (T&P valves, gaskets)
+  // - Anode consumption +20% faster due to altered water chemistry
+  if (data.sanitizerType === 'CHLORAMINE') {
+    anodeDecayRate *= 1.2;  // 20% faster anode consumption
+  }
   
   // NEW v7.9 "Galvanic Blind Spot": Direct copper-to-steel connections create a battery
   // Galvanic corrosion accelerates anode consumption dramatically (3x faster)

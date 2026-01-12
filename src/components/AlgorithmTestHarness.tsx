@@ -30,6 +30,7 @@ import {
   type RoomVolumeType,
   type SoftenerSaltStatus,
   type UsageType,
+  type SanitizerType,
 } from '@/lib/opterraAlgorithm';
 
 interface AlgorithmTestHarnessProps {
@@ -452,6 +453,17 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     }
   }
 
+  // NEW v7.10: Chloramine Corrosion Warning
+  if (inputs.sanitizerType === 'CHLORAMINE') {
+    issues.push({
+      id: 'chloramine_corrosion',
+      severity: 'warning',
+      title: 'Chloramine Water Supply',
+      detail: 'Chloramine is more corrosive to brass fittings and rubber seals. Anode consumption +20%. Softener resin degrades 30-50% faster.',
+      value: 'NH₂Cl'
+    });
+  }
+
   if (inputs.hasCircPump) {
     issues.push({
       id: 'circ_pump',
@@ -816,6 +828,10 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
     if (!lookupResult) return;
     updateInput('streetHardnessGPG', lookupResult.hardnessGPG);
     updateInput('hardnessGPG', lookupResult.hardnessGPG);
+    // NEW v7.10: Also apply sanitizer type to algorithm inputs
+    if (lookupResult.sanitizerType && lookupResult.sanitizerType !== 'UNKNOWN') {
+      updateInput('sanitizerType', lookupResult.sanitizerType);
+    }
   };
 
   const riskInfo = result ? getRiskLevelInfo(result.metrics.riskLevel) : null;
@@ -831,7 +847,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             </Button>
             <div>
               <h1 className="text-lg font-bold">OPTERRA Test Harness</h1>
-              <p className="text-xs text-muted-foreground">v7.9 Physics Engine - Complete</p>
+              <p className="text-xs text-muted-foreground">v7.10 Physics Engine - Chloramine Corrosion</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={resetInputs}>
@@ -1219,6 +1235,27 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       </Button>
                     )}
                   </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Sanitizer Type (from ZIP lookup)</Label>
+                  <Select 
+                    value={inputs.sanitizerType || 'UNKNOWN'} 
+                    onValueChange={(v) => updateInput('sanitizerType', v as SanitizerType)}
+                  >
+                    <SelectTrigger className="mt-1 h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CHLORINE">Chlorine (Standard)</SelectItem>
+                      <SelectItem value="CHLORAMINE">Chloramine ⚠️ (More Corrosive)</SelectItem>
+                      <SelectItem value="UNKNOWN">Unknown</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {inputs.sanitizerType === 'CHLORAMINE' && (
+                    <p className="text-xs text-orange-500 mt-1">
+                      +20% anode consumption, accelerates softener resin degradation
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <Label className="text-xs">Water Softener</Label>
