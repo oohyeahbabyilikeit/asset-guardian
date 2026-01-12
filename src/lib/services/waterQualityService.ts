@@ -1,11 +1,14 @@
 /**
- * Water Quality Service - USGS/EPA Data Integration
+ * Water Quality Service - USGS/EPA Data Integration + AI-Powered CCR Lookup
  * 
  * "Digital-First" Architecture:
  * - Fetches regional water hardness by geolocation from USGS/EPA Water Quality Portal
  * - Provides fallback regional estimates when API fails
- * - Used to populate streetHardnessGPG for financial ROI calculations
+ * - AI-powered Consumer Confidence Report (CCR) lookup for sanitizer type
+ * - Used to populate streetHardnessGPG and sanitizerType for algorithm calculations
  */
+
+import { supabase } from '@/integrations/supabase/client';
 
 const GPG_CONVERSION = 17.1; // 1 GPG = 17.1 mg/L (ppm)
 
@@ -248,4 +251,107 @@ export function getHardnessBadgeColor(gpg: number): 'green' | 'yellow' | 'orange
   if (gpg <= 7) return 'yellow';
   if (gpg <= 14) return 'orange';
   return 'red';
+}
+
+// ============================================================================
+// SANITIZER TYPE LOOKUP (AI-Powered CCR Analysis)
+// ============================================================================
+
+export interface SanitizerLookupResult {
+  sanitizerType: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';
+  utilityName?: string;
+  hardnessGPG?: number | null;
+  sourceUrl?: string;
+  confidence: number;
+  cached: boolean;
+  error?: string;
+}
+
+/**
+ * Get sanitizer type (chlorine vs chloramine) for a zip code
+ * Uses AI to search Consumer Confidence Reports (CCRs)
+ * Results are cached in water_districts table for 365 days
+ * 
+ * @param zipCode - 5-digit US zip code
+ * @returns SanitizerLookupResult with sanitizer type and metadata
+ */
+export async function getSanitizerFromZipCode(zipCode: string): Promise<SanitizerLookupResult> {
+  try {
+    const { data, error } = await supabase.functions.invoke('analyze-water-quality', {
+      body: { zipCode }
+    });
+
+    if (error) {
+      console.error('Sanitizer lookup error:', error);
+      return { 
+        sanitizerType: 'UNKNOWN', 
+        confidence: 0, 
+        cached: false,
+        error: error.message 
+      };
+    }
+
+    if (data.error) {
+      return { 
+        sanitizerType: 'UNKNOWN', 
+        confidence: 0, 
+        cached: false,
+        error: data.error 
+      };
+    }
+
+    return {
+      sanitizerType: data.sanitizer || 'UNKNOWN',
+      utilityName: data.utilityName,
+      hardnessGPG: data.hardnessGPG,
+      sourceUrl: data.sourceUrl,
+      confidence: data.confidence || 0,
+      cached: data.cached || false
+    };
+  } catch (e) {
+    console.error('Sanitizer lookup exception:', e);
+    return { 
+      sanitizerType: 'UNKNOWN', 
+      confidence: 0, 
+      cached: false,
+      error: e instanceof Error ? e.message : 'Unknown error' 
+    };
+  }
+}
+
+/**
+ * Get cached sanitizer data from database without calling AI
+ * Useful for quick lookups when you don't want to trigger AI
+ * 
+ * @param zipCode - 5-digit US zip code
+ * @returns Cached result or null if not found/expired
+ */
+export async function getCachedSanitizer(zipCode: string): Promise<SanitizerLookupResult | null> {
+  try {
+    const cacheThreshold = new Date();
+    cacheThreshold.setDate(cacheThreshold.getDate() - 365);
+
+    const { data, error } = await supabase
+      .from('water_districts')
+      .select('*')
+      .eq('zip_code', zipCode)
+      .gte('last_verified', cacheThreshold.toISOString())
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      sanitizerType: (data.sanitizer_type as 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN') || 'UNKNOWN',
+      utilityName: data.utility_name || undefined,
+      hardnessGPG: data.hardness_gpg,
+      sourceUrl: data.source_url || undefined,
+      confidence: data.confidence || 0,
+      cached: true
+    };
+  } catch (e) {
+    console.error('Cache lookup error:', e);
+    return null;
+  }
 }

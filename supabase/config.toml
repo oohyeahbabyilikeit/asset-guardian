@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.analyze-installation-context]
 verify_jwt = false
+
+[functions.analyze-water-quality]
+verify_jwt = false
