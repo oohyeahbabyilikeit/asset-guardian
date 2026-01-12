@@ -968,11 +968,11 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
       
       setLookupResult({
         utilityName: data.utilityName || 'Unknown Utility',
-        sanitizerType: data.sanitizerType || 'UNKNOWN',
+        sanitizerType: data.sanitizer || data.sanitizerType || 'UNKNOWN',
         hardnessGPG: data.hardnessGPG ?? 8,
         confidence: data.confidence ?? 0,
         sourceUrl: data.sourceUrl,
-        fromCache: data.fromCache || false,
+        fromCache: data.cached || data.fromCache || false,
       });
     } catch (err) {
       console.error('Water quality lookup failed:', err);
