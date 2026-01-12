@@ -10,9 +10,13 @@ interface ExtractedData {
   model: string | null;
   serialNumber: string | null;
   fuelType: 'GAS' | 'ELECTRIC' | 'TANKLESS_GAS' | 'TANKLESS_ELECTRIC' | 'HYBRID' | null;
-  capacity: number | null;
-  flowRate: number | null;
+  capacity: number | null;       // Gallons for tank units
+  flowRate: number | null;       // GPM for tankless
   warrantyYears: number | null;
+  btuRating: number | null;      // BTU/hr for gas units
+  wattage: number | null;        // Watts for electric units
+  voltage: number | null;        // Input voltage (120, 208, 240, etc.)
+  ventType: 'ATMOSPHERIC' | 'POWER_VENT' | 'DIRECT_VENT' | null;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   rawText: string;
 }
@@ -57,23 +61,28 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: `Analyze this water heater data plate image and extract the following information. Be precise and only extract what you can clearly read.
+                text: `Analyze this water heater data plate/rating label image. Extract ALL visible specifications precisely.
 
-Extract:
-1. Brand/Manufacturer name (e.g., Rheem, A.O. Smith, Bradford White, Rinnai, Navien, etc.)
-2. Model number (the alphanumeric product code)
-3. Serial number (usually starts with numbers indicating manufacture date)
-4. Unit type - determine based on these indicators:
-   - "BTU" or "BTU/HR" = Gas unit
-   - "kW" or "Watts" = Electric unit
-   - "GPM" or "Gallons Per Minute" without tank capacity = Tankless
-   - "Heat Pump" or "Hybrid" = Hybrid unit
-   - Tank capacity in gallons = Tank unit
-5. Tank capacity in gallons (for tank/hybrid units)
-6. Flow rate in GPM (for tankless units)
-7. Warranty period if visible
+CRITICAL FIELDS TO EXTRACT:
+1. Brand/Manufacturer (e.g., Rheem, A.O. Smith, Bradford White, Rinnai, Navien)
+2. Model number (alphanumeric code, often starts with letters)
+3. Serial number (usually starts with date code like 1423, 2208, etc.)
+4. BTU/HR rating (gas units - look for "BTU", "BTU/HR", "Input")
+5. Wattage (electric units - look for "Watts", "W", "kW")
+6. Voltage (look for "VAC", "V", "Volts" - commonly 120V, 208V, 240V)
+7. Tank capacity in gallons (look for "GAL", "Gallons", "Capacity")
+8. Flow rate in GPM (tankless - look for "GPM", "Gallons Per Minute")
+9. Vent type (look for "Atmospheric", "Power Vent", "Direct Vent")
+10. Warranty info if visible
 
-Return your analysis as structured data.`
+UNIT TYPE DETERMINATION:
+- BTU rating + tank capacity = GAS tank unit
+- Watts/kW + tank capacity = ELECTRIC tank unit  
+- BTU + GPM (no tank) = TANKLESS_GAS
+- Watts + GPM (no tank) = TANKLESS_ELECTRIC
+- "Heat Pump", "Hybrid" text = HYBRID unit
+
+Be extremely precise - only extract what you can clearly read. Do NOT guess.`
               },
               {
                 type: 'image_url',
@@ -89,13 +98,13 @@ Return your analysis as structured data.`
             type: 'function',
             function: {
               name: 'extract_data_plate_info',
-              description: 'Extract water heater information from data plate',
+              description: 'Extract all water heater specifications from data plate',
               parameters: {
                 type: 'object',
                 properties: {
                   brand: {
                     type: 'string',
-                    description: 'Brand/manufacturer name (e.g., Rheem, A.O. Smith, Bradford White)',
+                    description: 'Brand/manufacturer name',
                     nullable: true
                   },
                   model: {
@@ -111,32 +120,53 @@ Return your analysis as structured data.`
                   fuelType: {
                     type: 'string',
                     enum: ['GAS', 'ELECTRIC', 'TANKLESS_GAS', 'TANKLESS_ELECTRIC', 'HYBRID'],
-                    description: 'Type of water heater based on fuel source and configuration',
+                    description: 'Unit type based on BTU/Watts/GPM indicators',
                     nullable: true
                   },
                   capacity: {
                     type: 'number',
-                    description: 'Tank capacity in gallons (for tank/hybrid units)',
+                    description: 'Tank capacity in gallons',
                     nullable: true
                   },
                   flowRate: {
                     type: 'number',
-                    description: 'Flow rate in GPM (for tankless units)',
+                    description: 'Flow rate in GPM (tankless only)',
                     nullable: true
                   },
                   warrantyYears: {
                     type: 'number',
-                    description: 'Warranty period in years if visible',
+                    description: 'Warranty period in years',
+                    nullable: true
+                  },
+                  btuRating: {
+                    type: 'number',
+                    description: 'BTU/HR input rating for gas units (e.g., 40000, 76000)',
+                    nullable: true
+                  },
+                  wattage: {
+                    type: 'number',
+                    description: 'Wattage for electric units (e.g., 4500, 5500)',
+                    nullable: true
+                  },
+                  voltage: {
+                    type: 'number',
+                    description: 'Input voltage (120, 208, 240, etc.)',
+                    nullable: true
+                  },
+                  ventType: {
+                    type: 'string',
+                    enum: ['ATMOSPHERIC', 'POWER_VENT', 'DIRECT_VENT'],
+                    description: 'Vent type for gas units',
                     nullable: true
                   },
                   confidence: {
                     type: 'string',
                     enum: ['HIGH', 'MEDIUM', 'LOW'],
-                    description: 'Confidence level in the extraction (HIGH if clear image, MEDIUM if some fields unclear, LOW if image quality poor)'
+                    description: 'HIGH if clear image with 5+ fields, MEDIUM if 3-4 fields, LOW if image quality poor'
                   },
                   rawText: {
                     type: 'string',
-                    description: 'Any other relevant text visible on the data plate'
+                    description: 'All other relevant text visible on the data plate'
                   }
                 },
                 required: ['confidence', 'rawText'],
