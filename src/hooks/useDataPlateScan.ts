@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { FuelType } from '@/lib/opterraAlgorithm';
+import type { FuelType, VentType } from '@/lib/opterraAlgorithm';
 
 export interface GeoTag {
   latitude: number;
@@ -15,9 +15,13 @@ export interface ScannedDataPlate {
   model: string | null;
   serialNumber: string | null;
   fuelType: FuelType | null;
-  capacity: number | null;
-  flowRate: number | null;
+  capacity: number | null;       // Tank gallons
+  flowRate: number | null;       // Tankless GPM
   warrantyYears: number | null;
+  btuRating: number | null;      // Gas units BTU/hr
+  wattage: number | null;        // Electric units watts
+  voltage: number | null;        // Input voltage
+  ventType: VentType | null;     // Gas vent type
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   rawText: string;
   geoTag?: GeoTag;
@@ -147,18 +151,20 @@ export function useDataPlateScan(): UseDataPlateScanReturn {
         };
         setScannedData(extracted);
         
-        // Show success toast with confidence
+        // Count fields found for feedback
         const fieldsFound = [
           extracted.brand,
           extracted.model,
           extracted.serialNumber,
-          extracted.fuelType
+          extracted.fuelType,
+          extracted.capacity || extracted.flowRate,
+          extracted.btuRating || extracted.wattage,
         ].filter(Boolean).length;
         
-        if (fieldsFound >= 3) {
+        if (fieldsFound >= 4) {
           toast.success(`Data plate scanned! ${fieldsFound} fields detected.`);
         } else if (fieldsFound > 0) {
-          toast.info(`Partial scan: ${fieldsFound} fields detected. Please verify and complete.`);
+          toast.info(`Partial scan: ${fieldsFound} fields detected. Verify and complete below.`);
         } else {
           toast.warning('Could not read data plate clearly. Please enter manually.');
         }
