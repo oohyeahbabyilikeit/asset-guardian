@@ -558,6 +558,39 @@ export type Database = {
         }
         Relationships: []
       }
+      water_districts: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          hardness_gpg: number | null
+          last_verified: string | null
+          sanitizer_type: string | null
+          source_url: string | null
+          utility_name: string | null
+          zip_code: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          hardness_gpg?: number | null
+          last_verified?: string | null
+          sanitizer_type?: string | null
+          source_url?: string | null
+          utility_name?: string | null
+          zip_code: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          hardness_gpg?: number | null
+          last_verified?: string | null
+          sanitizer_type?: string | null
+          source_url?: string | null
+          utility_name?: string | null
+          zip_code?: string
+        }
+        Relationships: []
+      }
       water_heaters: {
         Row: {
           calendar_age_years: number | null
