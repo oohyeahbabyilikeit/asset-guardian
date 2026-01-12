@@ -56,6 +56,14 @@ export type VentType = 'ATMOSPHERIC' | 'POWER_VENT' | 'DIRECT_VENT';
 // NEW v7.2: Quality Tier System
 export type QualityTier = 'BUILDER' | 'STANDARD' | 'PROFESSIONAL' | 'PREMIUM';
 
+// NEW v7.8: Expansion Tank Status ("Zombie Tank" Fix)
+// A waterlogged tank provides ZERO protection despite being visually present
+export type ExpansionTankStatus = 'FUNCTIONAL' | 'WATERLOGGED' | 'MISSING';
+
+// NEW v7.8: Leak Source Classification ("Leak False Positive" Fix)
+// Only TANK_BODY leaks warrant 99.9% failure - fittings are repairable
+export type LeakSource = 'NONE' | 'TANK_BODY' | 'FITTING_VALVE' | 'DRAIN_PAN';
+
 export interface TierProfile {
   tier: QualityTier;
   tierLabel: string;
@@ -108,12 +116,21 @@ export interface ForensicInputs {
   softenerSaltStatus?: SoftenerSaltStatus;  // NEW v7.6: Visual salt check (faster than test strip)
   hasCircPump: boolean;
   hasExpTank: boolean;
+  // NEW v7.8: Expansion Tank Status ("Zombie Tank" Fix)
+  // Waterlogged tanks are functionally MISSING - bladder rupture is common after 5-7 years
+  expTankStatus?: ExpansionTankStatus;  // FUNCTIONAL, WATERLOGGED, or MISSING (legacy: derived from hasExpTank)
   hasPrv: boolean;         // Pressure Reducing Valve present?
   isClosedLoop: boolean;   // Check valve or backflow preventer present?
+  
+  // NEW v7.8: Drain Pan ("Attic Bomb" Fix)
+  hasDrainPan?: boolean;   // Leak containment in high-risk locations
   
   // Visual Inspection
   visualRust: boolean;     
   isLeaking?: boolean;
+  // NEW v7.8: Leak Source Classification ("Leak False Positive" Fix)
+  // Only TANK_BODY leaks warrant condemnation - fitting leaks are repairable
+  leakSource?: LeakSource;  // NONE, TANK_BODY, FITTING_VALVE, or DRAIN_PAN
   
   // Service History Resets (null/undefined = never serviced)
   lastAnodeReplaceYearsAgo?: number;  // Years since last anode replacement
@@ -142,6 +159,11 @@ export interface ForensicInputs {
   
   // NEW v7.5: Tankless isolation valves (critical for maintenance eligibility)
   hasIsolationValves?: boolean;       // Can the unit be descaled?
+  
+  // NEW v7.8: Gas Starvation Detection ("Gas Starvation" Fix)
+  gasLineSize?: '1/2' | '3/4' | '1';  // Inch diameter
+  gasRunLength?: number;              // Feet from meter
+  btuRating?: number;                 // Unit BTU rating (e.g., 199000)
 }
 
 export interface OpterraMetrics {
@@ -190,6 +212,9 @@ export interface OpterraMetrics {
   scaleBuildupScore?: number;    // 0-100% heat exchanger blockage
   flowDegradation?: number;      // % GPM loss vs rated
   descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible';
+  
+  // NEW v7.8: Safety Warnings ("Legionella Liability" Fix)
+  bacterialGrowthWarning?: boolean;  // True if temp setting creates Legionella risk
 }
 
 export type ActionType = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
@@ -553,8 +578,13 @@ function getPressureProfile(data: ForensicInputs): { effectivePsi: number; isTra
   let effectivePsi = data.housePsi;
   let isTransient = false;
 
+  // FIX v7.8 "Zombie Expansion Tank": Check FUNCTIONAL status, not just presence
+  // A waterlogged tank (dead bladder) provides ZERO protection
+  const hasWorkingExpTank = data.expTankStatus === 'FUNCTIONAL' || 
+    (data.hasExpTank && data.expTankStatus !== 'WATERLOGGED');
+
   // Scenario 1: House pressure is normal (e.g. 60), but Closed Loop creates spikes
-  if (isActuallyClosed && !data.hasExpTank) {
+  if (isActuallyClosed && !hasWorkingExpTank) {
     if (data.housePsi < CONSTANTS.PSI_THERMAL_SPIKE) {
       effectivePsi = CONSTANTS.PSI_THERMAL_SPIKE; // Spike to 120
       isTransient = true; // This is a Duty Cycle spike (not constant)
@@ -743,8 +773,16 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   // (steel thickness, welds) does not degrade at that same exponential speed.
   // The Anode Rod acts as a chemical buffer, absorbing much of that accelerated corrosion.
   let tempStressRaw = 1.0;  // NORMAL baseline (120°F)
+  
+  // FIX v7.8 "Legionella Liability": Track bacterial growth risk for LOW temp
+  // The 95°F-115°F range is ideal for Legionella Pneumophila growth
+  // We still give the 0.8 physical stress benefit, but flag the biological hazard
+  let bacterialGrowthWarning = false;
   if (data.tempSetting === 'HOT') tempStressRaw = 1.5;   // 140°F+ (was 2.0, now calibrated to 1.5)
-  if (data.tempSetting === 'LOW') tempStressRaw = 0.8;   // 110°F eco mode life extension
+  if (data.tempSetting === 'LOW') {
+    tempStressRaw = 0.8;   // 110°F eco mode life extension
+    bacterialGrowthWarning = true;  // FIX v7.8: Flag Legionella risk
+  }
   
   // Split the factor between mechanical (expansion) and chemical (rust)
   // sqrt(1.5) = 1.22x multiplier for each component.
@@ -808,10 +846,22 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
   let failProb = (1 - (rNext / rNow)) * 100;
 
   // Caps & Overrides
-  if (data.visualRust || data.isLeaking) {
+  // FIX v7.8 "Leak False Positive": Only TANK_BODY leaks warrant 99.9% failure
+  // Fitting leaks and drain pan moisture are repairable, not death sentences
+  const isTankBodyLeak = data.leakSource === 'TANK_BODY' || 
+    (data.isLeaking && data.leakSource === undefined);  // Legacy: assume tank body if not specified
+  
+  if (data.visualRust || isTankBodyLeak) {
     failProb = CONSTANTS.VISUAL_CAP;
   } else {
     failProb = Math.min(failProb, CONSTANTS.STATISTICAL_CAP);
+  }
+  
+  // FIX v7.8 "Legionella Liability": Cap health score if bacterial risk exists
+  // User still gets physical benefit of low temp, but score is capped at 85
+  let healthScoreCap = 100;
+  if (bacterialGrowthWarning) {
+    healthScoreCap = 85;  // Can't be "optimal" with Legionella risk
   }
 
   // AGING SPEEDOMETER CALCULATIONS
@@ -856,10 +906,14 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     primaryStressor = stressorFactors.reduce((max, f) => f.value > max.value ? f : max, stressorFactors[0]).name;
   }
 
+  // Calculate health score with Legionella cap if applicable
+  const rawHealthScore = failProbToHealthScore(failProb);
+  const cappedHealthScore = Math.min(rawHealthScore, healthScoreCap);
+  
   return {
     bioAge: parseFloat(bioAge.toFixed(1)),
     failProb: parseFloat(failProb.toFixed(1)),
-    healthScore: failProbToHealthScore(failProb),
+    healthScore: cappedHealthScore,
     sedimentLbs: parseFloat(sedimentLbs.toFixed(1)),
     shieldLife: parseFloat(shieldLife.toFixed(1)),
     effectivePsi: parseFloat(effectivePsi.toFixed(1)), // Derived PSI
@@ -889,7 +943,9 @@ export function calculateHealth(data: ForensicInputs): OpterraMetrics {
     yearsLeftCurrent: parseFloat(yearsLeftCurrent.toFixed(1)),
     yearsLeftOptimized: parseFloat(yearsLeftOptimized.toFixed(1)),
     lifeExtension: parseFloat(lifeExtension.toFixed(1)),
-    primaryStressor
+    primaryStressor,
+    // NEW v7.8: Safety Warnings
+    bacterialGrowthWarning
   };
 }
 
@@ -947,8 +1003,14 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   // Only these conditions warrant immediate replacement
   // ============================================
   
-  // 1A. Containment Breach: Visual rust OR active leak
-  if (data.visualRust || data.isLeaking) {
+  // FIX v7.8 "Leak False Positive": Differentiate leak sources
+  // Only TANK_BODY leaks warrant condemnation - fitting leaks are repairable
+  const isTankBodyLeak = data.leakSource === 'TANK_BODY' || 
+    (data.isLeaking && data.leakSource === undefined);  // Legacy fallback
+  const isFittingLeak = data.leakSource === 'FITTING_VALVE' || data.leakSource === 'DRAIN_PAN';
+  
+  // 1A. Containment Breach: Visual rust OR TANK BODY leak
+  if (data.visualRust || isTankBodyLeak) {
     return {
       action: 'REPLACE',
       title: 'Containment Breach',
@@ -956,6 +1018,18 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
       urgent: true,
       badgeColor: 'red',
       badge: 'CRITICAL'
+    };
+  }
+  
+  // FIX v7.8: Fitting leaks are REPAIRABLE, not replacements
+  if (isFittingLeak) {
+    return {
+      action: 'REPAIR',
+      title: 'Fitting Leak Detected',
+      reason: `Water detected at ${data.leakSource === 'DRAIN_PAN' ? 'drain pan' : 'fitting/valve'}. This is a repairable condition, not tank failure.`,
+      urgent: true,
+      badgeColor: 'orange',
+      badge: 'SERVICE'
     };
   }
 
@@ -1011,6 +1085,22 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   // 2B. Liability Hazard: High/Extreme risk location + failProb > 30%
   // Applies to: Attics, Upper Floors, Main Living Areas, Finished Basements
   // Lower threshold for finished areas where water damage is catastrophic
+  // FIX v7.8 "Attic Bomb": Even LOWER threshold for unprotected high-risk locations
+  const isAtticOrUpper = data.location === 'ATTIC' || data.location === 'UPPER_FLOOR';
+  const hasNoDrainPan = !data.hasDrainPan;
+  
+  // Attic without drain pan: CRITICAL at just 25% probability (consequence severity)
+  if (isAtticOrUpper && hasNoDrainPan && metrics.failProb > 25) {
+    return {
+      action: 'REPLACE',
+      title: 'Attic Liability',
+      reason: `Attic unit without drain pan protection. Even at ${metrics.failProb.toFixed(0)}% risk, a leak here causes $50,000+ in ceiling/mold damage.`,
+      urgent: true,
+      badgeColor: 'red',
+      badge: 'CRITICAL'
+    };
+  }
+  
   if (metrics.riskLevel >= CONSTANTS.RISK_HIGH && metrics.failProb > 30) {
     return {
       action: 'REPLACE',
@@ -1047,13 +1137,20 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   
   // Determine if system is closed-loop (backflow preventer OR PRV creates closed loop)
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
+  
+  // FIX v7.8 "Zombie Expansion Tank": Check FUNCTIONAL status, not just presence
+  const hasWorkingExpTank = data.expTankStatus === 'FUNCTIONAL' || 
+    (data.hasExpTank && data.expTankStatus !== 'WATERLOGGED');
 
-  // 3A. Missing Thermal Expansion (Closed Loop without Expansion Tank) - URGENT
-  // v6.6: Enhanced with Attic Safety Warning
-  if (isActuallyClosed && !data.hasExpTank) {
-    const reasonText = data.hasCircPump 
-      ? 'Circulation pump detected without expansion tank. Check valves in the loop are trapping pressure.'
-      : 'Closed-loop system detected without an expansion tank. Pressure spikes to ~120 PSI during heating.';
+  // 3A. Missing or Dead Thermal Expansion (Closed Loop without working Expansion Tank) - URGENT
+  // v7.8: Enhanced to catch waterlogged "zombie" tanks
+  if (isActuallyClosed && !hasWorkingExpTank) {
+    const isWaterlogged = data.expTankStatus === 'WATERLOGGED';
+    const reasonText = isWaterlogged
+      ? 'Expansion tank is WATERLOGGED (bladder ruptured). Provides zero protection. Pressure spikes to ~120 PSI during heating.'
+      : data.hasCircPump 
+        ? 'Circulation pump detected without expansion tank. Check valves in the loop are trapping pressure.'
+        : 'Closed-loop system detected without an expansion tank. Pressure spikes to ~120 PSI during heating.';
     
     // SAFETY OVERRIDE: Attics are always Urgent with specific warning
     const isAttic = data.location === 'ATTIC' || data.location === 'UPPER_FLOOR';
@@ -1063,7 +1160,7 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
 
     return {
       action: 'REPAIR',
-      title: 'Missing Thermal Expansion',
+      title: isWaterlogged ? 'Waterlogged Expansion Tank' : 'Missing Thermal Expansion',
       reason: reasonText + atticWarning,
       urgent: true,
       badgeColor: 'orange',
@@ -1166,7 +1263,13 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   }
 
   // Anode refresh on young tanks
-  if (metrics.shieldLife < 1 && data.calendarAge < CONSTANTS.AGE_ANODE_LIMIT) {
+  // FIX v7.8 "Impossible Maintenance": Don't recommend anode refresh on fused rods
+  // After ~6 years without service, the anode hex head is often fused to the tank body.
+  // Attempting to remove it can spin the tank, snap plumbing, or crack the glass lining.
+  const neverServiced = data.lastAnodeReplaceYearsAgo === undefined || data.lastAnodeReplaceYearsAgo === null;
+  const isFusedRisk = neverServiced && data.calendarAge > 6;
+  
+  if (metrics.shieldLife < 1 && data.calendarAge < CONSTANTS.AGE_ANODE_LIMIT && !isFusedRisk) {
     return {
       action: 'MAINTAIN',
       title: 'Anode Refresh',
@@ -1174,6 +1277,19 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
       urgent: false,
       badgeColor: 'green',
       badge: 'MONITOR'
+    };
+  }
+  
+  // FIX v7.8: Warn about fused anode risk on old never-serviced tanks
+  if (metrics.shieldLife < 1 && data.calendarAge < CONSTANTS.AGE_ANODE_LIMIT && isFusedRisk) {
+    return {
+      action: 'PASS',
+      title: 'Anode Possibly Fused',
+      reason: `Tank is ${data.calendarAge} years old with no service history. Anode rod may be fused to tank. Removal attempt could damage plumbing or crack glass lining.`,
+      urgent: false,
+      badgeColor: 'yellow',
+      badge: 'MONITOR',
+      note: 'Do Not Touch Gate: Risk of breaking tank outweighs maintenance benefit'
     };
   }
 
@@ -1374,11 +1490,29 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
   
   // NEW v7.2: Detect quality tier and calculate tier-aware costs
   const currentTier = detectQualityTier(data);
-  const likeForLikeCost = calculateTierCost(currentTier, data);
+  let likeForLikeCost = calculateTierCost(currentTier, data);
+  
+  // FIX v7.8 "Sizing Infinite Loop": If tank is undersized, quote MUST be for correct size
+  // Otherwise we're selling them the same problem that caused failure
+  const expectedCapacity = data.peopleCount * 15;  // 15 gallons per person rule of thumb
+  const sizingRatio = expectedCapacity / Math.max(data.tankCapacity, 30);
+  const isUndersized = sizingRatio > 1.2;
+  
+  // Sizing upgrade cost: ~$200 per 10 gallons of additional capacity
+  const sizingUpgradeCost = isUndersized 
+    ? Math.ceil((expectedCapacity - data.tankCapacity) / 10) * 200
+    : 0;
+  
+  // Add sizing upgrade to like-for-like cost if undersized
+  if (isUndersized) {
+    likeForLikeCost += sizingUpgradeCost;
+  }
   
   // Check for upgrade opportunity
   const upgradeTierProfile = getUpgradeTier(currentTier.tier);
-  const upgradeCost = upgradeTierProfile ? calculateTierCost(upgradeTierProfile, data) : undefined;
+  const upgradeCost = upgradeTierProfile 
+    ? calculateTierCost(upgradeTierProfile, data) + sizingUpgradeCost 
+    : undefined;
   
   // Generate upgrade value proposition
   let upgradeValueProp: string | undefined;
@@ -1386,6 +1520,13 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
     const costDiff = upgradeCost - likeForLikeCost;
     const warrantyDiff = upgradeTierProfile.warrantyYears - currentTier.warrantyYears;
     upgradeValueProp = `Upgrade to ${upgradeTierProfile.tierLabel} for +$${costDiff} → ${warrantyDiff} extra years of protection`;
+  }
+  
+  // FIX v7.8: Add sizing upgrade note if applicable
+  let sizingNote: string | undefined;
+  if (isUndersized) {
+    const recommendedSize = Math.ceil(expectedCapacity / 10) * 10;  // Round to nearest 10 gallons
+    sizingNote = `Current ${data.tankCapacity}gal tank is undersized for ${data.peopleCount} people. Quote includes upgrade to ${recommendedSize}gal (+$${sizingUpgradeCost}).`;
   }
   
   // Use tier-aware costs for low/mid/high estimates

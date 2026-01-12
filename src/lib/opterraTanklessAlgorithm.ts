@@ -136,6 +136,48 @@ function detectTanklessTier(data: ForensicInputs): TierProfile {
   }
 }
 
+/**
+ * NEW v7.8: Gas Starvation Detection ("Gas Starvation" Fix)
+ * Undersized gas lines cause lean burn, sooting, and premature HX failure.
+ * This is the #1 cause of early tankless death that gets misdiagnosed as scale.
+ */
+function detectGasStarvation(data: ForensicInputs): { isStarving: boolean; severity: number; message: string } {
+  // Only applies to gas tankless
+  if (data.fuelType !== 'TANKLESS_GAS') {
+    return { isStarving: false, severity: 0, message: '' };
+  }
+  
+  // If we don't have gas line data, can't diagnose
+  if (!data.gasLineSize || !data.btuRating) {
+    return { isStarving: false, severity: 0, message: '' };
+  }
+  
+  const runLength = data.gasRunLength ?? 30;  // Default 30 feet if unknown
+  
+  // Gas line capacity chart (approximate CFH at 0.5" WC drop)
+  // 1/2" pipe: ~70 CFH, 3/4" pipe: ~150 CFH, 1" pipe: ~275 CFH
+  // Natural gas: ~1000 BTU/CF, so 199k BTU needs ~200 CFH
+  const pipeCapacityCFH: Record<string, number> = {
+    '1/2': 70 - (runLength > 30 ? 15 : 0),   // Derate for long runs
+    '3/4': 150 - (runLength > 50 ? 25 : 0),
+    '1': 275 - (runLength > 75 ? 40 : 0),
+  };
+  
+  const requiredCFH = data.btuRating / 1000;  // BTU to CFH conversion
+  const availableCFH = pipeCapacityCFH[data.gasLineSize] || 150;
+  
+  if (requiredCFH > availableCFH) {
+    const shortfall = Math.round(((requiredCFH - availableCFH) / requiredCFH) * 100);
+    return {
+      isStarving: true,
+      severity: Math.min(100, shortfall * 2),  // Severity scales with shortfall
+      message: `${data.gasLineSize}" gas line cannot supply ${data.btuRating / 1000}k BTU unit. Running ${shortfall}% lean.`
+    };
+  }
+  
+  return { isStarving: false, severity: 0, message: '' };
+}
+
 // --- CORE CALCULATION ENGINE ---
 
 export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
