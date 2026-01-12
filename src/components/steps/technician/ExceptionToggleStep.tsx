@@ -5,20 +5,19 @@ import {
   CheckCircle, 
   AlertTriangle, 
   Droplets,
-  Gauge,
   MapPin,
   Thermometer,
-  Box,
   Circle,
   Eye,
-  Wrench
+  Wrench,
+  Wind
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { LocationCondition, EquipmentChecklist, SoftenerInspection } from '@/types/technicianInspection';
-import type { TempSetting, LocationType } from '@/lib/opterraAlgorithm';
+import type { LocationCondition, EquipmentChecklist, SoftenerInspection, AssetIdentification } from '@/types/technicianInspection';
+import type { TempSetting, LocationType, VentType } from '@/lib/opterraAlgorithm';
 
 /**
- * ExceptionToggleStep v8.1 - "Required Verification" Pattern
+ * ExceptionToggleStep v8.2 - "Required Verification" Pattern
  * 
  * NO PRESETS. Every category requires an explicit selection.
  * Fast chip-style buttons, but mandatory choices.
@@ -26,15 +25,18 @@ import type { TempSetting, LocationType } from '@/lib/opterraAlgorithm';
  * Categories:
  * 1. Location (required)
  * 2. Temperature (required)
- * 3. Visual Condition (required - rust/leak/pan)
- * 4. Connections & Equipment (required)
- * 5. Softener Present (required)
+ * 3. Visual Condition (required - rust/leak)
+ * 4. Vent Type & Flue (required for gas units)
+ * 5. Connections & Equipment (required)
+ * 6. Softener Present (required)
  */
 
 interface ExceptionToggleStepProps {
+  assetData: AssetIdentification;
   locationData: LocationCondition;
   equipmentData: EquipmentChecklist;
   softenerData: SoftenerInspection;
+  onAssetUpdate: (data: Partial<AssetIdentification>) => void;
   onLocationUpdate: (data: Partial<LocationCondition>) => void;
   onEquipmentUpdate: (data: Partial<EquipmentChecklist>) => void;
   onSoftenerUpdate: (data: Partial<SoftenerInspection>) => void;
@@ -61,6 +63,18 @@ const CONNECTION_OPTIONS: { value: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER'; lab
   { value: 'DIELECTRIC', label: 'Dielectric' },
   { value: 'BRASS', label: 'Brass' },
   { value: 'DIRECT_COPPER', label: 'Direct Copper', variant: 'warning' },
+];
+
+const VENT_TYPE_OPTIONS: { value: VentType; label: string; description: string }[] = [
+  { value: 'ATMOSPHERIC', label: 'Atmospheric', description: 'Open draft hood' },
+  { value: 'POWER_VENT', label: 'Power Vent', description: 'Fan-assisted' },
+  { value: 'DIRECT_VENT', label: 'Direct Vent', description: 'Sealed combustion' },
+];
+
+const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT'; label: string; description: string; variant?: 'warning' }[] = [
+  { value: 'SHARED_FLUE', label: 'Shared', description: 'With furnace' },
+  { value: 'ORPHANED_FLUE', label: 'Orphaned', description: 'Alone in chimney', variant: 'warning' },
+  { value: 'DIRECT_VENT', label: 'Direct/PVC', description: 'To exterior' },
 ];
 
 // Binary choice component
@@ -147,19 +161,26 @@ function CategoryHeader({
 }
 
 export function ExceptionToggleStep({
+  assetData,
   locationData,
   equipmentData,
   softenerData,
+  onAssetUpdate,
   onLocationUpdate,
   onEquipmentUpdate,
   onSoftenerUpdate,
   onNext,
 }: ExceptionToggleStepProps) {
+  // Check if gas unit (needs vent type selection)
+  const isGasUnit = assetData.fuelType === 'GAS' || assetData.fuelType === 'TANKLESS_GAS';
+  
   // Validation state - each category must be explicitly answered
   const locationSelected = locationData.location !== null && locationData.location !== undefined;
   const tempSelected = locationData.tempSetting !== null && locationData.tempSetting !== undefined;
   const rustChecked = locationData.visualRust !== undefined;
   const leakChecked = locationData.isLeaking !== undefined;
+  const ventTypeSelected = !isGasUnit || (assetData.ventType !== undefined);
+  const flueSelected = !isGasUnit || (assetData.ventingScenario !== undefined);
   const panChecked = equipmentData.hasDrainPan !== undefined;
   const connectionChecked = equipmentData.connectionType !== undefined;
   const expTankChecked = equipmentData.hasExpTank !== undefined;
@@ -170,15 +191,21 @@ export function ExceptionToggleStep({
   const locationComplete = locationSelected;
   const tempComplete = tempSelected;
   const conditionComplete = rustChecked && leakChecked;
+  const ventingComplete = !isGasUnit || (ventTypeSelected && flueSelected);
   const equipmentComplete = connectionChecked && expTankChecked && prvChecked && panChecked;
   const softenerComplete = softenerChecked;
 
+  // Build category array based on unit type
+  const categories = isGasUnit 
+    ? [locationComplete, tempComplete, conditionComplete, ventingComplete, equipmentComplete, softenerComplete]
+    : [locationComplete, tempComplete, conditionComplete, equipmentComplete, softenerComplete];
+
   // Overall form validity
-  const canContinue = locationComplete && tempComplete && conditionComplete && equipmentComplete && softenerComplete;
+  const canContinue = categories.every(Boolean);
 
   // Progress count
-  const completedCount = [locationComplete, tempComplete, conditionComplete, equipmentComplete, softenerComplete].filter(Boolean).length;
-  const totalCategories = 5;
+  const completedCount = categories.filter(Boolean).length;
+  const totalCategories = categories.length;
 
   const isHighRiskLocation = ['ATTIC', 'UPPER_FLOOR', 'MAIN_LIVING'].includes(locationData.location);
 
@@ -189,7 +216,8 @@ export function ExceptionToggleStep({
     equipmentData.connectionType === 'DIRECT_COPPER' && 'Direct copper',
     locationData.tempSetting === 'HOT' && 'High temp setting',
     isHighRiskLocation && `${locationData.location} location`,
-    isHighRiskLocation && !equipmentData.hasDrainPan && 'Missing drain pan',
+    isHighRiskLocation && equipmentData.hasDrainPan === false && 'Missing drain pan',
+    assetData.ventingScenario === 'ORPHANED_FLUE' && 'Orphaned flue (+liner cost)',
   ].filter(Boolean) as string[];
 
   return (
@@ -203,7 +231,7 @@ export function ExceptionToggleStep({
         
         {/* Progress bar */}
         <div className="flex gap-1 mt-3">
-          {[locationComplete, tempComplete, conditionComplete, equipmentComplete, softenerComplete].map((complete, i) => (
+          {categories.map((complete, i) => (
             <div 
               key={i} 
               className={cn(
@@ -295,7 +323,66 @@ export function ExceptionToggleStep({
         </div>
       </div>
 
-      {/* Category 4: Connections & Equipment */}
+      {/* Category 4: Venting (Gas Units Only) */}
+      {isGasUnit && (
+        <div className="space-y-3 p-4 rounded-xl border border-border bg-card/50">
+          <CategoryHeader 
+            icon={<Wind className="h-3.5 w-3.5" />} 
+            title="Venting" 
+            isComplete={ventingComplete} 
+          />
+          
+          {/* Vent Type */}
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-foreground">Vent Type</span>
+            <div className="flex gap-2">
+              {VENT_TYPE_OPTIONS.map((vent) => (
+                <button
+                  key={vent.value}
+                  type="button"
+                  onClick={() => onAssetUpdate({ ventType: vent.value })}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg border-2 text-sm transition-all",
+                    assetData.ventType === vent.value
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-muted bg-card hover:border-muted-foreground/30"
+                  )}
+                >
+                  <div className="font-medium">{vent.label}</div>
+                  <div className="text-xs opacity-70">{vent.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Flue Scenario */}
+          <div className="space-y-2 pt-2">
+            <span className="text-sm font-medium text-foreground">Flue Scenario</span>
+            <div className="flex gap-2">
+              {FLUE_SCENARIO_OPTIONS.map((flue) => (
+                <button
+                  key={flue.value}
+                  type="button"
+                  onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg border-2 text-sm transition-all",
+                    assetData.ventingScenario === flue.value
+                      ? flue.variant === 'warning'
+                        ? "border-orange-500 bg-orange-500/10 text-orange-700"
+                        : "border-primary bg-primary text-primary-foreground"
+                      : "border-muted bg-card hover:border-muted-foreground/30"
+                  )}
+                >
+                  <div className="font-medium">{flue.label}</div>
+                  <div className="text-xs opacity-70">{flue.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category 5: Connections & Equipment */}
       <div className="space-y-3 p-4 rounded-xl border border-border bg-card/50">
         <CategoryHeader 
           icon={<Wrench className="h-3.5 w-3.5" />} 
@@ -355,7 +442,7 @@ export function ExceptionToggleStep({
         </div>
       </div>
 
-      {/* Category 5: Softener */}
+      {/* Category 6: Softener */}
       <div className="space-y-3 p-4 rounded-xl border border-border bg-card/50">
         <CategoryHeader 
           icon={<Droplets className="h-3.5 w-3.5" />} 
@@ -381,6 +468,21 @@ export function ExceptionToggleStep({
               <p className="font-medium text-orange-800 text-sm">Drain Pan Recommended</p>
               <p className="text-xs text-orange-700/80 mt-1">
                 {locationData.location} location typically requires a drain pan for code compliance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Orphaned Flue Warning */}
+      {assetData.ventingScenario === 'ORPHANED_FLUE' && (
+        <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-orange-800 text-sm">Orphaned Flue Detected</p>
+              <p className="text-xs text-orange-700/80 mt-1">
+                Chimney liner may be required if upgrading to high-efficiency unit. Add ~$2000 to quote.
               </p>
             </div>
           </div>

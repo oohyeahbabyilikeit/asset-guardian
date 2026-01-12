@@ -16,7 +16,7 @@ interface ExtractedData {
   btuRating: number | null;      // BTU/hr for gas units
   wattage: number | null;        // Watts for electric units
   voltage: number | null;        // Input voltage (120, 208, 240, etc.)
-  ventType: 'ATMOSPHERIC' | 'POWER_VENT' | 'DIRECT_VENT' | null;
+  // NOTE: ventType and ventingScenario are installation observations, NOT on data plate
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   rawText: string;
 }
@@ -63,7 +63,7 @@ serve(async (req) => {
                 type: 'text',
                 text: `Analyze this water heater data plate/rating label image. Extract ALL visible specifications precisely.
 
-CRITICAL FIELDS TO EXTRACT:
+CRITICAL FIELDS TO EXTRACT FROM DATA PLATE:
 1. Brand/Manufacturer (e.g., Rheem, A.O. Smith, Bradford White, Rinnai, Navien)
 2. Model number (alphanumeric code, often starts with letters)
 3. Serial number (usually starts with date code like 1423, 2208, etc.)
@@ -72,8 +72,9 @@ CRITICAL FIELDS TO EXTRACT:
 6. Voltage (look for "VAC", "V", "Volts" - commonly 120V, 208V, 240V)
 7. Tank capacity in gallons (look for "GAL", "Gallons", "Capacity")
 8. Flow rate in GPM (tankless - look for "GPM", "Gallons Per Minute")
-9. Vent type (look for "Atmospheric", "Power Vent", "Direct Vent")
-10. Warranty info if visible
+9. Warranty info if visible
+
+NOTE: Do NOT extract vent type - that is an installation observation, not on data plate.
 
 UNIT TYPE DETERMINATION:
 - BTU rating + tank capacity = GAS tank unit
@@ -151,12 +152,6 @@ Be extremely precise - only extract what you can clearly read. Do NOT guess.`
                   voltage: {
                     type: 'number',
                     description: 'Input voltage (120, 208, 240, etc.)',
-                    nullable: true
-                  },
-                  ventType: {
-                    type: 'string',
-                    enum: ['ATMOSPHERIC', 'POWER_VENT', 'DIRECT_VENT'],
-                    description: 'Vent type for gas units',
                     nullable: true
                   },
                   confidence: {

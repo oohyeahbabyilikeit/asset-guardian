@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { FuelType, VentType } from '@/lib/opterraAlgorithm';
+import type { FuelType } from '@/lib/opterraAlgorithm';
 
 export interface GeoTag {
   latitude: number;
@@ -21,7 +21,7 @@ export interface ScannedDataPlate {
   btuRating: number | null;      // Gas units BTU/hr
   wattage: number | null;        // Electric units watts
   voltage: number | null;        // Input voltage
-  ventType: VentType | null;     // Gas vent type
+  // NOTE: ventType removed - it's an installation observation, not on data plate
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   rawText: string;
   geoTag?: GeoTag;
