@@ -372,14 +372,13 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           />
         );
       
-      case 'exceptions':
+      case 'equipment':
         return (
-          <ExceptionToggleStep
+          <EquipmentVerifyStep
             assetData={data.asset}
             locationData={data.location}
             equipmentData={data.equipment}
             onAssetUpdate={updateAsset}
-            onLocationUpdate={updateLocation}
             onEquipmentUpdate={updateEquipment}
             onNext={goNext}
           />
@@ -437,7 +436,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     'readings': 'Pressure & Hardness',
     'asset-scan': 'Unit Identification',
     'location': 'Location & Condition',
-    'exceptions': 'Verify Installation',
+    'equipment': 'Equipment Verification',
     'unit-check': unitCheckSubStep === 'tankless' ? 'Tankless Check' :
                   unitCheckSubStep === 'hybrid' ? 'Heat Pump Check' : 'Softener Check',
     'confirm': 'Confirm & Complete',
@@ -448,7 +447,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     'readings': <Gauge className="h-4 w-4" />,
     'asset-scan': <Scan className="h-4 w-4" />,
     'location': <MapPin className="h-4 w-4" />,
-    'exceptions': <Settings2 className="h-4 w-4" />,
+    'equipment': <Settings2 className="h-4 w-4" />,
     'unit-check': <Settings2 className="h-4 w-4" />,
     'confirm': <CheckCircle className="h-4 w-4" />,
   };
