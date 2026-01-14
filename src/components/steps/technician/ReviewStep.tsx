@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   CheckCircle2, 
   AlertTriangle, 
@@ -25,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { TechnicianInspectionData } from '@/types/technicianInspection';
 import type { FuelType, TempSetting, LocationType } from '@/lib/opterraAlgorithm';
+import { TechnicianStepLayout, StepCard, SectionHeader } from './TechnicianStepLayout';
 
 interface ReviewStepProps {
   data: TechnicianInspectionData;
@@ -33,9 +33,7 @@ interface ReviewStepProps {
   onConfirm: () => void;
 }
 
-// Track which fields were detected by AI vs manually entered
 export interface AIDetectedFields {
-  // From visual condition scan
   visualRust?: boolean;
   isLeaking?: boolean;
   tempDialSetting?: boolean;
@@ -43,26 +41,18 @@ export interface AIDetectedFields {
   hasPrvVisible?: boolean;
   anodePortCondition?: boolean;
   drainValveCondition?: boolean;
-  
-  // From installation context scan
   hasExpTank?: boolean;
   hasPrv?: boolean;
   hasCircPump?: boolean;
   isClosedLoop?: boolean;
   hasSoftener?: boolean;
-  
-  // From error code scan (tankless)
   hasIsolationValves?: boolean;
   ventCondition?: boolean;
   scaleDepositsVisible?: boolean;
   errorCodeCount?: boolean;
-  
-  // From softener scan
   saltCondition?: boolean;
   hasCarbonFilter?: boolean;
   visualIron?: boolean;
-  
-  // From data plate scan
   brand?: boolean;
   model?: boolean;
   serialNumber?: boolean;
@@ -238,28 +228,24 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
   const isTankless = data.asset.fuelType === 'TANKLESS_GAS' || data.asset.fuelType === 'TANKLESS_ELECTRIC';
   const isHybrid = data.asset.fuelType === 'HYBRID';
   const hasIssues = data.location.isLeaking || data.location.visualRust;
-
-  // Count AI-detected fields
   const aiFieldCount = Object.values(aiDetectedFields).filter(Boolean).length;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mb-2">
-          <CheckCircle2 className="h-7 w-7" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">Review & Verify</h2>
-        <p className="text-sm text-muted-foreground">
-          Confirm all values before completing inspection
-        </p>
-        {aiFieldCount > 0 && (
-          <Badge variant="secondary" className="mt-2">
-            <Sparkles className="h-3 w-3 mr-1" />
+    <TechnicianStepLayout
+      icon={<CheckCircle2 className="h-7 w-7" />}
+      title="Review & Verify"
+      subtitle="Confirm all values before completing inspection"
+      hideContinue
+    >
+      {/* AI Badge */}
+      {aiFieldCount > 0 && (
+        <div className="flex justify-center">
+          <Badge variant="secondary" className="gap-1.5">
+            <Sparkles className="h-3 w-3" />
             {aiFieldCount} AI-detected value{aiFieldCount !== 1 ? 's' : ''}
           </Badge>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Critical Alerts */}
       {hasIssues && (
@@ -276,12 +262,9 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
         </div>
       )}
 
-      {/* Section: Unit Identification */}
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Box className="h-3.5 w-3.5" />
-          Unit Identification
-        </Label>
+      {/* Unit Identification */}
+      <StepCard>
+        <SectionHeader icon={<Box className="h-4 w-4" />} title="Unit Identification" />
         <div className="space-y-2">
           <ReviewItem
             label="Type"
@@ -339,14 +322,11 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
             onEditChange={setEditValue}
           />
         </div>
-      </div>
+      </StepCard>
 
-      {/* Section: Measurements */}
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Gauge className="h-3.5 w-3.5" />
-          Measurements
-        </Label>
+      {/* Measurements */}
+      <StepCard>
+        <SectionHeader icon={<Gauge className="h-4 w-4" />} title="Measurements" />
         <div className="space-y-2">
           <ReviewItem
             label="House Pressure"
@@ -374,14 +354,11 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
             onEditChange={setEditValue}
           />
         </div>
-      </div>
+      </StepCard>
 
-      {/* Section: Location & Condition */}
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <MapPin className="h-3.5 w-3.5" />
-          Location & Condition
-        </Label>
+      {/* Location & Condition */}
+      <StepCard>
+        <SectionHeader icon={<MapPin className="h-4 w-4" />} title="Location & Condition" />
         <div className="space-y-2">
           <ReviewItem
             label="Location"
@@ -415,14 +392,11 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
             isCritical
           />
         </div>
-      </div>
+      </StepCard>
 
-      {/* Section: Equipment */}
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Shield className="h-3.5 w-3.5" />
-          Equipment
-        </Label>
+      {/* Equipment */}
+      <StepCard>
+        <SectionHeader icon={<Shield className="h-4 w-4" />} title="Equipment" />
         <div className="space-y-2">
           <ReviewItem
             label="Expansion Tank"
@@ -458,14 +432,11 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
             />
           )}
         </div>
-      </div>
+      </StepCard>
 
-      {/* Section: Softener */}
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Droplets className="h-3.5 w-3.5" />
-          Water Softener
-        </Label>
+      {/* Softener */}
+      <StepCard>
+        <SectionHeader icon={<Droplets className="h-4 w-4" />} title="Water Softener" />
         <div className="space-y-2">
           <ReviewItem
             label="Has Softener"
@@ -496,15 +467,12 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
             </>
           )}
         </div>
-      </div>
+      </StepCard>
 
-      {/* Tankless-specific section */}
+      {/* Tankless-specific */}
       {isTankless && data.tankless && (
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Wind className="h-3.5 w-3.5" />
-            Tankless Details
-          </Label>
+        <StepCard>
+          <SectionHeader icon={<Wind className="h-4 w-4" />} title="Tankless Details" />
           <div className="space-y-2">
             <ReviewItem
               label="Error Codes"
@@ -523,16 +491,13 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
               />
             )}
           </div>
-        </div>
+        </StepCard>
       )}
 
-      {/* Hybrid-specific section */}
+      {/* Hybrid-specific */}
       {isHybrid && data.hybrid && (
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5" />
-            Heat Pump Details
-          </Label>
+        <StepCard>
+          <SectionHeader icon={<Zap className="h-4 w-4" />} title="Heat Pump Details" />
           <div className="space-y-2">
             <ReviewItem
               label="Air Filter Status"
@@ -545,7 +510,7 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
               icon={<Droplets className="h-4 w-4" />}
             />
           </div>
-        </div>
+        </StepCard>
       )}
 
       {/* Confirm Button */}
@@ -559,6 +524,6 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
           Tap any value above to edit before confirming
         </p>
       </div>
-    </div>
+    </TechnicianStepLayout>
   );
 }

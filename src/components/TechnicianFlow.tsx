@@ -23,7 +23,7 @@ import { BuildingTypeStep } from './steps/technician/BuildingTypeStep';
 import { UnitTypeStep } from './steps/technician/UnitTypeStep';
 import { AssetScanStep } from './steps/technician/AssetScanStep';
 import { PressureStep } from './steps/technician/PressureStep';
-import { ExceptionToggleStep } from './steps/technician/ExceptionToggleStep';
+import { EquipmentVerifyStep } from './steps/technician/EquipmentVerifyStep';
 import { SoftenerCheckStep } from './steps/technician/SoftenerCheckStep';
 import { HybridCheckStep } from './steps/technician/HybridCheckStep';
 import { TanklessCheckStep } from './steps/technician/TanklessCheckStep';
@@ -50,7 +50,7 @@ type TechStep =
   | 'readings'     // Pressure + hardness  
   | 'asset-scan'   // AI data plate scan
   | 'location'     // Location & visual condition
-  | 'exceptions'   // Verify installation toggles
+  | 'equipment'    // Equipment verification
   | 'unit-check'   // Tankless/Hybrid specific OR softener
   | 'confirm';     // Review + handoff
 
@@ -74,7 +74,7 @@ interface TechnicianFlowProps {
   initialStreetHardness?: number;
 }
 
-const STEP_ORDER: TechStep[] = ['setup', 'readings', 'asset-scan', 'location', 'exceptions', 'unit-check', 'confirm'];
+const STEP_ORDER: TechStep[] = ['setup', 'readings', 'asset-scan', 'location', 'equipment', 'unit-check', 'confirm'];
 
 export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 }: TechnicianFlowProps) {
   const [data, setData] = useState<TechnicianInspectionData>({

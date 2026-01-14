@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { 
   MapPin, 
   Search, 
@@ -15,12 +14,13 @@ import {
   Plus,
   ChevronRight,
   Loader2,
-  Navigation,
   LocateFixed
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow, differenceInDays } from 'date-fns';
 import { useGPS } from '@/hooks/useGPS';
+import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
+import { cn } from '@/lib/utils';
 
 interface PropertyWithAssets {
   id: string;
@@ -99,10 +99,8 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // GPS hook
-  const { isLocating, isReverseGeocoding, getPositionAndAddress, position } = useGPS();
+  const { isLocating, isReverseGeocoding, getPositionAndAddress } = useGPS();
   
-  // New address entry mode
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState<NewPropertyAddress>({
     address_line1: '',
@@ -110,18 +108,12 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
     state: '',
     zip_code: '',
   });
-  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  // GPS auto-fill handler
   const handleGPSFill = useCallback(async () => {
     const result = await getPositionAndAddress();
     if (result) {
       const { address, position } = result;
       
-      // Store GPS coords for water hardness lookup
-      setGpsCoords({ lat: position.latitude, lng: position.longitude });
-      
-      // Build street address
       const streetAddr = [address.streetNumber, address.street]
         .filter(Boolean)
         .join(' ');
@@ -134,7 +126,6 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
         gpsCoords: { lat: position.latitude, lng: position.longitude },
       });
       
-      // Also set search query for property lookup
       if (streetAddr) {
         setSearchQuery(streetAddr);
       }
@@ -151,7 +142,6 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
     setHasSearched(true);
     
     try {
-      // Search properties by address
       const { data: properties, error: propError } = await supabase
         .from('properties')
         .select('id, address_line1, address_line2, city, state, zip_code')
@@ -166,16 +156,13 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
         return;
       }
       
-      // For each property, fetch water heaters and their latest assessment
       const propertiesWithAssets: PropertyWithAssets[] = await Promise.all(
         properties.map(async (prop) => {
-          // Get water heaters
           const { data: heaters } = await supabase
             .from('water_heaters')
             .select('id, manufacturer, fuel_type, tank_capacity_gallons')
             .eq('property_id', prop.id);
           
-          // Get assessments for each heater
           const heatersWithAssessments = await Promise.all(
             (heaters || []).map(async (heater) => {
               const { data: assessments } = await supabase
@@ -192,7 +179,6 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
             })
           );
           
-          // Get water softeners
           const { data: softeners } = await supabase
             .from('water_softeners')
             .select('id, manufacturer')
@@ -223,7 +209,6 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
 
   const handleStartNewInspection = () => {
     setShowAddressForm(true);
-    // Pre-fill with search query if it looks like an address
     if (searchQuery.trim()) {
       setNewAddress(prev => ({ ...prev, address_line1: searchQuery.trim() }));
     }
@@ -241,102 +226,83 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   const isAddressValid = newAddress.address_line1.trim() && newAddress.city.trim() && 
                          newAddress.state.trim() && newAddress.zip_code.trim();
 
-  // Show address entry form
+  // New Address Form
   if (showAddressForm) {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-4">
-            <Plus className="h-8 w-8" />
-          </div>
-          <h2 className="text-xl font-bold text-foreground">New Property</h2>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            Enter the property address for this inspection
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Street Address</Label>
-            <Input
-              value={newAddress.address_line1}
-              onChange={(e) => setNewAddress(prev => ({ ...prev, address_line1: e.target.value }))}
-              placeholder="123 Main Street"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+      <TechnicianStepLayout
+        icon={<Plus className="h-7 w-7" />}
+        title="New Property"
+        subtitle="Enter the property address for this inspection"
+        onContinue={handleSubmitNewAddress}
+        continueDisabled={!isAddressValid}
+        footer={
+          <Button variant="outline" onClick={() => setShowAddressForm(false)} className="w-full mt-3">
+            Back to Search
+          </Button>
+        }
+      >
+        <StepCard>
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label>City</Label>
+              <Label>Street Address</Label>
               <Input
-                value={newAddress.city}
-                onChange={(e) => setNewAddress(prev => ({ ...prev, city: e.target.value }))}
-                placeholder="Phoenix"
+                value={newAddress.address_line1}
+                onChange={(e) => setNewAddress(prev => ({ ...prev, address_line1: e.target.value }))}
+                placeholder="123 Main Street"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input
+                  value={newAddress.city}
+                  onChange={(e) => setNewAddress(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="Phoenix"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>State</Label>
+                <Input
+                  value={newAddress.state}
+                  onChange={(e) => setNewAddress(prev => ({ ...prev, state: e.target.value.toUpperCase().slice(0, 2) }))}
+                  placeholder="AZ"
+                  maxLength={2}
+                  className="uppercase"
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label>State</Label>
+              <Label>ZIP Code</Label>
               <Input
-                value={newAddress.state}
-                onChange={(e) => setNewAddress(prev => ({ ...prev, state: e.target.value.toUpperCase().slice(0, 2) }))}
-                placeholder="AZ"
-                maxLength={2}
-                className="uppercase"
+                value={newAddress.zip_code}
+                onChange={(e) => setNewAddress(prev => ({ ...prev, zip_code: e.target.value.replace(/\D/g, '').slice(0, 5) }))}
+                placeholder="85004"
+                maxLength={5}
               />
             </div>
           </div>
-
-          <div className="space-y-2">
-            <Label>ZIP Code</Label>
-            <Input
-              value={newAddress.zip_code}
-              onChange={(e) => setNewAddress(prev => ({ ...prev, zip_code: e.target.value.replace(/\D/g, '').slice(0, 5) }))}
-              placeholder="85004"
-              maxLength={5}
-            />
-          </div>
-        </div>
+        </StepCard>
 
         {error && (
-          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">
             {error}
           </div>
         )}
-
-        <div className="flex gap-3 pt-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setShowAddressForm(false)}
-            className="flex-1"
-          >
-            Back
-          </Button>
-          <Button 
-            onClick={handleSubmitNewAddress}
-            disabled={!isAddressValid}
-            className="flex-1 gap-2"
-          >
-            Continue
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      </TechnicianStepLayout>
     );
   }
 
+  // Search View
   return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-4">
-          <MapPin className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">Property Lookup</h2>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Search by address or use GPS to auto-fill location
-        </p>
-      </div>
-
-      {/* GPS Auto-Fill Button - Hero */}
+    <TechnicianStepLayout
+      icon={<MapPin className="h-7 w-7" />}
+      title="Property Lookup"
+      subtitle="Search by address or use GPS to auto-fill location"
+      hideContinue
+    >
+      {/* GPS Auto-Fill Button */}
       <Button
         variant="outline"
         onClick={handleGPSFill}
@@ -360,9 +326,9 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
       </Button>
       
       {/* Search Input */}
-      <div className="space-y-3">
-        <Label>Or search by address</Label>
-        <div className="flex gap-2">
+      <StepCard>
+        <Label className="text-sm font-medium">Search by address</Label>
+        <div className="flex gap-2 mt-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -377,10 +343,10 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
             {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
         </div>
-      </div>
+      </StepCard>
       
       {error && (
-        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -388,17 +354,15 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
       {/* Results */}
       {hasSearched && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-muted-foreground">
-              {results.length > 0 
-                ? `${results.length} ${results.length === 1 ? 'property' : 'properties'} found`
-                : 'No properties found'
-              }
-            </Label>
-          </div>
+          <Label className="text-muted-foreground text-sm">
+            {results.length > 0 
+              ? `${results.length} ${results.length === 1 ? 'property' : 'properties'} found`
+              : 'No properties found'
+            }
+          </Label>
           
           {results.length === 0 && !isSearching && (
-            <Card className="p-6 text-center border-dashed">
+            <StepCard className="text-center border-dashed">
               <Home className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground mb-4">
                 No existing records for this address
@@ -407,21 +371,24 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
                 <Plus className="h-4 w-4" />
                 Add New Property
               </Button>
-            </Card>
+            </StepCard>
           )}
           
           {results.map((property) => {
-            // Check if any heater needs inspection
             const needsInspection = property.waterHeaters.length === 0 || 
               property.waterHeaters.some(h => getInspectionStatus(h.lastAssessment).needed);
             
             return (
-              <Card 
+              <button
                 key={property.id}
-                className={`p-4 cursor-pointer transition-all hover:shadow-md ${
-                  needsInspection ? 'border-amber-300 bg-amber-50/50' : 'border-green-300 bg-green-50/50'
-                }`}
+                type="button"
                 onClick={() => onSelectProperty(property)}
+                className={cn(
+                  "w-full p-4 rounded-xl border-2 transition-all text-left hover:shadow-md",
+                  needsInspection 
+                    ? "border-amber-300 bg-amber-50/50 dark:bg-amber-500/10" 
+                    : "border-green-300 bg-green-50/50 dark:bg-green-500/10"
+                )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
@@ -435,7 +402,6 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
                       {property.city}, {property.state} {property.zip_code}
                     </p>
                     
-                    {/* Assets Summary */}
                     <div className="mt-3 ml-6 space-y-2">
                       {property.waterHeaters.length === 0 ? (
                         <p className="text-xs text-muted-foreground italic">No water heaters on file</p>
@@ -469,7 +435,7 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
                     {needsInspection ? (
                       <Badge className="bg-amber-100 text-amber-700 border-amber-300">
                         <AlertTriangle className="h-3 w-3 mr-1" />
-                        Inspection Needed
+                        Needs Inspection
                       </Badge>
                     ) : (
                       <Badge className="bg-green-100 text-green-700 border-green-300">
@@ -480,13 +446,13 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </div>
-              </Card>
+              </button>
             );
           })}
         </div>
       )}
       
-      {/* Skip / New Inspection */}
+      {/* Add New Property Button */}
       <div className="pt-4 border-t">
         <Button 
           variant="outline" 
@@ -497,6 +463,6 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
           Add New Property
         </Button>
       </div>
-    </div>
+    </TechnicianStepLayout>
   );
 }
