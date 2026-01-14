@@ -11,17 +11,17 @@ import {
   AlertTriangle,
   Droplet,
   MapPin,
-  Thermometer
+  Thermometer,
+  Camera,
+  CheckCircle
 } from 'lucide-react';
 import type { LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
 import type { LocationType, TempSetting } from '@/lib/opterraAlgorithm';
 import { useConditionScan } from '@/hooks/useConditionScan';
-import { ScanHeroCard } from '@/components/ui/ScanHeroCard';
-import { StatusToggleRow } from '@/components/ui/StatusToggleRow';
 import { TechnicianStepLayout, StepCard, BinaryToggle } from './TechnicianStepLayout';
 import { cn } from '@/lib/utils';
 
-type SubStep = 'location' | 'visual' | 'leak-source' | 'environment';
+type SubStep = 'location' | 'rust-check' | 'leak-check' | 'photo' | 'leak-source' | 'environment';
 
 const LOCATIONS: { value: LocationType; label: string; icon: React.ReactNode; risk?: boolean }[] = [
   { value: 'GARAGE', label: 'Garage', icon: <Warehouse className="h-5 w-5" /> },
@@ -56,10 +56,11 @@ interface LocationStepProps {
 export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate, onAIDetection, onNext }: LocationStepProps) {
   const { scanCondition, isScanning, result } = useConditionScan();
   const [currentSubStep, setCurrentSubStep] = useState<SubStep>('location');
+  const [conditionPhotoUrl, setConditionPhotoUrl] = useState<string | undefined>();
   
   // Dynamic sub-steps - leak-source only shown if leaking
   const getSubSteps = (): SubStep[] => {
-    const steps: SubStep[] = ['location', 'visual'];
+    const steps: SubStep[] = ['location', 'rust-check', 'leak-check', 'photo'];
     if (data.isLeaking) {
       steps.push('leak-source');
     }
@@ -70,50 +71,40 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
   const subSteps = getSubSteps();
   const currentIndex = subSteps.indexOf(currentSubStep);
   
-  const handleScanImage = async (file: File) => {
-    const scanResult = await scanCondition(file);
-    if (scanResult) {
-      const aiFields: Record<string, boolean> = {};
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setConditionPhotoUrl(url);
       
-      onUpdate({
-        visualRust: scanResult.visualRust,
-        isLeaking: scanResult.isLeaking,
-      });
-      
-      aiFields.visualRust = true;
-      aiFields.isLeaking = true;
-      
-      if (scanResult.tempDialSetting) {
-        aiFields.tempDialSetting = true;
+      // Also run AI scan on the photo
+      const scanResult = await scanCondition(file);
+      if (scanResult) {
+        const aiFields: Record<string, boolean> = {};
+        
+        // Only update if AI detected something different
+        if (scanResult.visualRust !== undefined) {
+          aiFields.visualRust = true;
+        }
+        if (scanResult.isLeaking !== undefined) {
+          aiFields.isLeaking = true;
+        }
+        
+        onAIDetection?.(aiFields);
       }
-      if (scanResult.hasExpTankVisible !== undefined) {
-        aiFields.hasExpTankVisible = true;
-      }
-      if (scanResult.hasPrvVisible !== undefined) {
-        aiFields.hasPrvVisible = true;
-      }
-      
-      onAIDetection?.(aiFields);
     }
   };
-
-  const scanSummary = result && result.confidence > 0 && (
-    <div className="space-y-1 text-sm">
-      <p className={result.visualRust ? 'text-orange-600' : 'text-green-600'}>
-        Rust: {result.rustSeverity}
-      </p>
-      <p className={result.isLeaking ? 'text-red-600' : 'text-green-600'}>
-        Leak: {result.leakSeverity}
-      </p>
-    </div>
-  );
   
   const canProceed = (): boolean => {
     switch (currentSubStep) {
       case 'location':
         return data.location !== undefined;
-      case 'visual':
-        return data.visualRust !== undefined && data.isLeaking !== undefined;
+      case 'rust-check':
+        return data.visualRust !== undefined;
+      case 'leak-check':
+        return data.isLeaking !== undefined;
+      case 'photo':
+        return conditionPhotoUrl !== undefined;
       case 'leak-source':
         return data.leakSource !== undefined;
       case 'environment':
@@ -135,7 +126,9 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
   const getStepTitle = (): string => {
     switch (currentSubStep) {
       case 'location': return 'Unit Location';
-      case 'visual': return 'Visual Condition';
+      case 'rust-check': return 'Rust Check';
+      case 'leak-check': return 'Leak Check';
+      case 'photo': return 'Condition Photo';
       case 'leak-source': return 'Leak Source';
       case 'environment': return 'Environment';
       default: return 'Location & Condition';
@@ -145,7 +138,9 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
   const getStepIcon = () => {
     switch (currentSubStep) {
       case 'location': return <MapPin className="h-7 w-7" />;
-      case 'visual': return <AlertTriangle className="h-7 w-7" />;
+      case 'rust-check': return <AlertTriangle className="h-7 w-7" />;
+      case 'leak-check': return <Droplet className="h-7 w-7" />;
+      case 'photo': return <Camera className="h-7 w-7" />;
       case 'leak-source': return <Droplet className="h-7 w-7" />;
       case 'environment': return <Thermometer className="h-7 w-7" />;
       default: return <MapPin className="h-7 w-7" />;
@@ -207,38 +202,186 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
     </StepCard>
   );
 
-  const renderVisualStep = () => (
-    <ScanHeroCard
-      title="Visual Condition"
-      subtitle="Take a photo of the unit"
-      isScanning={isScanning}
-      hasScanned={!!result}
-      scanSummary={scanSummary}
-      onScanImage={handleScanImage}
-      scanLabel="📷 Scan for Rust & Leaks"
-    >
-      <div className="space-y-3">
-        <StatusToggleRow
-          label="Rust/Corrosion"
-          value={data.visualRust ? 'poor' : data.visualRust === false ? 'good' : undefined}
-          onChange={(v) => onUpdate({ visualRust: v === 'poor' })}
-          options={[
-            { value: 'good', label: 'None', color: 'green', icon: <span className="text-xs">✓</span> },
-            { value: 'poor', label: 'Visible', color: 'red', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-          ]}
-        />
-        <StatusToggleRow
-          label="Active Leak"
-          value={data.isLeaking ? 'poor' : data.isLeaking === false ? 'good' : undefined}
-          onChange={(v) => onUpdate({ isLeaking: v === 'poor' })}
-          icon={<Droplet className="h-4 w-4" />}
-          options={[
-            { value: 'good', label: 'Dry', color: 'green', icon: <span className="text-xs">✓</span> },
-            { value: 'poor', label: 'Leaking', color: 'red', icon: <Droplet className="h-3.5 w-3.5" /> },
-          ]}
-        />
+  const renderRustCheckStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Is there visible rust or corrosion on the unit?
+      </p>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => onUpdate({ visualRust: false })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.visualRust === false
+              ? "border-green-500 bg-green-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <CheckCircle className={cn(
+            "h-10 w-10",
+            data.visualRust === false ? "text-green-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold text-lg">No Rust</span>
+          <span className="text-xs text-muted-foreground">Clean condition</span>
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => onUpdate({ visualRust: true })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.visualRust === true
+              ? "border-orange-500 bg-orange-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <AlertTriangle className={cn(
+            "h-10 w-10",
+            data.visualRust === true ? "text-orange-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold text-lg">Visible Rust</span>
+          <span className="text-xs text-muted-foreground">Corrosion present</span>
+        </button>
       </div>
-    </ScanHeroCard>
+      
+      {data.visualRust === true && (
+        <div className="mt-4 p-3 bg-orange-500/10 rounded-xl flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
+          <p className="text-sm text-orange-700">Rust indicates age/wear - note severity in photo</p>
+        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderLeakCheckStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Is there an active leak or water around the unit?
+      </p>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => onUpdate({ isLeaking: false })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.isLeaking === false
+              ? "border-green-500 bg-green-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <CheckCircle className={cn(
+            "h-10 w-10",
+            data.isLeaking === false ? "text-green-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold text-lg">Dry</span>
+          <span className="text-xs text-muted-foreground">No water present</span>
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => onUpdate({ isLeaking: true })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.isLeaking === true
+              ? "border-red-500 bg-red-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <Droplet className={cn(
+            "h-10 w-10",
+            data.isLeaking === true ? "text-red-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold text-lg">Leaking</span>
+          <span className="text-xs text-muted-foreground">Water detected</span>
+        </button>
+      </div>
+      
+      {data.isLeaking === true && (
+        <div className="mt-4 p-3 bg-red-500/10 rounded-xl flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+          <p className="text-sm text-red-700">Critical issue - you'll identify the source next</p>
+        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderPhotoStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Take a photo of the water heater
+      </p>
+      
+      <label className="block cursor-pointer">
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handlePhotoCapture}
+          className="hidden"
+          disabled={isScanning}
+        />
+        <div className={cn(
+          "w-full p-8 rounded-xl border-2 border-dashed transition-all text-center",
+          isScanning 
+            ? "border-primary bg-primary/5 animate-pulse"
+            : conditionPhotoUrl
+            ? "border-green-500 bg-green-50"
+            : "border-primary/50 bg-primary/5 hover:border-primary hover:bg-primary/10"
+        )}>
+          {conditionPhotoUrl ? (
+            <div className="space-y-4">
+              <img 
+                src={conditionPhotoUrl} 
+                alt="Unit condition" 
+                className="w-full max-w-xs mx-auto rounded-lg object-cover aspect-video"
+              />
+              <div className="flex items-center justify-center gap-2 text-green-600">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Photo captured</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Tap to retake</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className={cn(
+                "w-20 h-20 rounded-full flex items-center justify-center",
+                isScanning ? "bg-primary/20" : "bg-primary/20"
+              )}>
+                {isScanning ? (
+                  <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera className="h-10 w-10 text-primary" />
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-lg">
+                  {isScanning ? 'Processing...' : 'Take Photo'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Capture the unit's current condition
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </label>
+      
+      {/* Show summary of what we've noted */}
+      <div className="mt-4 p-3 bg-muted/50 rounded-xl space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">Condition summary:</p>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={data.visualRust ? "destructive" : "secondary"}>
+            {data.visualRust ? "Rust detected" : "No rust"}
+          </Badge>
+          <Badge variant={data.isLeaking ? "destructive" : "secondary"}>
+            {data.isLeaking ? "Leak detected" : "No leak"}
+          </Badge>
+        </div>
+      </div>
+    </StepCard>
   );
 
   const renderLeakSourceStep = () => (
@@ -336,7 +479,9 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
   const renderCurrentSubStep = () => {
     switch (currentSubStep) {
       case 'location': return renderLocationStep();
-      case 'visual': return renderVisualStep();
+      case 'rust-check': return renderRustCheckStep();
+      case 'leak-check': return renderLeakCheckStep();
+      case 'photo': return renderPhotoStep();
       case 'leak-source': return renderLeakSourceStep();
       case 'environment': return renderEnvironmentStep();
       default: return null;
