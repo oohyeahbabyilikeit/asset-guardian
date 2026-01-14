@@ -9,20 +9,19 @@ import {
   Wrench,
   Wind,
   ChevronRight,
-  Edit2
+  Edit2,
+  Home,
+  Warehouse,
+  TreePine,
+  ArrowUp,
+  DoorOpen,
+  Mountain,
+  Sun
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LocationCondition, EquipmentChecklist, AssetIdentification } from '@/types/technicianInspection';
 import type { TempSetting, LocationType, VentType } from '@/lib/opterraAlgorithm';
-
-/**
- * ExceptionToggleStep v9.0 - Progressive Disclosure Pattern
- * 
- * Shows one category at a time to reduce cognitive load.
- * Auto-advances when a category is completed.
- * Completed steps shown as compact, editable chips.
- */
 
 interface ExceptionToggleStepProps {
   assetData: AssetIdentification;
@@ -34,44 +33,44 @@ interface ExceptionToggleStepProps {
   onNext: () => void;
 }
 
-// Options data
-const LOCATION_OPTIONS: { value: LocationType; label: string; isHighRisk?: boolean }[] = [
-  { value: 'GARAGE', label: 'Garage' },
-  { value: 'BASEMENT', label: 'Basement' },
-  { value: 'ATTIC', label: 'Attic', isHighRisk: true },
-  { value: 'UPPER_FLOOR', label: 'Upper Fl.', isHighRisk: true },
-  { value: 'MAIN_LIVING', label: 'Closet', isHighRisk: true },
-  { value: 'CRAWLSPACE', label: 'Crawl' },
-  { value: 'EXTERIOR', label: 'Exterior' },
+// Location options with icons for clarity
+const LOCATION_OPTIONS: { value: LocationType; label: string; icon: React.ReactNode; isHighRisk?: boolean }[] = [
+  { value: 'GARAGE', label: 'Garage', icon: <Warehouse className="h-5 w-5" /> },
+  { value: 'BASEMENT', label: 'Basement', icon: <Home className="h-5 w-5" /> },
+  { value: 'ATTIC', label: 'Attic', icon: <TreePine className="h-5 w-5" />, isHighRisk: true },
+  { value: 'UPPER_FLOOR', label: 'Upper Floor', icon: <ArrowUp className="h-5 w-5" />, isHighRisk: true },
+  { value: 'MAIN_LIVING', label: 'Closet', icon: <DoorOpen className="h-5 w-5" />, isHighRisk: true },
+  { value: 'CRAWLSPACE', label: 'Crawlspace', icon: <Mountain className="h-5 w-5" /> },
+  { value: 'EXTERIOR', label: 'Exterior', icon: <Sun className="h-5 w-5" /> },
 ];
 
 const TEMP_OPTIONS: { value: TempSetting; label: string; temp: string; variant?: 'warning' }[] = [
-  { value: 'LOW', label: 'Low', temp: '110°' },
-  { value: 'NORMAL', label: 'Med', temp: '120°' },
-  { value: 'HOT', label: 'Hot', temp: '140°', variant: 'warning' },
+  { value: 'LOW', label: 'Low', temp: '110°F' },
+  { value: 'NORMAL', label: 'Medium', temp: '120°F' },
+  { value: 'HOT', label: 'Hot', temp: '140°F', variant: 'warning' },
 ];
 
 const CONNECTION_OPTIONS: { value: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER'; label: string; variant?: 'warning' }[] = [
   { value: 'DIELECTRIC', label: 'Dielectric' },
   { value: 'BRASS', label: 'Brass' },
-  { value: 'DIRECT_COPPER', label: 'Copper', variant: 'warning' },
+  { value: 'DIRECT_COPPER', label: 'Direct Copper', variant: 'warning' },
 ];
 
 const VENT_TYPE_OPTIONS: { value: VentType; label: string; desc: string }[] = [
-  { value: 'ATMOSPHERIC', label: 'Atmos.', desc: 'Draft hood' },
-  { value: 'POWER_VENT', label: 'Power', desc: 'Fan-assisted' },
-  { value: 'DIRECT_VENT', label: 'Direct', desc: 'Sealed' },
+  { value: 'ATMOSPHERIC', label: 'Atmospheric', desc: 'Draft hood' },
+  { value: 'POWER_VENT', label: 'Power Vent', desc: 'Fan-assisted' },
+  { value: 'DIRECT_VENT', label: 'Direct Vent', desc: 'Sealed combustion' },
 ];
 
 const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT'; label: string; desc: string; variant?: 'warning' }[] = [
-  { value: 'SHARED_FLUE', label: 'Shared', desc: 'With furnace' },
-  { value: 'ORPHANED_FLUE', label: 'Orphan', desc: 'Alone', variant: 'warning' },
-  { value: 'DIRECT_VENT', label: 'PVC', desc: 'To exterior' },
+  { value: 'SHARED_FLUE', label: 'Shared Flue', desc: 'With furnace' },
+  { value: 'ORPHANED_FLUE', label: 'Orphaned', desc: 'Standalone', variant: 'warning' },
+  { value: 'DIRECT_VENT', label: 'PVC Vent', desc: 'To exterior' },
 ];
 
 type StepId = 'location' | 'temp' | 'condition' | 'venting' | 'equipment';
 
-// Completed step chip component - uses forwardRef to avoid ref warnings
+// Completed step chip
 const CompletedChip = React.forwardRef<
   HTMLButtonElement,
   { 
@@ -80,85 +79,105 @@ const CompletedChip = React.forwardRef<
     warning?: boolean;
     onClick: () => void;
   }
->(({ icon, value, warning, onClick }, ref) => {
+>(({ icon, value, warning, onClick }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={onClick}
+    className={cn(
+      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+      "hover:scale-105 active:scale-95",
+      warning 
+        ? "bg-orange-100 text-orange-800 border border-orange-300"
+        : "bg-green-100 text-green-800 border border-green-300"
+    )}
+  >
+    {warning ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
+    <span className="truncate max-w-[120px]">{value}</span>
+    <Edit2 className="h-3 w-3 opacity-50 shrink-0" />
+  </button>
+));
+CompletedChip.displayName = 'CompletedChip';
+
+// Option button component for consistency
+interface OptionButtonProps {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  variant?: 'default' | 'warning' | 'danger';
+  className?: string;
+}
+
+const OptionButton = ({ selected, onClick, children, variant = 'default', className }: OptionButtonProps) => {
+  const getSelectedStyles = () => {
+    if (!selected) return "border-border bg-card hover:border-muted-foreground/50";
+    switch (variant) {
+      case 'warning': return "border-orange-500 bg-orange-50 dark:bg-orange-500/20";
+      case 'danger': return "border-red-500 bg-red-50 dark:bg-red-500/20";
+      default: return "border-primary bg-primary/10";
+    }
+  };
+
   return (
     <button
-      ref={ref}
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-        "hover:scale-105 active:scale-95",
-        warning 
-          ? "bg-orange-100 text-orange-800 border border-orange-300"
-          : "bg-green-100 text-green-800 border border-green-300"
+        "p-4 rounded-xl border-2 transition-all text-left",
+        getSelectedStyles(),
+        className
       )}
     >
-      {warning ? (
-        <AlertTriangle className="h-3.5 w-3.5" />
-      ) : (
-        <CheckCircle className="h-3.5 w-3.5" />
-      )}
-      {value}
-      <Edit2 className="h-3 w-3 opacity-50" />
+      {children}
     </button>
   );
-});
-CompletedChip.displayName = 'CompletedChip';
+};
 
-// Binary choice component - uses forwardRef to avoid ref warnings
-const BinaryChoice = React.forwardRef<
-  HTMLDivElement,
-  { 
-    label: string; 
-    value: boolean | undefined; 
-    onChange: (val: boolean) => void;
-    yesLabel?: string;
-    noLabel?: string;
-    yesVariant?: 'danger' | 'warning' | 'success' | 'info';
-  }
->(({ label, value, onChange, yesLabel = 'Yes', noLabel = 'No', yesVariant = 'danger' }, ref) => {
-  return (
-    <div ref={ref} className="flex items-center justify-between gap-3">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <div className="flex gap-1.5">
-        <button
-          type="button"
-          onClick={() => onChange(false)}
-          className={cn(
-            "px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all min-w-[60px]",
-            value === false
-              ? "border-green-500 bg-green-500/10 text-green-700"
-              : "border-muted bg-card hover:border-muted-foreground/30"
-          )}
-        >
-          {noLabel}
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(true)}
-          className={cn(
-            "px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all min-w-[60px]",
-            value === true
-              ? yesVariant === 'danger' 
-                ? "border-red-500 bg-red-500/10 text-red-700"
-                : yesVariant === 'warning'
-                ? "border-orange-500 bg-orange-500/10 text-orange-700"
-                : yesVariant === 'success'
-                ? "border-green-500 bg-green-500/10 text-green-700"
-                : "border-blue-500 bg-blue-500/10 text-blue-700"
-              : "border-muted bg-card hover:border-muted-foreground/30"
-          )}
-        >
-          {yesLabel}
-        </button>
-      </div>
+// Binary toggle for yes/no questions
+interface BinaryToggleProps {
+  label: string;
+  value: boolean | undefined;
+  onChange: (val: boolean) => void;
+  yesVariant?: 'success' | 'danger' | 'warning';
+}
+
+const BinaryToggle = ({ label, value, onChange, yesVariant = 'danger' }: BinaryToggleProps) => (
+  <div className="flex items-center justify-between gap-4 py-2">
+    <span className="text-sm font-medium text-foreground">{label}</span>
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={() => onChange(false)}
+        className={cn(
+          "px-5 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all",
+          value === false
+            ? "border-green-500 bg-green-50 text-green-700 dark:bg-green-500/20"
+            : "border-border bg-card hover:border-muted-foreground/50"
+        )}
+      >
+        No
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(true)}
+        className={cn(
+          "px-5 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all",
+          value === true
+            ? yesVariant === 'success'
+              ? "border-green-500 bg-green-50 text-green-700 dark:bg-green-500/20"
+              : yesVariant === 'warning'
+              ? "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-500/20"
+              : "border-red-500 bg-red-50 text-red-700 dark:bg-red-500/20"
+            : "border-border bg-card hover:border-muted-foreground/50"
+        )}
+      >
+        Yes
+      </button>
     </div>
-  );
-});
-BinaryChoice.displayName = 'BinaryChoice';
+  </div>
+);
 
-// Animation variants for steps
+// Animation variants
 const stepVariants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -176,7 +195,6 @@ export function ExceptionToggleStep({
 }: ExceptionToggleStepProps) {
   const isGasUnit = assetData.fuelType === 'GAS' || assetData.fuelType === 'TANKLESS_GAS';
   
-  // Build step list based on unit type - memoized to prevent stale references
   const steps = useMemo<StepId[]>(() => 
     isGasUnit 
       ? ['location', 'temp', 'condition', 'venting', 'equipment']
@@ -184,10 +202,8 @@ export function ExceptionToggleStep({
     [isGasUnit]
   );
   
-  // Current active step
   const [activeStep, setActiveStep] = useState<StepId>('location');
   
-  // Completion checks - memoized for stable references
   const locationComplete = locationData.location !== null && locationData.location !== undefined;
   const tempComplete = locationData.tempSetting !== null && locationData.tempSetting !== undefined;
   const conditionComplete = locationData.visualRust !== undefined && locationData.isLeaking !== undefined;
@@ -206,10 +222,7 @@ export function ExceptionToggleStep({
     equipment: equipmentComplete,
   }), [locationComplete, tempComplete, conditionComplete, ventingComplete, equipmentComplete]);
 
-  // Get current step index - memoized
   const currentStepIndex = useMemo(() => steps.indexOf(activeStep), [steps, activeStep]);
-  
-  // Calculate progress
   const completedCount = steps.filter(s => stepCompletion[s]).length;
   const allComplete = steps.every(s => stepCompletion[s]);
 
@@ -217,7 +230,6 @@ export function ExceptionToggleStep({
   useEffect(() => {
     const currentComplete = stepCompletion[activeStep];
     if (currentComplete && activeStep !== steps[steps.length - 1]) {
-      // Find next incomplete step
       const nextIncompleteIndex = steps.findIndex((s, i) => i > currentStepIndex && !stepCompletion[s]);
       if (nextIncompleteIndex !== -1) {
         const timer = setTimeout(() => {
@@ -228,52 +240,37 @@ export function ExceptionToggleStep({
     }
   }, [stepCompletion, activeStep, steps, currentStepIndex]);
 
-  // Summary values for completed chips
   const getSummaryValue = (step: StepId): { value: string; warning: boolean } => {
     switch (step) {
       case 'location':
         const loc = LOCATION_OPTIONS.find(l => l.value === locationData.location);
-        return { 
-          value: loc?.label || '', 
-          warning: loc?.isHighRisk || false 
-        };
+        return { value: loc?.label || '', warning: loc?.isHighRisk || false };
       case 'temp':
         const temp = TEMP_OPTIONS.find(t => t.value === locationData.tempSetting);
-        return { 
-          value: `${temp?.label} ${temp?.temp}`, 
-          warning: temp?.variant === 'warning' 
-        };
+        return { value: temp?.temp || '', warning: temp?.variant === 'warning' };
       case 'condition':
         const hasIssue = locationData.visualRust || locationData.isLeaking;
         return { 
           value: hasIssue 
             ? [locationData.visualRust && 'Rust', locationData.isLeaking && 'Leak'].filter(Boolean).join(', ')
-            : 'Good condition', 
+            : 'Good', 
           warning: hasIssue || false 
         };
       case 'venting':
         const vent = VENT_TYPE_OPTIONS.find(v => v.value === assetData.ventType);
-        const flue = FLUE_SCENARIO_OPTIONS.find(f => f.value === assetData.ventingScenario);
-        return { 
-          value: `${vent?.label || ''} / ${flue?.label || ''}`, 
-          warning: assetData.ventingScenario === 'ORPHANED_FLUE' 
-        };
+        return { value: vent?.label || '', warning: assetData.ventingScenario === 'ORPHANED_FLUE' };
       case 'equipment':
         const issues = [
-          equipmentData.connectionType === 'DIRECT_COPPER' && 'Direct Cu',
-          equipmentData.hasExpTank === false && 'No exp tank',
+          equipmentData.connectionType === 'DIRECT_COPPER' && 'Copper',
+          equipmentData.hasExpTank === false && 'No tank',
           equipmentData.hasPrv === false && 'No PRV',
         ].filter(Boolean);
-        return { 
-          value: issues.length > 0 ? issues.join(', ') : 'All present', 
-          warning: issues.length > 0 
-        };
+        return { value: issues.length > 0 ? issues.join(', ') : 'OK', warning: issues.length > 0 };
       default:
         return { value: '', warning: false };
     }
   };
 
-  // Step icons
   const stepIcons: Record<StepId, React.ReactNode> = {
     location: <MapPin className="h-5 w-5" />,
     temp: <Thermometer className="h-5 w-5" />,
@@ -283,48 +280,48 @@ export function ExceptionToggleStep({
   };
 
   const stepTitles: Record<StepId, string> = {
-    location: 'Where is the unit?',
-    temp: 'Temperature setting?',
-    condition: 'Visual condition?',
-    venting: 'Venting type?',
-    equipment: 'Equipment present?',
+    location: 'Unit Location',
+    temp: 'Temperature Setting',
+    condition: 'Visual Condition',
+    venting: 'Venting Configuration',
+    equipment: 'Equipment Check',
   };
 
-  const isHighRiskLocation = ['ATTIC', 'UPPER_FLOOR', 'MAIN_LIVING'].includes(locationData.location);
+  const isHighRiskLocation = ['ATTIC', 'UPPER_FLOOR', 'MAIN_LIVING'].includes(locationData.location as string);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       {/* Header */}
-      <div className="text-center space-y-1">
+      <div className="text-center space-y-2">
         <h2 className="text-xl font-bold text-foreground">Verify Installation</h2>
         <p className="text-sm text-muted-foreground">
           Step {currentStepIndex + 1} of {steps.length}
         </p>
         
-        {/* Progress dots */}
-        <div className="flex justify-center gap-1.5 pt-2">
+        {/* Progress bar */}
+        <div className="flex justify-center gap-1.5 pt-1">
           {steps.map((step, i) => (
             <div 
               key={step}
               className={cn(
-                "h-2 w-2 rounded-full transition-all",
+                "h-2 rounded-full transition-all",
                 stepCompletion[step] 
-                  ? "bg-green-500" 
+                  ? "bg-green-500 w-2" 
                   : i === currentStepIndex 
-                    ? "bg-primary w-6" 
-                    : "bg-muted"
+                    ? "bg-primary w-8" 
+                    : "bg-muted w-2"
               )}
             />
           ))}
         </div>
       </div>
 
-      {/* Completed steps as chips */}
+      {/* Completed chips */}
       {completedCount > 0 && (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex flex-wrap gap-2 justify-center"
+          className="flex flex-wrap gap-2 justify-center px-2"
         >
           {steps.slice(0, currentStepIndex).filter(s => stepCompletion[s]).map((step) => {
             const summary = getSummaryValue(step);
@@ -341,9 +338,9 @@ export function ExceptionToggleStep({
         </motion.div>
       )}
 
-      {/* Current Step Content */}
+      {/* Step Content */}
       <AnimatePresence mode="wait">
-        {/* Location Step */}
+        {/* LOCATION STEP */}
         {activeStep === 'location' && (
           <motion.div
             key="location"
@@ -351,44 +348,52 @@ export function ExceptionToggleStep({
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="space-y-4"
+            className="space-y-3"
           >
-            <div className="bg-card border rounded-xl p-4 space-y-4">
-              <div className="flex items-center gap-3">
-                {stepIcons.location}
+            <div className="bg-card border rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  {stepIcons.location}
+                </div>
                 <h3 className="text-lg font-semibold">{stepTitles.location}</h3>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              
+              {/* 2-column grid for location options */}
+              <div className="grid grid-cols-2 gap-3">
                 {LOCATION_OPTIONS.map((loc) => (
-                  <button
+                  <OptionButton
                     key={loc.value}
-                    type="button"
+                    selected={locationData.location === loc.value}
                     onClick={() => onLocationUpdate({ location: loc.value })}
-                    className={cn(
-                      "p-3 rounded-xl border-2 text-center transition-all min-h-[56px] flex flex-col items-center justify-center",
-                      locationData.location === loc.value
-                        ? loc.isHighRisk
-                          ? "border-orange-500 bg-orange-500/10"
-                          : "border-primary bg-primary/10"
-                        : "border-muted hover:border-muted-foreground/30"
-                    )}
+                    variant={loc.isHighRisk ? 'warning' : 'default'}
                   >
-                    <div className="font-medium text-xs leading-tight">{loc.label}</div>
-                    {loc.isHighRisk && locationData.location === loc.value && (
-                      <div className="text-[10px] text-orange-600 flex items-center gap-0.5 mt-1">
-                        <AlertTriangle className="h-2.5 w-2.5" />
-                        Risk
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "p-2 rounded-lg",
+                        locationData.location === loc.value
+                          ? loc.isHighRisk ? "bg-orange-100" : "bg-primary/20"
+                          : "bg-muted"
+                      )}>
+                        {loc.icon}
                       </div>
-                    )}
-                  </button>
+                      <div>
+                        <div className="font-medium text-sm">{loc.label}</div>
+                        {loc.isHighRisk && (
+                          <div className="text-xs text-orange-600 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            High risk
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </OptionButton>
                 ))}
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* Temperature Step */}
+        {/* TEMPERATURE STEP */}
         {activeStep === 'temp' && (
           <motion.div
             key="temp"
@@ -396,39 +401,35 @@ export function ExceptionToggleStep({
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="space-y-4"
+            className="space-y-3"
           >
-            <div className="bg-card border rounded-xl p-4 space-y-4">
-              <div className="flex items-center gap-3">
-                {stepIcons.temp}
+            <div className="bg-card border rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  {stepIcons.temp}
+                </div>
                 <h3 className="text-lg font-semibold">{stepTitles.temp}</h3>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              
+              <div className="grid grid-cols-3 gap-3">
                 {TEMP_OPTIONS.map((temp) => (
-                  <button
+                  <OptionButton
                     key={temp.value}
-                    type="button"
+                    selected={locationData.tempSetting === temp.value}
                     onClick={() => onLocationUpdate({ tempSetting: temp.value })}
-                    className={cn(
-                      "p-4 rounded-xl border-2 text-center transition-all min-h-[70px] flex flex-col items-center justify-center",
-                      locationData.tempSetting === temp.value
-                        ? temp.variant === 'warning'
-                          ? "border-orange-500 bg-orange-500/10"
-                          : "border-primary bg-primary/10"
-                        : "border-muted hover:border-muted-foreground/30"
-                    )}
+                    variant={temp.variant === 'warning' ? 'warning' : 'default'}
+                    className="text-center"
                   >
-                    <div className="text-xl font-bold">{temp.label}</div>
-                    <div className="text-xs text-muted-foreground">{temp.temp}</div>
-                  </button>
+                    <div className="text-2xl font-bold">{temp.temp}</div>
+                    <div className="text-sm text-muted-foreground">{temp.label}</div>
+                  </OptionButton>
                 ))}
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* Condition Step */}
+        {/* CONDITION STEP */}
         {activeStep === 'condition' && (
           <motion.div
             key="condition"
@@ -436,22 +437,25 @@ export function ExceptionToggleStep({
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="space-y-4"
+            className="space-y-3"
           >
-            <div className="bg-card border rounded-xl p-5 space-y-5">
-              <div className="flex items-center gap-3">
-                {stepIcons.condition}
+            <div className="bg-card border rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  {stepIcons.condition}
+                </div>
                 <h3 className="text-lg font-semibold">{stepTitles.condition}</h3>
               </div>
-              <div className="space-y-4">
-                <BinaryChoice
-                  label="Rust visible on tank?"
+              
+              <div className="space-y-3">
+                <BinaryToggle
+                  label="Visible rust on tank?"
                   value={locationData.visualRust}
                   onChange={(val) => onLocationUpdate({ visualRust: val })}
                   yesVariant="danger"
                 />
-                <BinaryChoice
+                <div className="border-t" />
+                <BinaryToggle
                   label="Active water leak?"
                   value={locationData.isLeaking}
                   onChange={(val) => onLocationUpdate({ isLeaking: val })}
@@ -462,86 +466,78 @@ export function ExceptionToggleStep({
           </motion.div>
         )}
 
-        {/* Venting Step (Gas only) - only render when activeStep is venting AND it's a gas unit */}
-        {activeStep === 'venting' && (
+        {/* VENTING STEP (Gas only) */}
+        {activeStep === 'venting' && isGasUnit && (
           <motion.div
             key="venting"
             variants={stepVariants}
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="space-y-4"
+            className="space-y-3"
           >
-            {isGasUnit && (
-              <div className="bg-card border rounded-xl p-5 space-y-5">
-                <div className="flex items-center gap-3">
+            <div className="bg-card border rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
                   {stepIcons.venting}
-                  <h3 className="text-lg font-semibold">{stepTitles.venting}</h3>
                 </div>
-                
-                <div className="space-y-4">
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-muted-foreground">Vent Type</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {VENT_TYPE_OPTIONS.map((vent) => (
-                      <button
-                        key={vent.value}
-                        type="button"
-                        onClick={() => onAssetUpdate({ ventType: vent.value })}
-                        className={cn(
-                          "p-2.5 rounded-xl border-2 text-center transition-all min-h-[60px] flex flex-col justify-center",
-                          assetData.ventType === vent.value
-                            ? "border-primary bg-primary/10"
-                            : "border-muted hover:border-muted-foreground/30"
-                        )}
-                      >
-                        <div className="font-medium text-xs leading-tight">{vent.label}</div>
-                        <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{vent.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-muted-foreground">Flue Scenario</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {FLUE_SCENARIO_OPTIONS.map((flue) => (
-                      <button
-                        key={flue.value}
-                        type="button"
-                        onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
-                        className={cn(
-                          "p-2.5 rounded-xl border-2 text-center transition-all min-h-[60px] flex flex-col justify-center",
-                          assetData.ventingScenario === flue.value
-                            ? flue.variant === 'warning'
-                              ? "border-orange-500 bg-orange-500/10"
-                              : "border-primary bg-primary/10"
-                            : "border-muted hover:border-muted-foreground/30"
-                        )}
-                      >
-                        <div className="font-medium text-xs leading-tight">{flue.label}</div>
-                        <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{flue.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                  {assetData.ventingScenario === 'ORPHANED_FLUE' && (
-                    <div className="p-3 bg-orange-100 rounded-lg flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-                      <p className="text-sm text-orange-800">
-                        Orphaned flue may require liner for replacement
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <h3 className="text-lg font-semibold">{stepTitles.venting}</h3>
               </div>
-            )}
+              
+              <div className="space-y-4">
+                {/* Vent Type */}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Vent Type</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {VENT_TYPE_OPTIONS.map((vent) => (
+                      <OptionButton
+                        key={vent.value}
+                        selected={assetData.ventType === vent.value}
+                        onClick={() => onAssetUpdate({ ventType: vent.value })}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{vent.label}</span>
+                          <span className="text-sm text-muted-foreground">{vent.desc}</span>
+                        </div>
+                      </OptionButton>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Flue Scenario */}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Flue Scenario</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {FLUE_SCENARIO_OPTIONS.map((flue) => (
+                      <OptionButton
+                        key={flue.value}
+                        selected={assetData.ventingScenario === flue.value}
+                        onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
+                        variant={flue.variant === 'warning' ? 'warning' : 'default'}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{flue.label}</span>
+                          <span className="text-sm text-muted-foreground">{flue.desc}</span>
+                        </div>
+                      </OptionButton>
+                    ))}
+                  </div>
+                </div>
+
+                {assetData.ventingScenario === 'ORPHANED_FLUE' && (
+                  <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                    <p className="text-sm text-orange-800 dark:text-orange-200">
+                      Orphaned flue may require liner for replacement
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
 
-        {/* Equipment Step */}
+        {/* EQUIPMENT STEP */}
         {activeStep === 'equipment' && (
           <motion.div
             key="equipment"
@@ -549,71 +545,61 @@ export function ExceptionToggleStep({
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="space-y-4"
+            className="space-y-3"
           >
-            <div className="bg-card border rounded-xl p-5 space-y-5">
-              <div className="flex items-center gap-3">
-                {stepIcons.equipment}
+            <div className="bg-card border rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  {stepIcons.equipment}
+                </div>
                 <h3 className="text-lg font-semibold">{stepTitles.equipment}</h3>
               </div>
               
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-muted-foreground">Pipe Connection</span>
-                  <div className="grid grid-cols-3 gap-2">
+                {/* Connection Type */}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Pipe Connection</p>
+                  <div className="grid grid-cols-1 gap-2">
                     {CONNECTION_OPTIONS.map((conn) => (
-                      <button
+                      <OptionButton
                         key={conn.value}
-                        type="button"
+                        selected={equipmentData.connectionType === conn.value}
                         onClick={() => onEquipmentUpdate({ connectionType: conn.value })}
-                        className={cn(
-                          "p-2.5 rounded-xl border-2 text-center transition-all min-h-[44px] flex items-center justify-center",
-                          equipmentData.connectionType === conn.value
-                            ? conn.variant === 'warning'
-                              ? "border-orange-500 bg-orange-500/10"
-                              : "border-primary bg-primary/10"
-                            : "border-muted hover:border-muted-foreground/30"
-                        )}
+                        variant={conn.variant === 'warning' ? 'warning' : 'default'}
                       >
-                        <div className="font-medium text-xs">{conn.label}</div>
-                      </button>
+                        <span className="font-medium">{conn.label}</span>
+                      </OptionButton>
                     ))}
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-2">
-                  <BinaryChoice
+                {/* Binary toggles */}
+                <div className="space-y-2 pt-2 border-t">
+                  <BinaryToggle
                     label="Expansion tank present?"
                     value={equipmentData.hasExpTank}
                     onChange={(val) => onEquipmentUpdate({ hasExpTank: val })}
-                    yesLabel="Yes"
-                    noLabel="No"
                     yesVariant="success"
                   />
-                  <BinaryChoice
+                  <BinaryToggle
                     label="PRV at main?"
                     value={equipmentData.hasPrv}
                     onChange={(val) => onEquipmentUpdate({ hasPrv: val })}
-                    yesLabel="Yes"
-                    noLabel="No"
                     yesVariant="success"
                   />
-                  <BinaryChoice
+                  <BinaryToggle
                     label="Drain pan installed?"
                     value={equipmentData.hasDrainPan}
                     onChange={(val) => onEquipmentUpdate({ hasDrainPan: val })}
-                    yesLabel="Yes"
-                    noLabel="No"
-                    yesVariant={isHighRiskLocation ? 'success' : 'info'}
+                    yesVariant="success"
                   />
                 </div>
 
                 {isHighRiskLocation && equipmentData.hasDrainPan === false && (
-                  <div className="p-3 bg-orange-100 rounded-lg flex items-start gap-2">
+                  <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-                    <p className="text-sm text-orange-800">
-                      Drain pan recommended for {locationData.location?.toLowerCase()} location
+                    <p className="text-sm text-orange-800 dark:text-orange-200">
+                      Drain pan recommended for {locationData.location?.toLowerCase().replace('_', ' ')} location
                     </p>
                   </div>
                 )}
@@ -623,15 +609,16 @@ export function ExceptionToggleStep({
         )}
       </AnimatePresence>
 
-      {/* Continue Button - only show when all complete */}
+      {/* Continue Button */}
       {allComplete && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
+          className="px-1"
         >
           <Button onClick={onNext} className="w-full h-12 font-semibold">
-            <span>Continue</span>
+            Continue
             <ChevronRight className="h-5 w-5 ml-1" />
           </Button>
         </motion.div>
