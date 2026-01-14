@@ -9,7 +9,7 @@ import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDra
 import { UnitProfileCard } from '@/components/UnitProfileCard';
 import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
-import { calculateOpterraRisk, ForensicInputs } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
 import { AssetNavigation } from '@/components/AssetNavigation';
 import { TanklessDiagram } from '@/components/TanklessDiagram';
 import { VitalsGrid } from '@/components/VitalsGrid';
@@ -128,6 +128,7 @@ function getStatusFromValue(value: number, thresholdModerate: number, thresholdC
 interface CommandCenterProps {
   currentAsset: AssetData;
   currentInputs: ForensicInputs;
+  opterraResult?: OpterraResult; // NEW: Accept pre-calculated result for continuity
   onTestHarness?: () => void;
   onRandomize?: () => void;
   onPanicMode?: () => void;
@@ -146,6 +147,7 @@ interface CommandCenterProps {
 export function CommandCenter({
   currentAsset,
   currentInputs,
+  opterraResult: externalResult,
   onTestHarness,
   onRandomize,
   onPanicMode,
@@ -211,8 +213,8 @@ export function CommandCenter({
     };
   }, [isAnimating]);
 
-  // Calculate all metrics using v6.0 algorithm (needed for conditional rendering check)
-  const opterraResult = calculateOpterraRisk(currentInputs);
+  // Use pre-calculated result if provided, otherwise calculate (single source of truth)
+  const opterraResult = externalResult ?? calculateOpterraRisk(currentInputs);
   const { metrics, verdict, financial, hardWaterTax } = opterraResult;
   const hasHardWaterCard = hardWaterTax.recommendation !== 'NONE';
 

@@ -52,6 +52,7 @@ const Index = () => {
       onMaintenancePlan={() => {}}
       currentAsset={currentAsset}
       currentInputs={currentInputs}
+      opterraResult={opterraResult}
       onInputsChange={setCurrentInputs}
       onRandomize={handleRandomize}
       scenarioName={scenario.name}
