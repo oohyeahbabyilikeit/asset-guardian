@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -15,8 +14,7 @@ import {
   RotateCw,
   Container,
   HelpCircle,
-  Link,
-  Unlink,
+  MapPin,
   ShieldCheck
 } from 'lucide-react';
 import type { LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
@@ -24,6 +22,7 @@ import type { LocationType, TempSetting } from '@/lib/opterraAlgorithm';
 import { useConditionScan } from '@/hooks/useConditionScan';
 import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
 import { StatusToggleRow } from '@/components/ui/StatusToggleRow';
+import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
 
 const LOCATIONS: { value: LocationType; label: string; icon: React.ReactNode; risk?: boolean }[] = [
   { value: 'GARAGE', label: 'Garage', icon: <Warehouse className="h-5 w-5" /> },
@@ -114,11 +113,25 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
     </div>
   );
   
+  const isComplete = 
+    equipmentData.expTankStatus !== undefined && 
+    equipmentData.hasPrv !== null && 
+    equipmentData.hasCircPump !== null &&
+    data.isFinishedArea !== undefined &&
+    !!data.tempSetting &&
+    (!data.isLeaking || !!data.leakSource);
+
   return (
-    <div className="space-y-5">
+    <TechnicianStepLayout
+      icon={<MapPin className="h-7 w-7" />}
+      title="Location & Condition"
+      subtitle="Record unit location and visual inspection"
+      onContinue={onNext}
+      continueDisabled={!isComplete}
+    >
       {/* Location Selection - Primary */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">Where is the unit?</Label>
+      <StepCard>
+        <Label className="text-sm font-medium mb-3 block">Where is the unit?</Label>
         <div className="grid grid-cols-3 gap-2">
           {LOCATIONS.map((loc) => (
             <button
@@ -141,7 +154,7 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
             </button>
           ))}
         </div>
-      </div>
+      </StepCard>
 
       {/* Condition Scan - Hero for visual inspection */}
       <ScanHeroCard
@@ -188,7 +201,7 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
             </div>
           </div>
           
-          {/* NEW v7.8: Leak Source Classification */}
+          {/* Leak Source Classification */}
           <div className="space-y-2">
             <Label className="text-xs font-medium">Leak Source (Required)</Label>
             <div className="space-y-1.5">
@@ -216,15 +229,15 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         </div>
       )}
 
-      {/* CRITICAL: Equipment Verification - Required Questions */}
-      <div className="space-y-3 p-4 bg-accent/30 rounded-xl border-2 border-accent">
+      {/* Equipment Verification - Required Questions */}
+      <StepCard className="bg-accent/30 border-2 border-accent">
         <div className="flex items-center gap-2 mb-3">
           <HelpCircle className="h-5 w-5 text-primary" />
           <Label className="text-sm font-semibold">Equipment Present? (Required)</Label>
         </div>
         
-        {/* Expansion Tank - NEW v7.8: Status instead of Yes/No */}
-        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+        {/* Expansion Tank Status */}
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border mb-2">
           <div className="flex items-center gap-3">
             <Container className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -233,7 +246,7 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
             </div>
           </div>
         </div>
-        <div className="flex gap-1 ml-10">
+        <div className="flex gap-1 ml-10 mb-3">
           {EXP_TANK_STATUS_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -259,7 +272,7 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         </div>
 
         {/* PRV */}
-        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border mb-2">
           <div className="flex items-center gap-3">
             <Gauge className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -294,7 +307,7 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         </div>
 
         {/* Circulation Pump */}
-        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border mb-2">
           <div className="flex items-center gap-3">
             <RotateCw className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -328,7 +341,7 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           </div>
         </div>
 
-        {/* NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix) */}
+        {/* Connection Type */}
         <ScanHeroSection title="Connection Type" defaultOpen={false}>
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">How is copper connected to tank?</Label>
@@ -361,22 +374,22 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
 
         {/* Validation warning */}
         {(equipmentData.expTankStatus === undefined || equipmentData.hasPrv === null || equipmentData.hasCircPump === null) && (
-          <p className="text-xs text-amber-600 flex items-center gap-1">
+          <p className="text-xs text-amber-600 flex items-center gap-1 mt-2">
             <AlertTriangle className="h-3 w-3" />
             Please answer all equipment questions
           </p>
         )}
-      </div>
+      </StepCard>
 
       {/* Environment Details - Now Required */}
-      <div className="space-y-3 p-4 bg-muted/30 rounded-xl border">
-        <div className="flex items-center gap-2 mb-2">
+      <StepCard className="bg-muted/30">
+        <div className="flex items-center gap-2 mb-3">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <Label className="text-sm font-semibold">Environment Details (Required)</Label>
         </div>
         
         {/* Finished Area */}
-        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+        <div className="flex items-center justify-between p-3 bg-background rounded-lg border mb-2">
           <div>
             <p className="text-sm font-medium">Finished Living Area?</p>
             <p className="text-xs text-muted-foreground">Unit in living space (higher damage risk)</p>
@@ -441,9 +454,9 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           </div>
         </div>
         
-        {/* NEW v7.8: Drain Pan - Required for high-risk locations */}
+        {/* Drain Pan - Required for high-risk locations */}
         {(data.location === 'ATTIC' || data.location === 'UPPER_FLOOR' || data.location === 'MAIN_LIVING') && (
-          <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-amber-300">
+          <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-amber-300 mt-2">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-amber-600" />
               <div>
@@ -480,27 +493,12 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         
         {/* Validation warning for environment */}
         {(data.isFinishedArea === undefined || !data.tempSetting) && (
-          <p className="text-xs text-amber-600 flex items-center gap-1">
+          <p className="text-xs text-amber-600 flex items-center gap-1 mt-2">
             <AlertTriangle className="h-3 w-3" />
             Please complete environment details
           </p>
         )}
-      </div>
-      
-      <Button 
-        onClick={onNext} 
-        className="w-full h-12 font-semibold"
-        disabled={
-          equipmentData.expTankStatus === undefined || 
-          equipmentData.hasPrv === null || 
-          equipmentData.hasCircPump === null ||
-          data.isFinishedArea === undefined ||
-          !data.tempSetting ||
-          (data.isLeaking && !data.leakSource)
-        }
-      >
-        Continue
-      </Button>
-    </div>
+      </StepCard>
+    </TechnicianStepLayout>
   );
 }

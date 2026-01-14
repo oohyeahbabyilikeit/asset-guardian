@@ -1,7 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { 
   Wind, 
   Droplets, 
@@ -13,6 +11,7 @@ import type { HybridInspection } from '@/types/technicianInspection';
 import { useFilterScan } from '@/hooks/useFilterScan';
 import { ScanHeroCard } from '@/components/ui/ScanHeroCard';
 import { StatusToggleRow } from '@/components/ui/StatusToggleRow';
+import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
 
 /**
  * HybridCheckStep v8.0 - "5-Minute Flow" Optimized
@@ -75,15 +74,12 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
   };
   
   return (
-    <div className="space-y-5">
-      {/* Type Badge */}
-      <div className="flex items-center justify-center py-1">
-        <Badge variant="outline" className="gap-1">
-          <Wind className="h-3 w-3" />
-          Hybrid / Heat Pump
-        </Badge>
-      </div>
-
+    <TechnicianStepLayout
+      icon={<Wind className="h-7 w-7" />}
+      title="Heat Pump Check"
+      subtitle="Hybrid / Heat Pump specific inspection"
+      onContinue={onNext}
+    >
       {/* Air Filter - Scan Hero */}
       <ScanHeroCard
         title="Air Filter"
@@ -124,19 +120,21 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
       </ScanHeroCard>
 
       {/* Condensate Drain - Quick Toggle */}
-      <StatusToggleRow
-        label="Condensate Drain"
-        value={data.isCondensateClear ? 'good' : 'poor'}
-        onChange={(v) => onUpdate({ isCondensateClear: v === 'good' })}
-        icon={<Droplets className="h-4 w-4" />}
-        options={[
-          { value: 'good', label: 'Clear', color: 'green', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-          { value: 'poor', label: 'Blocked', color: 'red', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-        ]}
-      />
+      <StepCard>
+        <StatusToggleRow
+          label="Condensate Drain"
+          value={data.isCondensateClear ? 'good' : 'poor'}
+          onChange={(v) => onUpdate({ isCondensateClear: v === 'good' })}
+          icon={<Droplets className="h-4 w-4" />}
+          options={[
+            { value: 'good', label: 'Clear', color: 'green', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+            { value: 'poor', label: 'Blocked', color: 'red', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+          ]}
+        />
+      </StepCard>
 
       {/* Confined Space - Simplified Toggle */}
-      <div className="p-4 bg-muted/30 rounded-xl border space-y-3">
+      <StepCard>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Home className="h-5 w-5 text-muted-foreground" />
@@ -171,12 +169,12 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
           </div>
         </div>
         {isConfinedSpace && (
-          <p className="text-xs text-red-600 flex items-center gap-1">
+          <p className="text-xs text-red-600 flex items-center gap-1 mt-3">
             <AlertTriangle className="h-3 w-3" />
             Heat pump needs ~700 cu ft of air - efficiency will suffer significantly
           </p>
         )}
-      </div>
+      </StepCard>
 
       {/* Issues Summary */}
       {issueCount > 0 && (
@@ -192,10 +190,6 @@ export function HybridCheckStep({ data, onUpdate, onNext }: HybridCheckStepProps
           </ul>
         </div>
       )}
-      
-      <Button onClick={onNext} className="w-full h-12 font-semibold">
-        Continue
-      </Button>
-    </div>
+    </TechnicianStepLayout>
   );
 }
