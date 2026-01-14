@@ -27,27 +27,30 @@ import { ExceptionToggleStep } from './steps/technician/ExceptionToggleStep';
 import { SoftenerCheckStep } from './steps/technician/SoftenerCheckStep';
 import { HybridCheckStep } from './steps/technician/HybridCheckStep';
 import { TanklessCheckStep } from './steps/technician/TanklessCheckStep';
+import { LocationStep } from './steps/technician/LocationStep';
 import { ReviewStep, type AIDetectedFields } from './steps/technician/ReviewStep';
 import { HandoffStep } from './steps/technician/HandoffStep';
 
 /**
- * TechnicianFlow v8.0 - "5-Minute Flow" Optimization
+ * TechnicianFlow v9.0 - "5-Minute Flow" Optimization
  * 
- * CONSOLIDATED from 11 steps to 6 steps:
+ * CONSOLIDATED steps:
  * 
  * 1. setup (address + building + unit type) - 30 sec
  * 2. readings (pressure + hardness) - 60 sec  
  * 3. asset-scan (AI-powered ID) - 60 sec
- * 4. exceptions (Standard Install + toggles) - 90 sec
- * 5. unit-check (tankless/hybrid specific, or softener) - 30 sec
- * 6. confirm (review + handoff combined) - 60 sec
+ * 4. location (location & visual condition) - 45 sec
+ * 5. exceptions (verify installation toggles) - 60 sec
+ * 6. unit-check (tankless/hybrid specific, or softener) - 30 sec
+ * 7. confirm (review + handoff combined) - 60 sec
  */
 
 type TechStep = 
   | 'setup'        // address + building-type + unit-type
   | 'readings'     // Pressure + hardness  
   | 'asset-scan'   // AI data plate scan
-  | 'exceptions'   // Standard Install button + exception toggles
+  | 'location'     // Location & visual condition
+  | 'exceptions'   // Verify installation toggles
   | 'unit-check'   // Tankless/Hybrid specific OR softener
   | 'confirm';     // Review + handoff
 
@@ -71,7 +74,7 @@ interface TechnicianFlowProps {
   initialStreetHardness?: number;
 }
 
-const STEP_ORDER: TechStep[] = ['setup', 'readings', 'asset-scan', 'exceptions', 'unit-check', 'confirm'];
+const STEP_ORDER: TechStep[] = ['setup', 'readings', 'asset-scan', 'location', 'exceptions', 'unit-check', 'confirm'];
 
 export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 }: TechnicianFlowProps) {
   const [data, setData] = useState<TechnicianInspectionData>({
@@ -357,6 +360,18 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
           />
         );
       
+      case 'location':
+        return (
+          <LocationStep
+            data={data.location}
+            equipmentData={data.equipment}
+            onUpdate={updateLocation}
+            onEquipmentUpdate={updateEquipment}
+            onAIDetection={handleAIDetection}
+            onNext={goNext}
+          />
+        );
+      
       case 'exceptions':
         return (
           <ExceptionToggleStep
@@ -421,7 +436,8 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
              setupSubStep === 'building' ? 'Building Type' : 'Unit Type',
     'readings': 'Pressure & Hardness',
     'asset-scan': 'Unit Identification',
-    'exceptions': 'Installation Check',
+    'location': 'Location & Condition',
+    'exceptions': 'Verify Installation',
     'unit-check': unitCheckSubStep === 'tankless' ? 'Tankless Check' :
                   unitCheckSubStep === 'hybrid' ? 'Heat Pump Check' : 'Softener Check',
     'confirm': 'Confirm & Complete',
@@ -431,6 +447,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     'setup': <MapPin className="h-4 w-4" />,
     'readings': <Gauge className="h-4 w-4" />,
     'asset-scan': <Scan className="h-4 w-4" />,
+    'location': <MapPin className="h-4 w-4" />,
     'exceptions': <Settings2 className="h-4 w-4" />,
     'unit-check': <Settings2 className="h-4 w-4" />,
     'confirm': <CheckCircle className="h-4 w-4" />,
