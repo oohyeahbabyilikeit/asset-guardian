@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Filter, 
   AlertCircle,
   Gauge,
-  AlertTriangle
+  AlertTriangle,
+  Wind
 } from 'lucide-react';
 import type { TanklessInspection, WaterMeasurements } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
@@ -14,6 +13,7 @@ import { useErrorCodeScan } from '@/hooks/useErrorCodeScan';
 import { useFilterScan } from '@/hooks/useFilterScan';
 import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
 import { QuickSelectChips } from '@/components/ui/QuickSelectChips';
+import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
 
 /**
  * TanklessCheckStep v8.0 - "5-Minute Flow" Optimized
@@ -113,15 +113,12 @@ export function TanklessCheckStep({
   );
   
   return (
-    <div className="space-y-5">
-      {/* Type Badge */}
-      <div className="flex items-center justify-center py-1">
-        <Badge variant="outline" className="gap-1.5">
-          <Gauge className="h-3 w-3" />
-          Tankless {isGas ? 'Gas' : 'Electric'}
-        </Badge>
-      </div>
-
+    <TechnicianStepLayout
+      icon={<Wind className="h-7 w-7" />}
+      title="Tankless Check"
+      subtitle={`Tankless ${isGas ? 'Gas' : 'Electric'} specific inspection`}
+      onContinue={onNext}
+    >
       {/* Error Code Scan - Primary Action */}
       <ScanHeroCard
         title="Display Panel"
@@ -164,8 +161,8 @@ export function TanklessCheckStep({
 
       {/* Gas Line Size - Critical for Gas Units */}
       {isGas && (
-        <div className="space-y-3 p-4 bg-muted/30 rounded-xl border">
-          <Label className="text-sm font-medium flex items-center gap-2">
+        <StepCard>
+          <Label className="text-sm font-medium flex items-center gap-2 mb-3">
             <Gauge className="h-4 w-4" />
             Gas Line Size
           </Label>
@@ -194,7 +191,7 @@ export function TanklessCheckStep({
               ½" gas line is undersized for most tankless units - may cause intermittent failures
             </p>
           )}
-        </div>
+        </StepCard>
       )}
 
       {/* Inlet Filter - Quick Scan or Toggle */}
@@ -271,10 +268,6 @@ export function TanklessCheckStep({
           </ul>
         </div>
       )}
-      
-      <Button onClick={onNext} className="w-full h-12 font-semibold">
-        Continue
-      </Button>
-    </div>
+    </TechnicianStepLayout>
   );
 }
