@@ -23,7 +23,7 @@ interface TechnicianStepLayoutProps {
   /** Continue button text (default: "Continue") */
   continueText?: string;
   /** Called when continue button is clicked */
-  onContinue: () => void;
+  onContinue?: () => void;
   /** Whether continue button should be disabled */
   continueDisabled?: boolean;
   /** Additional content to render after the continue button */
