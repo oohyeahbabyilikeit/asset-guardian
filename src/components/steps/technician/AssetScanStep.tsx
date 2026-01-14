@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
   Select,
@@ -10,12 +7,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, Edit2, Camera, Flame, Zap, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { CheckCircle2, Edit2, Camera, Flame, Zap, AlertCircle, Scan } from 'lucide-react';
 import type { AssetIdentification } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 import { decodeSerialNumber, getAgeDisplayString } from '@/lib/serialDecoder';
 import { useDataPlateScan, type ScannedDataPlate } from '@/hooks/useDataPlateScan';
 import { cn } from '@/lib/utils';
+import { TechnicianStepLayout, StepCard, ChipOption } from './TechnicianStepLayout';
+import { Button } from '@/components/ui/button';
 
 const BRANDS = [
   'A.O. Smith',
@@ -34,8 +35,6 @@ const BRANDS = [
   'Ruud',
   'Other',
 ] as const;
-
-// NOTE: Vent type and flue scenario moved to ExceptionToggleStep - they're installation observations, not on data plate
 
 const CAPACITY_CHIPS = [
   { value: 40, label: '40 gal' },
@@ -120,7 +119,6 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
         updates.serialNumber = result.serialNumber;
         aiFields.serialNumber = true;
       }
-      // Note: fuelType already set in UnitTypeStep, but capture if AI detected it
       if (result.fuelType) {
         aiFields.fuelType = true;
       }
@@ -139,12 +137,10 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
       
       onUpdate(updates);
       
-      // Report AI-detected fields
       if (Object.keys(aiFields).length > 0) {
         onAIDetection?.(aiFields);
       }
       
-      // If scan got good data, don't auto-open edit mode
       const fieldCount = Object.keys(updates).length;
       if (fieldCount < 3) {
         setIsEditing(true);
@@ -174,7 +170,6 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
   
   const canProceed = data.brand && data.fuelType;
 
-  // Build verification items from current data
   const verificationItems = [
     { label: 'Brand', value: data.brand, detected: !!lastScanResult?.brand },
     { label: 'Model', value: data.model, detected: !!lastScanResult?.model },
@@ -195,16 +190,14 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
   const totalFields = verificationItems.length;
   
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="text-center space-y-1">
-        <h2 className="text-xl font-bold text-foreground">Scan Data Plate</h2>
-        <p className="text-sm text-muted-foreground">
-          Point camera at manufacturer label for instant ID
-        </p>
-      </div>
-
-      {/* Scan Button - Hero CTA */}
+    <TechnicianStepLayout
+      icon={<Scan className="h-8 w-8" />}
+      title="Scan Data Plate"
+      subtitle="Point camera at manufacturer label for instant ID"
+      onContinue={onNext}
+      continueDisabled={!canProceed}
+    >
+      {/* Scan Button */}
       <label className="block cursor-pointer">
         <input
           type="file"
@@ -215,11 +208,11 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
           disabled={isScanning}
         />
         <div className={cn(
-          "w-full p-6 rounded-2xl border-2 border-dashed transition-all text-center",
+          "w-full p-6 rounded-xl border-2 border-dashed transition-all text-center",
           isScanning 
             ? "border-primary bg-primary/5 animate-pulse"
             : hasScanned
-            ? "border-green-500 bg-green-50 hover:bg-green-100"
+            ? "border-green-500 bg-green-50 hover:bg-green-100 dark:bg-green-500/10 dark:hover:bg-green-500/20"
             : "border-primary/50 bg-primary/5 hover:border-primary hover:bg-primary/10"
         )}>
           <div className="flex flex-col items-center gap-3">
@@ -247,11 +240,11 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
         </div>
       </label>
 
-      {/* Verification Card - Shows after scan OR always if editing */}
+      {/* Verification Card */}
       {(hasScanned || isEditing || data.brand) && (
-        <div className="bg-card border-2 border-border rounded-xl overflow-hidden">
+        <StepCard className="border-2">
           {/* Card Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
             <div className="flex items-center gap-2">
               <span className="font-semibold">Unit Details</span>
               {hasScanned && (
@@ -271,9 +264,9 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
             </Button>
           </div>
 
-          {/* Verification Grid - Compact display mode */}
+          {/* Verification Grid */}
           {!isEditing && (
-            <div className="p-4 grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               {verificationItems.map((item, index) => (
                 <div key={index} className="flex items-center gap-2">
                   {item.value ? (
@@ -296,7 +289,6 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                 </div>
               ))}
               
-              {/* Age display */}
               {decodedAge && decodedAge.confidence !== 'LOW' && (
                 <div className="col-span-2 flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20 mt-1">
                   <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
@@ -309,9 +301,9 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
             </div>
           )}
 
-          {/* Edit Form - Expanded mode */}
+          {/* Edit Form */}
           {isEditing && (
-            <div className="p-4 space-y-4">
+            <div className="space-y-4 pt-2">
               {/* Brand Selection */}
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Brand</Label>
@@ -332,7 +324,7 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                 </Select>
               </div>
               
-              {/* Model & Serial - Compact Row */}
+              {/* Model & Serial */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-sm">Model #</Label>
@@ -366,7 +358,7 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                 </div>
               )}
 
-              {/* Unit Type - Display only (set in previous step) */}
+              {/* Unit Type Display */}
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium flex items-center gap-2">
                   Unit Type
@@ -383,19 +375,12 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                 <Label className="text-sm font-medium">{isTankless ? 'Flow Rate' : 'Capacity'}</Label>
                 <div className="flex flex-wrap gap-2">
                   {(isTankless ? FLOW_RATE_CHIPS : CAPACITY_CHIPS).map((chip) => (
-                    <button
+                    <ChipOption
                       key={chip.value}
-                      type="button"
+                      label={chip.label}
+                      selected={(isTankless ? data.ratedFlowGPM : data.tankCapacity) === chip.value}
                       onClick={() => onUpdate(isTankless ? { ratedFlowGPM: chip.value } : { tankCapacity: chip.value })}
-                      className={cn(
-                        "px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all",
-                        (isTankless ? data.ratedFlowGPM : data.tankCapacity) === chip.value
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted hover:border-primary/50"
-                      )}
-                    >
-                      {chip.label}
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -405,36 +390,19 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                 <Label className="text-sm font-medium">Warranty</Label>
                 <div className="flex flex-wrap gap-2">
                   {WARRANTY_CHIPS.map((chip) => (
-                    <button
+                    <ChipOption
                       key={chip.value}
-                      type="button"
+                      label={chip.label}
+                      selected={data.warrantyYears === chip.value}
                       onClick={() => onUpdate({ warrantyYears: chip.value })}
-                      className={cn(
-                        "px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all",
-                        data.warrantyYears === chip.value
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted hover:border-primary/50"
-                      )}
-                    >
-                      {chip.label}
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
-              
-              {/* NOTE: Vent Type and Flue Scenario moved to ExceptionToggleStep */}
             </div>
           )}
-        </div>
+        </StepCard>
       )}
-      
-      <Button 
-        onClick={onNext} 
-        className="w-full h-12 text-base font-semibold"
-        disabled={!canProceed}
-      >
-        Continue
-      </Button>
-    </div>
+    </TechnicianStepLayout>
   );
 }

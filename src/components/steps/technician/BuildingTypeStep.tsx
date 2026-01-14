@@ -1,12 +1,6 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Home, 
-  Building2, 
-  Building,
-  Warehouse
-} from 'lucide-react';
+import { Home, Building, Warehouse } from 'lucide-react';
+import { TechnicianStepLayout, SelectionButton } from './TechnicianStepLayout';
 
 export type BuildingType = 'residential' | 'multifamily' | 'commercial';
 
@@ -22,19 +16,19 @@ const BUILDING_TYPES: BuildingTypeOption[] = [
     value: 'residential', 
     label: 'Single-Family Residential', 
     description: 'House, townhome, or condo unit',
-    icon: <Home className="h-8 w-8" />,
+    icon: <Home className="h-6 w-6" />,
   },
   { 
     value: 'multifamily', 
     label: 'Multi-Family Residential', 
     description: 'Apartment building, duplex, or multi-unit',
-    icon: <Building className="h-8 w-8" />,
+    icon: <Building className="h-6 w-6" />,
   },
   { 
     value: 'commercial', 
     label: 'Commercial', 
     description: 'Office, retail, restaurant, warehouse',
-    icon: <Warehouse className="h-8 w-8" />,
+    icon: <Warehouse className="h-6 w-6" />,
   },
 ];
 
@@ -46,48 +40,25 @@ interface BuildingTypeStepProps {
 
 export function BuildingTypeStep({ selectedType, onSelect, onNext }: BuildingTypeStepProps) {
   return (
-    <div className="space-y-6">
-      <div className="text-center space-y-1">
-        <h2 className="text-lg font-semibold">What type of building?</h2>
-        <p className="text-sm text-muted-foreground">This helps us tailor the inspection process</p>
-      </div>
-
+    <TechnicianStepLayout
+      icon={<Home className="h-8 w-8" />}
+      title="Building Type"
+      subtitle="This helps us tailor the inspection process"
+      onContinue={onNext}
+      continueDisabled={!selectedType}
+    >
       <div className="space-y-3">
-        {BUILDING_TYPES.map((type) => {
-          const isSelected = selectedType === type.value;
-          return (
-            <button
-              key={type.value}
-              type="button"
-              onClick={() => onSelect(type.value)}
-              className={`flex items-center gap-4 p-5 rounded-xl border-2 transition-all text-left w-full
-                ${isSelected
-                  ? "border-primary bg-primary/5 shadow-sm"
-                  : "border-muted hover:border-primary/50 bg-background"
-                }`}
-            >
-              <div className={`p-4 rounded-xl ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                {type.icon}
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">{type.label}</p>
-                <p className="text-sm text-muted-foreground">{type.description}</p>
-              </div>
-              {isSelected && (
-                <Badge className="bg-primary text-primary-foreground">Selected</Badge>
-              )}
-            </button>
-          );
-        })}
+        {BUILDING_TYPES.map((type) => (
+          <SelectionButton
+            key={type.value}
+            icon={type.icon}
+            label={type.label}
+            description={type.description}
+            selected={selectedType === type.value}
+            onClick={() => onSelect(type.value)}
+          />
+        ))}
       </div>
-
-      <Button 
-        onClick={onNext} 
-        className="w-full h-12 font-semibold"
-        disabled={!selectedType}
-      >
-        Continue
-      </Button>
-    </div>
+    </TechnicianStepLayout>
   );
 }

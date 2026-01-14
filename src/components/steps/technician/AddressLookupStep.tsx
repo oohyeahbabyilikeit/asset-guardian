@@ -244,13 +244,13 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   // Show address entry form
   if (showAddressForm) {
     return (
-      <div className="space-y-6">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
-            <Plus className="h-8 w-8 text-primary" />
+      <div className="flex flex-col gap-6">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-4">
+            <Plus className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-semibold text-foreground">New Property</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-xl font-bold text-foreground">New Property</h2>
+          <p className="text-sm text-muted-foreground mt-1.5">
             Enter the property address for this inspection
           </p>
         </div>
@@ -325,13 +325,13 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
-          <MapPin className="h-8 w-8 text-primary" />
+    <div className="flex flex-col gap-6">
+      <div className="text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-4">
+          <MapPin className="h-8 w-8" />
         </div>
-        <h2 className="text-xl font-semibold text-foreground">Property Lookup</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-xl font-bold text-foreground">Property Lookup</h2>
+        <p className="text-sm text-muted-foreground mt-1.5">
           Search by address or use GPS to auto-fill location
         </p>
       </div>
