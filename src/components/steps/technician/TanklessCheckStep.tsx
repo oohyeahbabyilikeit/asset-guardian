@@ -1,46 +1,23 @@
-import React from 'react';
-import { Label } from '@/components/ui/label';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { 
   AlertCircle,
   Gauge,
   AlertTriangle,
-  Wind
+  Wind,
+  Filter,
+  Waves,
+  Monitor
 } from 'lucide-react';
 import type { TanklessInspection, WaterMeasurements } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 import { useErrorCodeScan } from '@/hooks/useErrorCodeScan';
 import { useFilterScan } from '@/hooks/useFilterScan';
-import { ScanHeroCard, ScanHeroSection } from '@/components/ui/ScanHeroCard';
-import { QuickSelectChips } from '@/components/ui/QuickSelectChips';
+import { ScanHeroCard } from '@/components/ui/ScanHeroCard';
 import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
+import { cn } from '@/lib/utils';
 
-/**
- * TanklessCheckStep v8.0 - "5-Minute Flow" Optimized
- * 
- * REMOVED (now auto-proxied in algorithm):
- * - flameRodStatus → Inferred from errorCodeCount
- * - igniterHealth/elementHealth → Inferred from errorCodeCount  
- * - gasRunLength → Deleted (only gasLineSize matters for ½" check)
- * - flowRateGPM → Derived from ratedFlowGPM + scaleBuildup
- * - tanklessVentStatus → Moved to exception toggle
- * 
- * KEPT (high-value, quick to collect):
- * - Error code scan (AI-powered)
- * - Gas line size (½" fail check)
- * - Scale buildup (quick visual chips)
- * - Inlet filter (AI scan or quick toggle)
- */
-
-interface TanklessCheckStepProps {
-  data: TanklessInspection;
-  measurements: WaterMeasurements;
-  fuelType: FuelType;
-  onUpdate: (data: Partial<TanklessInspection>) => void;
-  onUpdateMeasurements: (data: Partial<WaterMeasurements>) => void;
-  onAIDetection?: (fields: Record<string, boolean>) => void;
-  onNext: () => void;
-}
+type SubStep = 'error-codes' | 'gas-line' | 'inlet-filter' | 'scale';
 
 const SCALE_CHIPS = [
   { value: 0, label: 'None', sublabel: '0%', variant: 'success' as const },
@@ -55,6 +32,16 @@ const GAS_LINE_CHIPS = [
   { value: '1', label: '1"', sublabel: 'Optimal', variant: 'success' as const },
 ];
 
+interface TanklessCheckStepProps {
+  data: TanklessInspection;
+  measurements: WaterMeasurements;
+  fuelType: FuelType;
+  onUpdate: (data: Partial<TanklessInspection>) => void;
+  onUpdateMeasurements: (data: Partial<WaterMeasurements>) => void;
+  onAIDetection?: (fields: Record<string, boolean>) => void;
+  onNext: () => void;
+}
+
 export function TanklessCheckStep({ 
   data, 
   measurements, 
@@ -66,6 +53,20 @@ export function TanklessCheckStep({
 }: TanklessCheckStepProps) {
   const isGas = fuelType === 'TANKLESS_GAS';
   
+  // Dynamic sub-steps based on fuel type
+  const getSubSteps = (): SubStep[] => {
+    const steps: SubStep[] = ['error-codes'];
+    if (isGas) {
+      steps.push('gas-line');
+    }
+    steps.push('inlet-filter', 'scale');
+    return steps;
+  };
+  
+  const subSteps = getSubSteps();
+  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('error-codes');
+  const currentIndex = subSteps.indexOf(currentSubStep);
+  
   const { scanErrorCodes, isScanning: isScanningErrors, result: errorResult } = useErrorCodeScan();
   const { scanFilter, isScanning: isScanningFilter, result: filterResult } = useFilterScan();
   
@@ -76,7 +77,6 @@ export function TanklessCheckStep({
       
       onUpdate({ errorCodeCount: Math.min(result.errorCount, 3) });
       
-      // Track enhanced fields from AI scan
       if (result.hasIsolationValves !== undefined) {
         aiFields.hasIsolationValves = true;
       }
@@ -96,13 +96,67 @@ export function TanklessCheckStep({
     }
   };
 
-  // Count critical issues for badge
-  const issueCount = [
-    data.inletFilterStatus === 'CLOGGED',
-    data.errorCodeCount >= 3,
-    data.gasLineSize === '1/2',
-    (data.scaleBuildup ?? 0) >= 60,
-  ].filter(Boolean).length;
+  const canProceed = (): boolean => {
+    switch (currentSubStep) {
+      case 'error-codes':
+        return data.errorCodeCount !== undefined;
+      case 'gas-line':
+        return data.gasLineSize !== undefined;
+      case 'inlet-filter':
+        return data.inletFilterStatus !== undefined;
+      case 'scale':
+        return data.scaleBuildup !== undefined;
+      default:
+        return false;
+    }
+  };
+
+  const handleNext = () => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < subSteps.length) {
+      setCurrentSubStep(subSteps[nextIndex]);
+    } else {
+      onNext();
+    }
+  };
+
+  const getStepTitle = (): string => {
+    switch (currentSubStep) {
+      case 'error-codes': return 'Error Codes';
+      case 'gas-line': return 'Gas Line Size';
+      case 'inlet-filter': return 'Inlet Filter';
+      case 'scale': return 'Scale Buildup';
+      default: return 'Tankless Check';
+    }
+  };
+
+  const getStepIcon = () => {
+    switch (currentSubStep) {
+      case 'error-codes': return <Monitor className="h-7 w-7" />;
+      case 'gas-line': return <Gauge className="h-7 w-7" />;
+      case 'inlet-filter': return <Filter className="h-7 w-7" />;
+      case 'scale': return <Waves className="h-7 w-7" />;
+      default: return <Wind className="h-7 w-7" />;
+    }
+  };
+
+  // Progress dots
+  const renderProgress = () => (
+    <div className="flex justify-center gap-2 mb-6">
+      {subSteps.map((step, index) => (
+        <button
+          key={step}
+          onClick={() => index < currentIndex && setCurrentSubStep(step)}
+          disabled={index >= currentIndex}
+          className={cn(
+            "h-2 rounded-full transition-all",
+            index === currentIndex ? "w-8 bg-primary" : "w-2",
+            index < currentIndex ? "bg-primary/60 cursor-pointer hover:bg-primary/80" : "bg-muted cursor-default"
+          )}
+        />
+      ))}
+    </div>
+  );
 
   const errorScanSummary = errorResult && (
     <div className="space-y-1 text-sm">
@@ -111,163 +165,188 @@ export function TanklessCheckStep({
       </p>
     </div>
   );
-  
-  return (
-    <TechnicianStepLayout
-      icon={<Wind className="h-7 w-7" />}
-      title="Tankless Check"
-      subtitle={`Tankless ${isGas ? 'Gas' : 'Electric'} specific inspection`}
-      onContinue={onNext}
+
+  const renderErrorCodesStep = () => (
+    <ScanHeroCard
+      title="Display Panel"
+      subtitle="Photo the front display for error codes"
+      isScanning={isScanningErrors}
+      hasScanned={!!errorResult}
+      scanSummary={errorScanSummary}
+      onScanImage={handleErrorCodeScan}
+      scanLabel="📷 Scan Display"
     >
-      {/* Error Code Scan - Primary Action */}
-      <ScanHeroCard
-        title="Display Panel"
-        subtitle="Photo the front display for error codes"
-        isScanning={isScanningErrors}
-        hasScanned={!!errorResult}
-        scanSummary={errorScanSummary}
-        onScanImage={handleErrorCodeScan}
-        scanLabel="📷 Scan Display"
-      >
-        {/* Manual error count */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Error Code Count</Label>
-          <div className="flex gap-2">
-            {[0, 1, 2, 3].map((count) => (
-              <button
-                key={count}
-                type="button"
-                onClick={() => onUpdate({ errorCodeCount: count })}
-                className={`flex-1 py-3 rounded-xl border-2 font-bold text-lg transition-all
-                  ${data.errorCodeCount === count
-                    ? count === 0 ? 'border-green-500 bg-green-50 text-green-700'
-                    : count >= 3 ? 'border-red-500 bg-red-50 text-red-700'
-                    : 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                    : 'border-muted hover:border-primary/50'
-                  }`}
-              >
-                {count === 3 ? '3+' : count}
-              </button>
-            ))}
-          </div>
-          {data.errorCodeCount >= 3 && (
-            <p className="text-xs text-red-600 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              Multiple errors indicate component failure - service required
-            </p>
-          )}
-        </div>
-      </ScanHeroCard>
-
-      {/* Gas Line Size - Critical for Gas Units */}
-      {isGas && (
-        <StepCard>
-          <Label className="text-sm font-medium flex items-center gap-2 mb-3">
-            <Gauge className="h-4 w-4" />
-            Gas Line Size
-          </Label>
-          <div className="flex gap-2">
-            {GAS_LINE_CHIPS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onUpdate({ gasLineSize: opt.value as '1/2' | '3/4' | '1' })}
-                className={`flex-1 py-3 rounded-xl border-2 transition-all
-                  ${data.gasLineSize === opt.value
-                    ? opt.variant === 'danger' ? 'border-red-500 bg-red-50 text-red-700'
-                    : opt.variant === 'success' ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-primary bg-primary/10 text-foreground'
-                    : 'border-muted hover:border-primary/50'
-                  }`}
-              >
-                <div className="font-bold text-lg">{opt.label}</div>
-                <div className="text-xs opacity-70">{opt.sublabel}</div>
-              </button>
-            ))}
-          </div>
-          {data.gasLineSize === '1/2' && (
-            <p className="text-xs text-red-600 flex items-center gap-1 mt-2">
-              <AlertTriangle className="h-3 w-3" />
-              ½" gas line is undersized for most tankless units - may cause intermittent failures
-            </p>
-          )}
-        </StepCard>
-      )}
-
-      {/* Inlet Filter - Quick Scan or Toggle */}
-      <ScanHeroCard
-        title="Inlet Filter"
-        subtitle="Photo the filter screen"
-        isScanning={isScanningFilter}
-        hasScanned={!!filterResult}
-        scanSummary={filterResult && (
-          <p className={
-            filterResult.status === 'CLOGGED' ? 'text-red-600 font-medium' :
-            filterResult.status === 'DIRTY' ? 'text-yellow-600' : 'text-green-600'
-          }>
-            Filter: {filterResult.status}
-          </p>
-        )}
-        onScanImage={handleFilterScan}
-        scanLabel="📷"
-      >
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground text-center">
+          Or select error code count manually
+        </p>
         <div className="flex gap-2">
+          {[0, 1, 2, 3].map((count) => (
+            <button
+              key={count}
+              type="button"
+              onClick={() => onUpdate({ errorCodeCount: count })}
+              className={cn(
+                "flex-1 py-4 rounded-xl border-2 font-bold text-xl transition-all",
+                data.errorCodeCount === count
+                  ? count === 0 ? 'border-green-500 bg-green-50 text-green-700'
+                  : count >= 3 ? 'border-red-500 bg-red-50 text-red-700'
+                  : 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                  : 'border-muted hover:border-primary/50'
+              )}
+            >
+              {count === 3 ? '3+' : count}
+            </button>
+          ))}
+        </div>
+        {data.errorCodeCount !== undefined && data.errorCodeCount >= 3 && (
+          <div className="p-3 bg-destructive/10 rounded-xl flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+            <p className="text-sm text-destructive">Multiple errors indicate component failure</p>
+          </div>
+        )}
+      </div>
+    </ScanHeroCard>
+  );
+
+  const renderGasLineStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        What size is the gas supply line?
+      </p>
+      
+      <div className="grid grid-cols-3 gap-3">
+        {GAS_LINE_CHIPS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onUpdate({ gasLineSize: opt.value as '1/2' | '3/4' | '1' })}
+            className={cn(
+              "flex flex-col items-center gap-1 py-5 rounded-xl border-2 transition-all",
+              data.gasLineSize === opt.value
+                ? opt.variant === 'danger' ? 'border-red-500 bg-red-50 text-red-700'
+                : opt.variant === 'success' ? 'border-green-500 bg-green-50 text-green-700'
+                : 'border-primary bg-primary/10 text-foreground'
+                : 'border-muted hover:border-primary/50'
+            )}
+          >
+            <div className="font-bold text-2xl">{opt.label}</div>
+            <div className="text-xs opacity-70">{opt.sublabel}</div>
+          </button>
+        ))}
+      </div>
+      
+      {data.gasLineSize === '1/2' && (
+        <div className="mt-4 p-3 bg-destructive/10 rounded-xl flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive">½" gas line is undersized - may cause intermittent failures</p>
+        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderInletFilterStep = () => (
+    <ScanHeroCard
+      title="Inlet Filter"
+      subtitle="Photo the filter screen"
+      isScanning={isScanningFilter}
+      hasScanned={!!filterResult}
+      scanSummary={filterResult && (
+        <p className={
+          filterResult.status === 'CLOGGED' ? 'text-red-600 font-medium' :
+          filterResult.status === 'DIRTY' ? 'text-yellow-600' : 'text-green-600'
+        }>
+          Filter: {filterResult.status}
+        </p>
+      )}
+      onScanImage={handleFilterScan}
+      scanLabel="📷 Scan Filter"
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground text-center">
+          Or select filter condition manually
+        </p>
+        <div className="grid grid-cols-3 gap-2">
           {(['CLEAN', 'DIRTY', 'CLOGGED'] as const).map((status) => (
             <button
               key={status}
               type="button"
               onClick={() => onUpdate({ inletFilterStatus: status })}
-              className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-all
-                ${data.inletFilterStatus === status
+              className={cn(
+                "py-4 rounded-xl border-2 text-sm font-semibold transition-all",
+                data.inletFilterStatus === status
                   ? status === 'CLEAN' ? 'border-green-500 bg-green-50 text-green-700'
                   : status === 'DIRTY' ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
                   : 'border-red-500 bg-red-50 text-red-700'
                   : 'border-muted hover:border-primary/50'
-                }`}
+              )}
             >
               {status}
             </button>
           ))}
         </div>
-      </ScanHeroCard>
+      </div>
+    </ScanHeroCard>
+  );
 
-      {/* Scale Buildup - Quick Visual Assessment */}
-      <ScanHeroSection 
-        title="Scale Buildup" 
-        defaultOpen={true}
-        badge={(data.scaleBuildup ?? 0) >= 60 ? (
-          <Badge variant="destructive" className="text-xs">High</Badge>
-        ) : undefined}
-      >
-        <QuickSelectChips
-          label=""
-          value={data.scaleBuildup ?? 0}
-          onChange={(v) => onUpdate({ scaleBuildup: v })}
-          options={SCALE_CHIPS}
-        />
-        {(data.scaleBuildup ?? 0) >= 60 && (
-          <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Descaling recommended - flow restriction likely
-          </p>
-        )}
-      </ScanHeroSection>
-
-      {/* Issues Summary */}
-      {issueCount > 0 && (
-        <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-          <p className="text-sm font-medium text-orange-800 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            {issueCount} issue{issueCount > 1 ? 's' : ''} found
-          </p>
-          <ul className="text-xs text-orange-700 mt-1 space-y-0.5">
-            {data.errorCodeCount >= 3 && <li>• Multiple error codes</li>}
-            {data.gasLineSize === '1/2' && <li>• Undersized gas line</li>}
-            {data.inletFilterStatus === 'CLOGGED' && <li>• Clogged inlet filter</li>}
-            {(data.scaleBuildup ?? 0) >= 60 && <li>• Significant scale buildup</li>}
-          </ul>
+  const renderScaleStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Estimate scale buildup inside the unit
+      </p>
+      
+      <div className="grid grid-cols-2 gap-3">
+        {SCALE_CHIPS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onUpdate({ scaleBuildup: opt.value })}
+            className={cn(
+              "flex flex-col items-center gap-1 py-5 rounded-xl border-2 transition-all",
+              data.scaleBuildup === opt.value
+                ? opt.variant === 'danger' ? 'border-red-500 bg-red-50 text-red-700'
+                : opt.variant === 'warning' ? 'border-amber-500 bg-amber-50 text-amber-700'
+                : opt.variant === 'success' ? 'border-green-500 bg-green-50 text-green-700'
+                : 'border-primary bg-primary/10 text-foreground'
+                : 'border-muted hover:border-primary/50'
+            )}
+          >
+            <div className="font-bold text-lg">{opt.label}</div>
+            <div className="text-xs opacity-70">{opt.sublabel}</div>
+          </button>
+        ))}
+      </div>
+      
+      {data.scaleBuildup !== undefined && data.scaleBuildup >= 60 && (
+        <div className="mt-4 p-3 bg-amber-500/10 rounded-xl flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-700">Descaling recommended - flow restriction likely</p>
         </div>
       )}
+    </StepCard>
+  );
+
+  const renderCurrentSubStep = () => {
+    switch (currentSubStep) {
+      case 'error-codes': return renderErrorCodesStep();
+      case 'gas-line': return renderGasLineStep();
+      case 'inlet-filter': return renderInletFilterStep();
+      case 'scale': return renderScaleStep();
+      default: return null;
+    }
+  };
+  
+  return (
+    <TechnicianStepLayout
+      icon={getStepIcon()}
+      title={getStepTitle()}
+      subtitle={`Step ${currentIndex + 1} of ${subSteps.length}`}
+      onContinue={handleNext}
+      continueDisabled={!canProceed()}
+      continueText={currentIndex === subSteps.length - 1 ? 'Continue' : 'Next'}
+    >
+      {renderProgress()}
+      {renderCurrentSubStep()}
     </TechnicianStepLayout>
   );
 }
