@@ -39,34 +39,34 @@ const LOCATION_OPTIONS: { value: LocationType; label: string; isHighRisk?: boole
   { value: 'GARAGE', label: 'Garage' },
   { value: 'BASEMENT', label: 'Basement' },
   { value: 'ATTIC', label: 'Attic', isHighRisk: true },
-  { value: 'UPPER_FLOOR', label: 'Upper Floor', isHighRisk: true },
-  { value: 'MAIN_LIVING', label: 'Utility Closet', isHighRisk: true },
-  { value: 'CRAWLSPACE', label: 'Crawlspace' },
+  { value: 'UPPER_FLOOR', label: 'Upper Fl.', isHighRisk: true },
+  { value: 'MAIN_LIVING', label: 'Closet', isHighRisk: true },
+  { value: 'CRAWLSPACE', label: 'Crawl' },
   { value: 'EXTERIOR', label: 'Exterior' },
 ];
 
 const TEMP_OPTIONS: { value: TempSetting; label: string; temp: string; variant?: 'warning' }[] = [
-  { value: 'LOW', label: 'Low', temp: '~110°F' },
-  { value: 'NORMAL', label: 'Normal', temp: '~120°F' },
-  { value: 'HOT', label: 'Hot', temp: '~140°F', variant: 'warning' },
+  { value: 'LOW', label: 'Low', temp: '110°' },
+  { value: 'NORMAL', label: 'Med', temp: '120°' },
+  { value: 'HOT', label: 'Hot', temp: '140°', variant: 'warning' },
 ];
 
 const CONNECTION_OPTIONS: { value: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER'; label: string; variant?: 'warning' }[] = [
   { value: 'DIELECTRIC', label: 'Dielectric' },
   { value: 'BRASS', label: 'Brass' },
-  { value: 'DIRECT_COPPER', label: 'Direct Copper', variant: 'warning' },
+  { value: 'DIRECT_COPPER', label: 'Copper', variant: 'warning' },
 ];
 
-const VENT_TYPE_OPTIONS: { value: VentType; label: string; description: string }[] = [
-  { value: 'ATMOSPHERIC', label: 'Atmospheric', description: 'Open draft hood' },
-  { value: 'POWER_VENT', label: 'Power Vent', description: 'Fan-assisted' },
-  { value: 'DIRECT_VENT', label: 'Direct Vent', description: 'Sealed combustion' },
+const VENT_TYPE_OPTIONS: { value: VentType; label: string; desc: string }[] = [
+  { value: 'ATMOSPHERIC', label: 'Atmos.', desc: 'Draft hood' },
+  { value: 'POWER_VENT', label: 'Power', desc: 'Fan-assisted' },
+  { value: 'DIRECT_VENT', label: 'Direct', desc: 'Sealed' },
 ];
 
-const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT'; label: string; description: string; variant?: 'warning' }[] = [
-  { value: 'SHARED_FLUE', label: 'Shared', description: 'With furnace' },
-  { value: 'ORPHANED_FLUE', label: 'Orphaned', description: 'Alone in chimney', variant: 'warning' },
-  { value: 'DIRECT_VENT', label: 'Direct/PVC', description: 'To exterior' },
+const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT'; label: string; desc: string; variant?: 'warning' }[] = [
+  { value: 'SHARED_FLUE', label: 'Shared', desc: 'With furnace' },
+  { value: 'ORPHANED_FLUE', label: 'Orphan', desc: 'Alone', variant: 'warning' },
+  { value: 'DIRECT_VENT', label: 'PVC', desc: 'To exterior' },
 ];
 
 type StepId = 'location' | 'temp' | 'condition' | 'venting' | 'equipment';
@@ -354,19 +354,19 @@ export function ExceptionToggleStep({
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="space-y-4"
           >
-            <div className="bg-card border rounded-xl p-5 space-y-4">
+            <div className="bg-card border rounded-xl p-4 space-y-4">
               <div className="flex items-center gap-3">
                 {stepIcons.location}
                 <h3 className="text-lg font-semibold">{stepTitles.location}</h3>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {LOCATION_OPTIONS.map((loc) => (
                   <button
                     key={loc.value}
                     type="button"
                     onClick={() => onLocationUpdate({ location: loc.value })}
                     className={cn(
-                      "p-4 rounded-xl border-2 text-left transition-all",
+                      "p-3 rounded-xl border-2 text-center transition-all min-h-[56px] flex flex-col items-center justify-center",
                       locationData.location === loc.value
                         ? loc.isHighRisk
                           ? "border-orange-500 bg-orange-500/10"
@@ -374,11 +374,11 @@ export function ExceptionToggleStep({
                         : "border-muted hover:border-muted-foreground/30"
                     )}
                   >
-                    <div className="font-medium">{loc.label}</div>
-                    {loc.isHighRisk && (
-                      <div className="text-xs text-orange-600 flex items-center gap-1 mt-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        High risk
+                    <div className="font-medium text-xs leading-tight">{loc.label}</div>
+                    {loc.isHighRisk && locationData.location === loc.value && (
+                      <div className="text-[10px] text-orange-600 flex items-center gap-0.5 mt-1">
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        Risk
                       </div>
                     )}
                   </button>
@@ -399,19 +399,19 @@ export function ExceptionToggleStep({
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="space-y-4"
           >
-            <div className="bg-card border rounded-xl p-5 space-y-4">
+            <div className="bg-card border rounded-xl p-4 space-y-4">
               <div className="flex items-center gap-3">
                 {stepIcons.temp}
                 <h3 className="text-lg font-semibold">{stepTitles.temp}</h3>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {TEMP_OPTIONS.map((temp) => (
                   <button
                     key={temp.value}
                     type="button"
                     onClick={() => onLocationUpdate({ tempSetting: temp.value })}
                     className={cn(
-                      "p-5 rounded-xl border-2 text-center transition-all",
+                      "p-4 rounded-xl border-2 text-center transition-all min-h-[70px] flex flex-col items-center justify-center",
                       locationData.tempSetting === temp.value
                         ? temp.variant === 'warning'
                           ? "border-orange-500 bg-orange-500/10"
@@ -419,8 +419,8 @@ export function ExceptionToggleStep({
                         : "border-muted hover:border-muted-foreground/30"
                     )}
                   >
-                    <div className="text-2xl font-bold">{temp.label}</div>
-                    <div className="text-sm text-muted-foreground">{temp.temp}</div>
+                    <div className="text-xl font-bold">{temp.label}</div>
+                    <div className="text-xs text-muted-foreground">{temp.temp}</div>
                   </button>
                 ))}
               </div>
@@ -481,51 +481,51 @@ export function ExceptionToggleStep({
                 </div>
                 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <span className="text-sm font-medium text-muted-foreground">Vent Type</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {VENT_TYPE_OPTIONS.map((vent) => (
-                        <button
-                          key={vent.value}
-                          type="button"
-                          onClick={() => onAssetUpdate({ ventType: vent.value })}
-                          className={cn(
-                            "p-3 rounded-xl border-2 text-center transition-all",
-                            assetData.ventType === vent.value
-                              ? "border-primary bg-primary/10"
-                              : "border-muted hover:border-muted-foreground/30"
-                          )}
-                        >
-                          <div className="font-medium text-sm">{vent.label}</div>
-                          <div className="text-xs text-muted-foreground">{vent.description}</div>
-                        </button>
-                      ))}
-                    </div>
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-muted-foreground">Vent Type</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {VENT_TYPE_OPTIONS.map((vent) => (
+                      <button
+                        key={vent.value}
+                        type="button"
+                        onClick={() => onAssetUpdate({ ventType: vent.value })}
+                        className={cn(
+                          "p-2.5 rounded-xl border-2 text-center transition-all min-h-[60px] flex flex-col justify-center",
+                          assetData.ventType === vent.value
+                            ? "border-primary bg-primary/10"
+                            : "border-muted hover:border-muted-foreground/30"
+                        )}
+                      >
+                        <div className="font-medium text-xs leading-tight">{vent.label}</div>
+                        <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{vent.desc}</div>
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <span className="text-sm font-medium text-muted-foreground">Flue Scenario</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {FLUE_SCENARIO_OPTIONS.map((flue) => (
-                        <button
-                          key={flue.value}
-                          type="button"
-                          onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
-                          className={cn(
-                            "p-3 rounded-xl border-2 text-center transition-all",
-                            assetData.ventingScenario === flue.value
-                              ? flue.variant === 'warning'
-                                ? "border-orange-500 bg-orange-500/10"
-                                : "border-primary bg-primary/10"
-                              : "border-muted hover:border-muted-foreground/30"
-                          )}
-                        >
-                          <div className="font-medium text-sm">{flue.label}</div>
-                          <div className="text-xs text-muted-foreground">{flue.description}</div>
-                        </button>
-                      ))}
-                    </div>
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-muted-foreground">Flue Scenario</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {FLUE_SCENARIO_OPTIONS.map((flue) => (
+                      <button
+                        key={flue.value}
+                        type="button"
+                        onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
+                        className={cn(
+                          "p-2.5 rounded-xl border-2 text-center transition-all min-h-[60px] flex flex-col justify-center",
+                          assetData.ventingScenario === flue.value
+                            ? flue.variant === 'warning'
+                              ? "border-orange-500 bg-orange-500/10"
+                              : "border-primary bg-primary/10"
+                            : "border-muted hover:border-muted-foreground/30"
+                        )}
+                      >
+                        <div className="font-medium text-xs leading-tight">{flue.label}</div>
+                        <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{flue.desc}</div>
+                      </button>
+                    ))}
                   </div>
+                </div>
 
                   {assetData.ventingScenario === 'ORPHANED_FLUE' && (
                     <div className="p-3 bg-orange-100 rounded-lg flex items-start gap-2">
@@ -568,7 +568,7 @@ export function ExceptionToggleStep({
                         type="button"
                         onClick={() => onEquipmentUpdate({ connectionType: conn.value })}
                         className={cn(
-                          "p-3 rounded-xl border-2 text-center transition-all",
+                          "p-2.5 rounded-xl border-2 text-center transition-all min-h-[44px] flex items-center justify-center",
                           equipmentData.connectionType === conn.value
                             ? conn.variant === 'warning'
                               ? "border-orange-500 bg-orange-500/10"
@@ -576,7 +576,7 @@ export function ExceptionToggleStep({
                             : "border-muted hover:border-muted-foreground/30"
                         )}
                       >
-                        <div className="font-medium text-sm">{conn.label}</div>
+                        <div className="font-medium text-xs">{conn.label}</div>
                       </button>
                     ))}
                   </div>
