@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Droplets, 
   Package, 
@@ -14,11 +14,12 @@ import type { SoftenerInspection, SaltStatusType, SoftenerVisualCondition } from
 import type { SoftenerQualityTier, ControlHead, VisualHeight } from '@/lib/softenerAlgorithm';
 import { 
   TechnicianStepLayout, 
-  StepCard, 
-  SectionHeader,
+  StepCard,
   ChipOption
 } from './TechnicianStepLayout';
 import { Badge } from '@/components/ui/badge';
+
+type SubStep = 'presence' | 'salt' | 'tier' | 'height' | 'control' | 'condition' | 'iron';
 
 const QUALITY_TIERS: { value: SoftenerQualityTier; label: string; description: string }[] = [
   { value: 'CABINET', label: 'Cabinet', description: 'All-in-one' },
@@ -56,201 +57,385 @@ interface SoftenerCheckStepProps {
 }
 
 export function SoftenerCheckStep({ data, onUpdate, onNext }: SoftenerCheckStepProps) {
-  // Validation
-  const presenceSelected = data.hasSoftener !== undefined;
-  const saltSelected = data.saltStatus !== undefined;
-  const tierSelected = data.qualityTier !== undefined;
-  const heightSelected = data.visualHeight !== undefined;
-  const controlSelected = data.controlHead !== undefined;
-  const conditionSelected = data.visualCondition !== undefined;
+  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('presence');
+  
+  // Dynamic sub-steps - only show details if softener is present
+  const getSubSteps = (): SubStep[] => {
+    if (data.hasSoftener === false) {
+      return ['presence'];
+    }
+    if (data.hasSoftener === true) {
+      return ['presence', 'salt', 'tier', 'height', 'control', 'condition', 'iron'];
+    }
+    return ['presence'];
+  };
+  
+  const subSteps = getSubSteps();
+  const currentIndex = subSteps.indexOf(currentSubStep);
 
-  const allFieldsComplete = data.hasSoftener === false 
-    ? presenceSelected 
-    : presenceSelected && saltSelected && tierSelected && heightSelected && controlSelected && conditionSelected;
+  const canProceed = (): boolean => {
+    switch (currentSubStep) {
+      case 'presence':
+        return data.hasSoftener !== undefined;
+      case 'salt':
+        return data.saltStatus !== undefined;
+      case 'tier':
+        return data.qualityTier !== undefined;
+      case 'height':
+        return data.visualHeight !== undefined;
+      case 'control':
+        return data.controlHead !== undefined;
+      case 'condition':
+        return data.visualCondition !== undefined;
+      case 'iron':
+        return true; // Optional field
+      default:
+        return false;
+    }
+  };
 
-  const detailFields = [saltSelected, tierSelected, heightSelected, controlSelected, conditionSelected];
-  const completedDetails = detailFields.filter(Boolean).length;
-  const totalDetails = 5;
+  const handleNext = () => {
+    // If no softener, skip to end
+    if (currentSubStep === 'presence' && data.hasSoftener === false) {
+      onNext();
+      return;
+    }
+    
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < subSteps.length) {
+      setCurrentSubStep(subSteps[nextIndex]);
+    } else {
+      onNext();
+    }
+  };
+
+  const getStepTitle = (): string => {
+    switch (currentSubStep) {
+      case 'presence': return 'Softener Present?';
+      case 'salt': return 'Salt Status';
+      case 'tier': return 'Quality Tier';
+      case 'height': return 'Tank Height';
+      case 'control': return 'Control Type';
+      case 'condition': return 'Visual Condition';
+      case 'iron': return 'Iron Staining';
+      default: return 'Water Softener';
+    }
+  };
+
+  const getStepIcon = () => {
+    switch (currentSubStep) {
+      case 'presence': return <Droplets className="h-7 w-7" />;
+      case 'salt': return <Package className="h-7 w-7" />;
+      case 'tier': return <Settings className="h-7 w-7" />;
+      case 'height': return <Ruler className="h-7 w-7" />;
+      case 'control': return <Settings className="h-7 w-7" />;
+      case 'condition': return <Eye className="h-7 w-7" />;
+      case 'iron': return <AlertCircle className="h-7 w-7" />;
+      default: return <Droplets className="h-7 w-7" />;
+    }
+  };
+
+  // Progress dots
+  const renderProgress = () => (
+    <div className="flex justify-center gap-2 mb-6">
+      {subSteps.map((step, index) => (
+        <button
+          key={step}
+          onClick={() => index < currentIndex && setCurrentSubStep(step)}
+          disabled={index >= currentIndex}
+          className={cn(
+            "h-2 rounded-full transition-all",
+            index === currentIndex ? "w-8 bg-primary" : "w-2",
+            index < currentIndex ? "bg-primary/60 cursor-pointer hover:bg-primary/80" : "bg-muted cursor-default"
+          )}
+        />
+      ))}
+    </div>
+  );
+
+  const renderPresenceStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Is there a water softener at this property?
+      </p>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => onUpdate({ hasSoftener: true })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.hasSoftener === true
+              ? "border-primary bg-primary/10"
+              : "border-muted hover:border-primary/50 bg-card"
+          )}
+        >
+          <CheckCircle className={cn("h-10 w-10", data.hasSoftener === true ? 'text-primary' : 'text-muted-foreground')} />
+          <span className="font-semibold text-lg">Yes</span>
+          <span className="text-xs text-muted-foreground">Softener present</span>
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => onUpdate({ hasSoftener: false })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.hasSoftener === false
+              ? "border-muted-foreground bg-muted"
+              : "border-muted hover:border-primary/50 bg-card"
+          )}
+        >
+          <XCircle className={cn("h-10 w-10", data.hasSoftener === false ? 'text-muted-foreground' : 'text-muted-foreground/50')} />
+          <span className="font-semibold text-lg">No</span>
+          <span className="text-xs text-muted-foreground">No softener</span>
+        </button>
+      </div>
+    </StepCard>
+  );
+
+  const renderSaltStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Check the salt level in the brine tank
+      </p>
+      
+      <div className="grid grid-cols-3 gap-3">
+        {SALT_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onUpdate({ saltStatus: opt.value })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+              data.saltStatus === opt.value
+                ? opt.variant === 'success' ? "border-green-500 bg-green-50 text-green-700"
+                : opt.variant === 'danger' ? "border-red-500 bg-red-50 text-red-700"
+                : "border-primary bg-primary/10"
+                : "border-muted hover:border-primary/50"
+            )}
+          >
+            <span className="text-lg font-semibold">{opt.label}</span>
+          </button>
+        ))}
+      </div>
+      
+      {data.saltStatus === 'EMPTY' && (
+        <div className="mt-4 p-3 bg-destructive/10 rounded-xl flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive">Empty salt means no water conditioning</p>
+        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderTierStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        What type of softener system is it?
+      </p>
+      
+      <div className="space-y-3">
+        {QUALITY_TIERS.map((tier) => (
+          <button
+            key={tier.value}
+            type="button"
+            onClick={() => onUpdate({ qualityTier: tier.value })}
+            className={cn(
+              "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left",
+              data.qualityTier === tier.value
+                ? 'border-primary bg-primary/10'
+                : 'border-muted hover:border-primary/50'
+            )}
+          >
+            <div>
+              <span className="font-semibold">{tier.label}</span>
+              <p className="text-xs text-muted-foreground">{tier.description}</p>
+            </div>
+            {data.qualityTier === tier.value && (
+              <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+            )}
+          </button>
+        ))}
+      </div>
+    </StepCard>
+  );
+
+  const renderHeightStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        How tall is the main resin tank?
+      </p>
+      
+      <div className="space-y-3">
+        {VISUAL_HEIGHTS.map((h) => (
+          <button
+            key={h.value}
+            type="button"
+            onClick={() => onUpdate({ visualHeight: h.value })}
+            className={cn(
+              "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left",
+              data.visualHeight === h.value
+                ? 'border-primary bg-primary/10'
+                : 'border-muted hover:border-primary/50'
+            )}
+          >
+            <div>
+              <span className="font-semibold">{h.label} Height</span>
+              <p className="text-xs text-muted-foreground">{h.capacity}</p>
+            </div>
+            {data.visualHeight === h.value && (
+              <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+            )}
+          </button>
+        ))}
+      </div>
+    </StepCard>
+  );
+
+  const renderControlStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        What type of control head is on the unit?
+      </p>
+      
+      <div className="grid grid-cols-2 gap-4">
+        {CONTROL_HEADS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            onClick={() => onUpdate({ controlHead: c.value })}
+            className={cn(
+              "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+              data.controlHead === c.value
+                ? "border-primary bg-primary/10"
+                : "border-muted hover:border-primary/50"
+            )}
+          >
+            <Settings className={cn(
+              "h-8 w-8",
+              data.controlHead === c.value ? "text-primary" : "text-muted-foreground"
+            )} />
+            <span className="font-semibold">{c.label}</span>
+          </button>
+        ))}
+      </div>
+    </StepCard>
+  );
+
+  const renderConditionStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        What's the visual condition of the housing?
+      </p>
+      
+      <div className="space-y-3">
+        {VISUAL_CONDITIONS.map((cond) => (
+          <button
+            key={cond.value}
+            type="button"
+            onClick={() => onUpdate({ visualCondition: cond.value })}
+            className={cn(
+              "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left",
+              data.visualCondition === cond.value
+                ? 'border-primary bg-primary/10'
+                : 'border-muted hover:border-muted-foreground/30'
+            )}
+          >
+            <span className="font-medium">{cond.label}</span>
+            <Badge variant="outline" className="shrink-0">
+              {cond.years}
+            </Badge>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground text-center mt-3">
+        Estimates age based on housing condition
+      </p>
+    </StepCard>
+  );
+
+  const renderIronStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Any visible iron staining in fixtures?
+      </p>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => onUpdate({ visualIron: false })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.visualIron === false
+              ? "border-green-500 bg-green-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <CheckCircle className={cn(
+            "h-8 w-8",
+            data.visualIron === false ? "text-green-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold">No Staining</span>
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => onUpdate({ visualIron: true })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.visualIron === true
+              ? "border-amber-500 bg-amber-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <AlertCircle className={cn(
+            "h-8 w-8",
+            data.visualIron === true ? "text-amber-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold">Iron Staining</span>
+        </button>
+      </div>
+      
+      <p className="text-xs text-muted-foreground text-center mt-4">
+        This field is optional - skip if unsure
+      </p>
+    </StepCard>
+  );
+
+  const renderCurrentSubStep = () => {
+    switch (currentSubStep) {
+      case 'presence': return renderPresenceStep();
+      case 'salt': return renderSaltStep();
+      case 'tier': return renderTierStep();
+      case 'height': return renderHeightStep();
+      case 'control': return renderControlStep();
+      case 'condition': return renderConditionStep();
+      case 'iron': return renderIronStep();
+      default: return null;
+    }
+  };
 
   const getContinueText = () => {
-    if (allFieldsComplete) return 'Continue';
-    if (data.hasSoftener) return `Complete all fields (${completedDetails}/${totalDetails})`;
-    return 'Select softener presence';
+    if (currentSubStep === 'presence' && data.hasSoftener === false) {
+      return 'Continue';
+    }
+    if (currentSubStep === 'iron') {
+      return data.visualIron === undefined ? 'Skip' : 'Continue';
+    }
+    return currentIndex === subSteps.length - 1 ? 'Continue' : 'Next';
   };
 
   return (
     <TechnicianStepLayout
-      icon={<Droplets className="h-8 w-8" />}
-      title="Water Softener Check"
-      subtitle={data.hasSoftener ? `Verify each field • ${completedDetails}/${totalDetails} complete` : 'Confirm softener presence'}
-      onContinue={onNext}
-      continueDisabled={!allFieldsComplete}
+      icon={getStepIcon()}
+      title={getStepTitle()}
+      subtitle={data.hasSoftener === false ? 'No softener at property' : `Step ${currentIndex + 1} of ${subSteps.length}`}
+      onContinue={handleNext}
+      continueDisabled={!canProceed()}
       continueText={getContinueText()}
     >
-      {/* Primary Yes/No Selection */}
-      <div className="space-y-3">
-        <SectionHeader icon={<Droplets className="h-3.5 w-3.5" />} title="Softener Present" isComplete={presenceSelected} isRequired />
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => onUpdate({ hasSoftener: true })}
-            className={cn(
-              "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
-              data.hasSoftener === true
-                ? "border-primary bg-primary/10"
-                : "border-muted hover:border-primary/50 bg-card"
-            )}
-          >
-            <CheckCircle className={cn("h-8 w-8", data.hasSoftener === true ? 'text-primary' : 'text-muted-foreground')} />
-            <span className="font-semibold">Yes</span>
-            <span className="text-xs text-muted-foreground">Softener present</span>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => onUpdate({ hasSoftener: false })}
-            className={cn(
-              "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
-              data.hasSoftener === false
-                ? "border-muted-foreground bg-muted"
-                : "border-muted hover:border-primary/50 bg-card"
-            )}
-          >
-            <XCircle className={cn("h-8 w-8", data.hasSoftener === false ? 'text-muted-foreground' : 'text-muted-foreground/50')} />
-            <span className="font-semibold">No</span>
-            <span className="text-xs text-muted-foreground">No softener</span>
-          </button>
-        </div>
-      </div>
-      
-      {/* Softener Details */}
-      {data.hasSoftener && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-          
-          {/* Progress bar */}
-          <div className="flex gap-1">
-            {detailFields.map((complete, i) => (
-              <div 
-                key={i} 
-                className={cn(
-                  "flex-1 h-1.5 rounded-full transition-colors",
-                  complete ? "bg-green-500" : "bg-muted"
-                )} 
-              />
-            ))}
-          </div>
-
-          {/* Salt Status */}
-          <StepCard>
-            <SectionHeader icon={<Package className="h-3.5 w-3.5" />} title="Salt Status" isComplete={saltSelected} isRequired />
-            <div className="flex gap-2">
-              {SALT_OPTIONS.map((opt) => (
-                <ChipOption
-                  key={opt.value}
-                  label={opt.label}
-                  selected={data.saltStatus === opt.value}
-                  onClick={() => onUpdate({ saltStatus: opt.value })}
-                  variant={data.saltStatus === opt.value ? opt.variant : 'default'}
-                />
-              ))}
-            </div>
-          </StepCard>
-
-          {/* Quality Tier */}
-          <StepCard>
-            <SectionHeader icon={<Settings className="h-3.5 w-3.5" />} title="Quality Tier" isComplete={tierSelected} isRequired />
-            <div className="flex gap-2">
-              {QUALITY_TIERS.map((tier) => (
-                <ChipOption
-                  key={tier.value}
-                  label={tier.label}
-                  sublabel={tier.description}
-                  selected={data.qualityTier === tier.value}
-                  onClick={() => onUpdate({ qualityTier: tier.value })}
-                />
-              ))}
-            </div>
-          </StepCard>
-
-          {/* Tank Height */}
-          <StepCard>
-            <SectionHeader icon={<Ruler className="h-3.5 w-3.5" />} title="Tank Height" isComplete={heightSelected} isRequired />
-            <div className="flex gap-2">
-              {VISUAL_HEIGHTS.map((h) => (
-                <ChipOption
-                  key={h.value}
-                  label={h.label}
-                  sublabel={h.capacity}
-                  selected={data.visualHeight === h.value}
-                  onClick={() => onUpdate({ visualHeight: h.value })}
-                />
-              ))}
-            </div>
-          </StepCard>
-
-          {/* Control Head */}
-          <StepCard>
-            <SectionHeader icon={<Settings className="h-3.5 w-3.5" />} title="Control Type" isComplete={controlSelected} isRequired />
-            <div className="flex gap-2">
-              {CONTROL_HEADS.map((c) => (
-                <ChipOption
-                  key={c.value}
-                  label={c.label}
-                  selected={data.controlHead === c.value}
-                  onClick={() => onUpdate({ controlHead: c.value })}
-                />
-              ))}
-            </div>
-          </StepCard>
-
-          {/* Visual Condition */}
-          <StepCard>
-            <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} title="Visual Condition" isComplete={conditionSelected} isRequired />
-            <div className="space-y-2">
-              {VISUAL_CONDITIONS.map((cond) => (
-                <button
-                  key={cond.value}
-                  type="button"
-                  onClick={() => onUpdate({ visualCondition: cond.value })}
-                  className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left",
-                    data.visualCondition === cond.value
-                      ? 'border-primary bg-primary/10'
-                      : 'border-muted bg-card hover:border-muted-foreground/30'
-                  )}
-                >
-                  <span className="font-medium text-sm">{cond.label}</span>
-                  <Badge variant="outline" className="ml-2 shrink-0">
-                    {cond.years}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Estimates age based on housing condition
-            </p>
-          </StepCard>
-
-          {/* Optional: Iron staining */}
-          <StepCard>
-            <SectionHeader icon={<AlertCircle className="h-3.5 w-3.5" />} title="Iron Staining" isComplete={data.visualIron !== undefined} />
-            <div className="flex gap-2">
-              <ChipOption
-                label="No Staining"
-                selected={data.visualIron === false}
-                onClick={() => onUpdate({ visualIron: false })}
-                variant={data.visualIron === false ? 'success' : 'default'}
-              />
-              <ChipOption
-                label="Iron Staining"
-                selected={data.visualIron === true}
-                onClick={() => onUpdate({ visualIron: true })}
-                variant={data.visualIron === true ? 'warning' : 'default'}
-              />
-            </div>
-          </StepCard>
-        </div>
-      )}
+      {renderProgress()}
+      {renderCurrentSubStep()}
     </TechnicianStepLayout>
   );
 }
