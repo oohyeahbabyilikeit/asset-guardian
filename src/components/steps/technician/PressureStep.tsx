@@ -2,13 +2,13 @@ import React, { useState, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, Beaker, Camera, X, ShieldCheck } from 'lucide-react';
+import { Gauge, Droplets, AlertTriangle, HelpCircle, PowerOff, Monitor, Beaker, Camera, ShieldCheck, CheckCircle } from 'lucide-react';
 import type { WaterMeasurements, EquipmentChecklist } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
 import { cn } from '@/lib/utils';
 import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
 
-type SubStep = 'pressure' | 'prv' | 'flow-rate' | 'hardness';
+type SubStep = 'pressure' | 'photo' | 'prv' | 'flow-rate' | 'hardness';
 type FlowRateMode = 'display' | 'unknown' | 'off';
 
 interface MeasurementsStepProps {
@@ -60,7 +60,7 @@ export function PressureStep({
   
   // Dynamic sub-steps based on unit type
   const getSubSteps = (): SubStep[] => {
-    const steps: SubStep[] = ['pressure', 'prv'];
+    const steps: SubStep[] = ['pressure', 'photo', 'prv'];
     if (isTankless) {
       steps.push('flow-rate');
     }
@@ -87,13 +87,6 @@ export function PressureStep({
       onPressurePhoto(url);
     }
   };
-
-  const removePhoto = () => {
-    onPressurePhoto(undefined);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
   
   const psiStatus = getPsiStatus(data.housePsi);
   const effectiveHardness = data.measuredHardnessGPG ?? streetHardnessGPG;
@@ -113,6 +106,8 @@ export function PressureStep({
     switch (currentSubStep) {
       case 'pressure':
         return true; // Always has default value
+      case 'photo':
+        return pressurePhotoUrl !== undefined;
       case 'prv':
         return equipmentData.hasPrv !== undefined;
       case 'flow-rate':
@@ -136,6 +131,7 @@ export function PressureStep({
   const getStepTitle = (): string => {
     switch (currentSubStep) {
       case 'pressure': return 'Water Pressure';
+      case 'photo': return 'Gauge Photo';
       case 'prv': return 'PRV Check';
       case 'flow-rate': return 'Flow Rate';
       case 'hardness': return 'Water Hardness';
@@ -146,6 +142,7 @@ export function PressureStep({
   const getStepIcon = () => {
     switch (currentSubStep) {
       case 'pressure': return <Gauge className="h-7 w-7" />;
+      case 'photo': return <Camera className="h-7 w-7" />;
       case 'prv': return <ShieldCheck className="h-7 w-7" />;
       case 'flow-rate': return <Monitor className="h-7 w-7" />;
       case 'hardness': return <Droplets className="h-7 w-7" />;
@@ -178,65 +175,25 @@ export function PressureStep({
       </p>
       
       <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">PSI Reading</Label>
-              <span className="text-3xl font-bold tabular-nums">{data.housePsi} <span className="text-sm font-medium text-muted-foreground">PSI</span></span>
-            </div>
-            <Slider
-              value={[data.housePsi]}
-              onValueChange={([val]) => onUpdate({ housePsi: val })}
-              min={20}
-              max={150}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-              <span>20</span>
-              <span>40</span>
-              <span className="text-emerald-600 font-medium">60-80</span>
-              <span>100</span>
-              <span>150</span>
-            </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-muted-foreground">PSI Reading</Label>
+            <span className="text-3xl font-bold tabular-nums">{data.housePsi} <span className="text-sm font-medium text-muted-foreground">PSI</span></span>
           </div>
-          
-          {/* Photo capture */}
-          <div className="flex flex-col items-center gap-1">
-            <Label className="text-xs text-muted-foreground">Photo</Label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handlePhotoCapture}
-              className="hidden"
-            />
-            {pressurePhotoUrl ? (
-              <div className="relative">
-                <img 
-                  src={pressurePhotoUrl} 
-                  alt="Pressure gauge" 
-                  className="w-14 h-14 rounded-lg object-cover border-2 border-primary"
-                />
-                <button
-                  type="button"
-                  onClick={removePhoto}
-                  className="absolute -top-1.5 -right-1.5 p-0.5 bg-destructive text-destructive-foreground rounded-full"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-14 h-14 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 flex flex-col items-center justify-center gap-0.5 transition-colors"
-              >
-                <Camera className="h-5 w-5 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground">Gauge</span>
-              </button>
-            )}
+          <Slider
+            value={[data.housePsi]}
+            onValueChange={([val]) => onUpdate({ housePsi: val })}
+            min={20}
+            max={150}
+            step={1}
+            className="w-full"
+          />
+          <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+            <span>20</span>
+            <span>40</span>
+            <span className="text-emerald-600 font-medium">60-80</span>
+            <span>100</span>
+            <span>150</span>
           </div>
         </div>
         
@@ -252,6 +209,68 @@ export function PressureStep({
           {psiStatus.variant === 'danger' && (
             <span className="text-xs font-normal ml-auto">PRV recommended</span>
           )}
+        </div>
+      </div>
+    </StepCard>
+  );
+
+  const renderPhotoStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Take a photo of the pressure gauge
+      </p>
+      
+      <label className="block cursor-pointer">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handlePhotoCapture}
+          className="hidden"
+        />
+        <div className={cn(
+          "w-full p-8 rounded-xl border-2 border-dashed transition-all text-center",
+          pressurePhotoUrl
+            ? "border-green-500 bg-green-50"
+            : "border-primary/50 bg-primary/5 hover:border-primary hover:bg-primary/10"
+        )}>
+          {pressurePhotoUrl ? (
+            <div className="space-y-4">
+              <img 
+                src={pressurePhotoUrl} 
+                alt="Pressure gauge" 
+                className="w-full max-w-xs mx-auto rounded-lg object-cover aspect-video"
+              />
+              <div className="flex items-center justify-center gap-2 text-green-600">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Photo captured</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Tap to retake</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center bg-primary/20">
+                <Camera className="h-10 w-10 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-lg">Take Photo</p>
+                <p className="text-sm text-muted-foreground">
+                  Capture the pressure gauge reading
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </label>
+      
+      {/* Show current reading */}
+      <div className="mt-4 p-3 bg-muted/50 rounded-xl">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Recorded reading:</span>
+          <Badge variant={psiStatus.variant === 'success' ? 'secondary' : psiStatus.variant === 'danger' ? 'destructive' : 'outline'}>
+            {data.housePsi} PSI - {psiStatus.label}
+          </Badge>
         </div>
       </div>
     </StepCard>
@@ -445,6 +464,7 @@ export function PressureStep({
   const renderCurrentSubStep = () => {
     switch (currentSubStep) {
       case 'pressure': return renderPressureStep();
+      case 'photo': return renderPhotoStep();
       case 'prv': return renderPrvStep();
       case 'flow-rate': return renderFlowRateStep();
       case 'hardness': return renderHardnessStep();
