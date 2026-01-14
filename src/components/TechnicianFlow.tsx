@@ -284,9 +284,18 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
       photos.push({ url: pressurePhotoUrl, type: 'pressure' });
     }
     
-    await saveInspection(finalData, selectedProperty?.id, photos);
+    // Pass the new address if creating a new property (convert to sync format)
+    const newAddress = newPropertyAddress ? {
+      line1: newPropertyAddress.address_line1,
+      line2: undefined,
+      city: newPropertyAddress.city,
+      state: newPropertyAddress.state,
+      zip: newPropertyAddress.zip_code,
+    } : undefined;
+    
+    await saveInspection(finalData, selectedProperty?.id, photos, newAddress);
     onComplete(finalData);
-  }, [data, pressurePhotoUrl, selectedProperty?.id, saveInspection, onComplete]);
+  }, [data, pressurePhotoUrl, selectedProperty?.id, newPropertyAddress, saveInspection, onComplete]);
   
   // Render the current step
   const renderStep = () => {
