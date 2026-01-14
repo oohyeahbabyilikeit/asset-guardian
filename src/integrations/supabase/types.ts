@@ -593,18 +593,33 @@ export type Database = {
       }
       water_heaters: {
         Row: {
+          air_filter_status: string | null
+          anode_count: number | null
+          building_type: string | null
           calendar_age_years: number | null
+          connection_type: string | null
           created_at: string
           created_by: string | null
+          error_code_count: number | null
+          exp_tank_status: string | null
+          flame_rod_status: string | null
           fuel_type: string
+          gas_line_size: string | null
           has_circ_pump: boolean | null
+          has_drain_pan: boolean | null
           has_exp_tank: boolean | null
           has_prv: boolean | null
           has_softener: boolean | null
+          house_psi: number | null
           id: string
+          inlet_filter_status: string | null
           install_date: string | null
           is_closed_loop: boolean | null
+          is_condensate_clear: boolean | null
           is_finished_area: boolean | null
+          is_leaking: boolean | null
+          last_descale_years_ago: number | null
+          leak_source: string | null
           location: string | null
           manufacturer: string | null
           model_number: string | null
@@ -612,26 +627,46 @@ export type Database = {
           photo_urls: Json | null
           property_id: string
           quality_tier: string | null
+          rated_flow_gpm: number | null
+          room_volume_type: string | null
           serial_number: string | null
+          street_hardness_gpg: number | null
           tank_capacity_gallons: number
           temp_setting: string | null
           updated_at: string
           vent_type: string | null
+          venting_scenario: string | null
+          visual_rust: boolean | null
           warranty_years: number | null
         }
         Insert: {
+          air_filter_status?: string | null
+          anode_count?: number | null
+          building_type?: string | null
           calendar_age_years?: number | null
+          connection_type?: string | null
           created_at?: string
           created_by?: string | null
+          error_code_count?: number | null
+          exp_tank_status?: string | null
+          flame_rod_status?: string | null
           fuel_type?: string
+          gas_line_size?: string | null
           has_circ_pump?: boolean | null
+          has_drain_pan?: boolean | null
           has_exp_tank?: boolean | null
           has_prv?: boolean | null
           has_softener?: boolean | null
+          house_psi?: number | null
           id?: string
+          inlet_filter_status?: string | null
           install_date?: string | null
           is_closed_loop?: boolean | null
+          is_condensate_clear?: boolean | null
           is_finished_area?: boolean | null
+          is_leaking?: boolean | null
+          last_descale_years_ago?: number | null
+          leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
           model_number?: string | null
@@ -639,26 +674,46 @@ export type Database = {
           photo_urls?: Json | null
           property_id: string
           quality_tier?: string | null
+          rated_flow_gpm?: number | null
+          room_volume_type?: string | null
           serial_number?: string | null
+          street_hardness_gpg?: number | null
           tank_capacity_gallons?: number
           temp_setting?: string | null
           updated_at?: string
           vent_type?: string | null
+          venting_scenario?: string | null
+          visual_rust?: boolean | null
           warranty_years?: number | null
         }
         Update: {
+          air_filter_status?: string | null
+          anode_count?: number | null
+          building_type?: string | null
           calendar_age_years?: number | null
+          connection_type?: string | null
           created_at?: string
           created_by?: string | null
+          error_code_count?: number | null
+          exp_tank_status?: string | null
+          flame_rod_status?: string | null
           fuel_type?: string
+          gas_line_size?: string | null
           has_circ_pump?: boolean | null
+          has_drain_pan?: boolean | null
           has_exp_tank?: boolean | null
           has_prv?: boolean | null
           has_softener?: boolean | null
+          house_psi?: number | null
           id?: string
+          inlet_filter_status?: string | null
           install_date?: string | null
           is_closed_loop?: boolean | null
+          is_condensate_clear?: boolean | null
           is_finished_area?: boolean | null
+          is_leaking?: boolean | null
+          last_descale_years_ago?: number | null
+          leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
           model_number?: string | null
@@ -666,11 +721,16 @@ export type Database = {
           photo_urls?: Json | null
           property_id?: string
           quality_tier?: string | null
+          rated_flow_gpm?: number | null
+          room_volume_type?: string | null
           serial_number?: string | null
+          street_hardness_gpg?: number | null
           tank_capacity_gallons?: number
           temp_setting?: string | null
           updated_at?: string
           vent_type?: string | null
+          venting_scenario?: string | null
+          visual_rust?: boolean | null
           warranty_years?: number | null
         }
         Relationships: [
@@ -704,10 +764,15 @@ export type Database = {
           notes: string | null
           photo_urls: Json | null
           property_id: string
+          quality_tier: string | null
           resin_type: string | null
+          salt_status: string | null
+          sanitizer_type: string | null
           serial_number: string | null
           updated_at: string
+          visual_condition: string | null
           visual_height: string | null
+          visual_iron: boolean | null
         }
         Insert: {
           capacity_grains?: number | null
@@ -722,10 +787,15 @@ export type Database = {
           notes?: string | null
           photo_urls?: Json | null
           property_id: string
+          quality_tier?: string | null
           resin_type?: string | null
+          salt_status?: string | null
+          sanitizer_type?: string | null
           serial_number?: string | null
           updated_at?: string
+          visual_condition?: string | null
           visual_height?: string | null
+          visual_iron?: boolean | null
         }
         Update: {
           capacity_grains?: number | null
@@ -740,10 +810,15 @@ export type Database = {
           notes?: string | null
           photo_urls?: Json | null
           property_id?: string
+          quality_tier?: string | null
           resin_type?: string | null
+          salt_status?: string | null
+          sanitizer_type?: string | null
           serial_number?: string | null
           updated_at?: string
+          visual_condition?: string | null
           visual_height?: string | null
+          visual_iron?: boolean | null
         }
         Relationships: [
           {

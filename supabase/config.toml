@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.analyze-water-quality]
 verify_jwt = false
+
+[functions.sync-inspection]
+verify_jwt = false
