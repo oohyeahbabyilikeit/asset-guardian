@@ -1,18 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Settings2, 
   Wind,
   AlertTriangle,
   Container,
   ShieldCheck,
-  RotateCw,
   Wrench,
-  Droplet
+  ChevronRight,
+  CheckCircle2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import type { AssetIdentification, LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
 import type { VentType } from '@/lib/opterraAlgorithm';
-import { TechnicianStepLayout, StepCard, BinaryToggle, SectionHeader } from './TechnicianStepLayout';
+import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
 
 interface EquipmentVerifyStepProps {
   assetData: AssetIdentification;
@@ -23,16 +24,18 @@ interface EquipmentVerifyStepProps {
   onNext: () => void;
 }
 
+type SubStep = 'exp-tank' | 'venting' | 'flue' | 'connection' | 'extras';
+
 const VENT_TYPE_OPTIONS: { value: VentType; label: string; desc: string }[] = [
-  { value: 'ATMOSPHERIC', label: 'Atmospheric', desc: 'Draft hood' },
-  { value: 'POWER_VENT', label: 'Power Vent', desc: 'Fan-assisted' },
+  { value: 'ATMOSPHERIC', label: 'Atmospheric', desc: 'Natural draft, B-vent' },
+  { value: 'POWER_VENT', label: 'Power Vent', desc: 'Fan-assisted, PVC exhaust' },
   { value: 'DIRECT_VENT', label: 'Direct Vent', desc: 'Sealed combustion' },
 ];
 
 const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT'; label: string; desc: string; variant?: 'warning' }[] = [
   { value: 'SHARED_FLUE', label: 'Shared Flue', desc: 'With furnace' },
-  { value: 'ORPHANED_FLUE', label: 'Orphaned', desc: 'Standalone', variant: 'warning' },
-  { value: 'DIRECT_VENT', label: 'PVC Vent', desc: 'To exterior' },
+  { value: 'ORPHANED_FLUE', label: 'Orphaned', desc: 'Standalone flue', variant: 'warning' },
+  { value: 'DIRECT_VENT', label: 'PVC Vent', desc: 'Direct to exterior' },
 ];
 
 const CONNECTION_OPTIONS: { value: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER'; label: string; variant?: 'warning' }[] = [
@@ -58,211 +61,386 @@ export function EquipmentVerifyStep({
   const isGasUnit = assetData.fuelType === 'GAS' || assetData.fuelType === 'TANKLESS_GAS';
   const isHighRiskLocation = ['ATTIC', 'UPPER_FLOOR', 'MAIN_LIVING'].includes(locationData.location as string);
   
-  // Validation
-  const ventingComplete = !isGasUnit || (assetData.ventType !== undefined && assetData.ventingScenario !== undefined);
-  const equipmentComplete = 
-    equipmentData.connectionType !== undefined && 
-    equipmentData.expTankStatus !== undefined &&
-    equipmentData.hasDrainPan !== undefined;
+  // Build step order based on fuel type
+  const getSubSteps = (): SubStep[] => {
+    if (isGasUnit) {
+      return ['exp-tank', 'venting', 'flue', 'connection', 'extras'];
+    }
+    return ['exp-tank', 'connection', 'extras'];
+  };
   
-  const isComplete = ventingComplete && equipmentComplete;
+  const subSteps = getSubSteps();
+  const [currentSubStep, setCurrentSubStep] = useState<SubStep>(subSteps[0]);
+  
+  const currentIndex = subSteps.indexOf(currentSubStep);
+  const isLastStep = currentIndex === subSteps.length - 1;
+  
+  const canProceed = (): boolean => {
+    switch (currentSubStep) {
+      case 'exp-tank':
+        return equipmentData.expTankStatus !== undefined;
+      case 'venting':
+        return assetData.ventType !== undefined;
+      case 'flue':
+        return assetData.ventingScenario !== undefined;
+      case 'connection':
+        return equipmentData.connectionType !== undefined;
+      case 'extras':
+        return equipmentData.hasDrainPan !== undefined;
+      default:
+        return false;
+    }
+  };
+  
+  const handleNext = () => {
+    if (isLastStep) {
+      onNext();
+    } else {
+      setCurrentSubStep(subSteps[currentIndex + 1]);
+    }
+  };
+  
+  const getStepTitle = (): string => {
+    switch (currentSubStep) {
+      case 'exp-tank': return 'Expansion Tank';
+      case 'venting': return 'Vent Type';
+      case 'flue': return 'Flue Scenario';
+      case 'connection': return 'Pipe Connection';
+      case 'extras': return 'Additional Equipment';
+      default: return 'Equipment';
+    }
+  };
+  
+  const getStepIcon = () => {
+    switch (currentSubStep) {
+      case 'exp-tank': return <Container className="h-7 w-7" />;
+      case 'venting': return <Wind className="h-7 w-7" />;
+      case 'flue': return <Wind className="h-7 w-7" />;
+      case 'connection': return <Wrench className="h-7 w-7" />;
+      case 'extras': return <ShieldCheck className="h-7 w-7" />;
+      default: return <Settings2 className="h-7 w-7" />;
+    }
+  };
 
-  return (
-    <TechnicianStepLayout
-      icon={<Settings2 className="h-7 w-7" />}
-      title="Equipment Verification"
-      subtitle="Verify installation components and connections"
-      onContinue={onNext}
-      continueDisabled={!isComplete}
-    >
-      {/* Expansion Tank Status */}
-      <StepCard>
-        <SectionHeader icon={<Container className="h-4 w-4" />} title="Expansion Tank" isRequired />
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border mb-3">
-          <div>
-            <p className="text-sm font-medium">Expansion Tank Status</p>
-            <p className="text-xs text-muted-foreground">Check bladder by tapping tank</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {EXP_TANK_STATUS_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                onEquipmentUpdate({ 
-                  hasExpTank: opt.value !== 'MISSING',
-                  expTankStatus: opt.value 
-                });
-              }}
-              className={cn(
-                "flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all",
-                equipmentData.expTankStatus === opt.value
-                  ? opt.color === 'green' 
-                    ? "border-green-500 bg-green-500/10 text-green-700"
-                    : opt.color === 'orange'
-                    ? "border-orange-500 bg-orange-500/10 text-orange-700"
-                    : "border-muted-foreground bg-muted text-muted-foreground"
-                  : "border-muted bg-card hover:border-primary/40"
-              )}
-            >
+  // Progress dots
+  const renderProgress = () => (
+    <div className="flex justify-center gap-2 mb-6">
+      {subSteps.map((step, index) => (
+        <button
+          key={step}
+          onClick={() => index < currentIndex && setCurrentSubStep(step)}
+          disabled={index >= currentIndex}
+          className={cn(
+            "h-2 rounded-full transition-all",
+            index === currentIndex ? "w-8 bg-primary" : "w-2",
+            index < currentIndex ? "bg-primary/60 cursor-pointer hover:bg-primary/80" : "bg-muted cursor-default"
+          )}
+        />
+      ))}
+    </div>
+  );
+
+  const renderExpTankStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Check if an expansion tank is installed and tap to test the bladder
+      </p>
+      
+      <div className="space-y-3">
+        {EXP_TANK_STATUS_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => {
+              onEquipmentUpdate({ 
+                hasExpTank: opt.value !== 'MISSING',
+                expTankStatus: opt.value 
+              });
+            }}
+            className={cn(
+              "w-full py-4 px-5 rounded-xl border-2 text-left transition-all flex items-center justify-between",
+              equipmentData.expTankStatus === opt.value
+                ? opt.color === 'green' 
+                  ? "border-green-500 bg-green-500/10"
+                  : opt.color === 'orange'
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-muted-foreground bg-muted/50"
+                : "border-muted bg-card hover:border-primary/40"
+            )}
+          >
+            <span className={cn(
+              "font-medium",
+              equipmentData.expTankStatus === opt.value
+                ? opt.color === 'green' ? "text-green-700 dark:text-green-400"
+                : opt.color === 'orange' ? "text-orange-700 dark:text-orange-400"
+                : "text-muted-foreground"
+                : "text-foreground"
+            )}>
               {opt.label}
-            </button>
-          ))}
-        </div>
-        
-        {equipmentData.expTankStatus === 'WATERLOGGED' && (
-          <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2 mt-3">
-            <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-orange-800 dark:text-orange-200">
-              Waterlogged tank increases thermal expansion stress
-            </p>
-          </div>
-        )}
-      </StepCard>
-
-      {/* Venting (Gas Only) */}
-      {isGasUnit && (
-        <StepCard>
-          <SectionHeader icon={<Wind className="h-4 w-4" />} title="Venting Configuration" isRequired />
-          
-          {/* Vent Type */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Vent Type</p>
-            <div className="grid grid-cols-1 gap-2">
-              {VENT_TYPE_OPTIONS.map((vent) => (
-                <button
-                  key={vent.value}
-                  type="button"
-                  onClick={() => onAssetUpdate({ ventType: vent.value })}
-                  className={cn(
-                    "p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
-                    assetData.ventType === vent.value
-                      ? "border-primary bg-primary/10"
-                      : "border-muted bg-card hover:border-primary/40"
-                  )}
-                >
-                  <span className="font-medium text-sm">{vent.label}</span>
-                  <span className="text-xs text-muted-foreground">{vent.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Flue Scenario */}
-          <div className="space-y-3 pt-4 border-t">
-            <p className="text-sm font-medium text-muted-foreground">Flue Scenario</p>
-            <div className="grid grid-cols-1 gap-2">
-              {FLUE_SCENARIO_OPTIONS.map((flue) => (
-                <button
-                  key={flue.value}
-                  type="button"
-                  onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
-                  className={cn(
-                    "p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
-                    assetData.ventingScenario === flue.value
-                      ? flue.variant === 'warning'
-                        ? "border-orange-500 bg-orange-500/10"
-                        : "border-primary bg-primary/10"
-                      : "border-muted bg-card hover:border-primary/40"
-                  )}
-                >
-                  <span className="font-medium text-sm">{flue.label}</span>
-                  <span className="text-xs text-muted-foreground">{flue.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {assetData.ventingScenario === 'ORPHANED_FLUE' && (
-            <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2 mt-3">
-              <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-orange-800 dark:text-orange-200">
-                Orphaned flue may require liner for replacement
-              </p>
-            </div>
-          )}
-        </StepCard>
-      )}
-
-      {/* Pipe Connection */}
-      <StepCard>
-        <SectionHeader icon={<Wrench className="h-4 w-4" />} title="Pipe Connection" isRequired />
-        <div className="grid grid-cols-3 gap-2">
-          {CONNECTION_OPTIONS.map((conn) => (
-            <button
-              key={conn.value}
-              type="button"
-              onClick={() => onEquipmentUpdate({ connectionType: conn.value })}
-              className={cn(
-                "py-3 px-3 rounded-xl border-2 text-sm font-medium transition-all",
-                equipmentData.connectionType === conn.value
-                  ? conn.variant === 'warning'
-                    ? "border-red-500 bg-red-500/10 text-red-700"
-                    : "border-primary bg-primary/10 text-primary"
-                  : "border-muted bg-card hover:border-primary/40"
-              )}
-            >
-              {conn.label}
-            </button>
-          ))}
-        </div>
-        
-        {equipmentData.connectionType === 'DIRECT_COPPER' && (
-          <div className="p-3 bg-red-100 dark:bg-red-500/20 rounded-lg flex items-start gap-2 mt-3">
-            <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-800 dark:text-red-200">
-              Galvanic corrosion risk — 3x accelerated aging
-            </p>
-          </div>
-        )}
-      </StepCard>
-
-      {/* Additional Equipment */}
-      <StepCard>
-        <SectionHeader icon={<ShieldCheck className="h-4 w-4" />} title="Additional Equipment" />
-        
-        <div className="space-y-3">
-          <BinaryToggle
-            label="Recirculation Pump"
-            description="Hot water recirculation system"
-            value={equipmentData.hasCircPump}
-            onChange={(val) => onEquipmentUpdate({ hasCircPump: val })}
-            yesVariant="success"
-            noVariant="success"
-          />
-          
-          <div className="border-t pt-3">
-            <BinaryToggle
-              label="Drain Pan Installed"
-              description={isHighRiskLocation ? "Required for high-risk location" : "Water collection pan under unit"}
-              value={equipmentData.hasDrainPan}
-              onChange={(val) => onEquipmentUpdate({ hasDrainPan: val })}
-              yesVariant="success"
-              noVariant={isHighRiskLocation ? "danger" : "success"}
-            />
-          </div>
-          
-          {isHighRiskLocation && equipmentData.hasDrainPan === false && (
-            <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-orange-800 dark:text-orange-200">
-                Drain pan strongly recommended for {locationData.location?.toLowerCase().replace('_', ' ')} location
-              </p>
-            </div>
-          )}
-        </div>
-      </StepCard>
-
-      {/* Validation Warning */}
-      {!isComplete && (
-        <div className="p-3 bg-amber-100 dark:bg-amber-500/20 rounded-lg flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            Please complete all required fields to continue
+            </span>
+            {equipmentData.expTankStatus === opt.value && (
+              <CheckCircle2 className={cn(
+                "h-5 w-5",
+                opt.color === 'green' ? "text-green-600" 
+                : opt.color === 'orange' ? "text-orange-600" 
+                : "text-muted-foreground"
+              )} />
+            )}
+          </button>
+        ))}
+      </div>
+      
+      {equipmentData.expTankStatus === 'WATERLOGGED' && (
+        <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2 mt-4">
+          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-orange-800 dark:text-orange-200">
+            Waterlogged tank increases thermal expansion stress
           </p>
         </div>
       )}
+    </StepCard>
+  );
+
+  const renderVentingStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Identify the venting system type
+      </p>
+      
+      <div className="space-y-3">
+        {VENT_TYPE_OPTIONS.map((vent) => (
+          <button
+            key={vent.value}
+            type="button"
+            onClick={() => onAssetUpdate({ ventType: vent.value })}
+            className={cn(
+              "w-full p-4 rounded-xl border-2 transition-all text-left flex justify-between items-center",
+              assetData.ventType === vent.value
+                ? "border-primary bg-primary/10"
+                : "border-muted bg-card hover:border-primary/40"
+            )}
+          >
+            <div>
+              <span className="font-medium text-sm">{vent.label}</span>
+              <p className="text-xs text-muted-foreground mt-0.5">{vent.desc}</p>
+            </div>
+            {assetData.ventType === vent.value && (
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            )}
+          </button>
+        ))}
+      </div>
+    </StepCard>
+  );
+
+  const renderFlueStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        How is the unit vented to exterior?
+      </p>
+      
+      <div className="space-y-3">
+        {FLUE_SCENARIO_OPTIONS.map((flue) => (
+          <button
+            key={flue.value}
+            type="button"
+            onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
+            className={cn(
+              "w-full p-4 rounded-xl border-2 transition-all text-left flex justify-between items-center",
+              assetData.ventingScenario === flue.value
+                ? flue.variant === 'warning'
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-primary bg-primary/10"
+                : "border-muted bg-card hover:border-primary/40"
+            )}
+          >
+            <div>
+              <span className="font-medium text-sm">{flue.label}</span>
+              <p className="text-xs text-muted-foreground mt-0.5">{flue.desc}</p>
+            </div>
+            {assetData.ventingScenario === flue.value && (
+              <CheckCircle2 className={cn(
+                "h-5 w-5",
+                flue.variant === 'warning' ? "text-orange-500" : "text-primary"
+              )} />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {assetData.ventingScenario === 'ORPHANED_FLUE' && (
+        <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2 mt-4">
+          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-orange-800 dark:text-orange-200">
+            Orphaned flue may require liner for replacement
+          </p>
+        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderConnectionStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        What type of water line connections are used?
+      </p>
+      
+      <div className="space-y-3">
+        {CONNECTION_OPTIONS.map((conn) => (
+          <button
+            key={conn.value}
+            type="button"
+            onClick={() => onEquipmentUpdate({ connectionType: conn.value })}
+            className={cn(
+              "w-full py-4 px-5 rounded-xl border-2 text-left transition-all flex items-center justify-between",
+              equipmentData.connectionType === conn.value
+                ? conn.variant === 'warning'
+                  ? "border-red-500 bg-red-500/10"
+                  : "border-primary bg-primary/10"
+                : "border-muted bg-card hover:border-primary/40"
+            )}
+          >
+            <span className={cn(
+              "font-medium",
+              equipmentData.connectionType === conn.value
+                ? conn.variant === 'warning' ? "text-red-700 dark:text-red-400" : "text-primary"
+                : "text-foreground"
+            )}>
+              {conn.label}
+            </span>
+            {equipmentData.connectionType === conn.value && (
+              <CheckCircle2 className={cn(
+                "h-5 w-5",
+                conn.variant === 'warning' ? "text-red-600" : "text-primary"
+              )} />
+            )}
+          </button>
+        ))}
+      </div>
+      
+      {equipmentData.connectionType === 'DIRECT_COPPER' && (
+        <div className="p-3 bg-red-100 dark:bg-red-500/20 rounded-lg flex items-start gap-2 mt-4">
+          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-800 dark:text-red-200">
+            Galvanic corrosion risk — 3x accelerated aging
+          </p>
+        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderExtrasStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Check for additional equipment
+      </p>
+      
+      <div className="space-y-3">
+        <button
+          onClick={() => onEquipmentUpdate({ hasCircPump: !equipmentData.hasCircPump })}
+          className={cn(
+            "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all",
+            equipmentData.hasCircPump
+              ? "border-primary bg-primary/10"
+              : "border-muted bg-card"
+          )}
+        >
+          <span className={cn("font-medium", equipmentData.hasCircPump ? "text-primary" : "text-foreground")}>
+            Recirculation Pump
+          </span>
+          <div className={cn(
+            "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all",
+            equipmentData.hasCircPump ? "border-primary bg-primary" : "border-muted-foreground"
+          )}>
+            {equipmentData.hasCircPump && <CheckCircle2 className="h-4 w-4 text-primary-foreground" />}
+          </div>
+        </button>
+        
+        <button
+          onClick={() => onEquipmentUpdate({ hasDrainPan: !equipmentData.hasDrainPan })}
+          className={cn(
+            "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all",
+            equipmentData.hasDrainPan
+              ? "border-green-500 bg-green-500/10"
+              : isHighRiskLocation
+              ? "border-red-500 bg-red-500/10"
+              : "border-muted bg-card"
+          )}
+        >
+          <div>
+            <span className={cn(
+              "font-medium",
+              equipmentData.hasDrainPan 
+                ? "text-green-700 dark:text-green-400" 
+                : isHighRiskLocation && !equipmentData.hasDrainPan
+                ? "text-red-700 dark:text-red-400"
+                : "text-foreground"
+            )}>
+              Drain Pan Installed
+            </span>
+            {isHighRiskLocation && (
+              <p className="text-xs text-muted-foreground mt-0.5">Required for high-risk location</p>
+            )}
+          </div>
+          <div className={cn(
+            "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all",
+            equipmentData.hasDrainPan 
+              ? "border-green-500 bg-green-500" 
+              : isHighRiskLocation 
+              ? "border-red-500" 
+              : "border-muted-foreground"
+          )}>
+            {equipmentData.hasDrainPan && <CheckCircle2 className="h-4 w-4 text-white" />}
+          </div>
+        </button>
+      </div>
+      
+      {isHighRiskLocation && equipmentData.hasDrainPan === false && (
+        <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2 mt-4">
+          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-orange-800 dark:text-orange-200">
+            Drain pan strongly recommended for {locationData.location?.toLowerCase().replace('_', ' ')} location
+          </p>
+        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderCurrentStep = () => {
+    switch (currentSubStep) {
+      case 'exp-tank': return renderExpTankStep();
+      case 'venting': return renderVentingStep();
+      case 'flue': return renderFlueStep();
+      case 'connection': return renderConnectionStep();
+      case 'extras': return renderExtrasStep();
+      default: return null;
+    }
+  };
+
+  return (
+    <TechnicianStepLayout
+      icon={getStepIcon()}
+      title={getStepTitle()}
+      subtitle={`Step ${currentIndex + 1} of ${subSteps.length}`}
+    >
+      <div className="flex-1 flex flex-col">
+        {renderProgress()}
+        
+        <div className="flex-1 flex flex-col justify-center">
+          {renderCurrentStep()}
+        </div>
+        
+        <div className="mt-6 pt-4 border-t border-border">
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed()}
+            className="w-full h-12 text-base font-semibold rounded-xl"
+          >
+            {isLastStep ? 'Continue' : 'Next'}
+            {!isLastStep && <ChevronRight className="ml-2 h-5 w-5" />}
+          </Button>
+        </div>
+      </div>
     </TechnicianStepLayout>
   );
 }
