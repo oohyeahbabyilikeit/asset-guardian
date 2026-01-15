@@ -7,6 +7,7 @@ import { ForensicReport } from '@/components/ForensicReport';
 import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
 import { PanicMode } from '@/components/PanicMode';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
+import { FindingsSummaryPage } from '@/components/FindingsSummaryPage';
 import { type ForensicInputs, calculateOpterraRisk, type OpterraResult } from '@/lib/opterraAlgorithm';
 import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
 import { type TechnicianInspectionData, DEFAULT_TECHNICIAN_DATA } from '@/types/technicianInspection';
@@ -21,6 +22,7 @@ type AppScreen =
   | 'onboarding'
   | 'command-center'
   | 'forensic-report'
+  | 'findings-summary'
   | 'replacement-options'
   | 'panic-mode'
   | 'maintenance-plan';
@@ -141,7 +143,15 @@ const Index = () => {
     });
   }, []);
 
-  // Handle navigation to replacement options ("See My Options" CTA)
+  // Handle navigation to findings summary (education-first approach)
+  const handleViewFindings = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      screen: 'findings-summary',
+    }));
+  }, []);
+
+  // Handle navigation to replacement options (from findings summary)
   const handleServiceRequest = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -317,9 +327,9 @@ const Index = () => {
       return (
         <CommandCenter
           onPanicMode={handlePanicMode}
-          onServiceRequest={handleServiceRequest}
+          onServiceRequest={handleViewFindings}
           onViewReport={handleViewReport}
-          onMaintenancePlan={handleMaintenancePlan}
+          onMaintenancePlan={handleViewFindings}
           currentAsset={currentAsset}
           currentInputs={currentInputs}
           opterraResult={opterraResult}
@@ -330,6 +340,19 @@ const Index = () => {
           hasSoftener={hasSoftener}
           waterHeaterStatus={whStatus}
           softenerStatus="optimal"
+        />
+      );
+
+    case 'findings-summary':
+      return (
+        <FindingsSummaryPage
+          currentInputs={currentInputs}
+          opterraResult={opterraResult}
+          infrastructureIssues={getInfrastructureIssues(currentInputs, opterraResult.metrics)}
+          onMaintenance={handleMaintenancePlan}
+          onOptions={handleServiceRequest}
+          onEmergency={handlePanicMode}
+          onBack={handleBackToCommandCenter}
         />
       );
 

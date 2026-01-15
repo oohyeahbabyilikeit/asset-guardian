@@ -86,16 +86,16 @@ export function ActionDock({
   const escalationTier = getEscalationTier();
   
   const getButtonLabel = () => {
-    if (!recommendation) return 'See My Options';
+    if (!recommendation) return 'Understand My Options';
     
     switch (escalationTier) {
       case 'red':
-        return getCTALabel(fuelType, 'critical'); // "View Safety Recommendations"
+        return 'Review My Assessment';  // Education-first: review before action
       case 'green':
         return getCTALabel(fuelType, 'optimal');  // "See Maintenance Plan"
       case 'yellow':
       default:
-        return getCTALabel(fuelType, 'default');  // "See My Options"
+        return 'Understand My Options';  // Education-first: understand before buying
     }
   };
   
