@@ -919,6 +919,14 @@ export function FindingsSummaryPage({
     });
   }
 
+  // Limit to top 3 highest impact findings (by severityValue)
+  const sortedFindings = [...findings].sort((a, b) => b.severityValue - a.severityValue);
+  const topFindings = sortedFindings.slice(0, 3);
+
+  // Clear and repopulate with top findings
+  findings.length = 0;
+  findings.push(...topFindings);
+
   // Always add economic guidance as final step
   const financial = opterraResult.financial;
   const getEconomicGuidance = () => {
