@@ -258,6 +258,7 @@ function calculateMaintenanceForecast(
 function EconomicGuidanceStep({
   finding,
   financial,
+  topFindings,
   onComplete,
 }: {
   finding: FindingCard;
@@ -267,6 +268,7 @@ function EconomicGuidanceStep({
     estReplacementCost: number;
     monthlyBudget: number;
   };
+  topFindings: FindingCard[];
   onComplete: () => void;
 }) {
   // Determine urgency level and messaging
@@ -308,6 +310,12 @@ function EconomicGuidanceStep({
   // Get the single most relevant cost to show
   const displayCost = financial.estReplacementCost;
 
+  // Get severity badge styling
+  const getSeverityStyle = (severity: string) => {
+    if (severity === 'critical') return 'bg-destructive/10 text-destructive';
+    if (severity === 'warning') return 'bg-amber-500/10 text-amber-600';
+    return 'bg-muted text-muted-foreground';
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -365,6 +373,36 @@ function EconomicGuidanceStep({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
+            {/* What we found - top stressors */}
+            {topFindings.length > 0 && isUrgent && (
+              <div className="space-y-2 mb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                  What we found
+                </p>
+                {topFindings.map((f, idx) => (
+                  <motion.div
+                    key={f.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 + idx * 0.1 }}
+                    className="flex items-start gap-2"
+                  >
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
+                      f.severity === 'critical' ? 'bg-destructive' : 
+                      f.severity === 'warning' ? 'bg-amber-500' : 'bg-muted-foreground'
+                    )} />
+                    <p className="text-sm text-foreground">
+                      <span className="font-medium">{f.title}</span>
+                      {f.measurement && (
+                        <span className="text-muted-foreground"> — {f.measurement}</span>
+                      )}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground leading-relaxed">
               {finding.explanation}
             </p>
@@ -1128,6 +1166,7 @@ export function FindingsSummaryPage({
               estReplacementCost: financial.estReplacementCost,
               monthlyBudget: financial.monthlyBudget,
             }}
+            topFindings={findings.filter(f => f.id !== 'economic-guidance')}
             onComplete={handleCompleteStep}
           />
         ) : (
