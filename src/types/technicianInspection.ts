@@ -66,6 +66,11 @@ export interface LocationCondition {
 }
 
 // Step 4: Equipment Checklist
+
+// NEW v7.10: Nipple Material Verification ("Smart Galvanic Detection")
+// Used when Direct Copper is selected to verify actual corrosion risk
+export type NippleMaterial = 'STEEL' | 'STAINLESS_BRASS' | 'FACTORY_PROTECTED';
+
 export interface EquipmentChecklist {
   hasExpTank: boolean;
   hasPrv: boolean;
@@ -78,6 +83,10 @@ export interface EquipmentChecklist {
   hasDrainPan?: boolean;
   // NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix)
   connectionType?: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER';
+  // NEW v7.10: Nipple Material ("Smart Galvanic Detection")
+  // Only relevant when connectionType is DIRECT_COPPER
+  // STEEL = galvanic risk confirmed, STAINLESS_BRASS/FACTORY_PROTECTED = safe
+  nippleMaterial?: NippleMaterial;
 }
 
 // Step 5: Softener Inspection (if present)

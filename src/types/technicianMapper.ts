@@ -46,6 +46,8 @@ export function mapTechnicianToForensicInputs(
     hasDrainPan: tech.equipment.hasDrainPan,
     // NEW v7.9: Connection Type ("Galvanic Blind Spot" Fix)
     connectionType: tech.equipment.connectionType,
+    // NEW v7.10: Nipple Material ("Smart Galvanic Detection")
+    nippleMaterial: tech.equipment.nippleMaterial,
     
     // Visual Inspection
     visualRust: tech.location.visualRust,

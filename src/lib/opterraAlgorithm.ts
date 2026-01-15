@@ -186,6 +186,11 @@ export interface ForensicInputs {
   // Direct copper-to-steel connections cause accelerated galvanic corrosion
   connectionType?: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER';
   
+  // NEW v7.10: Nipple Material ("Smart Galvanic Detection")
+  // Eliminates false positives for modern units with factory dielectric nipples
+  // Only relevant when connectionType is DIRECT_COPPER
+  nippleMaterial?: 'STEEL' | 'STAINLESS_BRASS' | 'FACTORY_PROTECTED';
+  
   // NEW v7.9: Venting Scenario ("Orphaned Vent Liability" Fix)
   // Orphaned flues require expensive chimney liners during replacement
   ventingScenario?: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT';
@@ -806,10 +811,20 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     anodeDecayRate *= 1.2;  // 20% faster anode consumption
   }
   
-  // NEW v7.9 "Galvanic Blind Spot": Direct copper-to-steel connections create a battery
-  // Galvanic corrosion accelerates anode consumption dramatically (3x faster)
+  // NEW v7.10 "Smart Galvanic Detection": Only penalize actual steel-to-copper contact
+  // Modern units (Bradford White, Rheem, A.O. Smith) have factory dielectric nipples
+  // that eliminate galvanic risk even with direct copper connections
   if (data.connectionType === 'DIRECT_COPPER') {
-    anodeDecayRate *= 3.0;  // Galvanic cell effect - rapid electrochemical attack
+    if (data.nippleMaterial === 'STEEL') {
+      // Confirmed galvanic cell - apply full 3x penalty
+      anodeDecayRate *= 3.0;  // Galvanic cell effect - rapid electrochemical attack
+    } else if (data.nippleMaterial === 'STAINLESS_BRASS' || data.nippleMaterial === 'FACTORY_PROTECTED') {
+      // Protected connection - no corrosion penalty
+      // (Serviceability warning handled separately in scoring/recommendations)
+    } else {
+      // Unknown nipple material - apply conservative penalty (assume worst case)
+      anodeDecayRate *= 3.0;
+    }
   } else if (data.connectionType === 'BRASS') {
     anodeDecayRate *= 1.3;  // Brass is better but not ideal
   }
