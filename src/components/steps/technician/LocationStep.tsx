@@ -21,7 +21,7 @@ import { useConditionScan } from '@/hooks/useConditionScan';
 import { TechnicianStepLayout, StepCard, BinaryToggle } from './TechnicianStepLayout';
 import { cn } from '@/lib/utils';
 
-type SubStep = 'location' | 'rust-check' | 'leak-check' | 'photo' | 'leak-source' | 'environment';
+type SubStep = 'location' | 'rust-check' | 'leak-check' | 'photo' | 'leak-source' | 'finished-area' | 'temp-setting';
 
 const LOCATIONS: { value: LocationType; label: string; icon: React.ReactNode; risk?: boolean }[] = [
   { value: 'GARAGE', label: 'Garage', icon: <Warehouse className="h-5 w-5" /> },
@@ -64,7 +64,7 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
     if (data.isLeaking) {
       steps.push('leak-source');
     }
-    steps.push('environment');
+    steps.push('finished-area', 'temp-setting');
     return steps;
   };
   
@@ -107,8 +107,10 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
         return conditionPhotoUrl !== undefined;
       case 'leak-source':
         return data.leakSource !== undefined;
-      case 'environment':
-        return data.isFinishedArea !== undefined && data.tempSetting !== undefined;
+      case 'finished-area':
+        return data.isFinishedArea !== undefined;
+      case 'temp-setting':
+        return data.tempSetting !== undefined;
       default:
         return false;
     }
@@ -130,7 +132,8 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
       case 'leak-check': return 'Leak Check';
       case 'photo': return 'Condition Photo';
       case 'leak-source': return 'Leak Source';
-      case 'environment': return 'Environment';
+      case 'finished-area': return 'Living Area Check';
+      case 'temp-setting': return 'Temperature Setting';
       default: return 'Location & Condition';
     }
   };
@@ -142,7 +145,8 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
       case 'leak-check': return <Droplet className="h-7 w-7" />;
       case 'photo': return <Camera className="h-7 w-7" />;
       case 'leak-source': return <Droplet className="h-7 w-7" />;
-      case 'environment': return <Thermometer className="h-7 w-7" />;
+      case 'finished-area': return <Home className="h-7 w-7" />;
+      case 'temp-setting': return <Thermometer className="h-7 w-7" />;
       default: return <MapPin className="h-7 w-7" />;
     }
   };
@@ -424,55 +428,104 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
     </StepCard>
   );
 
-  const renderEnvironmentStep = () => (
-    <StepCard className="border-0 bg-transparent shadow-none space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground text-center mb-4">
-          Is the unit in a finished living area?
-        </p>
-        <BinaryToggle
-          label="Finished Living Area?"
-          description="Unit in living space (higher damage risk)"
-          value={data.isFinishedArea}
-          onChange={(val) => onUpdate({ isFinishedArea: val })}
-          yesVariant="warning"
-          noVariant="success"
-        />
+  const renderFinishedAreaStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        Is the unit in a finished living area?
+      </p>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => onUpdate({ isFinishedArea: false })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.isFinishedArea === false
+              ? "border-green-500 bg-green-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <CheckCircle className={cn(
+            "h-10 w-10",
+            data.isFinishedArea === false ? "text-green-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold text-lg">No</span>
+          <span className="text-xs text-muted-foreground text-center">Garage, basement, etc.</span>
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => onUpdate({ isFinishedArea: true })}
+          className={cn(
+            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
+            data.isFinishedArea === true
+              ? "border-amber-500 bg-amber-50"
+              : "border-muted hover:border-primary/50"
+          )}
+        >
+          <Home className={cn(
+            "h-10 w-10",
+            data.isFinishedArea === true ? "text-amber-600" : "text-muted-foreground"
+          )} />
+          <span className="font-semibold text-lg">Yes</span>
+          <span className="text-xs text-muted-foreground text-center">Living space</span>
+        </button>
       </div>
       
-      <div className="pt-4 border-t space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Temp Dial Setting</p>
-            <p className="text-xs text-muted-foreground">Current thermostat position</p>
-          </div>
-          {data.tempSetting && (
-            <Badge variant={data.tempSetting === 'HOT' ? 'destructive' : 'secondary'}>
-              {data.tempSetting}
-            </Badge>
-          )}
+      {data.isFinishedArea === true && (
+        <div className="mt-4 p-3 bg-amber-500/10 rounded-xl flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-700">Higher damage risk if leak occurs</p>
         </div>
-        <div className="flex gap-2">
-          {TEMP_CHIPS.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => onUpdate({ tempSetting: t.value })}
-              className={cn(
-                "flex-1 py-3 rounded-xl border-2 transition-all text-sm font-medium",
-                data.tempSetting === t.value
-                  ? t.value === 'HOT' 
-                    ? "border-orange-500 bg-orange-500 text-white"
-                    : "border-primary bg-primary text-primary-foreground"
-                  : "border-muted bg-muted/30 hover:border-primary/50"
-              )}
-            >
-              <div>{t.label}</div>
-              <div className="text-[10px] opacity-70">{t.temp}</div>
-            </button>
-          ))}
-        </div>
+      )}
+    </StepCard>
+  );
+
+  const renderTempSettingStep = () => (
+    <StepCard className="border-0 bg-transparent shadow-none">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        What's the thermostat dial setting?
+      </p>
+      
+      <div className="grid grid-cols-3 gap-3">
+        {TEMP_CHIPS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => onUpdate({ tempSetting: t.value })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
+              data.tempSetting === t.value
+                ? t.value === 'HOT' 
+                  ? "border-orange-500 bg-orange-50"
+                  : t.value === 'LOW'
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-green-500 bg-green-50"
+                : "border-muted hover:border-primary/50"
+            )}
+          >
+            <Thermometer className={cn(
+              "h-8 w-8",
+              data.tempSetting === t.value
+                ? t.value === 'HOT' 
+                  ? "text-orange-600"
+                  : t.value === 'LOW'
+                  ? "text-blue-600"
+                  : "text-green-600"
+                : "text-muted-foreground"
+            )} />
+            <span className="font-semibold">{t.label}</span>
+            <span className="text-xs text-muted-foreground">{t.temp}</span>
+          </button>
+        ))}
       </div>
+      
+      {data.tempSetting === 'HOT' && (
+        <div className="mt-4 p-3 bg-orange-500/10 rounded-xl flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
+          <p className="text-sm text-orange-700">High temp accelerates wear and scale buildup</p>
+        </div>
+      )}
     </StepCard>
   );
 
@@ -483,7 +536,8 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
       case 'leak-check': return renderLeakCheckStep();
       case 'photo': return renderPhotoStep();
       case 'leak-source': return renderLeakSourceStep();
-      case 'environment': return renderEnvironmentStep();
+      case 'finished-area': return renderFinishedAreaStep();
+      case 'temp-setting': return renderTempSettingStep();
       default: return null;
     }
   };
