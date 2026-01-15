@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
-import { motion, useMotionValue, animate, MotionValue } from 'framer-motion';
+import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { ServiceHistory } from '@/components/ServiceHistory';
@@ -164,6 +164,7 @@ export function CommandCenter({
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
+  const [maxScroll, setMaxScroll] = useState(1000);
   
   // Single container ref for smooth scrolling
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -178,6 +179,19 @@ export function CommandCenter({
 
   // Motion value for continuous scroll animation
   const scrollY = useMotionValue(0);
+  
+  // ActionDock animation synced to scroll position for smooth entrance
+  const dockThreshold = maxScroll * 0.75;
+  const actionDockOpacity = useTransform(
+    scrollY,
+    [dockThreshold * 0.8, dockThreshold],
+    [0, 1]
+  );
+  const actionDockY = useTransform(
+    scrollY,
+    [dockThreshold * 0.8, dockThreshold],
+    [60, 0]
+  );
   
   // Sync scrollY motion value to container scrollTop
   useEffect(() => {
@@ -251,6 +265,9 @@ export function CommandCenter({
             end: container.scrollHeight - container.clientHeight,
           };
           
+          // Update maxScroll for ActionDock transforms
+          setMaxScroll(positions.end);
+          
           // Build keyframes and times based on which sections exist
           const keyframes: number[] = [0]; // Start at top
           const times: number[] = [0];
@@ -285,13 +302,22 @@ export function CommandCenter({
           keyframes.push(positions.dock);
           times.push(TIMELINE.END);
           
-          // Animate scrollY through keyframes
+          // Animate scrollY through keyframes, then scroll back to top
           const controls = animate(scrollY, keyframes, {
             duration: TIMELINE.TOTAL_DURATION,
             times,
             ease: 'easeInOut',
             onComplete: () => {
-              setIsAnimating(false);
+              // Brief pause at bottom, then smooth scroll back to top
+              setTimeout(() => {
+                animate(scrollY, 0, {
+                  duration: 1.2,
+                  ease: elegantEase,
+                  onComplete: () => {
+                    setIsAnimating(false);
+                  },
+                });
+              }, 600);
             },
           });
           
@@ -475,12 +501,9 @@ export function CommandCenter({
         {/* Action Dock - slides up from bottom synced with scroll timeline */}
         <motion.div
           ref={actionDockRef}
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            delay: TIMELINE.TOTAL_DURATION * TIMELINE.DOCK, 
-            duration: 0.6, 
-            ease: elegantEase 
+          style={{ 
+            opacity: actionDockOpacity,
+            y: actionDockY,
           }}
         >
           <ActionDock
