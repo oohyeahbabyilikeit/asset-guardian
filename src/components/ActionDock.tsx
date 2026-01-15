@@ -17,6 +17,8 @@ interface ActionDockProps {
   descaleStatus?: 'optimal' | 'schedule' | 'due' | 'lockout';
   // Hybrid-specific
   airFilterStatus?: 'CLEAN' | 'DIRTY' | 'CLOGGED';
+  // Layout control - static mode for animated wrapper usage
+  position?: 'fixed' | 'static';
 }
 
 export function ActionDock({ 
@@ -30,6 +32,7 @@ export function ActionDock({
   monthsToDescale,
   descaleStatus,
   airFilterStatus,
+  position = 'fixed',
 }: ActionDockProps) {
   // Get unit-aware service status
   const serviceStatus = getServiceStatus(fuelType, {
@@ -104,8 +107,13 @@ export function ActionDock({
   const isYellowTier = escalationTier === 'yellow';
   const isGreenTier = escalationTier === 'green';
   
+  const containerClasses = position === 'fixed' 
+    ? "fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"
+    : "bg-card/90 backdrop-blur-md border-t border-border p-4 safe-area-bottom";
+  
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border p-4 safe-area-bottom"
+    <div 
+      className={containerClasses}
       style={{
         boxShadow: '0 -8px 32px -8px rgba(0, 0, 0, 0.5)',
       }}
