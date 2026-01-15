@@ -22,13 +22,13 @@ const elegantEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 // Timeline configuration - single source of truth for all animation timing
 const TIMELINE = {
-  TOTAL_DURATION: 4.5, // seconds - shorter without dock pause
+  TOTAL_DURATION: 6.0, // seconds - comfortable reading pace
   // Normalized times (0-1) for each section reveal
-  PROFILE: 0.06,
-  HEALTH: 0.22,
-  HISTORY: 0.42,
-  BENCHMARKS: 0.65,
-  HARDWATER: 0.85,
+  PROFILE: 0.08,
+  HEALTH: 0.24,
+  HISTORY: 0.44,
+  BENCHMARKS: 0.64,
+  HARDWATER: 0.82,
   END: 1.0,
 };
 
@@ -303,29 +303,32 @@ export function CommandCenter({
           keyframes.push(positions.end);
           times.push(TIMELINE.END);
           
-          // Function to trigger reversal
+          // Function to trigger reversal with a brief pause at bottom
           const triggerReversal = () => {
             if (reversalTriggeredRef.current) return;
             reversalTriggeredRef.current = true;
             
-            // Immediately scroll back to top
-            animate(scrollY, 0, {
-              duration: 0.8,
-              ease: elegantEase,
-              onComplete: () => {
-                // Reveal dock after we're back at top
-                if (!dockRevealedRef.current) {
-                  dockRevealedRef.current = true;
-                  animate(actionDockOpacity, 1, { duration: 0.3, ease: elegantEase });
-                  animate(actionDockY, 0, { duration: 0.3, ease: elegantEase });
-                }
-                setIsAnimating(false);
-              },
-            });
+            // Brief pause at bottom so user can see we reached the end
+            setTimeout(() => {
+              // Scroll back to top at comfortable pace
+              animate(scrollY, 0, {
+                duration: 1.2,
+                ease: elegantEase,
+                onComplete: () => {
+                  // Reveal dock after we're back at top
+                  if (!dockRevealedRef.current) {
+                    dockRevealedRef.current = true;
+                    animate(actionDockOpacity, 1, { duration: 0.3, ease: elegantEase });
+                    animate(actionDockY, 0, { duration: 0.3, ease: elegantEase });
+                  }
+                  setIsAnimating(false);
+                },
+              });
+            }, 400); // 400ms pause at bottom
           };
           
-          // Watch for when we get close to bottom to trigger immediate reversal
-          const bottomThreshold = 20; // pixels from bottom
+          // Watch for when we reach the bottom
+          const bottomThreshold = 5; // pixels from bottom
           const unsubscribeChange = scrollY.on('change', (latest) => {
             if (!reversalTriggeredRef.current && latest >= positions.end - bottomThreshold) {
               // Stop watching and trigger reversal immediately
