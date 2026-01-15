@@ -748,16 +748,27 @@ export function FindingsSummaryPage({
     });
   }
   
-  // Missing expansion tank in closed system
+  // Missing or broken expansion tank in closed system
   const isClosedSystem = currentInputs.isClosedLoop || currentInputs.hasPrv || currentInputs.hasCircPump;
-  if (isClosedSystem && !currentInputs.hasExpTank) {
+  const hasWorkingExpTank = currentInputs.expTankStatus === 'FUNCTIONAL' || 
+    (currentInputs.hasExpTank && currentInputs.expTankStatus !== 'WATERLOGGED' && currentInputs.expTankStatus !== 'MISSING');
+  
+  if (isClosedSystem && !hasWorkingExpTank) {
+    // Get the actual pressure multiplier from metrics to show real impact
+    const pressureMultiplier = metrics.stressFactors?.pressure || 1;
+    const isCriticalExpansion = pressureMultiplier >= 3;
+    const isWaterlogged = currentInputs.expTankStatus === 'WATERLOGGED';
+    
     findings.push({
       id: 'expansion-tank',
       icon: <ThermometerSun className="w-6 h-6" />,
-      title: 'Thermal Expansion Not Managed',
-      explanation: 'Your home has a closed plumbing system, but no expansion tank is installed. When water heats up, it expands—without somewhere to go, this creates pressure spikes that stress your tank.',
-      severity: 'warning',
-      severityValue: 65,
+      title: isWaterlogged ? 'Expansion Tank Waterlogged' : 'Unmanaged Thermal Expansion',
+      measurement: pressureMultiplier > 1 ? `${pressureMultiplier.toFixed(1)}x accelerated aging` : undefined,
+      explanation: isWaterlogged 
+        ? `Your expansion tank has failed—it's full of water instead of absorbing pressure spikes. With your PRV creating a closed system, every heating cycle causes pressure to spike to 120+ PSI. This is aging your tank ${pressureMultiplier.toFixed(0)}x faster than normal.`
+        : `Your PRV creates a closed plumbing system, but there's no expansion tank. Every time your water heater cycles, pressure spikes to 120+ PSI with nowhere to go. This is aging your tank ${pressureMultiplier.toFixed(0)}x faster than normal.`,
+      severity: isCriticalExpansion ? 'critical' : 'warning',
+      severityValue: isCriticalExpansion ? 90 : 65,
       educationalTopic: 'thermal-expansion',
     });
   }
