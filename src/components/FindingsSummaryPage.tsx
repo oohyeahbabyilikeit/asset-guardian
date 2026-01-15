@@ -2,10 +2,11 @@ import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shie
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
-import { ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
+import { ForensicInputs, OpterraResult, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import { InfrastructureIssue, getIssuesByCategory } from '@/lib/infrastructureIssues';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MaintenanceEducationCard } from './MaintenanceEducationCard';
 
 interface FindingsSummaryPageProps {
   currentInputs: ForensicInputs;
@@ -261,6 +262,8 @@ function EconomicGuidanceStep({
   repairCosts,
   currentAge,
   fuelType,
+  currentInputs,
+  metrics,
   onComplete,
 }: {
   finding: FindingCard;
@@ -275,6 +278,8 @@ function EconomicGuidanceStep({
   repairCosts: number;
   currentAge: number;
   fuelType: string;
+  currentInputs: ForensicInputs;
+  metrics: OpterraMetrics;
   onComplete: () => void;
 }) {
   const isReplacementRecommended = finding.severity === 'critical' || finding.severity === 'warning';
@@ -488,25 +493,35 @@ function EconomicGuidanceStep({
               </motion.div>
             )}
 
-            {/* Budget recommendation for non-urgent cases */}
-            {!isReplacementRecommended && financial.monthlyBudget > 0 && (
+            {/* Maintenance Education Card for non-urgent cases */}
+            {!isReplacementRecommended && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
-                className="mt-6 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30"
+                className="mt-6"
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/20 rounded-lg">
-                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                <MaintenanceEducationCard
+                  currentInputs={currentInputs}
+                  metrics={metrics}
+                />
+                
+                {/* Budget suggestion below maintenance schedule */}
+                {financial.monthlyBudget > 0 && (
+                  <div className="mt-4 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-500/20 rounded-lg">
+                        <DollarSign className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Budget for Replacement</p>
+                        <p className="text-xs text-muted-foreground">
+                          Set aside <span className="font-semibold text-emerald-600">${financial.monthlyBudget}/month</span> for eventual replacement
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Budget Suggestion</p>
-                    <p className="text-xs text-muted-foreground">
-                      Set aside <span className="font-semibold text-emerald-600">${financial.monthlyBudget}/month</span> for eventual replacement
-                    </p>
-                  </div>
-                </div>
+                )}
               </motion.div>
             )}
           </div>
@@ -1200,6 +1215,8 @@ export function FindingsSummaryPage({
             repairCosts={infrastructureIssues.reduce((sum, issue) => sum + (issue.costMin || 0), 0)}
             currentAge={currentInputs.calendarAge}
             fuelType={currentInputs.fuelType}
+            currentInputs={currentInputs}
+            metrics={metrics}
             onComplete={handleCompleteStep}
           />
         ) : (
