@@ -38,6 +38,10 @@ export interface MaintenanceSchedule {
   primaryTask: MaintenanceTask;
   secondaryTask: MaintenanceTask | null;
   additionalTasks: MaintenanceTask[];
+  // Bundling for tasks due close together
+  isBundled: boolean;
+  bundledTasks?: MaintenanceTask[];
+  bundleReason?: string;
 }
 
 // --- TANK WATER HEATER MAINTENANCE ---
@@ -85,11 +89,34 @@ function calculateTankMaintenance(
   // Determine priority
   const flushIsNext = cappedMonthsToFlush <= cappedMonthsToAnode;
   
+  // Bundling logic: if both tasks are due within 2 months of each other, bundle them
+  const BUNDLE_THRESHOLD_MONTHS = 2;
+  const monthsDiff = Math.abs(cappedMonthsToFlush - cappedMonthsToAnode);
+  const shouldBundle = monthsDiff <= BUNDLE_THRESHOLD_MONTHS;
+  
+  if (shouldBundle) {
+    const earliestDue = Math.min(cappedMonthsToFlush, cappedMonthsToAnode);
+    const bundleReason = earliestDue <= 0 
+      ? 'Complete both in one service visit'
+      : `Both due within ${BUNDLE_THRESHOLD_MONTHS} months`;
+    
+    return {
+      unitType: 'tank',
+      primaryTask: flushIsNext ? flushTask : anodeTask,
+      secondaryTask: null,
+      additionalTasks: [],
+      isBundled: true,
+      bundledTasks: [flushTask, anodeTask],
+      bundleReason,
+    };
+  }
+  
   return {
     unitType: 'tank',
     primaryTask: flushIsNext ? flushTask : anodeTask,
     secondaryTask: flushIsNext ? anodeTask : flushTask,
     additionalTasks: [],
+    isBundled: false,
   };
 }
 
@@ -133,6 +160,7 @@ function calculateTanklessMaintenance(
       primaryTask: replacementTask,
       secondaryTask: null,
       additionalTasks: [],
+      isBundled: false,
     };
   }
   
@@ -218,11 +246,34 @@ function calculateTanklessMaintenance(
     secondaryTask = descaleTask;
   }
   
+  // Bundle descale + filter if both due within 2 months
+  const BUNDLE_THRESHOLD_MONTHS = 2;
+  const descaleMonths = descaleTask.monthsUntilDue;
+  const filterMonths = filterTask.monthsUntilDue;
+  const monthsDiff = Math.abs(descaleMonths - filterMonths);
+  const canBundle = !valveTask && monthsDiff <= BUNDLE_THRESHOLD_MONTHS;
+  
+  if (canBundle && secondaryTask) {
+    const earliestDue = Math.min(descaleMonths, filterMonths);
+    return {
+      unitType: 'tankless',
+      primaryTask,
+      secondaryTask: null,
+      additionalTasks,
+      isBundled: true,
+      bundledTasks: [descaleTask, filterTask],
+      bundleReason: earliestDue <= 0 
+        ? 'Complete both in one service visit'
+        : `Both due within ${BUNDLE_THRESHOLD_MONTHS} months`,
+    };
+  }
+  
   return {
     unitType: 'tankless',
     primaryTask,
     secondaryTask,
     additionalTasks,
+    isBundled: false,
   };
 }
 
@@ -313,11 +364,35 @@ function calculateHybridMaintenance(
     additionalTasks.push(condensateTask);
   }
   
+  // Bundle logic for hybrid: air filter + condensate if both due soon
+  const BUNDLE_THRESHOLD_MONTHS = 2;
+  const airFilterMonths = airFilterTask.monthsUntilDue;
+  const condensateMonths = condensateTask.monthsUntilDue;
+  const monthsDiff = Math.abs(airFilterMonths - condensateMonths);
+  const shouldBundle = monthsDiff <= BUNDLE_THRESHOLD_MONTHS && 
+    Math.min(airFilterMonths, condensateMonths) <= 3;
+  
+  if (shouldBundle) {
+    const earliestDue = Math.min(airFilterMonths, condensateMonths);
+    return {
+      unitType: 'hybrid',
+      primaryTask,
+      secondaryTask: null,
+      additionalTasks: [flushTask],
+      isBundled: true,
+      bundledTasks: [airFilterTask, condensateTask],
+      bundleReason: earliestDue <= 0 
+        ? 'Complete both in one service visit'
+        : `Both due within ${BUNDLE_THRESHOLD_MONTHS} months`,
+    };
+  }
+  
   return {
     unitType: 'hybrid',
     primaryTask,
     secondaryTask,
     additionalTasks,
+    isBundled: false,
   };
 }
 
