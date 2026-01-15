@@ -1536,7 +1536,7 @@ export function FindingsSummaryPage({
       {/* Chat FAB */}
       <button
         onClick={() => setShowChatbot(true)}
-        className="fixed bottom-28 right-6 z-20 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center"
+        className="fixed bottom-24 right-6 z-20 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center"
         style={{ boxShadow: '0 4px 20px -4px hsl(var(--primary) / 0.5)' }}
       >
         <MessageCircle className="w-6 h-6" />
