@@ -4,19 +4,26 @@ import { ModeSelectScreen } from '@/components/ModeSelectScreen';
 import { TechnicianFlow } from '@/components/TechnicianFlow';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { ForensicReport } from '@/components/ForensicReport';
+import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
+import { PanicMode } from '@/components/PanicMode';
+import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { type ForensicInputs, calculateOpterraRisk, type OpterraResult } from '@/lib/opterraAlgorithm';
 import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
 import { type TechnicianInspectionData, DEFAULT_TECHNICIAN_DATA } from '@/types/technicianInspection';
 import { mapTechnicianToForensicInputs, mapTechnicianToAssetDisplay } from '@/types/technicianMapper';
 import { type OnboardingData, DEFAULT_ONBOARDING_DATA, mapOnboardingToForensicInputs } from '@/types/onboarding';
 import type { AssetData } from '@/data/mockAsset';
+import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 
 type AppScreen = 
   | 'mode-select'
   | 'technician-flow'
   | 'onboarding'
   | 'command-center'
-  | 'forensic-report';
+  | 'forensic-report'
+  | 'replacement-options'
+  | 'panic-mode'
+  | 'maintenance-plan';
 
 interface AppState {
   screen: AppScreen;
@@ -122,7 +129,37 @@ const Index = () => {
     });
   }, []);
 
-  // Compute final inputs and results based on collected data
+  // Handle navigation to replacement options ("See My Options" CTA)
+  const handleServiceRequest = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      screen: 'replacement-options',
+    }));
+  }, []);
+
+  // Handle navigation to panic mode ("Emergency" CTA)
+  const handlePanicMode = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      screen: 'panic-mode',
+    }));
+  }, []);
+
+  // Handle navigation to maintenance plan ("See Maintenance Plan" CTA)
+  const handleMaintenancePlan = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      screen: 'maintenance-plan',
+    }));
+  }, []);
+
+  // Handle back from any sub-screen to command center
+  const handleBackToCommandCenter = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      screen: 'command-center',
+    }));
+  }, []);
   const { currentInputs, currentAsset, opterraResult } = useMemo(() => {
     let inputs: ForensicInputs;
     let asset: AssetData;
@@ -267,10 +304,10 @@ const Index = () => {
     case 'command-center':
       return (
         <CommandCenter
-          onPanicMode={() => {}}
-          onServiceRequest={() => {}}
+          onPanicMode={handlePanicMode}
+          onServiceRequest={handleServiceRequest}
           onViewReport={handleViewReport}
-          onMaintenancePlan={() => {}}
+          onMaintenancePlan={handleMaintenancePlan}
           currentAsset={currentAsset}
           currentInputs={currentInputs}
           opterraResult={opterraResult}
@@ -291,6 +328,35 @@ const Index = () => {
           inputs={currentInputs}
           onBack={handleReportBack}
         />
+      );
+
+    case 'replacement-options':
+      return (
+        <ReplacementOptionsPage
+          onBack={handleBackToCommandCenter}
+          onSchedule={handleBackToCommandCenter}
+          currentInputs={currentInputs}
+          infrastructureIssues={getInfrastructureIssues(currentInputs, opterraResult.metrics)}
+          isSafetyReplacement={isCritical}
+          agingRate={opterraResult.metrics.agingRate}
+        />
+      );
+
+    case 'panic-mode':
+      return (
+        <PanicMode onBack={handleBackToCommandCenter} />
+      );
+
+    case 'maintenance-plan':
+      return (
+        <div className="min-h-screen bg-background p-4">
+          <MaintenancePlan
+            onBack={handleBackToCommandCenter}
+            onScheduleService={handleServiceRequest}
+            currentInputs={currentInputs}
+            serviceHistory={[]}
+          />
+        </div>
       );
 
     default:
