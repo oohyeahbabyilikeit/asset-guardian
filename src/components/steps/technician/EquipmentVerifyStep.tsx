@@ -37,7 +37,7 @@ const VENT_TYPE_OPTIONS: { value: VentType; label: string; desc: string }[] = [
 const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT'; label: string; desc: string; variant?: 'warning' }[] = [
   { value: 'SHARED_FLUE', label: 'Shared Flue', desc: 'With furnace' },
   { value: 'ORPHANED_FLUE', label: 'Orphaned', desc: 'Standalone flue', variant: 'warning' },
-  { value: 'DIRECT_VENT', label: 'PVC Vent', desc: 'Direct to exterior' },
+  { value: 'DIRECT_VENT', label: 'Direct Vent', desc: 'Sealed combustion' },
 ];
 
 const CONNECTION_OPTIONS: { value: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER'; label: string; variant?: 'warning' }[] = [
