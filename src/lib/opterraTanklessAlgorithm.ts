@@ -234,9 +234,13 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // Scale is a THERMAL insulator first, flow restrictor second.
   // Thin scale can crack heat exchangers while barely affecting GPM.
   let flowLossPercent = 0;
-  if (data.ratedFlowGPM && data.flowRateGPM) {
-    flowLossPercent = ((data.ratedFlowGPM - data.flowRateGPM) / data.ratedFlowGPM) * 100;
-    flowLossPercent = Math.max(0, flowLossPercent);
+  // FIX v7.10: Use explicit null checks so 0 GPM is processed correctly (not skipped)
+  // A completely clogged unit (0 GPM) was previously getting a "perfect flow" score
+  if (data.ratedFlowGPM && data.flowRateGPM !== undefined && data.flowRateGPM !== null) {
+    const rawLoss = ((data.ratedFlowGPM - data.flowRateGPM) / data.ratedFlowGPM) * 100;
+    // Clamp: negative loss (over-flow from high pressure) becomes 0, max at 100%
+    // Prevents "113% flow" display from units flowing above rated GPM
+    flowLossPercent = Math.min(100, Math.max(0, rawLoss));
   }
   // If not measured, flow loss stays at 0 (unknown) — we warn on SCALE instead
 
@@ -245,7 +249,10 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   // =========================================
   
   // Scale Stress: Non-linear (Exponential heat stress on copper)
-  const scaleStress = 1.0 + Math.pow(scaleBuildupScore / 10, 2.0);
+  // FIX v7.10: Changed divisor from 10 to 30 to prevent 100x multiplier explosion
+  // At 100% scale: 1 + (100/30)^2 = 1 + 11.1 = 12.1x (reasonable)
+  // At 60% scale (lockout): 1 + (60/30)^2 = 1 + 4 = 5x
+  const scaleStress = 1.0 + Math.pow(scaleBuildupScore / 30, 2.0);
 
   // Flow Stress: Physical restriction
   let flowStress = 1.0;
