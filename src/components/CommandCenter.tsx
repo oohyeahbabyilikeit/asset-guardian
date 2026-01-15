@@ -316,18 +316,17 @@ export function CommandCenter({
             times,
             ease: 'easeInOut',
             onComplete: () => {
-              // Reveal dock exactly once when we hit the bottom
-              if (!dockRevealedRef.current) {
-                dockRevealedRef.current = true;
-                animate(actionDockOpacity, 1, { duration: 0.3, ease: elegantEase });
-                animate(actionDockY, 0, { duration: 0.3, ease: elegantEase });
-              }
-              
-              // Immediately start scrolling back to top (overlaps with dock reveal)
+              // Immediately scroll back to top (dock stays hidden)
               animate(scrollY, 0, {
                 duration: 1.0,
                 ease: elegantEase,
                 onComplete: () => {
+                  // NOW reveal dock after we're back at top
+                  if (!dockRevealedRef.current) {
+                    dockRevealedRef.current = true;
+                    animate(actionDockOpacity, 1, { duration: 0.35, ease: elegantEase });
+                    animate(actionDockY, 0, { duration: 0.35, ease: elegantEase });
+                  }
                   setIsAnimating(false);
                 },
               });
