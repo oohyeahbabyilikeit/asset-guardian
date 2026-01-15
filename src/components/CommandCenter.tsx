@@ -22,14 +22,13 @@ const elegantEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 // Timeline configuration - single source of truth for all animation timing
 const TIMELINE = {
-  TOTAL_DURATION: 5.5, // seconds
+  TOTAL_DURATION: 4.5, // seconds - shorter without dock pause
   // Normalized times (0-1) for each section reveal
-  PROFILE: 0.05,
-  HEALTH: 0.18,
-  HISTORY: 0.36,
-  BENCHMARKS: 0.54,
-  HARDWATER: 0.72,
-  DOCK: 0.85,
+  PROFILE: 0.06,
+  HEALTH: 0.22,
+  HISTORY: 0.42,
+  BENCHMARKS: 0.65,
+  HARDWATER: 0.85,
   END: 1.0,
 };
 
@@ -174,13 +173,12 @@ export function CommandCenter({
   const historyRef = useRef<HTMLDivElement>(null);
   const benchmarksRef = useRef<HTMLDivElement>(null);
   const hardWaterRef = useRef<HTMLDivElement>(null);
-  const dockAnchorRef = useRef<HTMLDivElement>(null); // Sentinel for dock position
-
-  // Store dock target in ref to avoid re-render during animation
-  const dockTargetRef = useRef(1000);
   
   // Guard to ensure dock only reveals once per animation cycle
   const dockRevealedRef = useRef(false);
+  
+  // Track if we've triggered the reversal
+  const reversalTriggeredRef = useRef(false);
 
   // Motion value for continuous scroll animation
   const scrollY = useMotionValue(0);
@@ -269,12 +267,11 @@ export function CommandCenter({
             history: getOffset(historyRef),
             benchmarks: getOffset(benchmarksRef),
             hardWater: hasHardWaterCard ? getOffset(hardWaterRef) : null,
-            dock: getOffset(dockAnchorRef),
             end: container.scrollHeight - container.clientHeight,
           };
           
-          // Store dock target in ref for ActionDock transforms (no re-render)
-          dockTargetRef.current = positions.dock;
+          // Reset reversal trigger
+          reversalTriggeredRef.current = false;
           
           // Build keyframes and times based on which sections exist
           const keyframes: number[] = [0]; // Start at top
@@ -302,39 +299,58 @@ export function CommandCenter({
             times.push(TIMELINE.HARDWATER);
           }
           
-          // Dock - scroll to dock position
-          keyframes.push(positions.dock);
-          times.push(TIMELINE.DOCK);
-          
-          // End - scroll to absolute bottom
+          // End - scroll to bottom (no separate dock keyframe)
           keyframes.push(positions.end);
           times.push(TIMELINE.END);
           
-          // Animate scrollY through keyframes, reveal dock at bottom, then scroll back
+          // Function to trigger reversal
+          const triggerReversal = () => {
+            if (reversalTriggeredRef.current) return;
+            reversalTriggeredRef.current = true;
+            
+            // Immediately scroll back to top
+            animate(scrollY, 0, {
+              duration: 0.8,
+              ease: elegantEase,
+              onComplete: () => {
+                // Reveal dock after we're back at top
+                if (!dockRevealedRef.current) {
+                  dockRevealedRef.current = true;
+                  animate(actionDockOpacity, 1, { duration: 0.3, ease: elegantEase });
+                  animate(actionDockY, 0, { duration: 0.3, ease: elegantEase });
+                }
+                setIsAnimating(false);
+              },
+            });
+          };
+          
+          // Watch for when we get close to bottom to trigger immediate reversal
+          const bottomThreshold = 20; // pixels from bottom
+          const unsubscribeChange = scrollY.on('change', (latest) => {
+            if (!reversalTriggeredRef.current && latest >= positions.end - bottomThreshold) {
+              // Stop watching and trigger reversal immediately
+              unsubscribeChange();
+              triggerReversal();
+            }
+          });
+          
+          // Animate scrollY through keyframes
           const controls = animate(scrollY, keyframes, {
             duration: TIMELINE.TOTAL_DURATION,
             times,
             ease: 'easeInOut',
             onComplete: () => {
-              // Immediately scroll back to top (dock stays hidden)
-              animate(scrollY, 0, {
-                duration: 1.0,
-                ease: elegantEase,
-                onComplete: () => {
-                  // NOW reveal dock after we're back at top
-                  if (!dockRevealedRef.current) {
-                    dockRevealedRef.current = true;
-                    animate(actionDockOpacity, 1, { duration: 0.35, ease: elegantEase });
-                    animate(actionDockY, 0, { duration: 0.35, ease: elegantEase });
-                  }
-                  setIsAnimating(false);
-                },
-              });
+              // Fallback: if we somehow didn't trigger via threshold, do it now
+              unsubscribeChange();
+              triggerReversal();
             },
           });
           
           // Return cleanup for controls
-          return () => controls.stop();
+          return () => {
+            unsubscribeChange();
+            controls.stop();
+          };
         });
       });
     };
@@ -510,8 +526,8 @@ export function CommandCenter({
           )}
         </motion.div>
 
-        {/* Dock anchor sentinel - in normal flow for accurate measurement */}
-        <div ref={dockAnchorRef} className="h-1" aria-hidden="true" />
+        {/* Bottom spacer for scroll measurement */}
+        <div className="h-1" aria-hidden="true" />
       </div>
 
       {/* Action Dock - fixed overlay with GPU-accelerated animation */}
