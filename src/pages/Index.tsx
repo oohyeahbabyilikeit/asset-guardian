@@ -38,6 +38,7 @@ interface AppState {
   onboardingData: OnboardingData | null;
   demoScenario: GeneratedScenario | null;
   prefetchedTiers?: Record<QualityTier, TierPricing>;
+  showQuoteLoader?: boolean;
 }
 
 const Index = () => {
@@ -156,21 +157,22 @@ const Index = () => {
     }));
   }, []);
 
-  // Handle navigation to analyzing options (from findings summary)
+  // Handle navigation to replacement options with loader overlay
   const handleServiceRequest = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      screen: 'analyzing-options',
-      prefetchedTiers: undefined,
-    }));
-  }, []);
-
-  // Handle analysis complete - transition to replacement options
-  const handleAnalysisComplete = useCallback((prefetchedTiers: Record<QualityTier, TierPricing>) => {
+    console.log('[nav] handleServiceRequest -> replacement-options with loader');
     setState(prev => ({
       ...prev,
       screen: 'replacement-options',
-      prefetchedTiers,
+      prefetchedTiers: undefined,
+      showQuoteLoader: true,
+    }));
+  }, []);
+
+  // Handle loader complete - clear the loader flag
+  const handleLoaderComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      showQuoteLoader: false,
     }));
   }, []);
 
@@ -381,14 +383,9 @@ const Index = () => {
       );
 
     case 'analyzing-options':
-      return (
-        <PriceAnalysisLoader
-          currentInputs={currentInputs}
-          infrastructureIssues={getInfrastructureIssues(currentInputs, opterraResult.metrics)}
-          onComplete={handleAnalysisComplete}
-          onBack={handleBackToCommandCenter}
-        />
-      );
+      // Redirect old path to replacement-options with loader
+      setState(prev => ({ ...prev, screen: 'replacement-options', showQuoteLoader: true }));
+      return null;
 
     case 'replacement-options':
       return (
@@ -400,6 +397,8 @@ const Index = () => {
           isSafetyReplacement={isCritical}
           agingRate={opterraResult.metrics.agingRate}
           prefetchedTiers={state.prefetchedTiers}
+          showFakeLoader={state.showQuoteLoader}
+          onFakeLoaderDone={handleLoaderComplete}
         />
       );
 

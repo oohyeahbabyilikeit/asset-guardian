@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, MessageCircle, CheckCircle2, Flame, Droplets } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTieredPricing, DISPLAY_TIERS, TIER_CONFIG, TierPricing } from '@/hooks/useTieredPricing';
@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import type { ForensicInputs, QualityTier } from '@/lib/opterraAlgorithm';
 import { detectInstallComplexity, type InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTypewriter } from '@/hooks/useTypewriter';
 
 interface ReplacementOptionsPageProps {
   onBack: () => void;
@@ -19,6 +21,8 @@ interface ReplacementOptionsPageProps {
   agingRate: number;
   monthlyBudget?: number;
   prefetchedTiers?: Record<QualityTier, TierPricing>;
+  showFakeLoader?: boolean;
+  onFakeLoaderDone?: () => void;
 }
 
 const TIER_DISPLAY: Record<QualityTier, { 
@@ -102,10 +106,40 @@ export function ReplacementOptionsPage({
   agingRate,
   monthlyBudget = 0,
   prefetchedTiers,
+  showFakeLoader = false,
+  onFakeLoaderDone,
 }: ReplacementOptionsPageProps) {
   const [selectedTier, setSelectedTier] = useState<QualityTier>('STANDARD');
   const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'thinking' | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [isOverlayVisible, setIsOverlayVisible] = useState(showFakeLoader);
+
+  // Loader overlay timer - show for fixed duration then hide
+  useEffect(() => {
+    if (showFakeLoader) {
+      setIsOverlayVisible(true);
+      const timer = setTimeout(() => {
+        setIsOverlayVisible(false);
+        onFakeLoaderDone?.();
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [showFakeLoader, onFakeLoaderDone]);
+
+  // Loader animation content
+  const capacityDisplay = `${currentInputs.tankCapacity || 50} gallon`;
+  const fuelDisplay = currentInputs.fuelType === 'ELECTRIC' ? 'Electric' : 'Gas';
+  const ventDisplay = currentInputs.ventType || 'Standard';
+  const analysisSteps = useMemo(() => [
+    `Analyzing ${capacityDisplay} ${fuelDisplay.toLowerCase()} unit...`,
+    `Checking ${ventDisplay.toLowerCase()} venting requirements...`,
+    'Calculating material costs...',
+    'Reviewing installation complexity...',
+    'Generating options...',
+  ], [capacityDisplay, fuelDisplay, ventDisplay]);
+  const { displayedLines, currentLineIndex, isComplete: typewriterComplete } = useTypewriter({ lines: analysisSteps, typingSpeed: 60, lineDelay: 400 });
+  const loaderProgress = Math.min(100, Math.round(((currentLineIndex + 1) / analysisSteps.length) * 100));
+  const FuelIcon = currentInputs.fuelType === 'ELECTRIC' ? Zap : Flame;
 
   // Auto-detect installation complexity based on location and infrastructure issues
   const detectedComplexity = useMemo(() => 
@@ -150,6 +184,78 @@ export function ReplacementOptionsPage({
 
   const selectedPriceRange = getPriceRange(selectedTier);
 
+  // Loader overlay
+  if (isOverlayVisible) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+        <div className="w-full max-w-md space-y-8">
+          {/* Unit specs card */}
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-primary/20">
+                <FuelIcon className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{capacityDisplay}</p>
+                <p className="text-sm text-gray-400">{fuelDisplay} • {ventDisplay}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Progress bar */}
+          <div className="space-y-2">
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-primary to-blue-400"
+                initial={{ width: 0 }}
+                animate={{ width: `${loaderProgress}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 text-center">{loaderProgress}%</p>
+          </div>
+
+          {/* Terminal-style output */}
+          <div className="p-4 rounded-xl bg-black/40 font-mono text-sm space-y-2 min-h-[140px]">
+            <AnimatePresence mode="popLayout">
+              {displayedLines.map((line, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center gap-2"
+                >
+                  {idx < currentLineIndex ? (
+                    <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                  )}
+                  <span className={idx < currentLineIndex ? 'text-gray-400' : 'text-white'}>
+                    {line}
+                  </span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Status */}
+          <div className="text-center text-gray-400">
+            <span className="flex items-center justify-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+              </span>
+              {typewriterComplete ? 'Finalizing' : 'Analyzing'}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
