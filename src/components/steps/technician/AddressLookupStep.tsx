@@ -99,7 +99,8 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { isLocating, isReverseGeocoding, getPositionAndAddress } = useGPS();
+  const { isLocating, isReverseGeocoding, getPositionAndAddress, cancelRequest } = useGPS();
+  const [gpsError, setGpsError] = useState<string | null>(null);
   
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState<NewPropertyAddress>({
@@ -110,10 +111,21 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
   });
 
   const handleGPSFill = useCallback(async () => {
+    setGpsError(null);
     const result = await getPositionAndAddress();
-    if (result) {
-      const { address, position } = result;
-      
+    
+    if (!result) {
+      setGpsError('Could not get location. Please enter address manually.');
+      setShowAddressForm(true);
+      return;
+    }
+    
+    const { address, position } = result;
+    
+    // Always store GPS coords even if address lookup failed
+    const gpsCoords = { lat: position.latitude, lng: position.longitude };
+    
+    if (address) {
       const streetAddr = [address.streetNumber, address.street]
         .filter(Boolean)
         .join(' ');
@@ -123,16 +135,27 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
         city: address.city || '',
         state: address.state?.slice(0, 2).toUpperCase() || '',
         zip_code: address.zipCode || '',
-        gpsCoords: { lat: position.latitude, lng: position.longitude },
+        gpsCoords,
       });
       
       if (streetAddr) {
         setSearchQuery(streetAddr);
       }
-      
-      setShowAddressForm(true);
+    } else {
+      // Got coordinates but no address - let user fill in manually
+      setNewAddress(prev => ({
+        ...prev,
+        gpsCoords,
+      }));
+      setGpsError('Got location but could not find address. Please enter manually.');
     }
+    
+    setShowAddressForm(true);
   }, [getPositionAndAddress]);
+
+  const handleCancelGPS = useCallback(() => {
+    cancelRequest();
+  }, [cancelRequest]);
 
   const searchAddress = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -303,27 +326,40 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
       hideContinue
     >
       {/* GPS Auto-Fill Button */}
-      <Button
-        variant="outline"
-        onClick={handleGPSFill}
-        disabled={isLocating || isReverseGeocoding}
-        className="w-full h-14 border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary/5 gap-3"
-      >
-        {isLocating || isReverseGeocoding ? (
-          <>
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span>{isLocating ? 'Getting location...' : 'Finding address...'}</span>
-          </>
-        ) : (
-          <>
-            <LocateFixed className="h-5 w-5 text-primary" />
-            <div className="text-left">
-              <p className="font-medium">📍 Use My Location</p>
-              <p className="text-xs text-muted-foreground">Auto-fill address from GPS</p>
-            </div>
-          </>
+      <div className="space-y-2">
+        <Button
+          variant="outline"
+          onClick={isLocating || isReverseGeocoding ? handleCancelGPS : handleGPSFill}
+          className={cn(
+            "w-full h-14 border-2 gap-3 transition-all",
+            isLocating || isReverseGeocoding
+              ? "border-primary bg-primary/5"
+              : "border-dashed border-primary/50 hover:border-primary hover:bg-primary/5"
+          )}
+        >
+          {isLocating || isReverseGeocoding ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <div className="text-left flex-1">
+                <p className="font-medium">{isLocating ? 'Getting location...' : 'Finding address...'}</p>
+                <p className="text-xs text-muted-foreground">Tap to cancel</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <LocateFixed className="h-5 w-5 text-primary" />
+              <div className="text-left">
+                <p className="font-medium">📍 Use My Location</p>
+                <p className="text-xs text-muted-foreground">Auto-fill address from GPS</p>
+              </div>
+            </>
+          )}
+        </Button>
+        
+        {gpsError && (
+          <p className="text-xs text-amber-600 text-center">{gpsError}</p>
         )}
-      </Button>
+      </div>
       
       {/* Search Input */}
       <StepCard>

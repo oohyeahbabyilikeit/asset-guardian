@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
 
 export interface GeoPosition {
@@ -18,6 +18,12 @@ export interface ReverseGeocodedAddress {
   formattedAddress?: string;
 }
 
+interface CachedPosition {
+  position: GeoPosition;
+  address: ReverseGeocodedAddress | null;
+  cachedAt: number;
+}
+
 interface UseGPSResult {
   position: GeoPosition | null;
   address: ReverseGeocodedAddress | null;
@@ -26,8 +32,17 @@ interface UseGPSResult {
   error: string | null;
   getCurrentPosition: () => Promise<GeoPosition | null>;
   getAddressFromPosition: (lat: number, lng: number) => Promise<ReverseGeocodedAddress | null>;
-  getPositionAndAddress: () => Promise<{ position: GeoPosition; address: ReverseGeocodedAddress } | null>;
+  getPositionAndAddress: () => Promise<{ position: GeoPosition; address: ReverseGeocodedAddress | null } | null>;
+  cancelRequest: () => void;
 }
+
+// Cache duration: 2 minutes for positions
+const CACHE_DURATION_MS = 2 * 60 * 1000;
+// Distance threshold for cache hits: 100 meters
+const CACHE_DISTANCE_THRESHOLD_M = 100;
+
+// Global cache to persist across hook instances
+let positionCache: CachedPosition | null = null;
 
 export function useGPS(): UseGPSResult {
   const [position, setPosition] = useState<GeoPosition | null>(null);
@@ -35,6 +50,22 @@ export function useGPS(): UseGPSResult {
   const [isLocating, setIsLocating] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+
+  const cancelRequest = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsLocating(false);
+    setIsReverseGeocoding(false);
+  }, []);
 
   const getCurrentPosition = useCallback(async (): Promise<GeoPosition | null> => {
     if (!navigator.geolocation) {
@@ -44,27 +75,36 @@ export function useGPS(): UseGPSResult {
       return null;
     }
 
+    // Check cache first - return immediately if valid
+    if (positionCache && (Date.now() - positionCache.cachedAt) < CACHE_DURATION_MS) {
+      setPosition(positionCache.position);
+      setAddress(positionCache.address);
+      return positionCache.position;
+    }
+
     setIsLocating(true);
     setError(null);
 
     try {
-      // Try low accuracy first for faster response, then upgrade if needed
+      // Single attempt with reasonable timeout - no nested fallbacks
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        // First try with cached/low accuracy for speed
+        const timeoutId = setTimeout(() => {
+          reject({ code: 3, message: 'Location request timed out' });
+        }, 5000); // 5 second hard timeout
+
         navigator.geolocation.getCurrentPosition(
-          resolve, 
-          () => {
-            // If low accuracy fails, try high accuracy
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 8000,
-              maximumAge: 0,
-            });
-          }, 
+          (position) => {
+            clearTimeout(timeoutId);
+            resolve(position);
+          },
+          (error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          },
           {
-            enableHighAccuracy: false,
-            timeout: 3000,
-            maximumAge: 300000, // Accept 5 min old cache
+            enableHighAccuracy: false, // Faster, usually accurate enough
+            timeout: 4000,
+            maximumAge: 60000, // Accept 1 minute old cache
           }
         );
       });
@@ -85,7 +125,7 @@ export function useGPS(): UseGPSResult {
       else if (err.code === 3) msg = 'Location request timed out';
       
       setError(msg);
-      toast({ title: 'GPS Error', description: msg, variant: 'destructive' });
+      // Don't show toast here - let the caller decide
       return null;
     } finally {
       setIsLocating(false);
@@ -96,13 +136,24 @@ export function useGPS(): UseGPSResult {
     lat: number, 
     lng: number
   ): Promise<ReverseGeocodedAddress | null> => {
+    // Check if we have a cached address for nearby coordinates
+    if (positionCache && positionCache.address) {
+      const distance = calculateDistanceMeters(
+        lat, lng,
+        positionCache.position.latitude,
+        positionCache.position.longitude
+      );
+      if (distance < CACHE_DISTANCE_THRESHOLD_M) {
+        setAddress(positionCache.address);
+        return positionCache.address;
+      }
+    }
+
     setIsReverseGeocoding(true);
+    abortControllerRef.current = new AbortController();
     
     try {
-      // Use free Nominatim API with 5s timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
+      // Use Nominatim with shorter timeout
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
         {
@@ -110,20 +161,19 @@ export function useGPS(): UseGPSResult {
             'Accept-Language': 'en',
             'User-Agent': 'WaterHeaterInspectionApp/1.0',
           },
-          signal: controller.signal,
+          signal: abortControllerRef.current.signal,
         }
       );
       
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error('Geocoding failed');
-      }
-
-      const data = await response.json();
+      // Add a race with timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Geocoding timeout')), 3000);
+      });
+      
+      const data = await Promise.race([response.json(), timeoutPromise]);
       
       if (!data.address) {
-        throw new Error('No address found');
+        return null;
       }
 
       const addr = data.address;
@@ -140,21 +190,37 @@ export function useGPS(): UseGPSResult {
       setAddress(result);
       return result;
     } catch (err) {
-      console.error('Reverse geocoding error:', err);
-      // Don't show toast for geocoding failures - just return null
+      // Silent fail - geocoding is optional
+      console.warn('Reverse geocoding failed:', err);
       return null;
     } finally {
       setIsReverseGeocoding(false);
+      abortControllerRef.current = null;
     }
   }, []);
 
   const getPositionAndAddress = useCallback(async () => {
+    // Get position first
     const pos = await getCurrentPosition();
     if (!pos) return null;
 
-    const addr = await getAddressFromPosition(pos.latitude, pos.longitude);
-    if (!addr) return null;
+    // Start geocoding but don't wait too long
+    const geocodePromise = getAddressFromPosition(pos.latitude, pos.longitude);
+    
+    // Race between geocoding and a 3-second timeout
+    const addr = await Promise.race([
+      geocodePromise,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+    ]);
 
+    // Cache the result
+    positionCache = {
+      position: pos,
+      address: addr,
+      cachedAt: Date.now(),
+    };
+
+    // Return position even if address failed
     return { position: pos, address: addr };
   }, [getCurrentPosition, getAddressFromPosition]);
 
@@ -167,6 +233,7 @@ export function useGPS(): UseGPSResult {
     getCurrentPosition,
     getAddressFromPosition,
     getPositionAndAddress,
+    cancelRequest,
   };
 }
 
@@ -180,7 +247,23 @@ export function getGoogleMapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
-// Helper to calculate distance between two points (haversine formula)
+// Helper to calculate distance between two points in meters
+function calculateDistanceMeters(
+  lat1: number, lng1: number, 
+  lat2: number, lng2: number
+): number {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Helper to calculate distance between two points (haversine formula) in miles
 export function calculateDistance(
   lat1: number, lng1: number, 
   lat2: number, lng2: number
