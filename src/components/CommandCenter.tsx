@@ -178,6 +178,9 @@ export function CommandCenter({
 
   // Store dock target in ref to avoid re-render during animation
   const dockTargetRef = useRef(1000);
+  
+  // Guard to ensure dock only reveals once per animation cycle
+  const dockRevealedRef = useRef(false);
 
   // Motion value for continuous scroll animation
   const scrollY = useMotionValue(0);
@@ -239,6 +242,11 @@ export function CommandCenter({
     const container = scrollContainerRef.current;
     if (!container) return;
     
+    // Reset dock state at animation start
+    dockRevealedRef.current = false;
+    actionDockOpacity.set(0);
+    actionDockY.set(40);
+    
     // Wait for layout to settle before measuring
     const measureAndAnimate = () => {
       requestAnimationFrame(() => {
@@ -298,32 +306,30 @@ export function CommandCenter({
           keyframes.push(positions.dock);
           times.push(TIMELINE.DOCK);
           
-          // End - brief hold at dock (reduced duration)
+          // End - scroll to absolute bottom
           keyframes.push(positions.end);
           times.push(TIMELINE.END);
           
-          // Animate dock reveal when scroll nears bottom
-          const dockRevealTime = TIMELINE.TOTAL_DURATION * 0.75;
-          setTimeout(() => {
-            animate(actionDockOpacity, 1, { duration: 0.35, ease: elegantEase });
-            animate(actionDockY, 0, { duration: 0.35, ease: elegantEase });
-          }, dockRevealTime * 1000);
-          
-          // Animate scrollY through keyframes, then scroll back to top
+          // Animate scrollY through keyframes, reveal dock at bottom, then scroll back
           const controls = animate(scrollY, keyframes, {
             duration: TIMELINE.TOTAL_DURATION,
             times,
             ease: 'easeInOut',
             onComplete: () => {
-              // Immediate smooth scroll back to top (dock stays visible)
-              requestAnimationFrame(() => {
-                animate(scrollY, 0, {
-                  duration: 1.0,
-                  ease: elegantEase,
-                  onComplete: () => {
-                    setIsAnimating(false);
-                  },
-                });
+              // Reveal dock exactly once when we hit the bottom
+              if (!dockRevealedRef.current) {
+                dockRevealedRef.current = true;
+                animate(actionDockOpacity, 1, { duration: 0.3, ease: elegantEase });
+                animate(actionDockY, 0, { duration: 0.3, ease: elegantEase });
+              }
+              
+              // Immediately start scrolling back to top (overlaps with dock reveal)
+              animate(scrollY, 0, {
+                duration: 1.0,
+                ease: elegantEase,
+                onComplete: () => {
+                  setIsAnimating(false);
+                },
               });
             },
           });
