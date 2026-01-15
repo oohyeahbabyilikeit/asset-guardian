@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings2, 
   Wind,
@@ -7,14 +7,17 @@ import {
   ShieldCheck,
   Wrench,
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  Magnet,
+  Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import type { AssetIdentification, LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
+import type { AssetIdentification, LocationCondition, EquipmentChecklist, NippleMaterial } from '@/types/technicianInspection';
 import type { VentType } from '@/lib/opterraAlgorithm';
 import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
+import { hasFactoryDielectricNipples, getProtectionExplanation } from '@/lib/brandDielectricLookup';
 
 interface EquipmentVerifyStepProps {
   assetData: AssetIdentification;
@@ -87,7 +90,12 @@ export function EquipmentVerifyStep({
         // DIRECT_VENT - no additional input needed
         return true;
       case 'connection':
-        return equipmentData.connectionType !== undefined;
+        if (equipmentData.connectionType === undefined) return false;
+        // If Direct Copper selected, need nipple material verification
+        if (equipmentData.connectionType === 'DIRECT_COPPER') {
+          return equipmentData.nippleMaterial !== undefined;
+        }
+        return true;
       case 'extras':
         return equipmentData.hasDrainPan !== undefined;
       default:
@@ -373,6 +381,37 @@ export function EquipmentVerifyStep({
     </StepCard>
   );
 
+  // Check if brand qualifies for factory protection
+  const isFactoryProtected = hasFactoryDielectricNipples(assetData.brand, 0); // calendarAge checked externally
+  const protectionExplanation = getProtectionExplanation(assetData.brand);
+  
+  // Handle connection type selection with smart galvanic detection
+  const handleConnectionSelect = (connectionType: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER') => {
+    if (connectionType === 'DIRECT_COPPER' && isFactoryProtected) {
+      // Auto-set as factory protected for known brands
+      onEquipmentUpdate({ 
+        connectionType, 
+        nippleMaterial: 'FACTORY_PROTECTED' 
+      });
+    } else if (connectionType !== 'DIRECT_COPPER') {
+      // Clear nipple material if not Direct Copper
+      onEquipmentUpdate({ 
+        connectionType, 
+        nippleMaterial: undefined 
+      });
+    } else {
+      // Direct Copper but unknown brand - need verification
+      onEquipmentUpdate({ 
+        connectionType,
+        nippleMaterial: undefined
+      });
+    }
+  };
+  
+  const handleNippleMaterialSelect = (nippleMaterial: NippleMaterial) => {
+    onEquipmentUpdate({ nippleMaterial });
+  };
+
   const renderConnectionStep = () => (
     <StepCard className="border-0 bg-transparent shadow-none">
       <p className="text-sm text-muted-foreground text-center mb-6">
@@ -384,12 +423,16 @@ export function EquipmentVerifyStep({
           <button
             key={conn.value}
             type="button"
-            onClick={() => onEquipmentUpdate({ connectionType: conn.value })}
+            onClick={() => handleConnectionSelect(conn.value)}
             className={cn(
               "w-full py-4 px-5 rounded-xl border-2 text-left transition-all flex items-center justify-between",
               equipmentData.connectionType === conn.value
-                ? conn.variant === 'warning'
+                ? equipmentData.connectionType === 'DIRECT_COPPER' && equipmentData.nippleMaterial === 'STEEL'
                   ? "border-red-500 bg-red-500/10"
+                  : equipmentData.connectionType === 'DIRECT_COPPER' && (equipmentData.nippleMaterial === 'STAINLESS_BRASS' || equipmentData.nippleMaterial === 'FACTORY_PROTECTED')
+                  ? "border-green-500 bg-green-500/10"
+                  : equipmentData.connectionType === 'DIRECT_COPPER'
+                  ? "border-orange-500 bg-orange-500/10"
                   : "border-primary bg-primary/10"
                 : "border-muted bg-card hover:border-primary/40"
             )}
@@ -397,7 +440,11 @@ export function EquipmentVerifyStep({
             <span className={cn(
               "font-medium",
               equipmentData.connectionType === conn.value
-                ? conn.variant === 'warning' ? "text-red-700 dark:text-red-400" : "text-primary"
+                ? equipmentData.connectionType === 'DIRECT_COPPER' && equipmentData.nippleMaterial === 'STEEL'
+                  ? "text-red-700 dark:text-red-400"
+                  : equipmentData.connectionType === 'DIRECT_COPPER' && (equipmentData.nippleMaterial === 'STAINLESS_BRASS' || equipmentData.nippleMaterial === 'FACTORY_PROTECTED')
+                  ? "text-green-700 dark:text-green-400"
+                  : "text-primary"
                 : "text-foreground"
             )}>
               {conn.label}
@@ -405,19 +452,111 @@ export function EquipmentVerifyStep({
             {equipmentData.connectionType === conn.value && (
               <CheckCircle2 className={cn(
                 "h-5 w-5",
-                conn.variant === 'warning' ? "text-red-600" : "text-primary"
+                equipmentData.connectionType === 'DIRECT_COPPER' && equipmentData.nippleMaterial === 'STEEL'
+                  ? "text-red-600"
+                  : equipmentData.connectionType === 'DIRECT_COPPER' && (equipmentData.nippleMaterial === 'STAINLESS_BRASS' || equipmentData.nippleMaterial === 'FACTORY_PROTECTED')
+                  ? "text-green-600"
+                  : "text-primary"
               )} />
             )}
           </button>
         ))}
       </div>
       
+      {/* Smart Galvanic Detection: Conditional UI based on Direct Copper selection */}
       {equipmentData.connectionType === 'DIRECT_COPPER' && (
-        <div className="p-3 bg-red-100 dark:bg-red-500/20 rounded-lg flex items-start gap-2 mt-4">
-          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-800 dark:text-red-200">
-            Galvanic corrosion risk — 3x accelerated aging
-          </p>
+        <div className="mt-6 space-y-4">
+          {/* Factory Protected - Auto-verified */}
+          {equipmentData.nippleMaterial === 'FACTORY_PROTECTED' && protectionExplanation && (
+            <div className="p-4 bg-green-100 dark:bg-green-500/20 rounded-xl flex items-start gap-3">
+              <ShieldCheck className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  Factory Protected — No Corrosion Risk
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  {protectionExplanation}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Unknown Brand - Magnet Test Required */}
+          {equipmentData.nippleMaterial === undefined && !isFactoryProtected && (
+            <div className="p-4 bg-orange-100 dark:bg-orange-500/20 rounded-xl">
+              <div className="flex items-start gap-3 mb-4">
+                <Magnet className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                    Verify Nipple Material
+                  </p>
+                  <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                    Touch a magnet to the tank nipple (pipe sticking out of tank)
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleNippleMaterialSelect('STEEL')}
+                  className="py-3 px-4 rounded-lg border-2 border-red-300 bg-red-50 dark:bg-red-500/10 dark:border-red-500/50 text-center transition-all hover:border-red-500"
+                >
+                  <span className="text-2xl block mb-1">🧲</span>
+                  <span className="text-sm font-medium text-red-700 dark:text-red-400">Magnetic</span>
+                  <span className="text-xs text-red-600 dark:text-red-300 block">(Steel)</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => handleNippleMaterialSelect('STAINLESS_BRASS')}
+                  className="py-3 px-4 rounded-lg border-2 border-green-300 bg-green-50 dark:bg-green-500/10 dark:border-green-500/50 text-center transition-all hover:border-green-500"
+                >
+                  <span className="text-2xl block mb-1">✓</span>
+                  <span className="text-sm font-medium text-green-700 dark:text-green-400">Non-Magnetic</span>
+                  <span className="text-xs text-green-600 dark:text-green-300 block">(Stainless/Brass)</span>
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Steel Nipple Confirmed - Critical Warning */}
+          {equipmentData.nippleMaterial === 'STEEL' && (
+            <div className="p-4 bg-red-100 dark:bg-red-500/20 rounded-xl flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  Galvanic Corrosion Confirmed — 3x Accelerated Aging
+                </p>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                  Copper + steel creates an electrochemical cell that rapidly consumes the anode
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Stainless/Brass Verified - Safe */}
+          {equipmentData.nippleMaterial === 'STAINLESS_BRASS' && (
+            <div className="p-4 bg-green-100 dark:bg-green-500/20 rounded-xl flex items-start gap-3">
+              <ShieldCheck className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  Protected Connection — No Corrosion Risk
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  Non-magnetic nipples block galvanic current
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Serviceability Warning - Always shown for Direct Copper */}
+          <div className="p-3 bg-amber-50 dark:bg-amber-500/10 rounded-lg flex items-start gap-2">
+            <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Rigid copper piping may not meet seismic requirements. Consider flex lines at next service.
+            </p>
+          </div>
         </div>
       )}
     </StepCard>
