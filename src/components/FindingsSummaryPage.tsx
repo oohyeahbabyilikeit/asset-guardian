@@ -278,30 +278,30 @@ function RecommendationEducationStep({
     switch (recommendationType) {
       case 'REPLACE_NOW':
         return {
-          headline: "Why We Recommend Replacement",
-          subtitle: "Understanding the economics of repair vs. replace",
-          borderColor: "border-destructive/50",
-          headerBg: "bg-destructive/5",
+          headline: "Why Replacement Makes Sense Now",
+          subtitle: "Making an informed decision for your home",
+          borderColor: "border-primary/50",
+          headerBg: "bg-primary/5",
           sections: [
             {
-              title: "The Repair Trap",
+              title: "The Economics",
               icon: <DollarSign className="w-5 h-5" />,
-              content: "When a water heater reaches end-of-life, repairs become a losing investment. You'd be putting money into equipment that's already failing—and those repair costs won't extend its life significantly.",
+              content: "At this stage, repair costs often exceed their value. Investing in a new, efficient unit typically makes more financial sense than continuing to maintain aging equipment.",
             },
             {
-              title: "Hidden Failure Risks",
-              icon: <AlertTriangle className="w-5 h-5" />,
-              content: "Water heaters don't just stop working—they can fail catastrophically. A tank rupture means 40-80 gallons of water in your home, potentially causing $5,000-$50,000+ in water damage.",
+              title: "Peace of Mind",
+              icon: <Shield className="w-5 h-5" />,
+              content: "A new water heater comes with a fresh warranty, improved efficiency, and modern safety features. You'll have reliable hot water for years to come.",
             },
             {
-              title: "The Math Is Clear",
-              icon: <TrendingUp className="w-5 h-5" />,
-              content: "Planned replacement costs $2,000-4,000 on your schedule. Emergency replacement after failure? 2-3x more, plus potential water damage, time off work, and the stress of no hot water.",
+              title: "Plan on Your Terms",
+              icon: <Calendar className="w-5 h-5" />,
+              content: "Replacing proactively means you choose the timing, compare options, and find the best fit for your home—rather than making a rushed decision later.",
             },
           ],
           callout: {
-            title: "Why timing matters",
-            text: "Every month you wait increases the risk of catastrophic failure. By replacing now, you choose the timeline—not an emergency.",
+            title: "You're in control",
+            text: "This is a good time to explore your options. We can help you understand what's available and find the right solution for your needs and budget.",
           },
         };
       
