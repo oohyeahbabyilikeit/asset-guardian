@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, MessageCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,7 +7,7 @@ import { TierEducationDrawer } from '@/components/TierEducationDrawer';
 import { PlumberContactForm } from './PlumberContactForm';
 import { toast } from 'sonner';
 import type { ForensicInputs, QualityTier } from '@/lib/opterraAlgorithm';
-import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
+import { detectInstallComplexity, type InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { cn } from '@/lib/utils';
 
 interface ReplacementOptionsPageProps {
@@ -105,10 +105,16 @@ export function ReplacementOptionsPage({
   const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'thinking' | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
 
+  // Auto-detect installation complexity based on location and infrastructure issues
+  const detectedComplexity = useMemo(() => 
+    detectInstallComplexity(currentInputs.location, infrastructureIssues),
+    [currentInputs.location, infrastructureIssues]
+  );
+
   const { tiers, allLoading } = useTieredPricing(
     currentInputs, 
     undefined, 
-    'STANDARD', 
+    detectedComplexity, 
     true, 
     infrastructureIssues
   );

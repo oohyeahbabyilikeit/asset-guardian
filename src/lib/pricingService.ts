@@ -137,7 +137,33 @@ export async function lookupPriceBySpecs(
  * Uses model number if available, falls back to specs
  */
 export async function getUnitPrice(inputs: ForensicInputs): Promise<PriceResult> {
-  // Try specs-based lookup (model number would come from OCR/manual input)
+  // NEW v8.0: Try model-based lookup first if model number is available
+  if (inputs.modelNumber && inputs.modelNumber.trim().length > 0) {
+    try {
+      console.log('[Pricing] Attempting model lookup:', inputs.modelNumber, inputs.manufacturer);
+      const modelResult = await lookupPriceByModel(
+        inputs.modelNumber,
+        inputs.manufacturer
+      );
+      
+      // Ensure priceRange exists
+      if (!modelResult.priceRange) {
+        modelResult.priceRange = {
+          low: Math.round(modelResult.retailPrice * 0.88),
+          high: Math.round(modelResult.retailPrice * 1.12),
+          median: modelResult.retailPrice,
+        };
+      }
+      
+      console.log('[Pricing] Model lookup succeeded:', modelResult.retailPrice);
+      return modelResult;
+    } catch (err) {
+      console.warn('[Pricing] Model lookup failed, falling back to specs:', err);
+      // Fall through to specs-based lookup
+    }
+  }
+
+  // Fallback: specs-based lookup
   const specs = {
     fuelType: inputs.fuelType.toUpperCase(),
     capacityGallons: inputs.tankCapacity,

@@ -103,7 +103,11 @@ export interface ForensicInputs {
   // CHANGED: Technician inputs the Static Pressure measured at a fixture (Hose Bib)
   housePsi: number;        
   
-  tempSetting: TempSetting; 
+  // NEW v8.0: Asset identification for pricing lookup
+  modelNumber?: string;         // From OCR or manual input
+  manufacturer?: string;        // Brand name for accurate pricing
+  
+  tempSetting: TempSetting;
   location: LocationType;
   isFinishedArea: boolean; 
   fuelType: FuelType;
