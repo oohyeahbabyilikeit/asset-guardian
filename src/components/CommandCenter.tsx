@@ -22,7 +22,7 @@ const elegantEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 // Timeline configuration - single source of truth for all animation timing
 const TIMELINE = {
-  TOTAL_DURATION: 6.0, // seconds - comfortable reading pace
+  TOTAL_DURATION: 5.1, // seconds
   // Normalized times (0-1) for each section reveal
   PROFILE: 0.08,
   HEALTH: 0.24,
@@ -312,7 +312,7 @@ export function CommandCenter({
             setTimeout(() => {
               // Scroll back to top at comfortable pace
               animate(scrollY, 0, {
-                duration: 1.2,
+                duration: 1.0,
                 ease: elegantEase,
                 onComplete: () => {
                   // Reveal dock after we're back at top
@@ -324,7 +324,7 @@ export function CommandCenter({
                   setIsAnimating(false);
                 },
               });
-            }, 400); // 400ms pause at bottom
+            }, 340); // brief pause at bottom
           };
           
           // Watch for when we reach the bottom
