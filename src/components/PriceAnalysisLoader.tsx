@@ -28,7 +28,6 @@ export function PriceAnalysisLoader({
 }: PriceAnalysisLoaderProps) {
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [hasTransitioned, setHasTransitioned] = useState(false);
-  const [fetchStarted, setFetchStarted] = useState(false);
 
   // Fetch pricing in background
   const { tiers, allLoading } = useTieredPricing(
@@ -39,12 +38,12 @@ export function PriceAnalysisLoader({
     infrastructureIssues
   );
 
-  // Track when fetching actually starts (loading goes true)
-  useEffect(() => {
-    if (allLoading && !fetchStarted) {
-      setFetchStarted(true);
-    }
-  }, [allLoading, fetchStarted]);
+  // Check if any tier has received data (quote exists) - more robust than tracking loading state
+  // This is immune to React's state batching since it checks actual data, not loading flags
+  const hasReceivedData = useMemo(() => {
+    const displayTiers: Array<'good' | 'better' | 'best'> = ['good', 'better', 'best'];
+    return displayTiers.some(tier => tiers[tier].quote !== null);
+  }, [tiers]);
 
   // Format specs for display
   const capacityDisplay = `${currentInputs.tankCapacity || 50} gallon`;
@@ -82,13 +81,13 @@ export function PriceAnalysisLoader({
     return () => clearTimeout(timer);
   }, []);
 
-  // Transition when all conditions are met (including fetch has actually started & completed)
+  // Transition when all conditions are met (data received, not loading, min time, animation done)
   useEffect(() => {
-    if (fetchStarted && !allLoading && minTimeElapsed && typewriterComplete && !hasTransitioned) {
+    if (hasReceivedData && !allLoading && minTimeElapsed && typewriterComplete && !hasTransitioned) {
       setHasTransitioned(true);
       setTimeout(() => onComplete(tiers), 300);
     }
-  }, [fetchStarted, allLoading, minTimeElapsed, typewriterComplete, hasTransitioned, tiers, onComplete]);
+  }, [hasReceivedData, allLoading, minTimeElapsed, typewriterComplete, hasTransitioned, tiers, onComplete]);
 
   // Get fuel icon
   const FuelIcon = currentInputs.fuelType === 'ELECTRIC' ? Zap : 
