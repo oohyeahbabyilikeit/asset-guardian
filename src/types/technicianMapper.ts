@@ -212,21 +212,33 @@ export function mapTechnicianToAssetDisplay(
     ? new Date().getFullYear() - tech.calendarAge 
     : undefined;
   
+  // Log mapper inputs for debugging
+  console.log('[Mapper] Mapping technician data:', {
+    brand: tech.asset.brand,
+    model: tech.asset.model,
+    serialNumber: tech.asset.serialNumber,
+    fuelType: tech.asset.fuelType,
+    tankCapacity: tech.asset.tankCapacity,
+    ratedFlowGPM: tech.asset.ratedFlowGPM,
+    calendarAge: tech.calendarAge,
+    location: tech.location.location,
+  });
+
   return {
     id: `TECH-${Date.now()}`,
     type: getUnitTypeLabel(tech.asset.fuelType),
-    brand: tech.asset.brand || 'Unknown',
-    model: tech.asset.model || 'Unknown',
-    serialNumber: tech.asset.serialNumber || '',
+    brand: tech.asset.brand || '[NOT CAPTURED]',
+    model: tech.asset.model || '[NOT CAPTURED]',
+    serialNumber: tech.asset.serialNumber || '[NOT CAPTURED]',
     installYear,
-    calendarAge: tech.calendarAge,
-    location: getLocationLabel(tech.location.location),
+    calendarAge: tech.calendarAge || 0,
+    location: getLocationLabel(tech.location.location) || '[NOT CAPTURED]',
     specs: {
       capacity: tech.asset.tankCapacity 
         ? `${tech.asset.tankCapacity}-Gal` 
         : tech.asset.ratedFlowGPM 
           ? `${tech.asset.ratedFlowGPM} GPM`
-          : 'Unknown',
+          : '[NOT CAPTURED]',
       fuelType: getFuelTypeLabel(tech.asset.fuelType),
       ventType: tech.asset.ventType || 'N/A',
       piping: '3/4"',
