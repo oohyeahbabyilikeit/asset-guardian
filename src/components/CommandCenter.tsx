@@ -302,8 +302,8 @@ export function CommandCenter({
           keyframes.push(positions.end);
           times.push(TIMELINE.END);
           
-          // Animate dock reveal at the right moment (when scroll reaches dock)
-          const dockRevealTime = TIMELINE.TOTAL_DURATION * TIMELINE.DOCK;
+          // Animate dock reveal earlier (around benchmarks section)
+          const dockRevealTime = TIMELINE.TOTAL_DURATION * 0.5;
           setTimeout(() => {
             animate(actionDockOpacity, 1, { duration: 0.4, ease: elegantEase });
             animate(actionDockY, 0, { duration: 0.4, ease: elegantEase });
