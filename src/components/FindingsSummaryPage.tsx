@@ -1,4 +1,5 @@
-import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
@@ -256,46 +257,56 @@ function calculateMaintenanceForecast(
 // Economic Guidance Step Component (special rendering for the recommendation)
 function EconomicGuidanceStep({
   finding,
-  stepNumber,
-  totalSteps,
   financial,
-  repairCosts,
-  currentAge,
-  fuelType,
-  currentInputs,
-  metrics,
   onComplete,
 }: {
   finding: FindingCard;
-  stepNumber: number;
-  totalSteps: number;
   financial: {
     targetReplacementDate: string;
     monthsUntilTarget: number;
     estReplacementCost: number;
     monthlyBudget: number;
   };
-  repairCosts: number;
-  currentAge: number;
-  fuelType: string;
-  currentInputs: ForensicInputs;
-  metrics: OpterraMetrics;
   onComplete: () => void;
 }) {
-  const isReplacementRecommended = finding.severity === 'critical' || finding.severity === 'warning';
-  const showComparison = repairCosts > 0 || isReplacementRecommended;
-  
-  // Calculate year-by-year forecast
-  const yearsToProject = Math.max(2, Math.min(5, Math.round(financial.monthsUntilTarget / 12) + 1));
-  const forecast = calculateMaintenanceForecast(
-    currentAge,
-    yearsToProject,
-    fuelType,
-    repairCosts,
-    financial.estReplacementCost
-  );
-  
-  const savings = forecast.totalRepairPath - forecast.totalReplacePath;
+  // Determine urgency level and messaging
+  const getVerdictConfig = () => {
+    if (finding.severity === 'critical') {
+      return {
+        verdict: "Your water heater needs attention now",
+        urgencyBadge: "Act within 30 days",
+        borderColor: "border-destructive/50",
+        badgeClass: "bg-destructive/10 text-destructive border-destructive/30",
+        icon: AlertTriangle,
+        iconBg: "bg-destructive/10 text-destructive",
+      };
+    }
+    if (finding.severity === 'warning') {
+      return {
+        verdict: "Time to start planning",
+        urgencyBadge: "Plan for next 6 months",
+        borderColor: "border-amber-500/50",
+        badgeClass: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+        icon: Clock,
+        iconBg: "bg-amber-500/10 text-amber-600",
+      };
+    }
+    return {
+      verdict: "Your water heater is healthy",
+      urgencyBadge: "No rush",
+      borderColor: "border-emerald-500/50",
+      badgeClass: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+      icon: CheckCircle2,
+      iconBg: "bg-emerald-500/10 text-emerald-600",
+    };
+  };
+
+  const config = getVerdictConfig();
+  const IconComponent = config.icon;
+  const isUrgent = finding.severity === 'critical' || finding.severity === 'warning';
+
+  // Get the single most relevant cost to show
+  const displayCost = financial.estReplacementCost;
 
   return (
     <motion.div
@@ -305,233 +316,111 @@ function EconomicGuidanceStep({
       transition={{ duration: 0.4 }}
       className="px-4"
     >
-      {/* Step indicator - final step framing */}
+      {/* Step indicator */}
       <motion.div 
         className="flex items-center gap-2 mb-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
-        <span className="text-sm text-muted-foreground">
-          Final Step
-        </span>
-        <span className="text-xs px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/30">
-          Based on Your Data
-        </span>
+        <span className="text-sm text-muted-foreground">Our Recommendation</span>
       </motion.div>
 
-      {/* Main content card */}
-      <Card className="overflow-hidden border-2 border-primary/30">
+      {/* Main card with colored border based on urgency */}
+      <Card className={cn("overflow-hidden border-2", config.borderColor)}>
         <CardContent className="p-0">
-          {/* Header */}
-          <div className="p-6 bg-gradient-to-br from-primary/10 to-transparent">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <motion.div 
-                  className="inline-flex p-2 rounded-lg mb-3 bg-primary/10 text-primary"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", delay: 0.3 }}
-                >
-                  <TrendingUp className="w-6 h-6" />
-                </motion.div>
-                <motion.h2 
-                  className="text-xl font-semibold text-foreground mb-1"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  {finding.title}
-                </motion.h2>
-                <motion.p 
-                  className="text-sm text-muted-foreground flex items-center gap-1"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <Calendar className="w-4 h-4" />
-                  {finding.measurement}
-                </motion.p>
+          
+          {/* SECTION 1: The Verdict */}
+          <div className="p-6 pb-4">
+            <motion.div 
+              className="flex items-start gap-4"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <div className={cn("p-3 rounded-xl", config.iconBg)}>
+                <IconComponent className="w-6 h-6" />
               </div>
-            </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-semibold text-foreground mb-2">
+                  {config.verdict}
+                </h2>
+                <span className={cn(
+                  "inline-flex px-3 py-1 text-xs font-medium rounded-full border",
+                  config.badgeClass
+                )}>
+                  {config.urgencyBadge}
+                </span>
+              </div>
+            </motion.div>
           </div>
 
-          {/* Authoritative framing box */}
+          {/* Divider */}
+          <div className="mx-6 border-t border-border" />
+
+          {/* SECTION 2: The Why */}
           <motion.div 
-            className="mx-6 mt-2 p-3 bg-muted/50 rounded-lg border border-border"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            className="p-6 py-5"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            <p className="text-xs text-muted-foreground mb-1 font-medium uppercase tracking-wide">
-              Our Take
-            </p>
-            <p className="text-sm text-foreground">
-              This is based on the data we collected—not what anyone wants to sell you.
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {finding.explanation}
             </p>
           </motion.div>
 
-          {/* Explanation */}
-          <div className="p-6 pt-4">
-            <motion.p 
-              className="text-muted-foreground leading-relaxed"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-            >
-              {finding.explanation}
-            </motion.p>
+          {/* Divider */}
+          <div className="mx-6 border-t border-border" />
 
-            {/* Year-by-Year Cost Comparison Table */}
-            {showComparison && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-                className="mt-6"
-              >
-                <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  {yearsToProject}-Year Cost Projection
-                </h4>
-                
-                {/* Cost table */}
-                <div className="bg-muted/30 rounded-lg border border-border overflow-hidden">
-                  {/* Header row */}
-                  <div className="grid grid-cols-3 gap-2 p-2 bg-muted/50 border-b border-border text-xs font-medium">
-                    <div className="text-muted-foreground">Year</div>
-                    <div className="text-amber-600">Keep Repairing</div>
-                    <div className="text-primary">Replace Now</div>
-                  </div>
-                  
-                  {/* Year-by-year rows */}
-                  <div className="divide-y divide-border/50">
-                    {Array.from({ length: yearsToProject + 1 }, (_, yearIndex) => {
-                      const repairItem = forecast.repairPath.find(r => r.year === yearIndex);
-                      const replaceItem = forecast.replacePath.find(r => r.year === yearIndex);
-                      
-                      // Skip years with no activity on either path
-                      if (!repairItem && !replaceItem && yearIndex > 0) return null;
-                      
-                      return (
-                        <motion.div
-                          key={yearIndex}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.8 + yearIndex * 0.1 }}
-                          className="grid grid-cols-3 gap-2 p-2 text-xs"
-                        >
-                          <div className="text-muted-foreground font-medium">
-                            {yearIndex === 0 ? 'Today' : `Year ${yearIndex}`}
-                          </div>
-                          <div className="text-foreground">
-                            {repairItem ? (
-                              <div>
-                                <div className="font-medium text-amber-600">
-                                  ${repairItem.cost.toLocaleString()}
-                                </div>
-                                <div className="text-muted-foreground text-[10px] truncate">
-                                  {repairItem.label}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </div>
-                          <div className="text-foreground">
-                            {replaceItem ? (
-                              <div>
-                                <div className="font-medium text-primary">
-                                  ${replaceItem.cost.toLocaleString()}
-                                </div>
-                                <div className="text-muted-foreground text-[10px] truncate">
-                                  {replaceItem.label}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </div>
-                        </motion.div>
-                      );
-                    }).filter(Boolean)}
-                  </div>
-                  
-                  {/* Total row */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1.2 }}
-                    className="grid grid-cols-3 gap-2 p-2 bg-muted/50 border-t border-border font-medium text-sm"
-                  >
-                    <div className="text-foreground">{yearsToProject}-Year Total</div>
-                    <div className="text-amber-600">${forecast.totalRepairPath.toLocaleString()}</div>
-                    <div className="text-primary">${forecast.totalReplacePath.toLocaleString()}</div>
-                  </motion.div>
+          {/* SECTION 3: The Action */}
+          <motion.div 
+            className="p-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            {isUrgent ? (
+              // Replacement recommended
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                    Estimated replacement cost
+                  </p>
+                  <p className="text-3xl font-bold text-foreground">
+                    ${displayCost.toLocaleString()}
+                  </p>
                 </div>
-                
-                {/* Savings callout */}
-                {savings > 0 && isReplacementRecommended && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.3 }}
-                    className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/30"
-                  >
-                    <p className="text-sm text-foreground font-medium">
-                      Replacing now saves ~${savings.toLocaleString()} over {yearsToProject} years
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Plus you avoid emergency failures and water damage risk
-                    </p>
-                  </motion.div>
-                )}
-                
-                <p className="text-xs text-muted-foreground mt-3 italic">
-                  Projections include 3% annual inflation on equipment costs
-                </p>
-              </motion.div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">
+                    Includes unit + installation
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // System healthy - show budget suggestion
+              <div className="flex items-center gap-4">
+                <div className={cn("p-3 rounded-xl", config.iconBg)}>
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Budget suggestion
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Set aside <span className="font-semibold text-emerald-600">${financial.monthlyBudget}/month</span> for eventual replacement
+                  </p>
+                </div>
+              </div>
             )}
-
-            {/* Maintenance Education Card for non-urgent cases */}
-            {!isReplacementRecommended && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-                className="mt-6"
-              >
-                <MaintenanceEducationCard
-                  currentInputs={currentInputs}
-                  metrics={metrics}
-                />
-                
-                {/* Budget suggestion below maintenance schedule */}
-                {financial.monthlyBudget > 0 && (
-                  <div className="mt-4 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-500/20 rounded-lg">
-                        <DollarSign className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Budget for Replacement</p>
-                        <p className="text-xs text-muted-foreground">
-                          Set aside <span className="font-semibold text-emerald-600">${financial.monthlyBudget}/month</span> for eventual replacement
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </div>
+          </motion.div>
 
           {/* Action button */}
           <motion.div 
             className="p-4 bg-muted/30 border-t border-border"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.9 }}
+            transition={{ delay: 0.7 }}
           >
             <Button 
               onClick={onComplete}
@@ -547,7 +436,6 @@ function EconomicGuidanceStep({
     </motion.div>
   );
 }
-
 // Individual finding step component
 function FindingStep({
   finding,
@@ -1212,19 +1100,12 @@ export function FindingsSummaryPage({
           <EconomicGuidanceStep
             key={currentFinding.id}
             finding={currentFinding}
-            stepNumber={currentStep + 1}
-            totalSteps={findings.length}
             financial={{
               targetReplacementDate: financial.targetReplacementDate,
               monthsUntilTarget: financial.monthsUntilTarget,
               estReplacementCost: financial.estReplacementCost,
               monthlyBudget: financial.monthlyBudget,
             }}
-            repairCosts={infrastructureIssues.reduce((sum, issue) => sum + (issue.costMin || 0), 0)}
-            currentAge={currentInputs.calendarAge}
-            fuelType={currentInputs.fuelType}
-            currentInputs={currentInputs}
-            metrics={metrics}
             onComplete={handleCompleteStep}
           />
         ) : (
