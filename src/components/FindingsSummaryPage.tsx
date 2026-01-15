@@ -677,70 +677,79 @@ export function FindingsSummaryPage({
         </div>
       </motion.section>
 
-      {/* Findings Accordion */}
+      {/* Findings Cards */}
       <motion.section 
         className="px-4 py-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-          What We Found
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+          {isReplacementRecommended ? 'What Contributed to Failure' : 'What We Found'}
         </h2>
         
-        <Accordion type="single" collapsible className="space-y-2">
+        <div className="space-y-3">
           {displayFindings.map((finding, index) => {
-            const styles = getSeverityStyles(finding.severity);
+            const borderColor = finding.severity === 'critical' 
+              ? 'border-destructive/50' 
+              : finding.severity === 'warning' 
+                ? 'border-amber-500/50' 
+                : 'border-border';
+            
+            const iconBg = finding.severity === 'critical'
+              ? 'bg-destructive/10 text-destructive'
+              : finding.severity === 'warning'
+                ? 'bg-amber-500/10 text-amber-600'
+                : 'bg-primary/10 text-primary';
+            
             return (
               <motion.div
                 key={finding.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + index * 0.05 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + index * 0.08 }}
               >
-                <AccordionItem 
-                  value={finding.id} 
-                  className="border border-border rounded-lg px-4 bg-card data-[state=open]:bg-muted/30"
-                >
-                  <AccordionTrigger className="hover:no-underline py-3">
-                    <div className="flex items-center gap-3 text-left">
-                      <div className={cn("p-2 rounded-lg flex-shrink-0", styles.icon)}>
+                <Card className={cn("border-2", borderColor)}>
+                  <CardContent className="p-4">
+                    {/* Header with icon and title */}
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className={cn("p-2.5 rounded-xl flex-shrink-0", iconBg)}>
                         {finding.icon}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm text-foreground">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground">
                           {finding.title}
-                        </p>
+                        </h3>
                         {finding.measurement && (
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p className="text-sm text-muted-foreground mt-0.5">
                             {finding.measurement}
                           </p>
                         )}
                       </div>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-0 pb-4">
-                    <div className="pl-12 pr-2 space-y-3">
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {finding.explanation}
-                      </p>
-                      {finding.educationalTopic && (
-                        <button 
-                          onClick={() => setOpenTopic(finding.educationalTopic!)}
-                          className="text-sm text-primary hover:underline underline-offset-4 flex items-center gap-1"
-                        >
-                          <Info className="w-3.5 h-3.5" />
-                          Learn more
-                          <ChevronRight className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                    
+                    {/* Explanation - always visible */}
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {finding.explanation}
+                    </p>
+                    
+                    {/* Learn more link */}
+                    {finding.educationalTopic && (
+                      <button 
+                        onClick={() => setOpenTopic(finding.educationalTopic!)}
+                        className="mt-3 text-sm text-primary hover:underline underline-offset-4 flex items-center gap-1"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        Learn more about this
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    )}
+                  </CardContent>
+                </Card>
               </motion.div>
             );
           })}
-        </Accordion>
+        </div>
       </motion.section>
 
       {/* Sticky Footer */}
