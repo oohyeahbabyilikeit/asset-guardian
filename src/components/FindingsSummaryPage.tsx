@@ -1,4 +1,4 @@
-import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
@@ -119,6 +119,215 @@ function SeverityGauge({
         </motion.span>
       </div>
     </div>
+  );
+}
+
+// Economic Guidance Step Component (special rendering for the recommendation)
+function EconomicGuidanceStep({
+  finding,
+  stepNumber,
+  totalSteps,
+  financial,
+  repairCosts,
+  onComplete,
+}: {
+  finding: FindingCard;
+  stepNumber: number;
+  totalSteps: number;
+  financial: {
+    targetReplacementDate: string;
+    monthsUntilTarget: number;
+    estReplacementCost: number;
+    monthlyBudget: number;
+  };
+  repairCosts: number;
+  onComplete: () => void;
+}) {
+  const isReplacementRecommended = finding.severity === 'critical' || finding.severity === 'warning';
+  const showComparison = repairCosts > 0 && isReplacementRecommended;
+  
+  // Calculate cost comparison
+  const repairPath = repairCosts + Math.round(financial.estReplacementCost * 0.85);
+  const replacePath = financial.estReplacementCost;
+  const yearsUntilReplace = Math.max(1, Math.round(financial.monthsUntilTarget / 12));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.4 }}
+      className="px-4"
+    >
+      {/* Step indicator - final step framing */}
+      <motion.div 
+        className="flex items-center gap-2 mb-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <span className="text-sm text-muted-foreground">
+          Final Step
+        </span>
+        <span className="text-xs px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/30">
+          Based on Your Data
+        </span>
+      </motion.div>
+
+      {/* Main content card */}
+      <Card className="overflow-hidden border-2 border-primary/30">
+        <CardContent className="p-0">
+          {/* Header */}
+          <div className="p-6 bg-gradient-to-br from-primary/10 to-transparent">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <motion.div 
+                  className="inline-flex p-2 rounded-lg mb-3 bg-primary/10 text-primary"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", delay: 0.3 }}
+                >
+                  <TrendingUp className="w-6 h-6" />
+                </motion.div>
+                <motion.h2 
+                  className="text-xl font-semibold text-foreground mb-1"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {finding.title}
+                </motion.h2>
+                <motion.p 
+                  className="text-sm text-muted-foreground flex items-center gap-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <Calendar className="w-4 h-4" />
+                  {finding.measurement}
+                </motion.p>
+              </div>
+            </div>
+          </div>
+
+          {/* Authoritative framing box */}
+          <motion.div 
+            className="mx-6 mt-2 p-3 bg-muted/50 rounded-lg border border-border"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <p className="text-xs text-muted-foreground mb-1 font-medium uppercase tracking-wide">
+              Our Take
+            </p>
+            <p className="text-sm text-foreground">
+              This is based on the data we collected—not what anyone wants to sell you.
+            </p>
+          </motion.div>
+
+          {/* Explanation */}
+          <div className="p-6 pt-4">
+            <motion.p 
+              className="text-muted-foreground leading-relaxed"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              {finding.explanation}
+            </motion.p>
+
+            {/* Cost Comparison Chart - only show if there are meaningful repair costs */}
+            {showComparison && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="mt-6"
+              >
+                <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  The Numbers
+                </h4>
+                <div className="space-y-3">
+                  {/* Repair path */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Repair Now + Replace in ~{yearsUntilReplace} yr</span>
+                      <span className="font-medium text-foreground">${repairPath.toLocaleString()}</span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      <motion.div 
+                        className="h-full bg-amber-500/70"
+                        initial={{ width: 0 }}
+                        animate={{ width: '100%' }}
+                        transition={{ duration: 0.8, delay: 0.8 }}
+                      />
+                    </div>
+                  </div>
+                  {/* Replace path */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Replace Now</span>
+                      <span className="font-medium text-primary">${replacePath.toLocaleString()}</span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      <motion.div 
+                        className="h-full bg-primary"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(replacePath / repairPath) * 100}%` }}
+                        transition={{ duration: 0.8, delay: 0.9 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 italic">
+                  Sometimes replacing now saves money over time
+                </p>
+              </motion.div>
+            )}
+
+            {/* Budget recommendation for non-urgent cases */}
+            {!isReplacementRecommended && financial.monthlyBudget > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="mt-6 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/20 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Budget Suggestion</p>
+                    <p className="text-xs text-muted-foreground">
+                      Set aside <span className="font-semibold text-emerald-600">${financial.monthlyBudget}/month</span> for eventual replacement
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Action button */}
+          <motion.div 
+            className="p-4 bg-muted/30 border-t border-border"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.9 }}
+          >
+            <Button 
+              onClick={onComplete}
+              className="w-full"
+              size="lg"
+            >
+              <span>View Full Summary</span>
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -493,6 +702,81 @@ export function FindingsSummaryPage({
     });
   }
 
+  // Always add economic guidance as final step
+  const financial = opterraResult.financial;
+  const getEconomicGuidance = () => {
+    const age = currentInputs.calendarAge;
+    const bioAge = metrics.bioAge;
+    const replacementCost = financial.estReplacementCost;
+    const monthsUntilTarget = financial.monthsUntilTarget;
+    const urgency = financial.budgetUrgency;
+    
+    // Calculate rough repair costs from infrastructure issues (using costMin as estimate)
+    const repairCosts = infrastructureIssues.reduce((sum, issue) => sum + (issue.costMin || 0), 0);
+    const repairVsReplaceRatio = repairCosts / replacementCost;
+    
+    // Determine recommendation type
+    if (verdict.action === 'REPLACE' || urgency === 'IMMEDIATE') {
+      return {
+        recommendation: 'REPLACE_NOW' as const,
+        title: 'Replacement Is the Smart Move',
+        timeframe: 'Within the next 1-3 months',
+        reasoning: `At ${age} years old with a biological age of ${bioAge.toFixed(1)} years, your unit has exceeded its designed service life. The numbers don't support further investment in repairs.`,
+        comparison: repairCosts > 0 ? {
+          repairPath: repairCosts + Math.round(replacementCost * 0.9), // Repairs now + eventual replacement
+          replacePath: replacementCost,
+          yearsUntilReplaceAnyway: Math.min(2, monthsUntilTarget / 12),
+        } : undefined,
+      };
+    }
+    
+    if (urgency === 'HIGH' || (bioAge >= 10 && age >= 8)) {
+      return {
+        recommendation: 'REPLACE_SOON' as const,
+        title: 'Start Planning Your Replacement',
+        timeframe: financial.targetReplacementDate,
+        reasoning: `Based on the wear patterns we measured, your unit will likely need replacement around ${financial.targetReplacementDate}. Planning now means you control the timing—not an emergency.`,
+        comparison: repairCosts > 0 && repairVsReplaceRatio > 0.3 ? {
+          repairPath: repairCosts + Math.round(replacementCost),
+          replacePath: replacementCost,
+          yearsUntilReplaceAnyway: Math.round(monthsUntilTarget / 12),
+        } : undefined,
+      };
+    }
+    
+    if (repairCosts > 0 && repairVsReplaceRatio < 0.35) {
+      return {
+        recommendation: 'MAINTAIN' as const,
+        title: 'Repairs Make Sense Right Now',
+        timeframe: financial.targetReplacementDate,
+        reasoning: `Your unit is ${age} years old with room to run. The recommended repairs (${repairCosts > 0 ? `$${repairCosts.toLocaleString()}` : 'minimal cost'}) are a smart investment—they'll protect your equipment for years to come.`,
+        comparison: undefined,
+      };
+    }
+    
+    return {
+      recommendation: 'MONITOR' as const,
+      title: 'You\'re in Good Shape',
+      timeframe: `Plan for replacement around ${financial.targetReplacementDate}`,
+      reasoning: `Your system is performing well. Regular maintenance is your best investment right now. We recommend budgeting $${financial.monthlyBudget}/month toward eventual replacement.`,
+      comparison: undefined,
+    };
+  };
+
+  const economicGuidance = getEconomicGuidance();
+  
+  findings.push({
+    id: 'economic-guidance',
+    icon: <TrendingUp className="w-6 h-6" />,
+    title: 'Our Recommendation',
+    measurement: economicGuidance.timeframe,
+    explanation: economicGuidance.reasoning,
+    severity: economicGuidance.recommendation === 'REPLACE_NOW' ? 'critical' : 
+              economicGuidance.recommendation === 'REPLACE_SOON' ? 'warning' : 'info',
+    severityValue: economicGuidance.recommendation === 'REPLACE_NOW' ? 90 : 
+                   economicGuidance.recommendation === 'REPLACE_SOON' ? 65 : 30,
+  });
+
   const handleCompleteStep = () => {
     setCompletedSteps(prev => [...prev, currentStep]);
     if (currentStep < findings.length - 1) {
@@ -568,30 +852,38 @@ export function FindingsSummaryPage({
           ))}
         </motion.div>
 
-        {/* What This Means Summary */}
+        {/* What This Means Summary - Enhanced with Economic Context */}
         <motion.div 
           className="px-4 pb-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: findings.length * 0.1 }}
         >
-          <Card className="bg-muted/30 border-muted">
+          <Card className="bg-primary/5 border-primary/20">
             <CardContent className="p-4">
               <h3 className="font-medium mb-2 flex items-center gap-2">
-                <Info className="w-4 h-4 text-muted-foreground" />
-                What This Means For You
+                <TrendingUp className="w-4 h-4 text-primary" />
+                The Bottom Line
               </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {isCritical || isLeaking ? (
-                  "Based on our assessment, your system needs immediate attention. We recommend reviewing your options to understand the best path forward for your situation."
-                ) : hasViolations ? (
-                  "We found some issues that should be addressed to protect your plumbing system. You have options ranging from basic maintenance to comprehensive protection."
-                ) : metrics.healthScore < 50 ? (
-                  "Your system is showing signs of wear. Understanding your options now helps you plan ahead—whether that's maintenance to extend life or exploring replacement when you're ready."
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                {economicGuidance.recommendation === 'REPLACE_NOW' ? (
+                  `Based on the data we collected, replacement is the most economical path forward. Your unit has reached a point where repair investments won't pay off—you'd be putting money into equipment that's near end of life.`
+                ) : economicGuidance.recommendation === 'REPLACE_SOON' ? (
+                  `Your system is approaching the end of its service life. We recommend planning for replacement around ${financial.targetReplacementDate}. This gives you time to budget and choose the right solution—rather than being forced into an emergency decision.`
+                ) : economicGuidance.recommendation === 'MAINTAIN' ? (
+                  `The repairs we identified are worth the investment. Your unit still has serviceable life remaining, and addressing these issues now will protect it for years to come.`
                 ) : (
-                  "Your system is in reasonable condition. Regular maintenance will help it last longer. You can explore options whenever you're ready, or simply stick with your current maintenance plan."
+                  `Your system is performing well. Regular maintenance is your best investment right now. When the time comes for replacement, you'll be prepared.`
                 )}
               </p>
+              {financial.monthlyBudget > 0 && economicGuidance.recommendation !== 'REPLACE_NOW' && (
+                <div className="flex items-center gap-2 p-2 bg-background/50 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-primary" />
+                  <span className="text-xs text-foreground">
+                    <strong>${financial.monthlyBudget}/month</strong> toward replacement by {financial.targetReplacementDate}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -689,17 +981,34 @@ export function FindingsSummaryPage({
         completed={completedSteps}
       />
 
-      {/* Current finding */}
+      {/* Current finding - use special component for economic guidance */}
       <AnimatePresence mode="wait">
-        <FindingStep
-          key={currentFinding.id}
-          finding={currentFinding}
-          stepNumber={currentStep + 1}
-          isActive={true}
-          isComplete={completedSteps.includes(currentStep)}
-          onComplete={handleCompleteStep}
-          onLearnMore={() => currentFinding.educationalTopic && setOpenTopic(currentFinding.educationalTopic)}
-        />
+        {currentFinding.id === 'economic-guidance' ? (
+          <EconomicGuidanceStep
+            key={currentFinding.id}
+            finding={currentFinding}
+            stepNumber={currentStep + 1}
+            totalSteps={findings.length}
+            financial={{
+              targetReplacementDate: financial.targetReplacementDate,
+              monthsUntilTarget: financial.monthsUntilTarget,
+              estReplacementCost: financial.estReplacementCost,
+              monthlyBudget: financial.monthlyBudget,
+            }}
+            repairCosts={infrastructureIssues.reduce((sum, issue) => sum + (issue.costMin || 0), 0)}
+            onComplete={handleCompleteStep}
+          />
+        ) : (
+          <FindingStep
+            key={currentFinding.id}
+            finding={currentFinding}
+            stepNumber={currentStep + 1}
+            isActive={true}
+            isComplete={completedSteps.includes(currentStep)}
+            onComplete={handleCompleteStep}
+            onLearnMore={() => currentFinding.educationalTopic && setOpenTopic(currentFinding.educationalTopic)}
+          />
+        )}
       </AnimatePresence>
 
       {/* Educational drawer */}
