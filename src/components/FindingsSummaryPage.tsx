@@ -368,6 +368,28 @@ function EconomicGuidanceStep({
             <p className="text-sm text-muted-foreground leading-relaxed">
               {finding.explanation}
             </p>
+
+            {/* Damage risk warning for critical situations */}
+            {finding.severity === 'critical' && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="mt-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20"
+              >
+                <div className="flex gap-3">
+                  <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Why this matters
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Water heater failures often mean flooded basements, damaged floors, and emergency repair bills 3-4x higher than planned replacement.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Divider */}
