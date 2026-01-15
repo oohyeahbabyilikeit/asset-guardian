@@ -219,15 +219,15 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           className={cn(
             "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
             data.visualRust === false
-              ? "border-green-500 bg-green-50"
-              : "border-muted hover:border-primary/50"
+              ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
+              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
           )}
         >
           <CheckCircle className={cn(
-            "h-10 w-10",
-            data.visualRust === false ? "text-green-600" : "text-muted-foreground"
+            "h-10 w-10 transition-colors",
+            data.visualRust === false ? "text-primary" : "text-muted-foreground"
           )} />
-          <span className="font-semibold text-lg">No Rust</span>
+          <span className={cn("font-semibold text-lg", data.visualRust === false && "text-primary")}>No Rust</span>
           <span className="text-xs text-muted-foreground">Clean condition</span>
         </button>
         
@@ -237,15 +237,15 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           className={cn(
             "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
             data.visualRust === true
-              ? "border-orange-500 bg-orange-50"
-              : "border-muted hover:border-primary/50"
+              ? "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20"
+              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
           )}
         >
           <AlertTriangle className={cn(
-            "h-10 w-10",
-            data.visualRust === true ? "text-orange-600" : "text-muted-foreground"
+            "h-10 w-10 transition-colors",
+            data.visualRust === true ? "text-destructive" : "text-muted-foreground"
           )} />
-          <span className="font-semibold text-lg">Visible Rust</span>
+          <span className={cn("font-semibold text-lg", data.visualRust === true && "text-destructive")}>Visible Rust</span>
           <span className="text-xs text-muted-foreground">Corrosion present</span>
         </button>
       </div>
@@ -272,15 +272,15 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           className={cn(
             "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
             data.isLeaking === false
-              ? "border-green-500 bg-green-50"
-              : "border-muted hover:border-primary/50"
+              ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
+              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
           )}
         >
           <CheckCircle className={cn(
-            "h-10 w-10",
-            data.isLeaking === false ? "text-green-600" : "text-muted-foreground"
+            "h-10 w-10 transition-colors",
+            data.isLeaking === false ? "text-primary" : "text-muted-foreground"
           )} />
-          <span className="font-semibold text-lg">Dry</span>
+          <span className={cn("font-semibold text-lg", data.isLeaking === false && "text-primary")}>Dry</span>
           <span className="text-xs text-muted-foreground">No water present</span>
         </button>
         
@@ -290,13 +290,13 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           className={cn(
             "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
             data.isLeaking === true
-              ? "border-red-500 bg-red-50"
-              : "border-muted hover:border-primary/50"
+              ? "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20"
+              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
           )}
         >
           <Droplet className={cn(
-            "h-10 w-10",
-            data.isLeaking === true ? "text-red-600" : "text-muted-foreground"
+            "h-10 w-10 transition-colors",
+            data.isLeaking === true ? "text-destructive" : "text-muted-foreground"
           )} />
           <span className="font-semibold text-lg">Leaking</span>
           <span className="text-xs text-muted-foreground">Water detected</span>
@@ -441,15 +441,15 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           className={cn(
             "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
             data.isFinishedArea === false
-              ? "border-green-500 bg-green-50"
-              : "border-muted hover:border-primary/50"
+              ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
+              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
           )}
         >
           <CheckCircle className={cn(
-            "h-10 w-10",
-            data.isFinishedArea === false ? "text-green-600" : "text-muted-foreground"
+            "h-10 w-10 transition-colors",
+            data.isFinishedArea === false ? "text-primary" : "text-muted-foreground"
           )} />
-          <span className="font-semibold text-lg">No</span>
+          <span className={cn("font-semibold text-lg", data.isFinishedArea === false && "text-primary")}>No</span>
           <span className="text-xs text-muted-foreground text-center">Garage, basement, etc.</span>
         </button>
         
@@ -459,15 +459,15 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
           className={cn(
             "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
             data.isFinishedArea === true
-              ? "border-amber-500 bg-amber-50"
-              : "border-muted hover:border-primary/50"
+              ? "border-amber-500 bg-amber-500/10 shadow-md ring-2 ring-amber-500/20"
+              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
           )}
         >
           <Home className={cn(
-            "h-10 w-10",
-            data.isFinishedArea === true ? "text-amber-600" : "text-muted-foreground"
+            "h-10 w-10 transition-colors",
+            data.isFinishedArea === true ? "text-amber-500" : "text-muted-foreground"
           )} />
-          <span className="font-semibold text-lg">Yes</span>
+          <span className={cn("font-semibold text-lg", data.isFinishedArea === true && "text-amber-600")}>Yes</span>
           <span className="text-xs text-muted-foreground text-center">Living space</span>
         </button>
       </div>
@@ -488,36 +488,39 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
       </p>
       
       <div className="grid grid-cols-3 gap-3">
-        {TEMP_CHIPS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => onUpdate({ tempSetting: t.value })}
-            className={cn(
-              "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
-              data.tempSetting === t.value
-                ? t.value === 'HOT' 
-                  ? "border-orange-500 bg-orange-50"
-                  : t.value === 'LOW'
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-green-500 bg-green-50"
-                : "border-muted hover:border-primary/50"
-            )}
-          >
-            <Thermometer className={cn(
-              "h-8 w-8",
-              data.tempSetting === t.value
-                ? t.value === 'HOT' 
-                  ? "text-orange-600"
-                  : t.value === 'LOW'
-                  ? "text-blue-600"
-                  : "text-green-600"
-                : "text-muted-foreground"
-            )} />
-            <span className="font-semibold">{t.label}</span>
-            <span className="text-xs text-muted-foreground">{t.temp}</span>
-          </button>
-        ))}
+        {TEMP_CHIPS.map((t) => {
+          const isSelected = data.tempSetting === t.value;
+          const getSelectedStyles = () => {
+            if (t.value === 'HOT') return "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20";
+            if (t.value === 'LOW') return "border-blue-500 bg-blue-500/10 shadow-md ring-2 ring-blue-500/20";
+            return "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20";
+          };
+          const getIconColor = () => {
+            if (t.value === 'HOT') return "text-destructive";
+            if (t.value === 'LOW') return "text-blue-500";
+            return "text-primary";
+          };
+          return (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => onUpdate({ tempSetting: t.value })}
+              className={cn(
+                "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
+                isSelected
+                  ? getSelectedStyles()
+                  : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+              )}
+            >
+              <Thermometer className={cn(
+                "h-8 w-8 transition-colors",
+                isSelected ? getIconColor() : "text-muted-foreground"
+              )} />
+              <span className={cn("font-semibold", isSelected && getIconColor())}>{t.label}</span>
+              <span className="text-xs text-muted-foreground">{t.temp}</span>
+            </button>
+          );
+        })}
       </div>
       
       {data.tempSetting === 'HOT' && (
