@@ -187,6 +187,93 @@ export type Database = {
           },
         ]
       }
+      contractor_service_prices: {
+        Row: {
+          contractor_id: string
+          created_at: string
+          description: string | null
+          estimated_minutes: number | null
+          id: string
+          price_usd: number
+          service_type: string
+          unit_type: string
+          updated_at: string
+        }
+        Insert: {
+          contractor_id: string
+          created_at?: string
+          description?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          price_usd: number
+          service_type: string
+          unit_type?: string
+          updated_at?: string
+        }
+        Update: {
+          contractor_id?: string
+          created_at?: string
+          description?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          price_usd?: number
+          service_type?: string
+          unit_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      maintenance_notification_requests: {
+        Row: {
+          contractor_id: string | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          due_date: string
+          id: string
+          maintenance_type: string
+          notes: string | null
+          notification_lead_days: number | null
+          property_id: string | null
+          status: string | null
+          updated_at: string
+          water_heater_id: string | null
+        }
+        Insert: {
+          contractor_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          due_date: string
+          id?: string
+          maintenance_type: string
+          notes?: string | null
+          notification_lead_days?: number | null
+          property_id?: string | null
+          status?: string | null
+          updated_at?: string
+          water_heater_id?: string | null
+        }
+        Update: {
+          contractor_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          due_date?: string
+          id?: string
+          maintenance_type?: string
+          notes?: string | null
+          notification_lead_days?: number | null
+          property_id?: string | null
+          status?: string | null
+          updated_at?: string
+          water_heater_id?: string | null
+        }
+        Relationships: []
+      }
       price_lookup_cache: {
         Row: {
           cached_at: string
