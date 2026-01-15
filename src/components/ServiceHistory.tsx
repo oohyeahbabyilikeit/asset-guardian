@@ -937,7 +937,9 @@ export function ServiceHistory({
   const sedimentStatus = sedimentPercent > 50 ? 'critical' : sedimentHigh ? 'warning' : 'good';
 
   // TANKLESS-specific calculations
-  const flowCapacityPercent = ratedFlowGPM > 0 ? Math.round((flowRateGPM / ratedFlowGPM) * 100) : 100;
+  // FIX v7.10: Cap flow capacity between 0-100% to prevent "113%" display from over-flow
+  const rawFlowCapacity = ratedFlowGPM > 0 ? Math.round((flowRateGPM / ratedFlowGPM) * 100) : 100;
+  const flowCapacityPercent = Math.min(100, Math.max(0, rawFlowCapacity));
   const needsDescale = scaleBuildup > 20;
   const needsIgniter = fuelType === 'TANKLESS_GAS' && igniterHealth < 60;
   const needsElement = fuelType === 'TANKLESS_ELECTRIC' && elementHealth < 60;
