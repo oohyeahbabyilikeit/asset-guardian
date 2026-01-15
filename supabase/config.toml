@@ -62,3 +62,9 @@ verify_jwt = false
 
 [functions.sync-inspection]
 verify_jwt = false
+
+[functions.chat-water-heater]
+verify_jwt = false
+
+[functions.sync-inspection]
+verify_jwt = false
