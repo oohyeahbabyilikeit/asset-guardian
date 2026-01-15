@@ -1,15 +1,14 @@
-import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, TrendingUp, DollarSign, CheckCircle2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
 import { ForensicInputs, OpterraResult, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import { InfrastructureIssue, getIssuesByCategory } from '@/lib/infrastructureIssues';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MaintenanceEducationCard } from './MaintenanceEducationCard';
 import { WaterHeaterChatbot } from './WaterHeaterChatbot';
-
 interface FindingsSummaryPageProps {
   currentInputs: ForensicInputs;
   opterraResult: OpterraResult;
@@ -27,8 +26,665 @@ interface FindingCard {
   measurement?: string;
   explanation: string;
   severity: 'critical' | 'warning' | 'info';
-  severityValue: number;
+  severityValue: number; // 0-100 for the gauge
   educationalTopic?: EducationalTopic;
+}
+
+// Animated severity gauge component
+function SeverityGauge({ 
+  value, 
+  severity, 
+  animate = true 
+}: { 
+  value: number; 
+  severity: 'critical' | 'warning' | 'info';
+  animate?: boolean;
+}) {
+  const [animatedValue, setAnimatedValue] = useState(0);
+  
+  useEffect(() => {
+    if (animate) {
+      const timer = setTimeout(() => setAnimatedValue(value), 100);
+      return () => clearTimeout(timer);
+    } else {
+      setAnimatedValue(value);
+    }
+  }, [value, animate]);
+
+  const getGaugeColor = () => {
+    switch (severity) {
+      case 'critical': return 'hsl(var(--destructive))';
+      case 'warning': return 'hsl(45, 93%, 47%)'; // amber
+      case 'info': return 'hsl(var(--primary))';
+    }
+  };
+
+  const getBackgroundColor = () => {
+    switch (severity) {
+      case 'critical': return 'hsl(var(--destructive) / 0.2)';
+      case 'warning': return 'hsl(45, 93%, 47%, 0.2)';
+      case 'info': return 'hsl(var(--primary) / 0.2)';
+    }
+  };
+
+  const getSeverityLabel = () => {
+    switch (severity) {
+      case 'critical': return 'HIGH';
+      case 'warning': return 'MED';
+      case 'info': return 'LOW';
+    }
+  };
+
+  const getLabelColor = () => {
+    switch (severity) {
+      case 'critical': return 'text-destructive';
+      case 'warning': return 'text-amber-500';
+      case 'info': return 'text-primary';
+    }
+  };
+
+  return (
+    <div className="relative w-16 h-16">
+      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+        {/* Background circle */}
+        <circle
+          cx="18"
+          cy="18"
+          r="14"
+          fill="none"
+          stroke={getBackgroundColor()}
+          strokeWidth="4"
+        />
+        {/* Animated progress circle */}
+        <motion.circle
+          cx="18"
+          cy="18"
+          r="14"
+          fill="none"
+          stroke={getGaugeColor()}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={`${animatedValue * 0.88} 100`}
+          initial={{ strokeDasharray: "0 100" }}
+          animate={{ strokeDasharray: `${animatedValue * 0.88} 100` }}
+          transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <motion.span 
+          className={`text-xs font-bold ${getLabelColor()}`}
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, type: "spring" }}
+        >
+          {getSeverityLabel()}
+        </motion.span>
+      </div>
+    </div>
+  );
+}
+
+// Maintenance cost constants for year-by-year projections
+const MAINTENANCE_COSTS = {
+  FLUSH: { cost: 150, intervalYears: 2, label: 'Tank Flush' },
+  ANODE: { cost: 350, intervalYears: 5, label: 'Anode Replacement' },
+  ELEMENT: { cost: 250, intervalYears: 6, label: 'Element Service' }, // Electric only
+  DESCALE: { cost: 200, intervalYears: 2, label: 'Descale' }, // Tankless only
+  TPR_VALVE: { cost: 125, intervalYears: 5, label: 'T&P Valve' },
+  THERMOSTAT: { cost: 175, intervalYears: 8, label: 'Thermostat' },
+};
+
+// Calculate year-by-year maintenance forecast
+function calculateMaintenanceForecast(
+  currentAge: number,
+  yearsToProject: number,
+  fuelType: string,
+  repairCostsNow: number,
+  replacementCost: number
+): {
+  repairPath: { year: number; label: string; cost: number; cumulative: number }[];
+  replacePath: { year: number; label: string; cost: number; cumulative: number }[];
+  totalRepairPath: number;
+  totalReplacePath: number;
+} {
+  const repairPath: { year: number; label: string; cost: number; cumulative: number }[] = [];
+  const replacePath: { year: number; label: string; cost: number; cumulative: number }[] = [];
+  
+  let repairCumulative = 0;
+  let replaceCumulative = 0;
+  
+  // Year 0: Initial costs
+  if (repairCostsNow > 0) {
+    repairCumulative += repairCostsNow;
+    repairPath.push({
+      year: 0,
+      label: 'Repairs Today',
+      cost: repairCostsNow,
+      cumulative: repairCumulative,
+    });
+  }
+  
+  replaceCumulative += replacementCost;
+  replacePath.push({
+    year: 0,
+    label: 'Replace Now',
+    cost: replacementCost,
+    cumulative: replaceCumulative,
+  });
+  
+  // Project years 1 through yearsToProject
+  const isElectric = fuelType === 'ELECTRIC' || fuelType === 'HYBRID';
+  const isTankless = fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
+  
+  for (let year = 1; year <= yearsToProject; year++) {
+    const projectedAge = currentAge + year;
+    let yearCost = 0;
+    const yearItems: string[] = [];
+    
+    // Repair path: aging unit needs more maintenance
+    if (!isTankless) {
+      // Flush every 2 years (more frequent as unit ages)
+      if (year % 2 === 0 || projectedAge > 10) {
+        yearCost += MAINTENANCE_COSTS.FLUSH.cost;
+        yearItems.push('Flush');
+      }
+      
+      // Anode check/replace (critical after 5 years)
+      if (projectedAge >= 8 && year % 3 === 0) {
+        yearCost += MAINTENANCE_COSTS.ANODE.cost;
+        yearItems.push('Anode');
+      }
+      
+      // Electric elements degrade
+      if (isElectric && projectedAge > 8 && year === 2) {
+        yearCost += MAINTENANCE_COSTS.ELEMENT.cost;
+        yearItems.push('Element');
+      }
+      
+      // T&P valve replacement
+      if (projectedAge > 10 && year === 3) {
+        yearCost += MAINTENANCE_COSTS.TPR_VALVE.cost;
+        yearItems.push('T&P Valve');
+      }
+    } else {
+      // Tankless: descale every 2 years
+      if (year % 2 === 0) {
+        yearCost += MAINTENANCE_COSTS.DESCALE.cost;
+        yearItems.push('Descale');
+      }
+    }
+    
+    // Add eventual replacement in repair path (at end of projection)
+    if (year === yearsToProject) {
+      // Apply inflation to replacement cost
+      const inflatedReplacement = Math.round(replacementCost * Math.pow(1.03, year));
+      yearCost += inflatedReplacement;
+      yearItems.push(`Replace (${year}yr inflation)`);
+    }
+    
+    if (yearCost > 0) {
+      repairCumulative += yearCost;
+      repairPath.push({
+        year,
+        label: yearItems.join(' + '),
+        cost: yearCost,
+        cumulative: repairCumulative,
+      });
+    }
+    
+    // Replace path: new unit has minimal costs for first few years
+    if (year >= 3 && year % 3 === 0) {
+      // Only occasional maintenance after year 3
+      const newUnitMaintenance = 75; // Basic checkup
+      replaceCumulative += newUnitMaintenance;
+      replacePath.push({
+        year,
+        label: 'Routine check',
+        cost: newUnitMaintenance,
+        cumulative: replaceCumulative,
+      });
+    }
+  }
+  
+  return {
+    repairPath,
+    replacePath,
+    totalRepairPath: repairCumulative,
+    totalReplacePath: replaceCumulative,
+  };
+}
+
+// Economic Guidance Step Component (special rendering for the recommendation)
+function EconomicGuidanceStep({
+  finding,
+  financial,
+  topFindings,
+  onComplete,
+}: {
+  finding: FindingCard;
+  financial: {
+    targetReplacementDate: string;
+    monthsUntilTarget: number;
+    estReplacementCost: number;
+    monthlyBudget: number;
+  };
+  topFindings: FindingCard[];
+  onComplete: () => void;
+}) {
+  // Determine urgency level and messaging
+  const getVerdictConfig = () => {
+    if (finding.severity === 'critical') {
+      return {
+        verdict: "Your water heater needs attention now",
+        urgencyBadge: "Act within 30 days",
+        borderColor: "border-destructive/50",
+        badgeClass: "bg-destructive/10 text-destructive border-destructive/30",
+        icon: AlertTriangle,
+        iconBg: "bg-destructive/10 text-destructive",
+      };
+    }
+    if (finding.severity === 'warning') {
+      return {
+        verdict: "Time to start planning",
+        urgencyBadge: "Plan for next 6 months",
+        borderColor: "border-amber-500/50",
+        badgeClass: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+        icon: Clock,
+        iconBg: "bg-amber-500/10 text-amber-600",
+      };
+    }
+    return {
+      verdict: "Your water heater is healthy",
+      urgencyBadge: "No rush",
+      borderColor: "border-emerald-500/50",
+      badgeClass: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+      icon: CheckCircle2,
+      iconBg: "bg-emerald-500/10 text-emerald-600",
+    };
+  };
+
+  const config = getVerdictConfig();
+  const IconComponent = config.icon;
+  const isUrgent = finding.severity === 'critical' || finding.severity === 'warning';
+
+  // Get the single most relevant cost to show
+  const displayCost = financial.estReplacementCost;
+
+  // Get severity badge styling
+  const getSeverityStyle = (severity: string) => {
+    if (severity === 'critical') return 'bg-destructive/10 text-destructive';
+    if (severity === 'warning') return 'bg-amber-500/10 text-amber-600';
+    return 'bg-muted text-muted-foreground';
+  };
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.4 }}
+      className="px-4"
+    >
+      {/* Step indicator */}
+      <motion.div 
+        className="flex items-center gap-2 mb-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <span className="text-sm text-muted-foreground">Our Recommendation</span>
+      </motion.div>
+
+      {/* Main card with colored border based on urgency */}
+      <Card className={cn("overflow-hidden border-2", config.borderColor)}>
+        <CardContent className="p-0">
+          
+          {/* SECTION 1: The Verdict */}
+          <div className="p-6 pb-4">
+            <motion.div 
+              className="flex items-start gap-4"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <div className={cn("p-3 rounded-xl", config.iconBg)}>
+                <IconComponent className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-semibold text-foreground mb-2">
+                  {config.verdict}
+                </h2>
+                <span className={cn(
+                  "inline-flex px-3 py-1 text-xs font-medium rounded-full border",
+                  config.badgeClass
+                )}>
+                  {config.urgencyBadge}
+                </span>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Divider */}
+          <div className="mx-6 border-t border-border" />
+
+          {/* SECTION 2: The Why */}
+          <motion.div 
+            className="p-6 py-5"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            {/* What we found - top stressors */}
+            {topFindings.length > 0 && isUrgent && (
+              <div className="space-y-2 mb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                  What we found
+                </p>
+                {topFindings.map((f, idx) => (
+                  <motion.div
+                    key={f.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 + idx * 0.1 }}
+                    className="flex items-start gap-2"
+                  >
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
+                      f.severity === 'critical' ? 'bg-destructive' : 
+                      f.severity === 'warning' ? 'bg-amber-500' : 'bg-muted-foreground'
+                    )} />
+                    <p className="text-sm text-foreground">
+                      <span className="font-medium">{f.title}</span>
+                      {f.measurement && (
+                        <span className="text-muted-foreground"> — {f.measurement}</span>
+                      )}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {finding.explanation}
+            </p>
+
+            {/* Damage risk warning for critical situations */}
+            {finding.severity === 'critical' && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="mt-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20"
+              >
+                <div className="flex gap-3">
+                  <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Why this matters
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Water heater failures often mean flooded basements, damaged floors, and emergency repair bills 3-4x higher than planned replacement.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* Divider */}
+          <div className="mx-6 border-t border-border" />
+
+          {/* SECTION 3: The Action */}
+          <motion.div 
+            className="p-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            {isUrgent ? (
+              // Replacement recommended
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                    Estimated replacement cost
+                  </p>
+                  <p className="text-3xl font-bold text-foreground">
+                    ${displayCost.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">
+                    Includes unit + installation
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // System healthy - show budget suggestion
+              <div className="flex items-center gap-4">
+                <div className={cn("p-3 rounded-xl", config.iconBg)}>
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Budget suggestion
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Set aside <span className="font-semibold text-emerald-600">${financial.monthlyBudget}/month</span> for eventual replacement
+                  </p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Action button */}
+          <motion.div 
+            className="p-4 bg-muted/30 border-t border-border"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+          >
+            <Button 
+              onClick={onComplete}
+              className="w-full"
+              size="lg"
+            >
+              <span>View Full Summary</span>
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+// Individual finding step component
+function FindingStep({
+  finding,
+  stepNumber,
+  isActive,
+  isComplete,
+  onComplete,
+  onLearnMore,
+}: {
+  finding: FindingCard;
+  stepNumber: number;
+  isActive: boolean;
+  isComplete: boolean;
+  onComplete: () => void;
+  onLearnMore: () => void;
+}) {
+  const getSeverityLabel = (severity: 'critical' | 'warning' | 'info') => {
+    switch (severity) {
+      case 'critical': return 'Needs Immediate Attention';
+      case 'warning': return 'Should Be Addressed';
+      case 'info': return 'Good to Know';
+    }
+  };
+
+  const getSeverityBadgeStyles = (severity: 'critical' | 'warning' | 'info') => {
+    switch (severity) {
+      case 'critical': return 'bg-destructive/10 text-destructive border-destructive/30';
+      case 'warning': return 'bg-amber-500/10 text-amber-600 border-amber-500/30';
+      case 'info': return 'bg-primary/10 text-primary border-primary/30';
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.4 }}
+      className="px-4"
+    >
+      {/* Step indicator */}
+      <motion.div 
+        className="flex items-center gap-2 mb-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <span className="text-sm text-muted-foreground">
+          Finding {stepNumber}
+        </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full border ${getSeverityBadgeStyles(finding.severity)}`}>
+          {getSeverityLabel(finding.severity)}
+        </span>
+      </motion.div>
+
+      {/* Main content card */}
+      <Card className="overflow-hidden border-2 border-border/50">
+        <CardContent className="p-0">
+          {/* Header with icon and gauge */}
+          <div className="p-6 bg-gradient-to-br from-muted/50 to-transparent">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <motion.div 
+                  className={`inline-flex p-2 rounded-lg mb-3 ${
+                    finding.severity === 'critical' ? 'bg-destructive/10 text-destructive' :
+                    finding.severity === 'warning' ? 'bg-amber-500/10 text-amber-600' :
+                    'bg-primary/10 text-primary'
+                  }`}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", delay: 0.3 }}
+                >
+                  {finding.icon}
+                </motion.div>
+                <motion.h2 
+                  className="text-xl font-semibold text-foreground mb-1"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {finding.title}
+                </motion.h2>
+                {finding.measurement && (
+                  <motion.p 
+                    className="text-sm text-muted-foreground"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    {finding.measurement}
+                  </motion.p>
+                )}
+              </div>
+              <SeverityGauge 
+                value={finding.severityValue} 
+                severity={finding.severity} 
+              />
+            </div>
+          </div>
+
+          {/* Explanation */}
+          <div className="p-6 pt-4">
+            <motion.p 
+              className="text-muted-foreground leading-relaxed"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              {finding.explanation}
+            </motion.p>
+
+            {/* Learn more link */}
+            {finding.educationalTopic && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="mt-4"
+              >
+                <button 
+                  onClick={onLearnMore}
+                  className="text-sm text-primary hover:underline underline-offset-4 flex items-center gap-1"
+                >
+                  <Info className="w-4 h-4" />
+                  Learn more about this issue
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Action button */}
+          <motion.div 
+            className="p-4 bg-muted/30 border-t border-border"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+          >
+            <Button 
+              onClick={onComplete}
+              className="w-full"
+              size="lg"
+            >
+              <span>Got it, next finding</span>
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+// Progress dots component
+function ProgressDots({ 
+  total, 
+  current, 
+  completed 
+}: { 
+  total: number; 
+  current: number;
+  completed: number[];
+}) {
+  return (
+    <div className="flex items-center justify-center gap-2 py-4">
+      {Array.from({ length: total }).map((_, i) => (
+        <motion.div
+          key={i}
+          className={`relative flex items-center justify-center ${
+            i === current 
+              ? 'w-8 h-2 rounded-full bg-primary' 
+              : completed.includes(i)
+                ? 'w-2 h-2 rounded-full bg-primary'
+                : 'w-2 h-2 rounded-full bg-muted-foreground/30'
+          }`}
+          initial={false}
+          animate={{ 
+            scale: i === current ? 1 : 0.8,
+            opacity: i === current ? 1 : 0.7 
+          }}
+          transition={{ duration: 0.2 }}
+        >
+          {completed.includes(i) && i !== current && (
+            <Check className="w-1.5 h-1.5 text-primary-foreground" />
+          )}
+        </motion.div>
+      ))}
+    </div>
+  );
 }
 
 export function FindingsSummaryPage({
@@ -40,10 +696,13 @@ export function FindingsSummaryPage({
   onEmergency,
   onBack,
 }: FindingsSummaryPageProps) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [showSummary, setShowSummary] = useState(false);
   const [openTopic, setOpenTopic] = useState<EducationalTopic | null>(null);
   const [showChatbot, setShowChatbot] = useState(false);
   
-  const { metrics, verdict, financial } = opterraResult;
+  const { metrics, verdict } = opterraResult;
   const violations = getIssuesByCategory(infrastructureIssues, 'VIOLATION');
   const hasViolations = violations.length > 0;
   const isCritical = verdict.badge === 'CRITICAL';
@@ -62,7 +721,7 @@ export function FindingsSummaryPage({
     if (leakSource === 'TANK_BODY') {
       findings.push({
         id: 'leak-tank-body',
-        icon: <AlertCircle className="w-5 h-5" />,
+        icon: <AlertCircle className="w-6 h-6" />,
         title: 'Tank Body Leak - Critical Failure',
         measurement: 'Immediate replacement needed',
         explanation: 'Water is leaking from the tank itself. This indicates internal corrosion has breached the tank wall. This cannot be repaired - the tank must be replaced before catastrophic failure.',
@@ -73,28 +732,29 @@ export function FindingsSummaryPage({
     } else if (leakSource === 'FITTING_VALVE') {
       findings.push({
         id: 'leak-fitting',
-        icon: <Wrench className="w-5 h-5" />,
+        icon: <Wrench className="w-6 h-6" />,
         title: 'Fitting Leak - Repairable',
         measurement: 'Service appointment needed',
-        explanation: 'Good news: water is leaking from a connection or valve, NOT the tank itself. This is a repairable issue - a plumber can tighten or replace the fitting.',
+        explanation: 'Good news: water is leaking from a connection or valve, NOT the tank itself. This is a repairable issue - a plumber can tighten or replace the fitting. Your water heater tank is not failing.',
         severity: 'warning',
         severityValue: 75,
       });
     } else if (leakSource === 'DRAIN_PAN') {
       findings.push({
         id: 'leak-drain-pan',
-        icon: <Droplets className="w-5 h-5" />,
+        icon: <Droplets className="w-6 h-6" />,
         title: 'Water in Drain Pan',
         measurement: 'Source investigation needed',
-        explanation: 'Water was found in the drain pan beneath your water heater. This could be condensation, a minor fitting drip, or an early sign of tank issues.',
+        explanation: 'Water was found in the drain pan beneath your water heater. This could be condensation, a minor fitting drip, or an early sign of tank issues. A professional should inspect to determine the source.',
         severity: 'warning',
         severityValue: 70,
       });
     }
   } else if (isLeaking) {
+    // Legacy fallback for when source wasn't captured
     findings.push({
       id: 'leaking',
-      icon: <AlertCircle className="w-5 h-5" />,
+      icon: <AlertCircle className="w-6 h-6" />,
       title: 'Active Leak Detected',
       measurement: 'Source unknown',
       explanation: 'Water damage can occur quickly and may affect surrounding areas. A professional should inspect to identify the leak source.',
@@ -109,10 +769,10 @@ export function FindingsSummaryPage({
     if (isReplacementRecommended) {
       findings.push({
         id: 'pressure-critical',
-        icon: <Gauge className="w-5 h-5" />,
+        icon: <Gauge className="w-6 h-6" />,
         title: 'High Pressure Accelerated Failure',
         measurement: `${currentInputs.housePsi} PSI (limit: 80 PSI)`,
-        explanation: `Years of ${currentInputs.housePsi} PSI water pressure aged this unit ${pressureMultiplier.toFixed(1)}x faster than normal. For your next water heater: install a PRV set to 50-60 PSI from day one.`,
+        explanation: `Years of ${currentInputs.housePsi} PSI water pressure—${currentInputs.housePsi - 80} PSI over the safe limit—aged this unit ${pressureMultiplier.toFixed(1)}x faster than normal. For your next water heater: install a pressure regulating valve (PRV) set to 50-60 PSI from day one.`,
         severity: 'info',
         severityValue: 60,
         educationalTopic: 'pressure',
@@ -120,10 +780,10 @@ export function FindingsSummaryPage({
     } else {
       findings.push({
         id: 'pressure-critical',
-        icon: <Gauge className="w-5 h-5" />,
+        icon: <Gauge className="w-6 h-6" />,
         title: 'Dangerously High Water Pressure',
         measurement: `${currentInputs.housePsi} PSI (limit: 80 PSI)`,
-        explanation: `Your ${currentInputs.housePsi} PSI reading is ${currentInputs.housePsi - 80} PSI over the safe limit. This is aging your water heater ${pressureMultiplier.toFixed(1)}x faster than normal.`,
+        explanation: `Your ${currentInputs.housePsi} PSI reading is ${currentInputs.housePsi - 80} PSI over the safe limit. This is aging your ${currentInputs.manufacturer || 'water heater'} ${pressureMultiplier.toFixed(1)}x faster than normal. Every valve, fitting, and appliance in your home is being stressed beyond design limits.`,
         severity: 'critical',
         severityValue: Math.min(100, Math.round((currentInputs.housePsi / 100) * 100)),
         educationalTopic: 'pressure',
@@ -133,10 +793,10 @@ export function FindingsSummaryPage({
     if (isReplacementRecommended) {
       findings.push({
         id: 'pressure-high',
-        icon: <Gauge className="w-5 h-5" />,
+        icon: <Gauge className="w-6 h-6" />,
         title: 'Elevated Pressure Contributed to Wear',
         measurement: `${currentInputs.housePsi} PSI (optimal: 40-60 PSI)`,
-        explanation: `At ${currentInputs.housePsi} PSI—above optimal—this added ongoing wear. For your next unit, consider a PRV to maintain 50-60 PSI.`,
+        explanation: `At ${currentInputs.housePsi} PSI—${currentInputs.housePsi - 60} PSI above optimal—this added ongoing wear over ${currentInputs.calendarAge || 'several'} years. For your next unit, consider a PRV to maintain 50-60 PSI and maximize equipment lifespan.`,
         severity: 'info',
         severityValue: 50,
         educationalTopic: 'pressure',
@@ -144,10 +804,10 @@ export function FindingsSummaryPage({
     } else {
       findings.push({
         id: 'pressure-high',
-        icon: <Gauge className="w-5 h-5" />,
+        icon: <Gauge className="w-6 h-6" />,
         title: 'Elevated Water Pressure',
         measurement: `${currentInputs.housePsi} PSI (optimal: 40-60 PSI)`,
-        explanation: `At ${currentInputs.housePsi} PSI, your home is above the optimal range. A PRV adjustment or installation could extend equipment life.`,
+        explanation: `At ${currentInputs.housePsi} PSI, your home is ${currentInputs.housePsi - 60} PSI above the optimal range. While not immediately dangerous, this adds ongoing wear to your ${currentInputs.tankCapacity || 50}-gallon tank and plumbing fixtures. A PRV adjustment or installation could extend equipment life.`,
         severity: 'warning',
         severityValue: Math.min(100, Math.round((currentInputs.housePsi / 100) * 100)),
         educationalTopic: 'pressure',
@@ -164,16 +824,18 @@ export function FindingsSummaryPage({
     const pressureMultiplier = metrics.stressFactors?.pressure || 1;
     const isCriticalExpansion = pressureMultiplier >= 3;
     const isWaterlogged = currentInputs.expTankStatus === 'WATERLOGGED';
+    const tankSize = currentInputs.tankCapacity || 50;
+    const expansionGallons = (tankSize * 0.02).toFixed(1); // ~2% expansion
     
     if (isReplacementRecommended) {
       findings.push({
         id: 'expansion-tank',
-        icon: <ThermometerSun className="w-5 h-5" />,
+        icon: <ThermometerSun className="w-6 h-6" />,
         title: 'Thermal Expansion Caused Premature Wear',
         measurement: `Thousands of pressure spikes over ${currentInputs.calendarAge || 'several'} years`,
         explanation: isWaterlogged 
-          ? `Your failed expansion tank allowed pressure spikes of 150+ PSI multiple times daily. For your next unit: install a properly-sized expansion tank and test it annually.`
-          : `Without an expansion tank in your closed system, every heating cycle created a pressure spike. For your next water heater: ensure an expansion tank is installed at setup.`,
+          ? `Your failed expansion tank allowed pressure spikes of 150+ PSI multiple times daily for years. Each heating cycle, ${expansionGallons} gallons of expanded water had nowhere to go. For your next unit: install a properly-sized expansion tank and test it annually.`
+          : `Without an expansion tank in your closed system, every heating cycle created a pressure spike. Over ${currentInputs.calendarAge || 'several'} years, this caused cumulative damage. For your next water heater: ensure an expansion tank is installed at setup.`,
         severity: 'info',
         severityValue: 55,
         educationalTopic: 'thermal-expansion',
@@ -181,12 +843,12 @@ export function FindingsSummaryPage({
     } else {
       findings.push({
         id: 'expansion-tank',
-        icon: <ThermometerSun className="w-5 h-5" />,
+        icon: <ThermometerSun className="w-6 h-6" />,
         title: isWaterlogged ? 'Failed Expansion Tank' : 'Thermal Expansion Damage',
         measurement: `${pressureMultiplier.toFixed(1)}x accelerated aging`,
         explanation: isWaterlogged 
-          ? `Your expansion tank is waterlogged and no longer absorbing pressure spikes. This is why your unit is aging ${pressureMultiplier.toFixed(0)}x faster than expected.`
-          : `Your PRV creates a closed system, but you have no expansion tank. This explains why your bio-age exceeds calendar age.`,
+          ? `Your expansion tank is waterlogged and no longer absorbing pressure spikes. When your ${tankSize}-gallon tank heats up, ${expansionGallons} gallons of expanded water have nowhere to go—causing pressure to spike to 150+ PSI multiple times daily. This is why your unit is aging ${pressureMultiplier.toFixed(0)}x faster than its calendar age suggests.`
+          : `Your PRV creates a closed system, but you have no expansion tank. Every heating cycle, ${expansionGallons} gallons of expanded water create a pressure spike with nowhere to go. After ${currentInputs.calendarAge || 'several'} years of this, the cumulative damage explains why your bio-age (${metrics.bioAge.toFixed(1)} years) exceeds calendar age.`,
         severity: isCriticalExpansion ? 'critical' : 'warning',
         severityValue: isCriticalExpansion ? 90 : 65,
         educationalTopic: 'thermal-expansion',
@@ -194,18 +856,18 @@ export function FindingsSummaryPage({
     }
   }
   
-  // Hard water issues
+  // Hard water issues - with specific impact
   const hardnessMultiplier = metrics.stressFactors?.chemical || 1;
   if (currentInputs.hardnessGPG > 15) {
-    const scalePerYear = (currentInputs.hardnessGPG * 0.15).toFixed(1);
+    const scalePerYear = (currentInputs.hardnessGPG * 0.15).toFixed(1); // rough estimate lbs/year
     const totalScale = (parseFloat(scalePerYear) * (currentInputs.calendarAge || 5)).toFixed(0);
     if (isReplacementRecommended) {
       findings.push({
         id: 'hardness-critical',
-        icon: <Droplets className="w-5 h-5" />,
+        icon: <Droplets className="w-6 h-6" />,
         title: 'Hard Water Accelerated Deterioration',
-        measurement: `~${totalScale} lbs of scale deposited`,
-        explanation: `At ${currentInputs.hardnessGPG} GPG, extremely hard water deposited significant scale. ${currentInputs.hasSoftener ? 'Your softener helped, but this level overwhelmed it.' : 'A water softener would have extended this unit\'s life.'}`,
+        measurement: `~${totalScale} lbs of scale deposited over ${currentInputs.calendarAge || 'several'} years`,
+        explanation: `At ${currentInputs.hardnessGPG} GPG, your extremely hard water deposited roughly ${scalePerYear} lbs of scale annually—coating heating elements and insulating the tank bottom. ${currentInputs.hasSoftener ? 'Your softener helped, but this level overwhelmed it.' : 'A water softener would have significantly extended this unit\'s life.'} For your next water heater: ${currentInputs.hasSoftener ? 'ensure your softener is properly sized and maintained' : 'strongly consider a water softener'}.`,
         severity: 'info',
         severityValue: 55,
         educationalTopic: 'hardness',
@@ -213,10 +875,10 @@ export function FindingsSummaryPage({
     } else {
       findings.push({
         id: 'hardness-critical',
-        icon: <Droplets className="w-5 h-5" />,
+        icon: <Droplets className="w-6 h-6" />,
         title: 'Severe Hard Water Damage',
         measurement: `${currentInputs.hardnessGPG} GPG (very hard)`,
-        explanation: `At ${currentInputs.hardnessGPG} grains per gallon, your water is depositing scale inside your tank. This is aging your system ${hardnessMultiplier.toFixed(1)}x faster.`,
+        explanation: `At ${currentInputs.hardnessGPG} grains per gallon, your water is depositing roughly ${scalePerYear} lbs of scale per year inside your tank. ${currentInputs.hasSoftener ? 'Even with your softener, this level is causing significant wear.' : 'Without a water softener, this mineral buildup is coating your heating elements and insulating the tank bottom.'} This is aging your system ${hardnessMultiplier.toFixed(1)}x faster than soft water would.`,
         severity: 'warning',
         severityValue: Math.min(100, Math.round((currentInputs.hardnessGPG / 25) * 100)),
         educationalTopic: 'hardness',
@@ -226,10 +888,10 @@ export function FindingsSummaryPage({
     if (isReplacementRecommended) {
       findings.push({
         id: 'hardness-moderate',
-        icon: <Droplets className="w-5 h-5" />,
+        icon: <Droplets className="w-6 h-6" />,
         title: 'Moderate Hard Water Contributed to Wear',
         measurement: `${currentInputs.hardnessGPG} GPG over ${currentInputs.calendarAge || 'several'} years`,
-        explanation: `Your ${currentInputs.hardnessGPG} GPG water contributed to scale buildup over time. A softener with your next unit would help.`,
+        explanation: `Your ${currentInputs.hardnessGPG} GPG water caused gradual scale buildup that reduced heating efficiency and stressed components. For your next unit: ${currentInputs.hasSoftener ? 'maintain your softener and consider annual flushes' : 'consider a water softener to protect your investment'}.`,
         severity: 'info',
         severityValue: 45,
         educationalTopic: 'hardness',
@@ -237,136 +899,142 @@ export function FindingsSummaryPage({
     } else {
       findings.push({
         id: 'hardness-moderate',
-        icon: <Droplets className="w-5 h-5" />,
-        title: 'Hard Water Detected',
+        icon: <Droplets className="w-6 h-6" />,
+        title: 'Hard Water Wear',
         measurement: `${currentInputs.hardnessGPG} GPG (moderately hard)`,
-        explanation: `Your water hardness is causing scale buildup. Regular flushing every 1-2 years is essential.`,
+        explanation: `Your ${currentInputs.hardnessGPG} GPG water hardness is causing gradual scale buildup on heating elements. Over ${currentInputs.calendarAge || 'several'} years, this accumulates into ${currentInputs.hasSoftener ? 'reduced efficiency despite your softener.' : 'thick deposits that reduce heating efficiency by 15-25% and stress tank components.'}`,
         severity: 'info',
-        severityValue: Math.min(100, Math.round((currentInputs.hardnessGPG / 25) * 100)),
+        severityValue: Math.round((currentInputs.hardnessGPG / 25) * 100),
         educationalTopic: 'hardness',
       });
     }
   }
   
-  // Aging unit
+  // Aging unit - with specific brand context
   if (currentInputs.calendarAge >= 10) {
+    const yearsOver = currentInputs.calendarAge - 10;
+    const failureRisk = Math.min(95, 20 + (currentInputs.calendarAge - 8) * 8); // rough failure curve
     if (isReplacementRecommended) {
       findings.push({
         id: 'aging',
-        icon: <Clock className="w-5 h-5" />,
-        title: 'Unit Exceeded Expected Lifespan',
-        measurement: `${currentInputs.calendarAge} years old`,
-        explanation: `Standard tank water heaters are designed for 10-12 years. At ${currentInputs.calendarAge} years, you've gotten good value. Modern units are 20-30% more efficient.`,
-        severity: 'warning',
-        severityValue: Math.min(95, 60 + (currentInputs.calendarAge - 10) * 5),
-        educationalTopic: 'anode-rod',
-      });
-    } else {
-      findings.push({
-        id: 'aging',
-        icon: <Clock className="w-5 h-5" />,
-        title: 'Approaching End of Expected Lifespan',
-        measurement: `${currentInputs.calendarAge} years old`,
-        explanation: `Standard water heaters last 10-12 years. Regular maintenance is crucial at this age.`,
-        severity: currentInputs.calendarAge >= 12 ? 'warning' : 'info',
-        severityValue: Math.min(95, 60 + (currentInputs.calendarAge - 10) * 5),
-        educationalTopic: 'anode-rod',
-      });
-    }
-  }
-  
-  // Bio-age vs calendar age
-  if (metrics.bioAge >= 10 && metrics.bioAge > currentInputs.calendarAge * 1.3) {
-    if (isReplacementRecommended) {
-      findings.push({
-        id: 'bio-age',
-        icon: <TrendingUp className="w-5 h-5" />,
-        title: 'Environmental Factors Accelerated Aging',
-        measurement: `Bio-age: ${metrics.bioAge.toFixed(1)} years`,
-        explanation: `Though only ${currentInputs.calendarAge} years old, your unit has worn like a ${metrics.bioAge.toFixed(0)}-year-old due to operating conditions.`,
+        icon: <Clock className="w-6 h-6" />,
+        title: 'Unit Exceeded Design Lifespan',
+        measurement: `${currentInputs.calendarAge} years (industry average: 8-12 years)`,
+        explanation: currentInputs.manufacturer 
+          ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, this unit reached ${yearsOver > 0 ? `${yearsOver} years past` : ''} its expected service life. Industry data shows ~${failureRisk}% of similar units have failed by this age.`
+          : `At ${currentInputs.calendarAge} years, this unit exceeded the typical 8-12 year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age.`,
         severity: 'info',
-        severityValue: Math.min(90, Math.round((metrics.bioAge / 15) * 100)),
+        severityValue: 50,
+        educationalTopic: 'aging',
+      });
+    } else {
+      findings.push({
+        id: 'aging',
+        icon: <Clock className="w-6 h-6" />,
+        title: currentInputs.calendarAge >= 12 ? 'Past Expected Lifespan' : 'Approaching End of Life',
+        measurement: `${currentInputs.calendarAge} years old`,
+        explanation: currentInputs.manufacturer 
+          ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, yours is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the design lifespan. Industry data shows ~${failureRisk}% of similar units have failed by this age. ${currentInputs.modelNumber ? `Model ${currentInputs.modelNumber} was` : 'Units from this era were'} built before current efficiency standards.`
+          : `At ${currentInputs.calendarAge} years, your unit is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the typical 10-year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age, with failure rates accelerating each additional year.`,
+        severity: currentInputs.calendarAge >= 12 ? 'warning' : 'info',
+        severityValue: Math.min(100, Math.round((currentInputs.calendarAge / 15) * 100)),
+        educationalTopic: 'aging',
+      });
+    }
+  } else if (metrics.bioAge >= 10) {
+    const ageDelta = metrics.bioAge - currentInputs.calendarAge;
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'bio-age',
+        icon: <Clock className="w-6 h-6" />,
+        title: 'Environmental Stress Caused Premature Failure',
+        measurement: `${currentInputs.calendarAge} years old with ${metrics.bioAge.toFixed(0)}-year wear`,
+        explanation: `Although only ${currentInputs.calendarAge} years old, this unit accumulated ${ageDelta.toFixed(1)} years of extra wear from ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion, ' : ''}environmental factors. For your next unit: address these issues at installation to maximize lifespan.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For'),
+        severity: 'info',
+        severityValue: 50,
+        educationalTopic: 'aging',
       });
     } else {
       findings.push({
         id: 'bio-age',
-        icon: <TrendingUp className="w-5 h-5" />,
-        title: 'Accelerated Wear Detected',
-        measurement: `Bio-age: ${metrics.bioAge.toFixed(1)} years (calendar: ${currentInputs.calendarAge})`,
-        explanation: `Your unit is aging faster than expected. The findings above explain why. Addressing them will slow further degradation.`,
+        icon: <Clock className="w-6 h-6" />,
+        title: 'Premature Aging Detected',
+        measurement: `${currentInputs.calendarAge} years old → ${metrics.bioAge.toFixed(1)} bio-age`,
+        explanation: `Your ${currentInputs.manufacturer || 'water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion stress, ' : ''}and other environmental factors.`.replace(/, $/, '.'),
         severity: 'warning',
-        severityValue: Math.min(90, Math.round((metrics.bioAge / 15) * 100)),
+        severityValue: Math.min(100, Math.round((metrics.bioAge / 15) * 100)),
+        educationalTopic: 'aging',
       });
     }
   }
   
-  // Visual rust
+  // Visual rust - with context
   if (currentInputs.visualRust) {
     if (isReplacementRecommended) {
       findings.push({
         id: 'rust',
-        icon: <AlertTriangle className="w-5 h-5" />,
-        title: 'Internal Corrosion Evidence',
-        measurement: 'Visible rust present',
-        explanation: 'Visible rust confirms the anode rod was depleted and the tank is actively corroding. This process is irreversible.',
-        severity: 'critical',
-        severityValue: 90,
+        icon: <AlertTriangle className="w-6 h-6" />,
+        title: 'Corrosion Indicates Internal Damage',
+        explanation: `External rust on this ${currentInputs.calendarAge || ''}-year-old tank signals advanced internal corrosion. The anode rod—designed to sacrifice itself to protect the tank—was depleted years ago. For your next water heater: replace the anode rod every 3-5 years to prevent this.`,
+        severity: 'info',
+        severityValue: 55,
         educationalTopic: 'anode-rod',
       });
     } else {
       findings.push({
         id: 'rust',
-        icon: <AlertTriangle className="w-5 h-5" />,
-        title: 'Rust Visible on Unit',
-        measurement: 'Active corrosion detected',
-        explanation: 'Rust indicates internal corrosion is occurring. This is often a sign of a depleted anode rod allowing tank damage.',
-        severity: 'critical',
-        severityValue: 90,
+        icon: <AlertTriangle className="w-6 h-6" />,
+        title: 'External Corrosion Visible',
+        explanation: `Rust on the outside of your ${currentInputs.manufacturer || ''} tank indicates moisture exposure or condensation issues. At ${currentInputs.calendarAge || 'this'} years old, external rust often signals that internal corrosion is more advanced—the anode rod has likely been depleted for some time, allowing the tank itself to corrode.`,
+        severity: 'warning',
+        severityValue: 75,
         educationalTopic: 'anode-rod',
       });
     }
   }
   
-  // Anode rod status
-  const anodeAge = currentInputs.lastAnodeReplaceYearsAgo !== undefined 
-    ? currentInputs.lastAnodeReplaceYearsAgo 
-    : currentInputs.calendarAge;
-  const shieldLife = 5 - anodeAge;
-  const neverServiced = currentInputs.lastFlushYearsAgo === undefined && currentInputs.lastAnodeReplaceYearsAgo === undefined;
+  // Depleted anode rod - the tank's sacrificial protection is gone
+  const shieldLife = metrics.shieldLife ?? 0;
+  const anodeAge = currentInputs.lastAnodeReplaceYearsAgo ?? currentInputs.calendarAge;
+  const neverServiced = currentInputs.lastAnodeReplaceYearsAgo === undefined || currentInputs.lastAnodeReplaceYearsAgo === null;
   const isFusedRisk = neverServiced && currentInputs.calendarAge > 6;
   
   if (shieldLife < 1 && !currentInputs.visualRust) {
+    // Only show if we're not already showing rust (rust implies depleted anode)
     const corrosionMultiplier = metrics.stressFactors?.corrosion || 1;
     
     if (isReplacementRecommended) {
+      // Frame as lesson learned for next unit
       findings.push({
         id: 'anode-depleted',
-        icon: <Shield className="w-5 h-5" />,
+        icon: <Shield className="w-6 h-6" />,
         title: 'Anode Protection Was Missing',
         measurement: `Depleted for ~${Math.max(0, anodeAge - 5)} years`,
-        explanation: `This unit's anode rod was never replaced. For your next water heater: replace the anode rod every 3-5 years ($20-50 part).`,
+        explanation: `This unit's anode rod—designed to sacrifice itself to protect the tank—was never replaced. For ${anodeAge} years, the tank corroded unprotected${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}. For your next water heater: replace the anode rod every 3-5 years ($20-50 part) to maximize tank life.`,
         severity: 'info',
         severityValue: 50,
         educationalTopic: 'anode-rod',
       });
     } else if (isFusedRisk) {
+      // Can't recommend replacement - rod is likely fused
       findings.push({
         id: 'anode-fused',
-        icon: <Shield className="w-5 h-5" />,
+        icon: <Shield className="w-6 h-6" />,
         title: 'Anode Protection Expired',
         measurement: `${anodeAge}+ years without replacement`,
-        explanation: `The anode is likely fused to the tank and cannot be replaced. Your tank is now corroding directly.`,
+        explanation: `Your tank's anode rod—the sacrificial metal that corrodes instead of your tank—has been depleted for years. After ${currentInputs.calendarAge} years without service, the anode is likely fused to the tank and cannot be replaced without risking damage. Your steel tank is now corroding directly, which is irreversible.`,
         severity: 'warning',
         severityValue: 80,
         educationalTopic: 'anode-rod',
       });
     } else {
+      // Anode can still be replaced
       findings.push({
         id: 'anode-depleted',
-        icon: <Shield className="w-5 h-5" />,
+        icon: <Shield className="w-6 h-6" />,
         title: 'Anode Rod Depleted',
         measurement: `~${shieldLife.toFixed(1)} years of protection left`,
-        explanation: `The anode rod is depleted. Without this protection, your tank is corroding ${corrosionMultiplier.toFixed(1)}x faster. This is fixable with a $20-50 part.`,
+        explanation: `The anode rod is a sacrificial metal that corrodes so your tank doesn't. After ${anodeAge} years${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}, yours is depleted. Without this protection, your ${currentInputs.manufacturer || ''} tank's steel lining is now corroding ${corrosionMultiplier.toFixed(1)}x faster. This is the #1 cause of premature tank failure—but it's fixable with a $20-50 part.`,
         severity: shieldLife < 0.5 ? 'warning' : 'info',
         severityValue: Math.min(90, Math.round(80 - shieldLife * 20)),
         educationalTopic: 'anode-rod',
@@ -374,15 +1042,16 @@ export function FindingsSummaryPage({
     }
   }
   
-  // Overdue maintenance
+  // Overdue maintenance - with specific impact
   if (currentInputs.lastFlushYearsAgo !== undefined && currentInputs.lastFlushYearsAgo > 2) {
+    const sedimentEstimate = currentInputs.lastFlushYearsAgo * (currentInputs.hardnessGPG > 10 ? 2 : 1); // rough inches
     if (isReplacementRecommended) {
       findings.push({
         id: 'flush-overdue',
-        icon: <Wrench className="w-5 h-5" />,
+        icon: <Wrench className="w-6 h-6" />,
         title: 'Sediment Reduced Efficiency',
         measurement: `${currentInputs.lastFlushYearsAgo}+ years of buildup`,
-        explanation: `Years of sediment buildup reduced efficiency by 15-30%. For your next water heater: schedule annual flushes.`,
+        explanation: `Years of sediment buildup insulated the burner from the water, reducing efficiency by 15-30% and accelerating wear. For your next water heater: schedule annual flushes, especially with ${currentInputs.hardnessGPG || 'hard'} GPG water.`,
         severity: 'info',
         severityValue: 45,
         educationalTopic: 'sediment',
@@ -390,10 +1059,10 @@ export function FindingsSummaryPage({
     } else {
       findings.push({
         id: 'flush-overdue',
-        icon: <Wrench className="w-5 h-5" />,
+        icon: <Wrench className="w-6 h-6" />,
         title: 'Sediment Buildup Likely',
         measurement: `${currentInputs.lastFlushYearsAgo}+ years since last flush`,
-        explanation: `There's likely significant sediment at the tank bottom, reducing efficiency by 15-30%. A flush would help.`,
+        explanation: `With ${currentInputs.hardnessGPG || 'your'} GPG water hardness and no flush in ${currentInputs.lastFlushYearsAgo}+ years, there's likely ${sedimentEstimate}-${sedimentEstimate + 2}" of sediment at the tank bottom. This insulates the burner from the water, reducing efficiency by 15-30% and causing the popping/rumbling sounds common in neglected tanks.`,
         severity: 'info',
         severityValue: Math.min(100, Math.round((currentInputs.lastFlushYearsAgo / 5) * 100)),
         educationalTopic: 'sediment',
@@ -401,14 +1070,14 @@ export function FindingsSummaryPage({
     }
   }
   
-  // Add infrastructure violations
+  // Add infrastructure violations as findings
   violations.forEach(violation => {
     if (violation.id.includes('prv') && findings.some(f => f.id.includes('pressure'))) return;
     if (violation.id.includes('exp_tank') && findings.some(f => f.id === 'expansion-tank')) return;
     
     findings.push({
       id: violation.id,
-      icon: <Shield className="w-5 h-5" />,
+      icon: <Shield className="w-6 h-6" />,
       title: violation.name,
       explanation: violation.description,
       severity: 'warning',
@@ -420,7 +1089,7 @@ export function FindingsSummaryPage({
   if (findings.length === 0) {
     findings.push({
       id: 'healthy',
-      icon: <CheckCircle2 className="w-5 h-5" />,
+      icon: <Info className="w-6 h-6" />,
       title: 'System Appears Healthy',
       measurement: `Health Score: ${metrics.healthScore}`,
       explanation: 'No significant issues were detected during the assessment. Regular maintenance will help keep your system running efficiently.',
@@ -429,21 +1098,39 @@ export function FindingsSummaryPage({
     });
   }
 
-  // Sort by severity and limit
+  // Limit to top 3 highest impact findings (by severityValue)
   const sortedFindings = [...findings].sort((a, b) => b.severityValue - a.severityValue);
-  const displayFindings = sortedFindings.slice(0, 5);
+  const topFindings = sortedFindings.slice(0, 3);
 
-  // Get economic guidance
+  // Clear and repopulate with top findings
+  findings.length = 0;
+  findings.push(...topFindings);
+
+  // Always add economic guidance as final step
+  const financial = opterraResult.financial;
   const getEconomicGuidance = () => {
     const age = currentInputs.calendarAge;
     const bioAge = metrics.bioAge;
+    const replacementCost = financial.estReplacementCost;
+    const monthsUntilTarget = financial.monthsUntilTarget;
     const urgency = financial.budgetUrgency;
     
+    // Calculate rough repair costs from infrastructure issues (using costMin as estimate)
+    const repairCosts = infrastructureIssues.reduce((sum, issue) => sum + (issue.costMin || 0), 0);
+    const repairVsReplaceRatio = repairCosts / replacementCost;
+    
+    // Determine recommendation type
     if (verdict.action === 'REPLACE' || urgency === 'IMMEDIATE') {
       return {
         recommendation: 'REPLACE_NOW' as const,
         title: 'Replacement Is the Smart Move',
-        timeframe: 'Within 1-3 months',
+        timeframe: 'Within the next 1-3 months',
+        reasoning: `At ${age} years old with a biological age of ${bioAge.toFixed(1)} years, your unit has exceeded its designed service life. The numbers don't support further investment in repairs.`,
+        comparison: repairCosts > 0 ? {
+          repairPath: repairCosts + Math.round(replacementCost * 0.9), // Repairs now + eventual replacement
+          replacePath: replacementCost,
+          yearsUntilReplaceAnyway: Math.min(2, monthsUntilTarget / 12),
+        } : undefined,
       };
     }
     
@@ -452,369 +1139,348 @@ export function FindingsSummaryPage({
         recommendation: 'REPLACE_SOON' as const,
         title: 'Start Planning Your Replacement',
         timeframe: financial.targetReplacementDate,
+        reasoning: `Based on the wear patterns we measured, your unit will likely need replacement around ${financial.targetReplacementDate}. Planning now means you control the timing—not an emergency.`,
+        comparison: repairCosts > 0 && repairVsReplaceRatio > 0.3 ? {
+          repairPath: repairCosts + Math.round(replacementCost),
+          replacePath: replacementCost,
+          yearsUntilReplaceAnyway: Math.round(monthsUntilTarget / 12),
+        } : undefined,
       };
     }
-    
-    const repairCosts = infrastructureIssues.reduce((sum, issue) => sum + (issue.costMin || 0), 0);
-    const repairVsReplaceRatio = repairCosts / financial.estReplacementCost;
     
     if (repairCosts > 0 && repairVsReplaceRatio < 0.35) {
       return {
         recommendation: 'MAINTAIN' as const,
         title: 'Repairs Make Sense Right Now',
         timeframe: financial.targetReplacementDate,
+        reasoning: `Your unit is ${age} years old with room to run. The recommended repairs (${repairCosts > 0 ? `$${repairCosts.toLocaleString()}` : 'minimal cost'}) are a smart investment—they'll protect your equipment for years to come.`,
+        comparison: undefined,
       };
     }
     
     return {
       recommendation: 'MONITOR' as const,
       title: 'You\'re in Good Shape',
-      timeframe: financial.targetReplacementDate,
+      timeframe: `Plan for replacement around ${financial.targetReplacementDate}`,
+      reasoning: `Your system is performing well. Regular maintenance is your best investment right now. We recommend budgeting $${financial.monthlyBudget}/month toward eventual replacement.`,
+      comparison: undefined,
     };
   };
 
   const economicGuidance = getEconomicGuidance();
-  const showReplacementCost = economicGuidance.recommendation === 'REPLACE_NOW' || economicGuidance.recommendation === 'REPLACE_SOON';
+  
+  findings.push({
+    id: 'economic-guidance',
+    icon: <TrendingUp className="w-6 h-6" />,
+    title: 'Our Recommendation',
+    measurement: economicGuidance.timeframe,
+    explanation: economicGuidance.reasoning,
+    severity: economicGuidance.recommendation === 'REPLACE_NOW' ? 'critical' : 
+              economicGuidance.recommendation === 'REPLACE_SOON' ? 'warning' : 'info',
+    severityValue: economicGuidance.recommendation === 'REPLACE_NOW' ? 90 : 
+                   economicGuidance.recommendation === 'REPLACE_SOON' ? 65 : 30,
+  });
 
-  // Recommendation config
-  const getRecommendationConfig = () => {
-    switch (economicGuidance.recommendation) {
-      case 'REPLACE_NOW':
-        return {
-          icon: AlertTriangle,
-          iconBg: 'bg-destructive/10 text-destructive',
-          borderColor: 'border-destructive/40',
-          badgeClass: 'bg-destructive/10 text-destructive border-destructive/30',
-        };
-      case 'REPLACE_SOON':
-        return {
-          icon: Clock,
-          iconBg: 'bg-amber-500/10 text-amber-600',
-          borderColor: 'border-amber-500/40',
-          badgeClass: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
-        };
-      default:
-        return {
-          icon: CheckCircle2,
-          iconBg: 'bg-emerald-500/10 text-emerald-600',
-          borderColor: 'border-emerald-500/40',
-          badgeClass: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-        };
+  const handleCompleteStep = () => {
+    setCompletedSteps(prev => [...prev, currentStep]);
+    if (currentStep < findings.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    } else {
+      setShowSummary(true);
     }
   };
 
-  const recConfig = getRecommendationConfig();
-  const RecommendationIcon = recConfig.icon;
+  const currentFinding = findings[currentStep];
 
-  // Severity styling for accordion items
-  const getSeverityStyles = (severity: 'critical' | 'warning' | 'info') => {
-    switch (severity) {
-      case 'critical':
-        return { icon: 'bg-destructive/10 text-destructive', dot: 'bg-destructive' };
-      case 'warning':
-        return { icon: 'bg-amber-500/10 text-amber-600', dot: 'bg-amber-500' };
-      default:
-        return { icon: 'bg-primary/10 text-primary', dot: 'bg-muted-foreground' };
-    }
-  };
+  // Summary view after all findings reviewed
+  if (showSummary) {
+    return (
+      <div className="min-h-screen bg-background pb-32">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="px-4 py-3 flex items-center gap-3">
+            <button
+              onClick={() => setShowSummary(false)}
+              className="p-2 -ml-2 hover:bg-muted rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="font-semibold text-lg">Your Assessment Summary</h1>
+              <p className="text-sm text-muted-foreground">
+                {findings.length} finding{findings.length !== 1 ? 's' : ''} reviewed
+              </p>
+            </div>
+          </div>
+        </div>
 
-  // Chatbot context
-  const chatContext = {
-    inputs: {
-      manufacturer: currentInputs.manufacturer,
-      modelNumber: currentInputs.modelNumber,
-      calendarAgeYears: currentInputs.calendarAge,
-      fuelType: currentInputs.fuelType,
-      tankCapacityGallons: currentInputs.tankCapacity,
-      hasPrv: currentInputs.hasPrv,
-      hasExpTank: currentInputs.hasExpTank,
-      expTankStatus: currentInputs.expTankStatus,
-      isClosedLoop: currentInputs.isClosedLoop,
-      streetHardnessGpg: currentInputs.streetHardnessGPG,
-      hasSoftener: currentInputs.hasSoftener,
-      housePsi: currentInputs.housePsi,
-      visualRust: currentInputs.visualRust,
-      isLeaking: currentInputs.isLeaking,
-      leakSource: currentInputs.leakSource,
-    },
-    metrics: {
-      healthScore: metrics.healthScore,
-      bioAge: metrics.bioAge,
-      stressFactors: metrics.stressFactors,
-    },
-    recommendation: {
-      action: verdict.action,
-      badge: verdict.badge,
-      title: verdict.title,
-      description: verdict.reason,
-    },
-    findings: displayFindings.map(f => ({
-      title: f.title,
-      measurement: f.measurement,
-      explanation: f.explanation,
-      severity: f.severity,
-    })),
-    financial: {
-      totalReplacementCost: financial.estReplacementCost,
-      monthlyBudget: financial.monthlyBudget,
-      targetDate: financial.targetReplacementDate,
-    },
-  };
+        {/* Reviewed findings list */}
+        <motion.div 
+          className="px-4 py-6 space-y-3"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          {findings.map((finding, index) => (
+            <motion.div
+              key={finding.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="border border-border/50">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className={`p-2 rounded-lg ${
+                    finding.severity === 'critical' ? 'bg-destructive/10 text-destructive' :
+                    finding.severity === 'warning' ? 'bg-amber-500/10 text-amber-600' :
+                    'bg-primary/10 text-primary'
+                  }`}>
+                    {finding.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-sm">{finding.title}</h3>
+                    {finding.measurement && (
+                      <p className="text-xs text-muted-foreground">{finding.measurement}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <SeverityGauge 
+                      value={finding.severityValue} 
+                      severity={finding.severity}
+                      animate={false}
+                    />
+                    <Check className="w-5 h-5 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
 
+        {/* What This Means Summary - Enhanced with Economic Context */}
+        <motion.div 
+          className="px-4 pb-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: findings.length * 0.1 }}
+        >
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-2 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                The Bottom Line
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                {economicGuidance.recommendation === 'REPLACE_NOW' ? (
+                  `Based on the data we collected, replacement is the most economical path forward. Your unit has reached a point where repair investments won't pay off—you'd be putting money into equipment that's near end of life.`
+                ) : economicGuidance.recommendation === 'REPLACE_SOON' ? (
+                  `Your system is approaching the end of its service life. We recommend planning for replacement around ${financial.targetReplacementDate}. This gives you time to budget and choose the right solution—rather than being forced into an emergency decision.`
+                ) : economicGuidance.recommendation === 'MAINTAIN' ? (
+                  `The repairs we identified are worth the investment. Your unit still has serviceable life remaining, and addressing these issues now will protect it for years to come.`
+                ) : (
+                  `Your system is performing well. Regular maintenance is your best investment right now. When the time comes for replacement, you'll be prepared.`
+                )}
+              </p>
+              {financial.monthlyBudget > 0 && economicGuidance.recommendation !== 'REPLACE_NOW' && (
+                <div className="flex items-center gap-2 p-2 bg-background/50 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-primary" />
+                  <span className="text-xs text-foreground">
+                    <strong>${financial.monthlyBudget}/month</strong> toward replacement by {financial.targetReplacementDate}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Action Pathways */}
+        <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border p-4 safe-area-bottom">
+          <div className="max-w-md mx-auto space-y-3">
+            {(isCritical || hasViolations || metrics.healthScore < 70) ? (
+              <Button
+                onClick={onOptions}
+                size="lg"
+                className="w-full h-auto py-3 bg-primary hover:bg-primary/90"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="text-left">
+                    <div className="font-semibold">See My Options</div>
+                    <div className="text-xs opacity-80">Understand what a new system would cost</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 flex-shrink-0" />
+                </div>
+              </Button>
+            ) : (
+              <Button
+                onClick={onMaintenance}
+                size="lg"
+                className="w-full h-auto py-3 bg-emerald-600 hover:bg-emerald-500"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="text-left">
+                    <div className="font-semibold">View Maintenance Plan</div>
+                    <div className="text-xs opacity-80">Keep your current system running well</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 flex-shrink-0" />
+                </div>
+              </Button>
+            )}
+
+            {/* Chat button */}
+            <Button
+              onClick={() => setShowChatbot(true)}
+              variant="ghost"
+              className="w-full h-auto py-2.5 text-muted-foreground hover:text-foreground"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              <span className="text-sm">Have Questions? Chat with AI</span>
+            </Button>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={onMaintenance}
+                variant="outline"
+                className="flex-1 h-auto py-2.5"
+              >
+                <Wrench className="w-4 h-4 mr-2" />
+                <span className="text-sm">Maintain Current</span>
+              </Button>
+              <Button
+                onClick={onEmergency}
+                variant="outline"
+                className="flex-1 h-auto py-2.5 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                <span className="text-sm">Emergency</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Chatbot */}
+        <AnimatePresence>
+          {showChatbot && (
+            <WaterHeaterChatbot
+              onClose={() => setShowChatbot(false)}
+              context={{
+                inputs: {
+                  manufacturer: currentInputs.manufacturer,
+                  modelNumber: currentInputs.modelNumber,
+                  calendarAgeYears: currentInputs.calendarAge,
+                  fuelType: currentInputs.fuelType,
+                  tankCapacityGallons: currentInputs.tankCapacity,
+                  hasPrv: currentInputs.hasPrv,
+                  hasExpTank: currentInputs.hasExpTank,
+                  expTankStatus: currentInputs.expTankStatus,
+                  isClosedLoop: currentInputs.isClosedLoop,
+                  streetHardnessGpg: currentInputs.streetHardnessGPG,
+                  hasSoftener: currentInputs.hasSoftener,
+                  housePsi: currentInputs.housePsi,
+                  visualRust: currentInputs.visualRust,
+                  isLeaking: currentInputs.isLeaking,
+                  leakSource: currentInputs.leakSource,
+                },
+                metrics: {
+                  healthScore: metrics.healthScore,
+                  bioAge: metrics.bioAge,
+                  stressFactors: metrics.stressFactors,
+                },
+                recommendation: {
+                  action: verdict.action,
+                  badge: verdict.badge,
+                  title: verdict.title,
+                  description: verdict.reason,
+                },
+                findings: findings.map(f => ({
+                  title: f.title,
+                  measurement: f.measurement,
+                  explanation: f.explanation,
+                  severity: f.severity,
+                })),
+                financial: {
+                  totalReplacementCost: financial.estReplacementCost,
+                  monthlyBudget: financial.monthlyBudget,
+                  targetDate: financial.targetReplacementDate,
+                },
+              }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Step-by-step walkthrough view
   return (
-    <div className="min-h-screen bg-background pb-40">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="px-4 py-3 flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={currentStep > 0 ? () => setCurrentStep(prev => prev - 1) : onBack}
             className="p-2 -ml-2 hover:bg-muted rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="font-semibold text-lg">Your Assessment</h1>
+          <div className="flex-1">
+            <h1 className="font-semibold text-lg">Understanding Your Results</h1>
             <p className="text-sm text-muted-foreground">
-              {currentInputs.manufacturer || 'Water Heater'} • {currentInputs.calendarAge} years old
+              Finding {currentStep + 1} of {findings.length}
             </p>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSummary(true)}
+            className="text-xs"
+          >
+            Skip to summary
+          </Button>
         </div>
       </div>
 
-      {/* Hero: The Recommendation */}
-      <motion.section 
-        className="px-4 py-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+      {/* Progress dots */}
+      <ProgressDots 
+        total={findings.length} 
+        current={currentStep}
+        completed={completedSteps}
+      />
+
+      {/* Current finding - use special component for economic guidance */}
+      <AnimatePresence mode="wait">
+        {currentFinding.id === 'economic-guidance' ? (
+          <EconomicGuidanceStep
+            key={currentFinding.id}
+            finding={currentFinding}
+            financial={{
+              targetReplacementDate: financial.targetReplacementDate,
+              monthsUntilTarget: financial.monthsUntilTarget,
+              estReplacementCost: financial.estReplacementCost,
+              monthlyBudget: financial.monthlyBudget,
+            }}
+            topFindings={findings.filter(f => f.id !== 'economic-guidance')}
+            onComplete={handleCompleteStep}
+          />
+        ) : (
+          <FindingStep
+            key={currentFinding.id}
+            finding={currentFinding}
+            stepNumber={currentStep + 1}
+            isActive={true}
+            isComplete={completedSteps.includes(currentStep)}
+            onComplete={handleCompleteStep}
+            onLearnMore={() => currentFinding.educationalTopic && setOpenTopic(currentFinding.educationalTopic)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Chat FAB */}
+      <button
+        onClick={() => setShowChatbot(true)}
+        className="fixed bottom-6 right-6 z-20 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center"
+        style={{ boxShadow: '0 4px 20px -4px hsl(var(--primary) / 0.5)' }}
       >
-        <Card className={cn("overflow-hidden border-2", recConfig.borderColor)}>
-          <CardContent className="p-0">
-            <div className="p-6">
-              <div className="flex items-start gap-4">
-                <div className={cn("p-3 rounded-xl flex-shrink-0", recConfig.iconBg)}>
-                  <RecommendationIcon className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-semibold text-foreground mb-2">
-                    {economicGuidance.title}
-                  </h2>
-                  <span className={cn(
-                    "inline-flex px-3 py-1 text-xs font-medium rounded-full border",
-                    recConfig.badgeClass
-                  )}>
-                    {economicGuidance.timeframe}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Cost section for replacement recommendations */}
-            {showReplacementCost && (
-              <>
-                <div className="mx-6 border-t border-border" />
-                <div className="p-6 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                      Estimated replacement
-                    </p>
-                    <p className="text-3xl font-bold text-foreground">
-                      ${financial.estReplacementCost.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">
-                      Unit + installation
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Budget suggestion for non-urgent */}
-            {!showReplacementCost && financial.monthlyBudget > 0 && (
-              <>
-                <div className="mx-6 border-t border-border" />
-                <div className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                    <DollarSign className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      Budget suggestion
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Set aside <span className="font-semibold text-foreground">${financial.monthlyBudget}/month</span> for eventual replacement
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </motion.section>
-
-      {/* Equipment Summary */}
-      <motion.section 
-        className="px-4 pb-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
-      >
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="text-muted-foreground">
-              <Info className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">
-                {currentInputs.manufacturer || 'Unknown'} {currentInputs.tankCapacity ? `${currentInputs.tankCapacity}-gal` : ''} {currentInputs.fuelType?.replace('_', ' ') || 'Tank'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Health Score: {metrics.healthScore} • Bio-age: {metrics.bioAge.toFixed(1)} years
-              </p>
-            </div>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* Findings Cards */}
-      <motion.section 
-        className="px-4 py-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-          {isReplacementRecommended ? 'What Contributed to Failure' : 'What We Found'}
-        </h2>
-        
-        <div className="space-y-3">
-          {displayFindings.map((finding, index) => {
-            const borderColor = finding.severity === 'critical' 
-              ? 'border-destructive/50' 
-              : finding.severity === 'warning' 
-                ? 'border-amber-500/50' 
-                : 'border-border';
-            
-            const iconBg = finding.severity === 'critical'
-              ? 'bg-destructive/10 text-destructive'
-              : finding.severity === 'warning'
-                ? 'bg-amber-500/10 text-amber-600'
-                : 'bg-primary/10 text-primary';
-            
-            return (
-              <motion.div
-                key={finding.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.08 }}
-              >
-                <Card className={cn("border-2", borderColor)}>
-                  <CardContent className="p-4">
-                    {/* Header with icon and title */}
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className={cn("p-2.5 rounded-xl flex-shrink-0", iconBg)}>
-                        {finding.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground">
-                          {finding.title}
-                        </h3>
-                        {finding.measurement && (
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {finding.measurement}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Explanation - always visible */}
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {finding.explanation}
-                    </p>
-                    
-                    {/* Learn more link */}
-                    {finding.educationalTopic && (
-                      <button 
-                        onClick={() => setOpenTopic(finding.educationalTopic!)}
-                        className="mt-3 text-sm text-primary hover:underline underline-offset-4 flex items-center gap-1"
-                      >
-                        <Info className="w-3.5 h-3.5" />
-                        Learn more about this
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
-      </motion.section>
-
-      {/* Sticky Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border p-4 safe-area-bottom">
-        <div className="max-w-md mx-auto space-y-3">
-          {/* Primary CTA based on recommendation */}
-          {(isCritical || hasViolations || metrics.healthScore < 70 || showReplacementCost) ? (
-            <Button
-              onClick={onOptions}
-              size="lg"
-              className="w-full h-auto py-3"
-            >
-              <div className="flex items-center justify-between w-full">
-                <div className="text-left">
-                  <div className="font-semibold">See Replacement Options</div>
-                  <div className="text-xs opacity-80">Compare units and pricing</div>
-                </div>
-                <ChevronRight className="w-5 h-5 flex-shrink-0" />
-              </div>
-            </Button>
-          ) : (
-            <Button
-              onClick={onMaintenance}
-              size="lg"
-              className="w-full h-auto py-3 bg-emerald-600 hover:bg-emerald-500"
-            >
-              <div className="flex items-center justify-between w-full">
-                <div className="text-left">
-                  <div className="font-semibold">View Maintenance Plan</div>
-                  <div className="text-xs opacity-80">Keep your system running well</div>
-                </div>
-                <ChevronRight className="w-5 h-5 flex-shrink-0" />
-              </div>
-            </Button>
-          )}
-
-          {/* Secondary actions */}
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowChatbot(true)}
-              variant="outline"
-              className="flex-1 h-auto py-2.5"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              <span className="text-sm">Ask AI</span>
-            </Button>
-            <Button
-              onClick={showReplacementCost ? onMaintenance : onOptions}
-              variant="outline"
-              className="flex-1 h-auto py-2.5"
-            >
-              <Wrench className="w-4 h-4 mr-2" />
-              <span className="text-sm">{showReplacementCost ? 'Maintenance' : 'Options'}</span>
-            </Button>
-            <Button
-              onClick={onEmergency}
-              variant="outline"
-              className="flex-1 h-auto py-2.5 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            >
-              <AlertCircle className="w-4 h-4 mr-2" />
-              <span className="text-sm">Emergency</span>
-            </Button>
-          </div>
-        </div>
-      </div>
+        <MessageCircle className="w-6 h-6" />
+      </button>
 
       {/* Educational drawer */}
       {openTopic && (
@@ -830,7 +1496,47 @@ export function FindingsSummaryPage({
         {showChatbot && (
           <WaterHeaterChatbot
             onClose={() => setShowChatbot(false)}
-            context={chatContext}
+            context={{
+              inputs: {
+                manufacturer: currentInputs.manufacturer,
+                modelNumber: currentInputs.modelNumber,
+                calendarAgeYears: currentInputs.calendarAge,
+                fuelType: currentInputs.fuelType,
+                tankCapacityGallons: currentInputs.tankCapacity,
+                hasPrv: currentInputs.hasPrv,
+                hasExpTank: currentInputs.hasExpTank,
+                expTankStatus: currentInputs.expTankStatus,
+                isClosedLoop: currentInputs.isClosedLoop,
+                streetHardnessGpg: currentInputs.streetHardnessGPG,
+                hasSoftener: currentInputs.hasSoftener,
+                housePsi: currentInputs.housePsi,
+                visualRust: currentInputs.visualRust,
+                isLeaking: currentInputs.isLeaking,
+                leakSource: currentInputs.leakSource,
+              },
+              metrics: {
+                healthScore: metrics.healthScore,
+                bioAge: metrics.bioAge,
+                stressFactors: metrics.stressFactors,
+              },
+              recommendation: {
+                action: verdict.action,
+                badge: verdict.badge,
+                title: verdict.title,
+                description: verdict.reason,
+              },
+              findings: findings.map(f => ({
+                title: f.title,
+                measurement: f.measurement,
+                explanation: f.explanation,
+                severity: f.severity,
+              })),
+              financial: {
+                totalReplacementCost: financial.estReplacementCost,
+                monthlyBudget: financial.monthlyBudget,
+                targetDate: financial.targetReplacementDate,
+              },
+            }}
           />
         )}
       </AnimatePresence>
