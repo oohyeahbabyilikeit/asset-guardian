@@ -254,11 +254,12 @@ function calculateMaintenanceForecast(
   };
 }
 
-// Economic Guidance Step Component (special rendering for the recommendation)
-function EconomicGuidanceStep({
+// Education Step Component - explains WHY we recommend what we do
+function RecommendationEducationStep({
   finding,
   financial,
   topFindings,
+  recommendationType,
   onComplete,
 }: {
   finding: FindingCard;
@@ -269,53 +270,133 @@ function EconomicGuidanceStep({
     monthlyBudget: number;
   };
   topFindings: FindingCard[];
+  recommendationType: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR';
   onComplete: () => void;
 }) {
-  // Determine urgency level and messaging
-  const getVerdictConfig = () => {
-    if (finding.severity === 'critical') {
-      return {
-        verdict: "Your water heater needs attention now",
-        urgencyBadge: "Act within 30 days",
-        borderColor: "border-destructive/50",
-        badgeClass: "bg-destructive/10 text-destructive border-destructive/30",
-        icon: AlertTriangle,
-        iconBg: "bg-destructive/10 text-destructive",
-      };
+  // Educational content based on recommendation type
+  const getEducationContent = () => {
+    switch (recommendationType) {
+      case 'REPLACE_NOW':
+        return {
+          headline: "Why We Recommend Replacement",
+          subtitle: "Understanding the economics of repair vs. replace",
+          borderColor: "border-destructive/50",
+          headerBg: "bg-destructive/5",
+          sections: [
+            {
+              title: "The Repair Trap",
+              icon: <DollarSign className="w-5 h-5" />,
+              content: "When a water heater reaches end-of-life, repairs become a losing investment. You'd be putting money into equipment that's already failing—and those repair costs won't extend its life significantly.",
+            },
+            {
+              title: "Hidden Failure Risks",
+              icon: <AlertTriangle className="w-5 h-5" />,
+              content: "Water heaters don't just stop working—they can fail catastrophically. A tank rupture means 40-80 gallons of water in your home, potentially causing $5,000-$50,000+ in water damage.",
+            },
+            {
+              title: "The Math Is Clear",
+              icon: <TrendingUp className="w-5 h-5" />,
+              content: "Planned replacement costs $2,000-4,000 on your schedule. Emergency replacement after failure? 2-3x more, plus potential water damage, time off work, and the stress of no hot water.",
+            },
+          ],
+          callout: {
+            title: "Why timing matters",
+            text: "Every month you wait increases the risk of catastrophic failure. By replacing now, you choose the timeline—not an emergency.",
+          },
+        };
+      
+      case 'REPLACE_SOON':
+        return {
+          headline: "Why We Recommend Planning Ahead",
+          subtitle: "The smart approach to water heater replacement",
+          borderColor: "border-amber-500/50",
+          headerBg: "bg-amber-500/5",
+          sections: [
+            {
+              title: "The Planning Advantage",
+              icon: <Calendar className="w-5 h-5" />,
+              content: "Your unit still has some life left, but the wear patterns we measured suggest it's approaching end-of-life. Planning now means you control the timing, budget, and can choose the right replacement—not just whatever's available in an emergency.",
+            },
+            {
+              title: "Budget Without Stress",
+              icon: <DollarSign className="w-5 h-5" />,
+              content: `By setting aside $${financial.monthlyBudget}/month, you'll have the funds ready when it's time. No emergency financing, no scrambling—just a smooth transition to a new, efficient unit.`,
+            },
+            {
+              title: "Watch for Warning Signs",
+              icon: <AlertCircle className="w-5 h-5" />,
+              content: "In the meantime, watch for: rusty water, rumbling sounds, moisture around the base, or inconsistent temperatures. These signal it's time to act on your plan.",
+            },
+          ],
+          callout: {
+            title: "Your target date",
+            text: `Based on our analysis, plan for replacement around ${financial.targetReplacementDate}. This gives you time to research options and budget accordingly.`,
+          },
+        };
+      
+      case 'MAINTAIN':
+        return {
+          headline: "Why We Recommend Maintenance",
+          subtitle: "Protecting your investment for years to come",
+          borderColor: "border-primary/50",
+          headerBg: "bg-primary/5",
+          sections: [
+            {
+              title: "Your Unit Has Life Left",
+              icon: <CheckCircle2 className="w-5 h-5" />,
+              content: "The issues we found are addressable, and your water heater has remaining service life. The repairs we're recommending will extend its lifespan and improve efficiency—a worthwhile investment.",
+            },
+            {
+              title: "Maintenance Pays Off",
+              icon: <Wrench className="w-5 h-5" />,
+              content: "Regular maintenance (annual flushes, anode checks, pressure management) can extend a water heater's life by 3-5 years. That's thousands of dollars in delayed replacement costs.",
+            },
+            {
+              title: "Prevention vs. Emergency",
+              icon: <Shield className="w-5 h-5" />,
+              content: "Addressing issues now prevents small problems from becoming expensive emergencies. A $150 flush today prevents the $800 repair (or early replacement) caused by sediment damage.",
+            },
+          ],
+          callout: {
+            title: "The maintenance mindset",
+            text: "Think of your water heater like a car—regular oil changes (flushes) and part replacements (anodes) keep it running reliably for years.",
+          },
+        };
+      
+      case 'MONITOR':
+      default:
+        return {
+          headline: "Why Regular Check-ups Matter",
+          subtitle: "Your system is healthy—let's keep it that way",
+          borderColor: "border-emerald-500/50",
+          headerBg: "bg-emerald-500/5",
+          sections: [
+            {
+              title: "You're in Good Shape",
+              icon: <CheckCircle2 className="w-5 h-5" />,
+              content: "Your water heater is performing well with no significant issues. That's great news! But even healthy systems benefit from regular monitoring and preventive care.",
+            },
+            {
+              title: "The Proactive Approach",
+              icon: <TrendingUp className="w-5 h-5" />,
+              content: "Most water heater failures are preventable. By staying ahead of maintenance and monitoring for early warning signs, you can maximize your unit's lifespan and avoid emergency situations.",
+            },
+            {
+              title: "Future Planning",
+              icon: <Calendar className="w-5 h-5" />,
+              content: `Even the best-maintained units eventually need replacement. We recommend budgeting $${financial.monthlyBudget}/month toward your eventual replacement around ${financial.targetReplacementDate}.`,
+            },
+          ],
+          callout: {
+            title: "What to watch for",
+            text: "Annual professional inspections catch small issues before they become big problems. Schedule your next check-up in 12 months.",
+          },
+        };
     }
-    if (finding.severity === 'warning') {
-      return {
-        verdict: "Time to start planning",
-        urgencyBadge: "Plan for next 6 months",
-        borderColor: "border-amber-500/50",
-        badgeClass: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-        icon: Clock,
-        iconBg: "bg-amber-500/10 text-amber-600",
-      };
-    }
-    return {
-      verdict: "Your water heater is healthy",
-      urgencyBadge: "No rush",
-      borderColor: "border-emerald-500/50",
-      badgeClass: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-      icon: CheckCircle2,
-      iconBg: "bg-emerald-500/10 text-emerald-600",
-    };
   };
 
-  const config = getVerdictConfig();
-  const IconComponent = config.icon;
-  const isUrgent = finding.severity === 'critical' || finding.severity === 'warning';
+  const content = getEducationContent();
 
-  // Get the single most relevant cost to show
-  const displayCost = financial.estReplacementCost;
-
-  // Get severity badge styling
-  const getSeverityStyle = (severity: string) => {
-    if (severity === 'critical') return 'bg-destructive/10 text-destructive';
-    if (severity === 'warning') return 'bg-amber-500/10 text-amber-600';
-    return 'bg-muted text-muted-foreground';
-  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -324,155 +405,125 @@ function EconomicGuidanceStep({
       transition={{ duration: 0.4 }}
       className="px-4"
     >
-      {/* Step indicator */}
+      {/* Header badge */}
       <motion.div 
         className="flex items-center gap-2 mb-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
-        <span className="text-sm text-muted-foreground">Our Recommendation</span>
+        <span className="text-sm text-muted-foreground">Understanding Our Recommendation</span>
       </motion.div>
 
-      {/* Main card with colored border based on urgency */}
-      <Card className={cn("overflow-hidden border-2", config.borderColor)}>
+      {/* Main education card */}
+      <Card className={cn("overflow-hidden border-2", content.borderColor)}>
         <CardContent className="p-0">
           
-          {/* SECTION 1: The Verdict */}
-          <div className="p-6 pb-4">
-            <motion.div 
-              className="flex items-start gap-4"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
+          {/* Header */}
+          <div className={cn("p-6 pb-4", content.headerBg)}>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <div className={cn("p-3 rounded-xl", config.iconBg)}>
-                <IconComponent className="w-6 h-6" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold text-foreground mb-2">
-                  {config.verdict}
-                </h2>
-                <span className={cn(
-                  "inline-flex px-3 py-1 text-xs font-medium rounded-full border",
-                  config.badgeClass
-                )}>
-                  {config.urgencyBadge}
-                </span>
-              </div>
+              <h2 className="text-xl font-semibold text-foreground mb-1">
+                {content.headline}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {content.subtitle}
+              </p>
             </motion.div>
           </div>
 
-          {/* Divider */}
-          <div className="mx-6 border-t border-border" />
+          {/* What we found summary */}
+          {topFindings.length > 0 && (
+            <>
+              <div className="mx-6 border-t border-border" />
+              <motion.div 
+                className="p-6 py-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-3">
+                  Based on what we found
+                </p>
+                <div className="space-y-2">
+                  {topFindings.map((f, idx) => (
+                    <motion.div
+                      key={f.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + idx * 0.1 }}
+                      className="flex items-start gap-2"
+                    >
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
+                        f.severity === 'critical' ? 'bg-destructive' : 
+                        f.severity === 'warning' ? 'bg-amber-500' : 'bg-muted-foreground'
+                      )} />
+                      <p className="text-sm text-foreground">
+                        <span className="font-medium">{f.title}</span>
+                        {f.measurement && (
+                          <span className="text-muted-foreground"> — {f.measurement}</span>
+                        )}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            </>
+          )}
 
-          {/* SECTION 2: The Why */}
+          {/* Educational sections */}
+          <div className="mx-6 border-t border-border" />
           <motion.div 
-            className="p-6 py-5"
+            className="p-6 space-y-5"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            {/* What we found - top stressors */}
-            {topFindings.length > 0 && isUrgent && (
-              <div className="space-y-2 mb-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
-                  What we found
-                </p>
-                {topFindings.map((f, idx) => (
-                  <motion.div
-                    key={f.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + idx * 0.1 }}
-                    className="flex items-start gap-2"
-                  >
-                    <span className={cn(
-                      "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
-                      f.severity === 'critical' ? 'bg-destructive' : 
-                      f.severity === 'warning' ? 'bg-amber-500' : 'bg-muted-foreground'
-                    )} />
-                    <p className="text-sm text-foreground">
-                      <span className="font-medium">{f.title}</span>
-                      {f.measurement && (
-                        <span className="text-muted-foreground"> — {f.measurement}</span>
-                      )}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {finding.explanation}
-            </p>
-
-            {/* Damage risk warning for critical situations */}
-            {finding.severity === 'critical' && (
+            {content.sections.map((section, idx) => (
               <motion.div
-                initial={{ opacity: 0, y: 5 }}
+                key={section.title}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="mt-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20"
+                transition={{ delay: 0.5 + idx * 0.15 }}
+                className="flex gap-3"
               >
-                <div className="flex gap-3">
-                  <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      Why this matters
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Water heater failures often mean flooded basements, damaged floors, and emergency repair bills 3-4x higher than planned replacement.
-                    </p>
-                  </div>
+                <div className="p-2 rounded-lg bg-muted/50 h-fit text-muted-foreground">
+                  {section.icon}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-sm text-foreground mb-1">
+                    {section.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {section.content}
+                  </p>
                 </div>
               </motion.div>
-            )}
+            ))}
           </motion.div>
 
-          {/* Divider */}
-          <div className="mx-6 border-t border-border" />
-
-          {/* SECTION 3: The Action */}
-          <motion.div 
-            className="p-6"
-            initial={{ opacity: 0, y: 10 }}
+          {/* Callout box */}
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.8 }}
+            className="mx-6 mb-6 p-4 bg-muted/30 rounded-lg border border-border"
           >
-            {isUrgent ? (
-              // Replacement recommended
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                    Estimated replacement cost
-                  </p>
-                  <p className="text-3xl font-bold text-foreground">
-                    ${displayCost.toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">
-                    Includes unit + installation
-                  </p>
-                </div>
+            <div className="flex gap-3">
+              <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {content.callout.title}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {content.callout.text}
+                </p>
               </div>
-            ) : (
-              // System healthy - show budget suggestion
-              <div className="flex items-center gap-4">
-                <div className={cn("p-3 rounded-xl", config.iconBg)}>
-                  <DollarSign className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Budget suggestion
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Set aside <span className="font-semibold text-emerald-600">${financial.monthlyBudget}/month</span> for eventual replacement
-                  </p>
-                </div>
-              </div>
-            )}
+            </div>
           </motion.div>
 
           {/* Action button */}
@@ -480,14 +531,14 @@ function EconomicGuidanceStep({
             className="p-4 bg-muted/30 border-t border-border"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
+            transition={{ delay: 0.9 }}
           >
             <Button 
               onClick={onComplete}
               className="w-full"
               size="lg"
             >
-              <span>View Full Summary</span>
+              <span>See My Options</span>
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </motion.div>
@@ -1445,10 +1496,10 @@ export function FindingsSummaryPage({
         completed={completedSteps}
       />
 
-      {/* Current finding - use special component for economic guidance */}
+      {/* Current finding - use education component for final recommendation */}
       <AnimatePresence mode="wait">
         {currentFinding.id === 'economic-guidance' ? (
-          <EconomicGuidanceStep
+          <RecommendationEducationStep
             key={currentFinding.id}
             finding={currentFinding}
             financial={{
@@ -1458,6 +1509,7 @@ export function FindingsSummaryPage({
               monthlyBudget: financial.monthlyBudget,
             }}
             topFindings={findings.filter(f => f.id !== 'economic-guidance')}
+            recommendationType={economicGuidance.recommendation}
             onComplete={handleCompleteStep}
           />
         ) : (
