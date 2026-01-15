@@ -1237,7 +1237,12 @@ export function FindingsSummaryPage({
     if (currentStep < findings.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      setShowSummary(true);
+      // Go directly to options/maintenance based on recommendation
+      if (economicGuidance.recommendation === 'REPLACE_NOW' || economicGuidance.recommendation === 'REPLACE_SOON') {
+        onOptions();
+      } else {
+        onMaintenance();
+      }
     }
   };
 
