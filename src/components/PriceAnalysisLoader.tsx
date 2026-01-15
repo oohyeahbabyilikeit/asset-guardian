@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Zap, Flame, Droplets } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTypewriter } from '@/hooks/useTypewriter';
-import { useTieredPricing, TierPricing } from '@/hooks/useTieredPricing';
+import { TierPricing } from '@/hooks/useTieredPricing';
 import type { ForensicInputs, QualityTier } from '@/lib/opterraAlgorithm';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { cn } from '@/lib/utils';
@@ -16,8 +16,7 @@ interface PriceAnalysisLoaderProps {
   complexity?: 'STANDARD' | 'CODE_UPGRADE' | 'DIFFICULT_ACCESS' | 'NEW_INSTALL';
 }
 
-const DEMO_CONTRACTOR_ID = '00000000-0000-0000-0000-000000000001';
-const MIN_DISPLAY_TIME = 3000;
+const LOADER_DISPLAY_TIME = 3500;
 
 export function PriceAnalysisLoader({
   currentInputs,
@@ -26,24 +25,7 @@ export function PriceAnalysisLoader({
   onBack,
   complexity = 'STANDARD',
 }: PriceAnalysisLoaderProps) {
-  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [hasTransitioned, setHasTransitioned] = useState(false);
-
-  // Fetch pricing in background
-  const { tiers, allLoading } = useTieredPricing(
-    currentInputs,
-    DEMO_CONTRACTOR_ID,
-    complexity,
-    true,
-    infrastructureIssues
-  );
-
-  // Check if any tier has received data (quote exists) - more robust than tracking loading state
-  // This is immune to React's state batching since it checks actual data, not loading flags
-  const hasReceivedData = useMemo(() => {
-    const displayTiers: Array<'good' | 'better' | 'best'> = ['good', 'better', 'best'];
-    return displayTiers.some(tier => tiers[tier].quote !== null);
-  }, [tiers]);
 
   // Format specs for display
   const capacityDisplay = `${currentInputs.tankCapacity || 50} gallon`;
@@ -75,19 +57,18 @@ export function PriceAnalysisLoader({
   // Calculate progress percentage
   const progress = Math.min(100, Math.round(((currentLineIndex + 1) / analysisSteps.length) * 100));
 
-  // Minimum display time
+  // Simple timer: show loader for fixed duration, then transition
+  // ReplacementOptionsPage will fetch its own data
   useEffect(() => {
-    const timer = setTimeout(() => setMinTimeElapsed(true), MIN_DISPLAY_TIME);
+    const timer = setTimeout(() => {
+      if (!hasTransitioned) {
+        setHasTransitioned(true);
+        // Pass empty object - ReplacementOptionsPage handles its own data fetching
+        onComplete({} as Record<QualityTier, TierPricing>);
+      }
+    }, LOADER_DISPLAY_TIME);
     return () => clearTimeout(timer);
-  }, []);
-
-  // Transition when all conditions are met (data received, not loading, min time, animation done)
-  useEffect(() => {
-    if (hasReceivedData && !allLoading && minTimeElapsed && typewriterComplete && !hasTransitioned) {
-      setHasTransitioned(true);
-      setTimeout(() => onComplete(tiers), 300);
-    }
-  }, [hasReceivedData, allLoading, minTimeElapsed, typewriterComplete, hasTransitioned, tiers, onComplete]);
+  }, [onComplete, hasTransitioned]);
 
   // Get fuel icon
   const FuelIcon = currentInputs.fuelType === 'ELECTRIC' ? Zap : 
@@ -239,9 +220,9 @@ export function PriceAnalysisLoader({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
               </span>
-              {typewriterComplete && !allLoading ? 'Finalizing' : 'Analyzing'}
-            </span>
-          </motion.div>
+            {typewriterComplete ? 'Finalizing' : 'Analyzing'}
+          </span>
+        </motion.div>
         </div>
       </div>
     </div>
