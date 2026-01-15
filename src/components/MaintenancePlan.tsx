@@ -11,6 +11,7 @@ import { ForensicInputs, calculateOpterraRisk, failProbToHealthScore, isTankless
 import { ServiceEvent } from '@/types/serviceHistory';
 import { HealthSummary } from './SmartMaintenanceCard';
 import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMaintenanceCard';
+import { BundledServiceCard } from './BundledServiceCard';
 import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -242,58 +243,73 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       {/* Content */}
       <div className="max-w-lg mx-auto p-4 space-y-5 pb-8">
         
-        {/* Dynamic Intro - Reflects actual health state */}
-        <div className="text-center py-4">
-          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-3 ${
-            currentScore < 30 ? 'bg-destructive/10' : currentScore < 60 ? 'bg-amber-500/10' : 'bg-emerald-500/10'
-          }`}>
-            <span className="text-3xl">
-              {currentScore < 30 ? '⚠️' : currentScore < 60 ? '🔧' : '✨'}
-            </span>
-          </div>
-          <h2 className="text-xl font-semibold text-foreground mb-1">
-            {currentScore < 30 
-              ? `Your ${unitTypeLabel.toLowerCase()} needs attention`
-              : currentScore < 60 
-                ? `Your ${unitTypeLabel.toLowerCase()} is holding up`
-                : `Your ${unitTypeLabel.toLowerCase()} is in great shape`}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {currentScore < 30
-              ? "Address these priority items to improve reliability:"
-              : getIntroMessage()}
-          </p>
-        </div>
-        
-        {/* Health Summary */}
-        <HealthSummary 
-          healthScore={currentScore}
-          totalSaved={totalSaved}
-          servicesCompleted={serviceHistory.length}
-        />
-        
-        {/* Primary Action Card */}
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
-            Priority Maintenance
-          </h2>
-          <UnifiedMaintenanceCard
-            task={maintenanceSchedule.primaryTask}
-            onSchedule={handleSchedule}
-            onRemind={handleRemind}
-          />
-        </div>
-
-        {/* Secondary Task */}
-        {maintenanceSchedule.secondaryTask && (
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
-              Also Scheduled
-            </h2>
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <UpcomingMaintenanceTask task={maintenanceSchedule.secondaryTask} />
+        {/* Compact Health Summary with Score Badge */}
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/30 border border-border">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-14 h-14 rounded-xl flex items-center justify-center font-bold text-xl",
+              currentScore < 30 ? 'bg-destructive/10 text-destructive' : 
+              currentScore < 60 ? 'bg-amber-500/10 text-amber-500' : 
+              'bg-emerald-500/10 text-emerald-500'
+            )}>
+              {currentScore}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Health Score</p>
+              <p className="text-xs text-muted-foreground">
+                {currentScore < 30 ? 'Needs attention' : 
+                 currentScore < 60 ? 'Fair condition' : 
+                 'Good condition'}
+              </p>
             </div>
           </div>
+          {serviceHistory.length > 0 && (
+            <div className="text-right">
+              <p className="text-sm font-medium text-primary">${totalSaved.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Saved</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Bundled Service Visit OR Individual Tasks */}
+        {maintenanceSchedule.isBundled && maintenanceSchedule.bundledTasks ? (
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+              Recommended Service Visit
+            </h2>
+            <BundledServiceCard
+              tasks={maintenanceSchedule.bundledTasks}
+              bundleReason={maintenanceSchedule.bundleReason || 'Save time with one service call'}
+              onSchedule={handleSchedule}
+              onRemind={handleRemind}
+            />
+          </div>
+        ) : (
+          <>
+            {/* Primary Action Card */}
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+                Priority Maintenance
+              </h2>
+              <UnifiedMaintenanceCard
+                task={maintenanceSchedule.primaryTask}
+                onSchedule={handleSchedule}
+                onRemind={handleRemind}
+              />
+            </div>
+
+            {/* Secondary Task */}
+            {maintenanceSchedule.secondaryTask && (
+              <div>
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+                  Also Scheduled
+                </h2>
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <UpcomingMaintenanceTask task={maintenanceSchedule.secondaryTask} />
+                </div>
+              </div>
+            )}
+          </>
         )}
         
         {/* Additional Tasks (for complex units like tankless needing valve install) */}
