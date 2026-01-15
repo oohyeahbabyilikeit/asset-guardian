@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { 
   Flame, 
   Zap, 
-  Wind,
   Thermometer,
-  Sparkles,
   Building2,
   Ban,
   AlertTriangle
@@ -13,56 +11,52 @@ import type { FuelType } from '@/lib/opterraAlgorithm';
 import { 
   TechnicianStepLayout, 
   SelectionButton, 
-  StepCard,
-  SectionHeader 
+  StepCard 
 } from './TechnicianStepLayout';
-import { Button } from '@/components/ui/button';
 
-type SpecialSelection = 'BOILER' | 'NO_ACCESS' | null;
+// Simplified unit types - fuel type determined by plate scan
+type UnitCategory = 'TANK' | 'TANKLESS' | 'HYBRID' | 'BOILER' | 'NO_ACCESS';
 
-interface UnitTypeOption {
-  value: FuelType;
+interface UnitCategoryOption {
+  value: UnitCategory;
   label: string;
   description: string;
   icon: React.ReactNode;
-  category: 'tank' | 'tankless' | 'hybrid';
+  isSpecial?: boolean;
 }
 
-const UNIT_TYPES: UnitTypeOption[] = [
+const UNIT_CATEGORIES: UnitCategoryOption[] = [
   { 
-    value: 'GAS', 
-    label: 'Gas Tank', 
-    description: 'Traditional tank with gas burner',
+    value: 'TANK', 
+    label: 'Tank', 
+    description: 'Traditional storage tank water heater',
     icon: <Flame className="h-5 w-5" />,
-    category: 'tank'
   },
   { 
-    value: 'ELECTRIC', 
-    label: 'Electric Tank', 
-    description: 'Traditional tank with heating elements',
+    value: 'TANKLESS', 
+    label: 'Tankless', 
+    description: 'On-demand, no storage tank',
     icon: <Zap className="h-5 w-5" />,
-    category: 'tank'
-  },
-  { 
-    value: 'TANKLESS_GAS', 
-    label: 'Tankless Gas', 
-    description: 'On-demand heating, no storage',
-    icon: <Wind className="h-5 w-5" />,
-    category: 'tankless'
-  },
-  { 
-    value: 'TANKLESS_ELECTRIC', 
-    label: 'Tankless Electric', 
-    description: 'On-demand electric heating',
-    icon: <Sparkles className="h-5 w-5" />,
-    category: 'tankless'
   },
   { 
     value: 'HYBRID', 
-    label: 'Heat Pump / Hybrid', 
+    label: 'Hybrid / Heat Pump', 
     description: 'Heat pump with electric backup',
     icon: <Thermometer className="h-5 w-5" />,
-    category: 'hybrid'
+  },
+  { 
+    value: 'BOILER', 
+    label: 'Boiler', 
+    description: 'Not tracked in this system',
+    icon: <Building2 className="h-5 w-5" />,
+    isSpecial: true,
+  },
+  { 
+    value: 'NO_ACCESS', 
+    label: 'No Access', 
+    description: "Can't inspect the unit",
+    icon: <Ban className="h-5 w-5" />,
+    isSpecial: true,
   },
 ];
 
@@ -74,144 +68,70 @@ interface UnitTypeStepProps {
 }
 
 export function UnitTypeStep({ selectedType, onSelect, onNext, onCannotInspect }: UnitTypeStepProps) {
-  const [specialSelection, setSpecialSelection] = useState<SpecialSelection>(null);
+  const [selectedCategory, setSelectedCategory] = useState<UnitCategory | null>(() => {
+    // Map existing fuelType back to category for edit mode
+    if (selectedType === 'HYBRID') return 'HYBRID';
+    if (selectedType === 'TANKLESS_GAS' || selectedType === 'TANKLESS_ELECTRIC') return 'TANKLESS';
+    if (selectedType === 'GAS' || selectedType === 'ELECTRIC') return 'TANK';
+    return null;
+  });
 
-  // Group by category
-  const tankTypes = UNIT_TYPES.filter(t => t.category === 'tank');
-  const tanklessTypes = UNIT_TYPES.filter(t => t.category === 'tankless');
-  const hybridTypes = UNIT_TYPES.filter(t => t.category === 'hybrid');
-
-  const handleSpecialSelect = (special: SpecialSelection) => {
-    setSpecialSelection(special);
+  const handleSelect = (category: UnitCategory) => {
+    setSelectedCategory(category);
+    
+    // Map category to a default FuelType (will be refined by plate scan)
+    // Using GAS as default for tank, TANKLESS_GAS for tankless
+    if (category === 'TANK') {
+      onSelect('GAS'); // Default, plate scan will determine actual fuel
+    } else if (category === 'TANKLESS') {
+      onSelect('TANKLESS_GAS'); // Default, plate scan will determine actual fuel
+    } else if (category === 'HYBRID') {
+      onSelect('HYBRID');
+    }
   };
 
   const handleContinue = () => {
-    if (specialSelection === 'BOILER') {
+    if (selectedCategory === 'BOILER') {
       onCannotInspect?.('boiler');
-    } else if (specialSelection === 'NO_ACCESS') {
+    } else if (selectedCategory === 'NO_ACCESS') {
       onCannotInspect?.('no_access');
     } else {
       onNext();
     }
   };
 
+  const isSpecialSelection = selectedCategory === 'BOILER' || selectedCategory === 'NO_ACCESS';
+
   return (
     <TechnicianStepLayout
       icon={<Flame className="h-8 w-8" />}
       title="Water Heater Type"
-      subtitle="This determines which inspection questions we'll ask"
+      subtitle="Fuel type will be determined by the data plate"
       onContinue={handleContinue}
-      continueDisabled={!selectedType && !specialSelection}
-      continueText={specialSelection ? 'Mark & Exit' : 'Continue'}
+      continueDisabled={!selectedCategory}
+      continueText={isSpecialSelection ? 'Mark & Exit' : 'Continue'}
     >
-      {/* Tank Units */}
-      <div className="space-y-2">
-        <SectionHeader title="Tank Units" />
-        <div className="space-y-2">
-          {tankTypes.map((type) => (
-            <SelectionButton
-              key={type.value}
-              icon={type.icon}
-              label={type.label}
-              description={type.description}
-              selected={selectedType === type.value && !specialSelection}
-              onClick={() => {
-                setSpecialSelection(null);
-                onSelect(type.value);
-              }}
-              size="compact"
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Tankless Units */}
-      <div className="space-y-2">
-        <SectionHeader title="Tankless" />
-        <div className="space-y-2">
-          {tanklessTypes.map((type) => (
-            <SelectionButton
-              key={type.value}
-              icon={type.icon}
-              label={type.label}
-              description={type.description}
-              selected={selectedType === type.value && !specialSelection}
-              onClick={() => {
-                setSpecialSelection(null);
-                onSelect(type.value);
-              }}
-              size="compact"
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Hybrid Units */}
-      <div className="space-y-2">
-        <SectionHeader title="Heat Pump" />
-        <div className="space-y-2">
-          {hybridTypes.map((type) => (
-            <SelectionButton
-              key={type.value}
-              icon={type.icon}
-              label={type.label}
-              description={type.description}
-              selected={selectedType === type.value && !specialSelection}
-              onClick={() => {
-                setSpecialSelection(null);
-                onSelect(type.value);
-              }}
-              size="compact"
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Special Cases */}
-      <div className="space-y-2">
-        <SectionHeader title="Other" />
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => handleSpecialSelect('BOILER')}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
-              ${specialSelection === 'BOILER'
-                ? "border-amber-500 bg-amber-500/10"
-                : "border-muted hover:border-amber-500/50 bg-card"
-              }`}
-          >
-            <Building2 className={`h-6 w-6 ${specialSelection === 'BOILER' ? 'text-amber-600' : 'text-muted-foreground'}`} />
-            <div className="text-center">
-              <p className="font-semibold text-sm">Boiler</p>
-              <p className="text-xs text-muted-foreground">Not tracked</p>
-            </div>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleSpecialSelect('NO_ACCESS')}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
-              ${specialSelection === 'NO_ACCESS'
-                ? "border-destructive bg-destructive/10"
-                : "border-muted hover:border-destructive/50 bg-card"
-              }`}
-          >
-            <Ban className={`h-6 w-6 ${specialSelection === 'NO_ACCESS' ? 'text-destructive' : 'text-muted-foreground'}`} />
-            <div className="text-center">
-              <p className="font-semibold text-sm">No Access</p>
-              <p className="text-xs text-muted-foreground">Can't inspect</p>
-            </div>
-          </button>
-        </div>
+      <div className="space-y-3">
+        {UNIT_CATEGORIES.map((category) => (
+          <SelectionButton
+            key={category.value}
+            icon={category.icon}
+            label={category.label}
+            description={category.description}
+            selected={selectedCategory === category.value}
+            onClick={() => handleSelect(category.value)}
+            size="compact"
+          />
+        ))}
       </div>
 
       {/* Special selection warning */}
-      {specialSelection && (
+      {isSpecialSelection && (
         <StepCard className="border-amber-500/50 bg-amber-500/5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              {specialSelection === 'BOILER' ? (
+              {selectedCategory === 'BOILER' ? (
                 <>
                   <p className="font-medium text-amber-800 dark:text-amber-200">Boiler - Not Tracked</p>
                   <p className="text-sm text-muted-foreground mt-1">
