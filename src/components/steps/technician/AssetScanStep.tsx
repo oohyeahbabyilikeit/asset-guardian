@@ -93,11 +93,24 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
   const [decodedAge, setDecodedAge] = useState<ReturnType<typeof decodeSerialNumber> | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<ScannedDataPlate | null>(null);
+  const [customCapacity, setCustomCapacity] = useState(false);
+  const [customWarranty, setCustomWarranty] = useState(false);
   const { isScanning, scanImage } = useDataPlateScan();
   
   const isTankless = data.fuelType === 'TANKLESS_GAS' || data.fuelType === 'TANKLESS_ELECTRIC';
   const isGasUnit = data.fuelType === 'GAS' || data.fuelType === 'TANKLESS_GAS';
   const hasScanned = !!lastScanResult;
+  
+  // Detect non-standard values that don't match chips
+  const standardCapacities = CAPACITY_CHIPS.map(c => c.value);
+  const standardFlowRates = FLOW_RATE_CHIPS.map(c => c.value);
+  const standardWarranties = WARRANTY_CHIPS.map(c => c.value);
+
+  const isNonStandardCapacity = isTankless
+    ? (data.ratedFlowGPM !== undefined && data.ratedFlowGPM !== null && !standardFlowRates.includes(data.ratedFlowGPM))
+    : (data.tankCapacity !== undefined && data.tankCapacity !== null && !standardCapacities.includes(data.tankCapacity));
+
+  const isNonStandardWarranty = data.warrantyYears !== undefined && data.warrantyYears !== null && !standardWarranties.includes(data.warrantyYears);
   
   const handleScanImage = async (file: File) => {
     const result = await scanImage(file);
@@ -378,11 +391,33 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                     <ChipOption
                       key={chip.value}
                       label={chip.label}
-                      selected={(isTankless ? data.ratedFlowGPM : data.tankCapacity) === chip.value}
-                      onClick={() => onUpdate(isTankless ? { ratedFlowGPM: chip.value } : { tankCapacity: chip.value })}
+                      selected={!customCapacity && !isNonStandardCapacity && (isTankless ? data.ratedFlowGPM : data.tankCapacity) === chip.value}
+                      onClick={() => {
+                        setCustomCapacity(false);
+                        onUpdate(isTankless ? { ratedFlowGPM: chip.value } : { tankCapacity: chip.value });
+                      }}
                     />
                   ))}
+                  <ChipOption
+                    label="Custom"
+                    selected={customCapacity || isNonStandardCapacity}
+                    onClick={() => setCustomCapacity(true)}
+                  />
                 </div>
+                {(customCapacity || isNonStandardCapacity) && (
+                  <Input
+                    type="number"
+                    placeholder={isTankless ? "GPM" : "gallons"}
+                    value={isTankless ? (data.ratedFlowGPM ?? '') : (data.tankCapacity ?? '')}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (e.target.value === '' || !isNaN(val)) {
+                        onUpdate(isTankless ? { ratedFlowGPM: val || undefined } : { tankCapacity: val || undefined });
+                      }
+                    }}
+                    className="max-w-[140px] mt-2"
+                  />
+                )}
               </div>
 
               {/* Warranty */}
@@ -393,11 +428,33 @@ export function AssetScanStep({ data, onUpdate, onAgeDetected, onAIDetection, on
                     <ChipOption
                       key={chip.value}
                       label={chip.label}
-                      selected={data.warrantyYears === chip.value}
-                      onClick={() => onUpdate({ warrantyYears: chip.value })}
+                      selected={!customWarranty && !isNonStandardWarranty && data.warrantyYears === chip.value}
+                      onClick={() => {
+                        setCustomWarranty(false);
+                        onUpdate({ warrantyYears: chip.value });
+                      }}
                     />
                   ))}
+                  <ChipOption
+                    label="Custom"
+                    selected={customWarranty || isNonStandardWarranty}
+                    onClick={() => setCustomWarranty(true)}
+                  />
                 </div>
+                {(customWarranty || isNonStandardWarranty) && (
+                  <Input
+                    type="number"
+                    placeholder="years"
+                    value={data.warrantyYears ?? ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (e.target.value === '' || (!isNaN(val) && val > 0)) {
+                        onUpdate({ warrantyYears: val || undefined });
+                      }
+                    }}
+                    className="max-w-[140px] mt-2"
+                  />
+                )}
               </div>
             </div>
           )}
