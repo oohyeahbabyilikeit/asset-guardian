@@ -34,12 +34,6 @@ const VENT_TYPE_OPTIONS: { value: VentType; label: string; desc: string }[] = [
   { value: 'DIRECT_VENT', label: 'Direct Vent', desc: 'Sealed combustion' },
 ];
 
-const FLUE_SCENARIO_OPTIONS: { value: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT'; label: string; desc: string; variant?: 'warning' }[] = [
-  { value: 'SHARED_FLUE', label: 'Shared Flue', desc: 'With furnace' },
-  { value: 'ORPHANED_FLUE', label: 'Orphaned', desc: 'Standalone flue', variant: 'warning' },
-  { value: 'DIRECT_VENT', label: 'Direct Vent', desc: 'Sealed combustion' },
-];
-
 const CONNECTION_OPTIONS: { value: 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER'; label: string; variant?: 'warning' }[] = [
   { value: 'DIELECTRIC', label: 'Dielectric' },
   { value: 'BRASS', label: 'Brass' },
@@ -82,7 +76,16 @@ export function EquipmentVerifyStep({
       case 'exp-tank':
         return equipmentData.expTankStatus !== undefined;
       case 'venting-config':
-        return assetData.ventType !== undefined && assetData.ventingScenario !== undefined;
+        if (!assetData.ventType) return false;
+        // Conditional validation based on vent type
+        if (assetData.ventType === 'ATMOSPHERIC') {
+          return assetData.ventingScenario === 'SHARED_FLUE' || assetData.ventingScenario === 'ORPHANED_FLUE';
+        }
+        if (assetData.ventType === 'POWER_VENT') {
+          return assetData.exhaustPipeSize !== undefined;
+        }
+        // DIRECT_VENT - no additional input needed
+        return true;
       case 'connection':
         return equipmentData.connectionType !== undefined;
       case 'extras':
@@ -199,7 +202,31 @@ export function EquipmentVerifyStep({
     </StepCard>
   );
 
-  // Combined venting + flue
+  // Handle vent type selection with auto-clear of conditional fields
+  const handleVentTypeSelect = (ventType: VentType) => {
+    // Clear conditional fields when switching vent types
+    const updates: Partial<AssetIdentification> = { ventType };
+    
+    if (ventType === 'DIRECT_VENT') {
+      // Auto-set ventingScenario for direct vent
+      updates.ventingScenario = 'DIRECT_VENT';
+      updates.exhaustPipeSize = undefined;
+    } else if (ventType === 'POWER_VENT') {
+      // Power vent uses PVC, no flue scenario needed
+      updates.ventingScenario = 'DIRECT_VENT'; // No traditional flue
+      // Keep exhaustPipeSize if already set, otherwise clear
+    } else {
+      // Atmospheric - clear exhaustPipeSize, keep ventingScenario if valid
+      updates.exhaustPipeSize = undefined;
+      if (assetData.ventingScenario === 'DIRECT_VENT') {
+        updates.ventingScenario = undefined;
+      }
+    }
+    
+    onAssetUpdate(updates);
+  };
+
+  // Conditional venting configuration with physics-correct options
   const renderVentingConfigStep = () => (
     <StepCard className="border-0 bg-transparent shadow-none">
       {/* Section 1: Vent Type */}
@@ -210,7 +237,7 @@ export function EquipmentVerifyStep({
             <button
               key={vent.value}
               type="button"
-              onClick={() => onAssetUpdate({ ventType: vent.value })}
+              onClick={() => handleVentTypeSelect(vent.value)}
               className={cn(
                 "w-full p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
                 assetData.ventType === vent.value
@@ -230,46 +257,116 @@ export function EquipmentVerifyStep({
         </div>
       </div>
 
-      <Separator className="my-4" />
-
-      {/* Section 2: Flue Scenario */}
-      <div>
-        <p className="text-xs font-medium text-muted-foreground mb-3">Flue Scenario</p>
-        <div className="space-y-2">
-          {FLUE_SCENARIO_OPTIONS.map((flue) => (
-            <button
-              key={flue.value}
-              type="button"
-              onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
-              className={cn(
-                "w-full p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
-                assetData.ventingScenario === flue.value
-                  ? flue.variant === 'warning'
+      {/* Section 2: Conditional follow-up based on vent type */}
+      {assetData.ventType === 'ATMOSPHERIC' && (
+        <>
+          <Separator className="my-4" />
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-3">Shared with furnace?</p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => onAssetUpdate({ ventingScenario: 'SHARED_FLUE' })}
+                className={cn(
+                  "w-full p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
+                  assetData.ventingScenario === 'SHARED_FLUE'
+                    ? "border-primary bg-primary/10"
+                    : "border-muted bg-card hover:border-primary/40"
+                )}
+              >
+                <div>
+                  <span className="font-medium text-sm">Yes, Shared Flue</span>
+                  <p className="text-xs text-muted-foreground">Common chimney with furnace</p>
+                </div>
+                {assetData.ventingScenario === 'SHARED_FLUE' && (
+                  <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                )}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => onAssetUpdate({ ventingScenario: 'ORPHANED_FLUE' })}
+                className={cn(
+                  "w-full p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
+                  assetData.ventingScenario === 'ORPHANED_FLUE'
                     ? "border-orange-500 bg-orange-500/10"
-                    : "border-primary bg-primary/10"
-                  : "border-muted bg-card hover:border-primary/40"
-              )}
-            >
-              <div>
-                <span className="font-medium text-sm">{flue.label}</span>
-                <p className="text-xs text-muted-foreground">{flue.desc}</p>
+                    : "border-muted bg-card hover:border-primary/40"
+                )}
+              >
+                <div>
+                  <span className={cn(
+                    "font-medium text-sm",
+                    assetData.ventingScenario === 'ORPHANED_FLUE' && "text-orange-700 dark:text-orange-400"
+                  )}>No, Standalone</span>
+                  <p className="text-xs text-muted-foreground">Dedicated flue or no furnace</p>
+                </div>
+                {assetData.ventingScenario === 'ORPHANED_FLUE' && (
+                  <CheckCircle2 className="h-5 w-5 text-orange-500 shrink-0" />
+                )}
+              </button>
+            </div>
+            
+            {assetData.ventingScenario === 'ORPHANED_FLUE' && (
+              <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2 mt-4">
+                <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-orange-800 dark:text-orange-200">
+                  Upgrade to tankless/HPWH will require chimney liner (~$2,000)
+                </p>
               </div>
-              {assetData.ventingScenario === flue.value && (
-                <CheckCircle2 className={cn(
-                  "h-5 w-5 shrink-0",
-                  flue.variant === 'warning' ? "text-orange-500" : "text-primary"
-                )} />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+            )}
+          </div>
+        </>
+      )}
 
-      {assetData.ventingScenario === 'ORPHANED_FLUE' && (
-        <div className="p-3 bg-orange-100 dark:bg-orange-500/20 rounded-lg flex items-start gap-2 mt-4">
-          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-orange-800 dark:text-orange-200">
-            Orphaned flue may require liner for replacement
+      {assetData.ventType === 'POWER_VENT' && (
+        <>
+          <Separator className="my-4" />
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-3">Exhaust pipe size?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => onAssetUpdate({ exhaustPipeSize: '2' })}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all text-center",
+                  assetData.exhaustPipeSize === '2'
+                    ? "border-primary bg-primary/10"
+                    : "border-muted bg-card hover:border-primary/40"
+                )}
+              >
+                <span className="font-semibold text-lg">2"</span>
+                <p className="text-xs text-muted-foreground mt-1">Standard</p>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => onAssetUpdate({ exhaustPipeSize: '3' })}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all text-center",
+                  assetData.exhaustPipeSize === '3'
+                    ? "border-primary bg-primary/10"
+                    : "border-muted bg-card hover:border-primary/40"
+                )}
+              >
+                <span className="font-semibold text-lg">3"</span>
+                <p className="text-xs text-muted-foreground mt-1">High-capacity</p>
+              </button>
+            </div>
+            
+            {assetData.exhaustPipeSize === '2' && (
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                May need 3" for high-capacity tankless upgrade
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {assetData.ventType === 'DIRECT_VENT' && (
+        <div className="p-3 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-start gap-2 mt-4">
+          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-green-800 dark:text-green-200">
+            Sealed combustion — no additional venting questions needed
           </p>
         </div>
       )}

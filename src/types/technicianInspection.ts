@@ -35,9 +35,14 @@ export interface AssetIdentification {
   ratedFlowGPM?: number;      // GPM (tankless)
   ventType?: VentType;        // Gas units only
   warrantyYears: number;      // Derived from brand/model or manual
-  // NEW v7.9: Venting Scenario ("Orphaned Vent Liability" Fix)
+  // Venting Scenario - conditional based on ventType:
+  // ATMOSPHERIC: SHARED_FLUE or ORPHANED_FLUE (based on furnace sharing)
+  // POWER_VENT: auto-set to DIRECT_VENT (no flue)
+  // DIRECT_VENT: auto-set to DIRECT_VENT
   ventingScenario?: 'SHARED_FLUE' | 'ORPHANED_FLUE' | 'DIRECT_VENT';
-  // NEW v7.9: Anode Count ("Sticker Slap" Fix)
+  // Power vent exhaust pipe size (for tankless reuse assessment)
+  exhaustPipeSize?: '2' | '3';
+  // Anode Count ("Sticker Slap" Fix)
   anodeCount?: 1 | 2;
 }
 
