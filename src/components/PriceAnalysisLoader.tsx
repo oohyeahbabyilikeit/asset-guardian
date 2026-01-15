@@ -28,6 +28,7 @@ export function PriceAnalysisLoader({
 }: PriceAnalysisLoaderProps) {
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [hasTransitioned, setHasTransitioned] = useState(false);
+  const [fetchStarted, setFetchStarted] = useState(false);
 
   // Fetch pricing in background
   const { tiers, allLoading } = useTieredPricing(
@@ -37,6 +38,13 @@ export function PriceAnalysisLoader({
     true,
     infrastructureIssues
   );
+
+  // Track when fetching actually starts (loading goes true)
+  useEffect(() => {
+    if (allLoading && !fetchStarted) {
+      setFetchStarted(true);
+    }
+  }, [allLoading, fetchStarted]);
 
   // Format specs for display
   const capacityDisplay = `${currentInputs.tankCapacity || 50} gallon`;
@@ -74,13 +82,13 @@ export function PriceAnalysisLoader({
     return () => clearTimeout(timer);
   }, []);
 
-  // Transition when both conditions are met
+  // Transition when all conditions are met (including fetch has actually started & completed)
   useEffect(() => {
-    if (!allLoading && minTimeElapsed && typewriterComplete && !hasTransitioned) {
+    if (fetchStarted && !allLoading && minTimeElapsed && typewriterComplete && !hasTransitioned) {
       setHasTransitioned(true);
       setTimeout(() => onComplete(tiers), 300);
     }
-  }, [allLoading, minTimeElapsed, typewriterComplete, hasTransitioned, tiers, onComplete]);
+  }, [fetchStarted, allLoading, minTimeElapsed, typewriterComplete, hasTransitioned, tiers, onComplete]);
 
   // Get fuel icon
   const FuelIcon = currentInputs.fuelType === 'ELECTRIC' ? Zap : 
