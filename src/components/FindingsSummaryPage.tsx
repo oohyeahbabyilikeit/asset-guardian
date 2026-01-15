@@ -708,6 +708,9 @@ export function FindingsSummaryPage({
   const isCritical = verdict.badge === 'CRITICAL';
   const isLeaking = currentInputs.isLeaking;
   
+  // Determine if this unit should be replaced - affects how we frame findings
+  const isReplacementRecommended = verdict.action === 'REPLACE' || verdict.badge === 'CRITICAL';
+  
   // Build finding cards based on actual detected issues
   const findings: FindingCard[] = [];
   
@@ -763,27 +766,53 @@ export function FindingsSummaryPage({
   // Critical pressure issues (>80 PSI)
   if (currentInputs.housePsi > 80) {
     const pressureMultiplier = metrics.stressFactors?.pressure || 1;
-    findings.push({
-      id: 'pressure-critical',
-      icon: <Gauge className="w-6 h-6" />,
-      title: 'Dangerously High Water Pressure',
-      measurement: `${currentInputs.housePsi} PSI (limit: 80 PSI)`,
-      explanation: `Your ${currentInputs.housePsi} PSI reading is ${currentInputs.housePsi - 80} PSI over the safe limit. This is aging your ${currentInputs.manufacturer || 'water heater'} ${pressureMultiplier.toFixed(1)}x faster than normal. Every valve, fitting, and appliance in your home is being stressed beyond design limits.`,
-      severity: 'critical',
-      severityValue: Math.min(100, Math.round((currentInputs.housePsi / 100) * 100)),
-      educationalTopic: 'pressure',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'pressure-critical',
+        icon: <Gauge className="w-6 h-6" />,
+        title: 'High Pressure Accelerated Failure',
+        measurement: `${currentInputs.housePsi} PSI (limit: 80 PSI)`,
+        explanation: `Years of ${currentInputs.housePsi} PSI water pressure—${currentInputs.housePsi - 80} PSI over the safe limit—aged this unit ${pressureMultiplier.toFixed(1)}x faster than normal. For your next water heater: install a pressure regulating valve (PRV) set to 50-60 PSI from day one.`,
+        severity: 'info',
+        severityValue: 60,
+        educationalTopic: 'pressure',
+      });
+    } else {
+      findings.push({
+        id: 'pressure-critical',
+        icon: <Gauge className="w-6 h-6" />,
+        title: 'Dangerously High Water Pressure',
+        measurement: `${currentInputs.housePsi} PSI (limit: 80 PSI)`,
+        explanation: `Your ${currentInputs.housePsi} PSI reading is ${currentInputs.housePsi - 80} PSI over the safe limit. This is aging your ${currentInputs.manufacturer || 'water heater'} ${pressureMultiplier.toFixed(1)}x faster than normal. Every valve, fitting, and appliance in your home is being stressed beyond design limits.`,
+        severity: 'critical',
+        severityValue: Math.min(100, Math.round((currentInputs.housePsi / 100) * 100)),
+        educationalTopic: 'pressure',
+      });
+    }
   } else if (currentInputs.housePsi >= 70) {
-    findings.push({
-      id: 'pressure-high',
-      icon: <Gauge className="w-6 h-6" />,
-      title: 'Elevated Water Pressure',
-      measurement: `${currentInputs.housePsi} PSI (optimal: 40-60 PSI)`,
-      explanation: `At ${currentInputs.housePsi} PSI, your home is ${currentInputs.housePsi - 60} PSI above the optimal range. While not immediately dangerous, this adds ongoing wear to your ${currentInputs.tankCapacity || 50}-gallon tank and plumbing fixtures. A PRV adjustment or installation could extend equipment life.`,
-      severity: 'warning',
-      severityValue: Math.min(100, Math.round((currentInputs.housePsi / 100) * 100)),
-      educationalTopic: 'pressure',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'pressure-high',
+        icon: <Gauge className="w-6 h-6" />,
+        title: 'Elevated Pressure Contributed to Wear',
+        measurement: `${currentInputs.housePsi} PSI (optimal: 40-60 PSI)`,
+        explanation: `At ${currentInputs.housePsi} PSI—${currentInputs.housePsi - 60} PSI above optimal—this added ongoing wear over ${currentInputs.calendarAge || 'several'} years. For your next unit, consider a PRV to maintain 50-60 PSI and maximize equipment lifespan.`,
+        severity: 'info',
+        severityValue: 50,
+        educationalTopic: 'pressure',
+      });
+    } else {
+      findings.push({
+        id: 'pressure-high',
+        icon: <Gauge className="w-6 h-6" />,
+        title: 'Elevated Water Pressure',
+        measurement: `${currentInputs.housePsi} PSI (optimal: 40-60 PSI)`,
+        explanation: `At ${currentInputs.housePsi} PSI, your home is ${currentInputs.housePsi - 60} PSI above the optimal range. While not immediately dangerous, this adds ongoing wear to your ${currentInputs.tankCapacity || 50}-gallon tank and plumbing fixtures. A PRV adjustment or installation could extend equipment life.`,
+        severity: 'warning',
+        severityValue: Math.min(100, Math.round((currentInputs.housePsi / 100) * 100)),
+        educationalTopic: 'pressure',
+      });
+    }
   }
   
   // Missing or broken expansion tank in closed system
@@ -798,88 +827,170 @@ export function FindingsSummaryPage({
     const tankSize = currentInputs.tankCapacity || 50;
     const expansionGallons = (tankSize * 0.02).toFixed(1); // ~2% expansion
     
-    findings.push({
-      id: 'expansion-tank',
-      icon: <ThermometerSun className="w-6 h-6" />,
-      title: isWaterlogged ? 'Failed Expansion Tank' : 'Thermal Expansion Damage',
-      measurement: `${pressureMultiplier.toFixed(1)}x accelerated aging`,
-      explanation: isWaterlogged 
-        ? `Your expansion tank is waterlogged and no longer absorbing pressure spikes. When your ${tankSize}-gallon tank heats up, ${expansionGallons} gallons of expanded water have nowhere to go—causing pressure to spike to 150+ PSI multiple times daily. This is why your unit is aging ${pressureMultiplier.toFixed(0)}x faster than its calendar age suggests.`
-        : `Your PRV creates a closed system, but you have no expansion tank. Every heating cycle, ${expansionGallons} gallons of expanded water create a pressure spike with nowhere to go. After ${currentInputs.calendarAge || 'several'} years of this, the cumulative damage explains why your bio-age (${metrics.bioAge.toFixed(1)} years) exceeds calendar age.`,
-      severity: isCriticalExpansion ? 'critical' : 'warning',
-      severityValue: isCriticalExpansion ? 90 : 65,
-      educationalTopic: 'thermal-expansion',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'expansion-tank',
+        icon: <ThermometerSun className="w-6 h-6" />,
+        title: 'Thermal Expansion Caused Premature Wear',
+        measurement: `Thousands of pressure spikes over ${currentInputs.calendarAge || 'several'} years`,
+        explanation: isWaterlogged 
+          ? `Your failed expansion tank allowed pressure spikes of 150+ PSI multiple times daily for years. Each heating cycle, ${expansionGallons} gallons of expanded water had nowhere to go. For your next unit: install a properly-sized expansion tank and test it annually.`
+          : `Without an expansion tank in your closed system, every heating cycle created a pressure spike. Over ${currentInputs.calendarAge || 'several'} years, this caused cumulative damage. For your next water heater: ensure an expansion tank is installed at setup.`,
+        severity: 'info',
+        severityValue: 55,
+        educationalTopic: 'thermal-expansion',
+      });
+    } else {
+      findings.push({
+        id: 'expansion-tank',
+        icon: <ThermometerSun className="w-6 h-6" />,
+        title: isWaterlogged ? 'Failed Expansion Tank' : 'Thermal Expansion Damage',
+        measurement: `${pressureMultiplier.toFixed(1)}x accelerated aging`,
+        explanation: isWaterlogged 
+          ? `Your expansion tank is waterlogged and no longer absorbing pressure spikes. When your ${tankSize}-gallon tank heats up, ${expansionGallons} gallons of expanded water have nowhere to go—causing pressure to spike to 150+ PSI multiple times daily. This is why your unit is aging ${pressureMultiplier.toFixed(0)}x faster than its calendar age suggests.`
+          : `Your PRV creates a closed system, but you have no expansion tank. Every heating cycle, ${expansionGallons} gallons of expanded water create a pressure spike with nowhere to go. After ${currentInputs.calendarAge || 'several'} years of this, the cumulative damage explains why your bio-age (${metrics.bioAge.toFixed(1)} years) exceeds calendar age.`,
+        severity: isCriticalExpansion ? 'critical' : 'warning',
+        severityValue: isCriticalExpansion ? 90 : 65,
+        educationalTopic: 'thermal-expansion',
+      });
+    }
   }
   
   // Hard water issues - with specific impact
   const hardnessMultiplier = metrics.stressFactors?.chemical || 1;
   if (currentInputs.hardnessGPG > 15) {
     const scalePerYear = (currentInputs.hardnessGPG * 0.15).toFixed(1); // rough estimate lbs/year
-    findings.push({
-      id: 'hardness-critical',
-      icon: <Droplets className="w-6 h-6" />,
-      title: 'Severe Hard Water Damage',
-      measurement: `${currentInputs.hardnessGPG} GPG (very hard)`,
-      explanation: `At ${currentInputs.hardnessGPG} grains per gallon, your water is depositing roughly ${scalePerYear} lbs of scale per year inside your tank. ${currentInputs.hasSoftener ? 'Even with your softener, this level is causing significant wear.' : 'Without a water softener, this mineral buildup is coating your heating elements and insulating the tank bottom.'} This is aging your system ${hardnessMultiplier.toFixed(1)}x faster than soft water would.`,
-      severity: 'warning',
-      severityValue: Math.min(100, Math.round((currentInputs.hardnessGPG / 25) * 100)),
-      educationalTopic: 'hardness',
-    });
+    const totalScale = (parseFloat(scalePerYear) * (currentInputs.calendarAge || 5)).toFixed(0);
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'hardness-critical',
+        icon: <Droplets className="w-6 h-6" />,
+        title: 'Hard Water Accelerated Deterioration',
+        measurement: `~${totalScale} lbs of scale deposited over ${currentInputs.calendarAge || 'several'} years`,
+        explanation: `At ${currentInputs.hardnessGPG} GPG, your extremely hard water deposited roughly ${scalePerYear} lbs of scale annually—coating heating elements and insulating the tank bottom. ${currentInputs.hasSoftener ? 'Your softener helped, but this level overwhelmed it.' : 'A water softener would have significantly extended this unit\'s life.'} For your next water heater: ${currentInputs.hasSoftener ? 'ensure your softener is properly sized and maintained' : 'strongly consider a water softener'}.`,
+        severity: 'info',
+        severityValue: 55,
+        educationalTopic: 'hardness',
+      });
+    } else {
+      findings.push({
+        id: 'hardness-critical',
+        icon: <Droplets className="w-6 h-6" />,
+        title: 'Severe Hard Water Damage',
+        measurement: `${currentInputs.hardnessGPG} GPG (very hard)`,
+        explanation: `At ${currentInputs.hardnessGPG} grains per gallon, your water is depositing roughly ${scalePerYear} lbs of scale per year inside your tank. ${currentInputs.hasSoftener ? 'Even with your softener, this level is causing significant wear.' : 'Without a water softener, this mineral buildup is coating your heating elements and insulating the tank bottom.'} This is aging your system ${hardnessMultiplier.toFixed(1)}x faster than soft water would.`,
+        severity: 'warning',
+        severityValue: Math.min(100, Math.round((currentInputs.hardnessGPG / 25) * 100)),
+        educationalTopic: 'hardness',
+      });
+    }
   } else if (currentInputs.hardnessGPG > 10) {
-    findings.push({
-      id: 'hardness-moderate',
-      icon: <Droplets className="w-6 h-6" />,
-      title: 'Hard Water Wear',
-      measurement: `${currentInputs.hardnessGPG} GPG (moderately hard)`,
-      explanation: `Your ${currentInputs.hardnessGPG} GPG water hardness is causing gradual scale buildup on heating elements. Over ${currentInputs.calendarAge || 'several'} years, this accumulates into ${currentInputs.hasSoftener ? 'reduced efficiency despite your softener.' : 'thick deposits that reduce heating efficiency by 15-25% and stress tank components.'}`,
-      severity: 'info',
-      severityValue: Math.round((currentInputs.hardnessGPG / 25) * 100),
-      educationalTopic: 'hardness',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'hardness-moderate',
+        icon: <Droplets className="w-6 h-6" />,
+        title: 'Moderate Hard Water Contributed to Wear',
+        measurement: `${currentInputs.hardnessGPG} GPG over ${currentInputs.calendarAge || 'several'} years`,
+        explanation: `Your ${currentInputs.hardnessGPG} GPG water caused gradual scale buildup that reduced heating efficiency and stressed components. For your next unit: ${currentInputs.hasSoftener ? 'maintain your softener and consider annual flushes' : 'consider a water softener to protect your investment'}.`,
+        severity: 'info',
+        severityValue: 45,
+        educationalTopic: 'hardness',
+      });
+    } else {
+      findings.push({
+        id: 'hardness-moderate',
+        icon: <Droplets className="w-6 h-6" />,
+        title: 'Hard Water Wear',
+        measurement: `${currentInputs.hardnessGPG} GPG (moderately hard)`,
+        explanation: `Your ${currentInputs.hardnessGPG} GPG water hardness is causing gradual scale buildup on heating elements. Over ${currentInputs.calendarAge || 'several'} years, this accumulates into ${currentInputs.hasSoftener ? 'reduced efficiency despite your softener.' : 'thick deposits that reduce heating efficiency by 15-25% and stress tank components.'}`,
+        severity: 'info',
+        severityValue: Math.round((currentInputs.hardnessGPG / 25) * 100),
+        educationalTopic: 'hardness',
+      });
+    }
   }
   
   // Aging unit - with specific brand context
   if (currentInputs.calendarAge >= 10) {
     const yearsOver = currentInputs.calendarAge - 10;
     const failureRisk = Math.min(95, 20 + (currentInputs.calendarAge - 8) * 8); // rough failure curve
-    findings.push({
-      id: 'aging',
-      icon: <Clock className="w-6 h-6" />,
-      title: currentInputs.calendarAge >= 12 ? 'Past Expected Lifespan' : 'Approaching End of Life',
-      measurement: `${currentInputs.calendarAge} years old`,
-      explanation: currentInputs.manufacturer 
-        ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, yours is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the design lifespan. Industry data shows ~${failureRisk}% of similar units have failed by this age. ${currentInputs.modelNumber ? `Model ${currentInputs.modelNumber} was` : 'Units from this era were'} built before current efficiency standards.`
-        : `At ${currentInputs.calendarAge} years, your unit is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the typical 10-year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age, with failure rates accelerating each additional year.`,
-      severity: currentInputs.calendarAge >= 12 ? 'warning' : 'info',
-      severityValue: Math.min(100, Math.round((currentInputs.calendarAge / 15) * 100)),
-      educationalTopic: 'aging',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'aging',
+        icon: <Clock className="w-6 h-6" />,
+        title: 'Unit Exceeded Design Lifespan',
+        measurement: `${currentInputs.calendarAge} years (industry average: 8-12 years)`,
+        explanation: currentInputs.manufacturer 
+          ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, this unit reached ${yearsOver > 0 ? `${yearsOver} years past` : ''} its expected service life. Industry data shows ~${failureRisk}% of similar units have failed by this age.`
+          : `At ${currentInputs.calendarAge} years, this unit exceeded the typical 8-12 year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age.`,
+        severity: 'info',
+        severityValue: 50,
+        educationalTopic: 'aging',
+      });
+    } else {
+      findings.push({
+        id: 'aging',
+        icon: <Clock className="w-6 h-6" />,
+        title: currentInputs.calendarAge >= 12 ? 'Past Expected Lifespan' : 'Approaching End of Life',
+        measurement: `${currentInputs.calendarAge} years old`,
+        explanation: currentInputs.manufacturer 
+          ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, yours is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the design lifespan. Industry data shows ~${failureRisk}% of similar units have failed by this age. ${currentInputs.modelNumber ? `Model ${currentInputs.modelNumber} was` : 'Units from this era were'} built before current efficiency standards.`
+          : `At ${currentInputs.calendarAge} years, your unit is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the typical 10-year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age, with failure rates accelerating each additional year.`,
+        severity: currentInputs.calendarAge >= 12 ? 'warning' : 'info',
+        severityValue: Math.min(100, Math.round((currentInputs.calendarAge / 15) * 100)),
+        educationalTopic: 'aging',
+      });
+    }
   } else if (metrics.bioAge >= 10) {
     const ageDelta = metrics.bioAge - currentInputs.calendarAge;
-    findings.push({
-      id: 'bio-age',
-      icon: <Clock className="w-6 h-6" />,
-      title: 'Premature Aging Detected',
-      measurement: `${currentInputs.calendarAge} years old → ${metrics.bioAge.toFixed(1)} bio-age`,
-      explanation: `Your ${currentInputs.manufacturer || 'water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion stress, ' : ''}and other environmental factors.`.replace(/, $/, '.'),
-      severity: 'warning',
-      severityValue: Math.min(100, Math.round((metrics.bioAge / 15) * 100)),
-      educationalTopic: 'aging',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'bio-age',
+        icon: <Clock className="w-6 h-6" />,
+        title: 'Environmental Stress Caused Premature Failure',
+        measurement: `${currentInputs.calendarAge} years old with ${metrics.bioAge.toFixed(0)}-year wear`,
+        explanation: `Although only ${currentInputs.calendarAge} years old, this unit accumulated ${ageDelta.toFixed(1)} years of extra wear from ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion, ' : ''}environmental factors. For your next unit: address these issues at installation to maximize lifespan.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For'),
+        severity: 'info',
+        severityValue: 50,
+        educationalTopic: 'aging',
+      });
+    } else {
+      findings.push({
+        id: 'bio-age',
+        icon: <Clock className="w-6 h-6" />,
+        title: 'Premature Aging Detected',
+        measurement: `${currentInputs.calendarAge} years old → ${metrics.bioAge.toFixed(1)} bio-age`,
+        explanation: `Your ${currentInputs.manufacturer || 'water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion stress, ' : ''}and other environmental factors.`.replace(/, $/, '.'),
+        severity: 'warning',
+        severityValue: Math.min(100, Math.round((metrics.bioAge / 15) * 100)),
+        educationalTopic: 'aging',
+      });
+    }
   }
   
   // Visual rust - with context
   if (currentInputs.visualRust) {
-    findings.push({
-      id: 'rust',
-      icon: <AlertTriangle className="w-6 h-6" />,
-      title: 'External Corrosion Visible',
-      explanation: `Rust on the outside of your ${currentInputs.manufacturer || ''} tank indicates moisture exposure or condensation issues. At ${currentInputs.calendarAge || 'this'} years old, external rust often signals that internal corrosion is more advanced—the anode rod has likely been depleted for some time, allowing the tank itself to corrode.`,
-      severity: 'warning',
-      severityValue: 75,
-      educationalTopic: 'anode-rod',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'rust',
+        icon: <AlertTriangle className="w-6 h-6" />,
+        title: 'Corrosion Indicates Internal Damage',
+        explanation: `External rust on this ${currentInputs.calendarAge || ''}-year-old tank signals advanced internal corrosion. The anode rod—designed to sacrifice itself to protect the tank—was depleted years ago. For your next water heater: replace the anode rod every 3-5 years to prevent this.`,
+        severity: 'info',
+        severityValue: 55,
+        educationalTopic: 'anode-rod',
+      });
+    } else {
+      findings.push({
+        id: 'rust',
+        icon: <AlertTriangle className="w-6 h-6" />,
+        title: 'External Corrosion Visible',
+        explanation: `Rust on the outside of your ${currentInputs.manufacturer || ''} tank indicates moisture exposure or condensation issues. At ${currentInputs.calendarAge || 'this'} years old, external rust often signals that internal corrosion is more advanced—the anode rod has likely been depleted for some time, allowing the tank itself to corrode.`,
+        severity: 'warning',
+        severityValue: 75,
+        educationalTopic: 'anode-rod',
+      });
+    }
   }
   
   // Depleted anode rod - the tank's sacrificial protection is gone
@@ -892,7 +1003,19 @@ export function FindingsSummaryPage({
     // Only show if we're not already showing rust (rust implies depleted anode)
     const corrosionMultiplier = metrics.stressFactors?.corrosion || 1;
     
-    if (isFusedRisk) {
+    if (isReplacementRecommended) {
+      // Frame as lesson learned for next unit
+      findings.push({
+        id: 'anode-depleted',
+        icon: <Shield className="w-6 h-6" />,
+        title: 'Anode Protection Was Missing',
+        measurement: `Depleted for ~${Math.max(0, anodeAge - 5)} years`,
+        explanation: `This unit's anode rod—designed to sacrifice itself to protect the tank—was never replaced. For ${anodeAge} years, the tank corroded unprotected${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}. For your next water heater: replace the anode rod every 3-5 years ($20-50 part) to maximize tank life.`,
+        severity: 'info',
+        severityValue: 50,
+        educationalTopic: 'anode-rod',
+      });
+    } else if (isFusedRisk) {
       // Can't recommend replacement - rod is likely fused
       findings.push({
         id: 'anode-fused',
@@ -922,16 +1045,29 @@ export function FindingsSummaryPage({
   // Overdue maintenance - with specific impact
   if (currentInputs.lastFlushYearsAgo !== undefined && currentInputs.lastFlushYearsAgo > 2) {
     const sedimentEstimate = currentInputs.lastFlushYearsAgo * (currentInputs.hardnessGPG > 10 ? 2 : 1); // rough inches
-    findings.push({
-      id: 'flush-overdue',
-      icon: <Wrench className="w-6 h-6" />,
-      title: 'Sediment Buildup Likely',
-      measurement: `${currentInputs.lastFlushYearsAgo}+ years since last flush`,
-      explanation: `With ${currentInputs.hardnessGPG || 'your'} GPG water hardness and no flush in ${currentInputs.lastFlushYearsAgo}+ years, there's likely ${sedimentEstimate}-${sedimentEstimate + 2}" of sediment at the tank bottom. This insulates the burner from the water, reducing efficiency by 15-30% and causing the popping/rumbling sounds common in neglected tanks.`,
-      severity: 'info',
-      severityValue: Math.min(100, Math.round((currentInputs.lastFlushYearsAgo / 5) * 100)),
-      educationalTopic: 'sediment',
-    });
+    if (isReplacementRecommended) {
+      findings.push({
+        id: 'flush-overdue',
+        icon: <Wrench className="w-6 h-6" />,
+        title: 'Sediment Reduced Efficiency',
+        measurement: `${currentInputs.lastFlushYearsAgo}+ years of buildup`,
+        explanation: `Years of sediment buildup insulated the burner from the water, reducing efficiency by 15-30% and accelerating wear. For your next water heater: schedule annual flushes, especially with ${currentInputs.hardnessGPG || 'hard'} GPG water.`,
+        severity: 'info',
+        severityValue: 45,
+        educationalTopic: 'sediment',
+      });
+    } else {
+      findings.push({
+        id: 'flush-overdue',
+        icon: <Wrench className="w-6 h-6" />,
+        title: 'Sediment Buildup Likely',
+        measurement: `${currentInputs.lastFlushYearsAgo}+ years since last flush`,
+        explanation: `With ${currentInputs.hardnessGPG || 'your'} GPG water hardness and no flush in ${currentInputs.lastFlushYearsAgo}+ years, there's likely ${sedimentEstimate}-${sedimentEstimate + 2}" of sediment at the tank bottom. This insulates the burner from the water, reducing efficiency by 15-30% and causing the popping/rumbling sounds common in neglected tanks.`,
+        severity: 'info',
+        severityValue: Math.min(100, Math.round((currentInputs.lastFlushYearsAgo / 5) * 100)),
+        educationalTopic: 'sediment',
+      });
+    }
   }
   
   // Add infrastructure violations as findings
