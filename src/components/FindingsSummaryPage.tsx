@@ -440,37 +440,6 @@ function RecommendationEducationStep({
             </motion.p>
           </div>
 
-          {/* Findings chips */}
-          {topFindings.length > 0 && (
-            <motion.div 
-              className="px-5 py-3 border-t border-border/50 bg-muted/20"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">
-                Based on what we found
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {topFindings.map((f, idx) => (
-                  <motion.span
-                    key={f.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.5 + idx * 0.1 }}
-                    className={cn(
-                      "text-xs px-2.5 py-1 rounded-full font-medium",
-                      f.severity === 'critical' ? 'bg-destructive/10 text-destructive' : 
-                      f.severity === 'warning' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'
-                    )}
-                  >
-                    {f.title}
-                  </motion.span>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
           {/* Educational content - clean list */}
           <motion.div 
             className="p-5 space-y-4"
