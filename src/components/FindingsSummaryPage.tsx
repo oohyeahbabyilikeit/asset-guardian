@@ -65,6 +65,22 @@ function SeverityGauge({
     }
   };
 
+  const getSeverityLabel = () => {
+    switch (severity) {
+      case 'critical': return 'HIGH';
+      case 'warning': return 'MED';
+      case 'info': return 'LOW';
+    }
+  };
+
+  const getLabelColor = () => {
+    switch (severity) {
+      case 'critical': return 'text-destructive';
+      case 'warning': return 'text-amber-500';
+      case 'info': return 'text-primary';
+    }
+  };
+
   return (
     <div className="relative w-16 h-16">
       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -94,12 +110,12 @@ function SeverityGauge({
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <motion.span 
-          className="text-xs font-bold"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          className={`text-xs font-bold ${getLabelColor()}`}
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, type: "spring" }}
         >
-          {animatedValue}%
+          {getSeverityLabel()}
         </motion.span>
       </div>
     </div>
