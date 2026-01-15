@@ -223,6 +223,82 @@ export type Database = {
         }
         Relationships: []
       }
+      leads: {
+        Row: {
+          capture_context: Json | null
+          capture_source: string
+          contractor_id: string | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          id: string
+          notes: string | null
+          opt_in_alerts: boolean | null
+          preferred_contact_method: string | null
+          property_id: string | null
+          status: string | null
+          updated_at: string
+          water_heater_id: string | null
+        }
+        Insert: {
+          capture_context?: Json | null
+          capture_source: string
+          contractor_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          id?: string
+          notes?: string | null
+          opt_in_alerts?: boolean | null
+          preferred_contact_method?: string | null
+          property_id?: string | null
+          status?: string | null
+          updated_at?: string
+          water_heater_id?: string | null
+        }
+        Update: {
+          capture_context?: Json | null
+          capture_source?: string
+          contractor_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          notes?: string | null
+          opt_in_alerts?: boolean | null
+          preferred_contact_method?: string | null
+          property_id?: string | null
+          status?: string | null
+          updated_at?: string
+          water_heater_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
+            referencedRelation: "water_heaters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_notification_requests: {
         Row: {
           contractor_id: string | null

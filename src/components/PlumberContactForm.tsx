@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Phone, User, Bell, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
+import { submitLead, CaptureSource } from '@/lib/leadService';
+import { toast } from 'sonner';
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -16,16 +18,31 @@ interface PlumberContactFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: { name: string; phone: string; optInAlerts: boolean }) => void;
+  // Optional entity IDs for lead tracking
+  propertyId?: string;
+  waterHeaterId?: string;
+  contractorId?: string;
+  // Optional context for the lead
+  captureContext?: Record<string, unknown>;
 }
 
-export function PlumberContactForm({ open, onOpenChange, onSubmit }: PlumberContactFormProps) {
+export function PlumberContactForm({ 
+  open, 
+  onOpenChange, 
+  onSubmit,
+  propertyId,
+  waterHeaterId,
+  contractorId,
+  captureContext,
+}: PlumberContactFormProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [optInAlerts, setOptInAlerts] = useState(true);
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const result = contactSchema.safeParse({ name, phone });
@@ -41,9 +58,29 @@ export function PlumberContactForm({ open, onOpenChange, onSubmit }: PlumberCont
     }
     
     setErrors({});
+    setIsSubmitting(true);
+    
+    // Submit to leads table
+    const leadResult = await submitLead({
+      customerName: result.data.name,
+      customerPhone: result.data.phone,
+      captureSource: 'replacement_quote' as CaptureSource,
+      captureContext: captureContext || {},
+      propertyId,
+      waterHeaterId,
+      contractorId,
+      optInAlerts,
+    });
+
+    if (!leadResult.success) {
+      console.warn('[PlumberContactForm] Failed to save lead:', leadResult.error);
+      // Don't block the user flow, just log the error
+    }
+
+    setIsSubmitting(false);
     setIsSubmitted(true);
     
-    // Simulate submission delay then callback
+    // Callback after brief delay
     setTimeout(() => {
       onSubmit({ name: result.data.name, phone: result.data.phone, optInAlerts });
     }, 1500);
@@ -92,6 +129,7 @@ export function PlumberContactForm({ open, onOpenChange, onSubmit }: PlumberCont
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className={errors.name ? 'border-destructive' : ''}
+                  disabled={isSubmitting}
                 />
                 {errors.name && (
                   <p className="text-sm text-destructive">{errors.name}</p>
@@ -110,6 +148,7 @@ export function PlumberContactForm({ open, onOpenChange, onSubmit }: PlumberCont
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className={errors.phone ? 'border-destructive' : ''}
+                  disabled={isSubmitting}
                 />
                 {errors.phone && (
                   <p className="text-sm text-destructive">{errors.phone}</p>
@@ -122,6 +161,7 @@ export function PlumberContactForm({ open, onOpenChange, onSubmit }: PlumberCont
                   checked={optInAlerts}
                   onCheckedChange={(checked) => setOptInAlerts(checked === true)}
                   className="mt-0.5"
+                  disabled={isSubmitting}
                 />
                 <div className="space-y-1">
                   <Label htmlFor="alerts" className="flex items-center gap-2 cursor-pointer">
@@ -134,8 +174,8 @@ export function PlumberContactForm({ open, onOpenChange, onSubmit }: PlumberCont
                 </div>
               </div>
               
-              <Button type="submit" className="w-full h-12 text-base font-semibold">
-                Request Callback
+              <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Request Callback'}
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">
