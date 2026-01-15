@@ -8,13 +8,15 @@
  */
 
 import { ForensicInputs, isTankless, OpterraMetrics } from './opterraAlgorithm';
+import { getInfrastructureIssues, InfrastructureIssue } from './infrastructureIssues';
 
 // Task types by unit category
 export type TankTaskType = 'flush' | 'anode';
 export type TanklessTaskType = 'descale' | 'filter_clean' | 'isolation_valves';
 export type HybridTaskType = 'air_filter' | 'condensate' | 'flush';
+export type InfrastructureTaskType = 'exp_tank_install' | 'exp_tank_replace' | 'prv_install' | 'prv_replace';
 
-export type MaintenanceTaskType = TankTaskType | TanklessTaskType | HybridTaskType | 'inspection';
+export type MaintenanceTaskType = TankTaskType | TanklessTaskType | HybridTaskType | InfrastructureTaskType | 'inspection';
 
 export interface MaintenanceTask {
   type: MaintenanceTaskType;
@@ -24,7 +26,11 @@ export interface MaintenanceTask {
   urgency: 'optimal' | 'schedule' | 'due' | 'overdue' | 'impossible';
   benefit: string;
   whyExplanation: string;
-  icon: 'droplets' | 'shield' | 'flame' | 'filter' | 'valve' | 'wind' | 'wrench';
+  icon: 'droplets' | 'shield' | 'flame' | 'filter' | 'valve' | 'wind' | 'wrench' | 'gauge' | 'alert';
+  /** For infrastructure issues, the aging multiplier this fixes */
+  agingMultiplier?: number;
+  /** Whether this is a critical infrastructure issue */
+  isInfrastructure?: boolean;
 }
 
 export interface MaintenanceSchedule {
@@ -364,4 +370,90 @@ export function getServiceEventTypes(fuelType: ForensicInputs['fuelType']): Arra
     { value: 'inspection', label: 'Inspection' },
     { value: 'repair', label: 'Repair' },
   ];
+}
+
+/**
+ * Convert infrastructure issues into high-priority maintenance tasks
+ * These should be shown FIRST in any maintenance schedule when present
+ */
+export function getInfrastructureMaintenanceTasks(
+  inputs: ForensicInputs,
+  metrics: OpterraMetrics
+): MaintenanceTask[] {
+  const issues = getInfrastructureIssues(inputs, metrics);
+  const tasks: MaintenanceTask[] = [];
+  
+  // Calculate actual aging multiplier from stress factors
+  const pressureStress = metrics.stressFactors?.pressure || 1;
+  const loopStress = metrics.stressFactors?.loop || 1;
+  const agingMultiplier = Math.round(pressureStress * loopStress * 10) / 10;
+  
+  // Missing expansion tank in closed loop = CRITICAL (7x aging)
+  const expTankRequired = issues.find(i => i.id === 'exp_tank_required');
+  if (expTankRequired) {
+    tasks.push({
+      type: 'exp_tank_install',
+      label: 'Expansion Tank Installation',
+      description: 'CRITICAL: Unmanaged thermal expansion',
+      monthsUntilDue: 0,
+      urgency: 'overdue',
+      benefit: `Reduce aging rate by ${agingMultiplier}x`,
+      whyExplanation: `Your closed-loop plumbing causes water pressure to spike to ${inputs.housePsi > 80 ? inputs.housePsi : '120+'} PSI every time the heater cycles. This cyclic stress causes metal fatigue ${agingMultiplier}x faster than normal. An expansion tank absorbs this pressure and protects your equipment.`,
+      icon: 'alert',
+      agingMultiplier,
+      isInfrastructure: true,
+    });
+  }
+  
+  // Waterlogged expansion tank = still urgent but not as severe
+  const expTankReplace = issues.find(i => i.id === 'exp_tank_replace');
+  if (expTankReplace) {
+    tasks.push({
+      type: 'exp_tank_replace',
+      label: 'Expansion Tank Replacement',
+      description: 'Tank appears waterlogged (dead bladder)',
+      monthsUntilDue: 0,
+      urgency: 'due',
+      benefit: 'Restore thermal protection',
+      whyExplanation: 'Your existing expansion tank may have a failed bladder, providing zero protection. A functional tank prevents the pressure spikes that accelerate aging.',
+      icon: 'valve',
+      isInfrastructure: true,
+    });
+  }
+  
+  // Failed PRV with high pressure
+  const prvFailed = issues.find(i => i.id === 'prv_failed');
+  if (prvFailed) {
+    tasks.push({
+      type: 'prv_replace',
+      label: 'Pressure Regulator Replacement',
+      description: `Pressure at ${inputs.housePsi} PSI (PRV failed)`,
+      monthsUntilDue: 0,
+      urgency: 'overdue',
+      benefit: 'Stop excessive pressure damage',
+      whyExplanation: `Your pressure regulating valve has failed. At ${inputs.housePsi} PSI, your equipment is under constant stress that accelerates wear on valves, fittings, and tank welds.`,
+      icon: 'gauge',
+      agingMultiplier: pressureStress > 1 ? pressureStress : undefined,
+      isInfrastructure: true,
+    });
+  }
+  
+  // Critical pressure without PRV
+  const prvCritical = issues.find(i => i.id === 'prv_critical');
+  if (prvCritical) {
+    tasks.push({
+      type: 'prv_install',
+      label: 'Pressure Regulator Installation',
+      description: `Pressure at ${inputs.housePsi} PSI (unsafe)`,
+      monthsUntilDue: 0,
+      urgency: 'overdue',
+      benefit: 'Stop excessive pressure damage',
+      whyExplanation: `Water pressure above 80 PSI accelerates wear on valves, fittings, and tank welds. At ${inputs.housePsi} PSI, your equipment is under constant stress.`,
+      icon: 'gauge',
+      agingMultiplier: pressureStress > 1 ? pressureStress : undefined,
+      isInfrastructure: true,
+    });
+  }
+  
+  return tasks;
 }

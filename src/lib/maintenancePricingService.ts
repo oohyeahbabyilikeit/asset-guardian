@@ -59,6 +59,31 @@ const DEFAULT_MAINTENANCE_PRICES: Record<string, { price: number; label: string;
     description: 'Verifies service valves operate properly for future maintenance',
     minutes: 25,
   },
+  // Infrastructure tasks - critical priority
+  exp_tank_install: {
+    price: 350,
+    label: 'Expansion Tank Installation',
+    description: 'Protects equipment from thermal expansion damage in closed-loop systems',
+    minutes: 90,
+  },
+  exp_tank_replace: {
+    price: 325,
+    label: 'Expansion Tank Replacement',
+    description: 'Replaces failed/waterlogged expansion tank to restore protection',
+    minutes: 75,
+  },
+  prv_install: {
+    price: 450,
+    label: 'Pressure Regulator Installation',
+    description: 'Reduces high water pressure to safe levels to prevent equipment damage',
+    minutes: 120,
+  },
+  prv_replace: {
+    price: 425,
+    label: 'Pressure Regulator Replacement',
+    description: 'Replaces failed pressure regulator to restore pressure protection',
+    minutes: 90,
+  },
 };
 
 // Map maintenance task types to service types

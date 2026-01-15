@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, DollarSign, Bell, Clock, Info, Wrench } from 'lucide-react';
+import { Calendar, DollarSign, Bell, Clock, Info, Wrench, AlertTriangle, Gauge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { NotifyMeModal } from './NotifyMeModal';
 import { getMaintenancePrices, getMaintenancePriceByType, MaintenancePrice } from '@/lib/maintenancePricingService';
-import { calculateMaintenanceSchedule, MaintenanceSchedule, MaintenanceTask } from '@/lib/maintenanceCalculations';
+import { calculateMaintenanceSchedule, MaintenanceSchedule, MaintenanceTask, getInfrastructureMaintenanceTasks } from '@/lib/maintenanceCalculations';
 import { ForensicInputs, OpterraMetrics, isTankless } from '@/lib/opterraAlgorithm';
 import { addMonths } from 'date-fns';
 
@@ -57,6 +57,11 @@ export function MaintenanceEducationCard({
     return calculateMaintenanceSchedule(currentInputs, metrics);
   }, [currentInputs, metrics]);
 
+  // Get infrastructure tasks (critical priority issues like missing expansion tank)
+  const infrastructureTasks: MaintenanceTask[] = useMemo(() => {
+    return getInfrastructureMaintenanceTasks(currentInputs, metrics);
+  }, [currentInputs, metrics]);
+
   // Build scheduled tasks with pricing and due dates
   const scheduledTasks: ScheduledTask[] = useMemo(() => {
     const tasks: ScheduledTask[] = [];
@@ -74,6 +79,9 @@ export function MaintenanceEducationCard({
       });
     };
 
+    // Add infrastructure tasks FIRST (critical priority)
+    infrastructureTasks.forEach(addTask);
+
     // Add primary task
     if (maintenanceSchedule.primaryTask) {
       addTask(maintenanceSchedule.primaryTask);
@@ -87,9 +95,17 @@ export function MaintenanceEducationCard({
     // Add additional tasks
     maintenanceSchedule.additionalTasks?.forEach(addTask);
 
-    // Sort by due date
-    return tasks.sort((a, b) => a.monthsUntilDue - b.monthsUntilDue);
-  }, [maintenanceSchedule, prices]);
+    // Sort: infrastructure first (by urgency), then by due date
+    return tasks.sort((a, b) => {
+      // Infrastructure tasks always come first
+      if (a.isInfrastructure && !b.isInfrastructure) return -1;
+      if (!a.isInfrastructure && b.isInfrastructure) return 1;
+      // Within same category, sort by urgency then due date
+      if (a.urgency === 'overdue' && b.urgency !== 'overdue') return -1;
+      if (b.urgency === 'overdue' && a.urgency !== 'overdue') return 1;
+      return a.monthsUntilDue - b.monthsUntilDue;
+    });
+  }, [maintenanceSchedule, infrastructureTasks, prices]);
 
   // Calculate total annual maintenance cost
   const annualCost = useMemo(() => {
@@ -192,34 +208,66 @@ export function MaintenanceEducationCard({
         <CardContent className="space-y-4">
           {/* Maintenance tasks list */}
           <div className="space-y-3">
-            {scheduledTasks.map((task, index) => (
-              <div
-                key={task.type}
-                className={`p-3 rounded-lg border ${
-                  index === 0 ? 'bg-primary/5 border-primary/20' : 'bg-muted/30 border-border'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Wrench className="w-4 h-4 text-primary shrink-0" />
-                      <span className="font-medium text-sm">{task.label}</span>
+            {scheduledTasks.map((task, index) => {
+              const isInfrastructureCritical = task.isInfrastructure && task.urgency === 'overdue';
+              
+              return (
+                <div
+                  key={task.type}
+                  className={`p-3 rounded-lg border ${
+                    isInfrastructureCritical 
+                      ? 'bg-destructive/10 border-destructive/40' 
+                      : index === 0 
+                        ? 'bg-primary/5 border-primary/20' 
+                        : 'bg-muted/30 border-border'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {isInfrastructureCritical ? (
+                          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                        ) : task.icon === 'gauge' ? (
+                          <Gauge className="w-4 h-4 text-warning shrink-0" />
+                        ) : (
+                          <Wrench className="w-4 h-4 text-primary shrink-0" />
+                        )}
+                        <span className={`font-medium text-sm ${isInfrastructureCritical ? 'text-destructive' : ''}`}>
+                          {task.label}
+                        </span>
+                        {isInfrastructureCritical && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                            CRITICAL
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+                      
+                      {/* Show aging multiplier for infrastructure issues */}
+                      {task.agingMultiplier && task.agingMultiplier > 1 && (
+                        <div className="flex items-center gap-1 text-xs text-destructive mt-1.5">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span className="font-semibold">{task.agingMultiplier}x accelerated aging</span>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <Badge variant="outline" className={`mb-1 ${getUrgencyColor(task.urgency)}`}>
-                      <Clock className="w-3 h-3 mr-1" />
-                      {formatDueIn(task.monthsUntilDue)}
-                    </Badge>
-                    <div className="flex items-center justify-end gap-1 text-sm font-semibold">
-                      <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>{!contractorId && '~'}${task.price}</span>
+                    <div className="text-right shrink-0">
+                      <Badge 
+                        variant="outline" 
+                        className={`mb-1 ${getUrgencyColor(task.urgency)}`}
+                      >
+                        <Clock className="w-3 h-3 mr-1" />
+                        {task.monthsUntilDue === 0 && task.isInfrastructure ? 'Immediate' : formatDueIn(task.monthsUntilDue)}
+                      </Badge>
+                      <div className="flex items-center justify-end gap-1 text-sm font-semibold">
+                        <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>{!contractorId && '~'}${task.price}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Annual cost summary */}
