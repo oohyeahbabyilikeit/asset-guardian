@@ -882,6 +882,43 @@ export function FindingsSummaryPage({
     });
   }
   
+  // Depleted anode rod - the tank's sacrificial protection is gone
+  const shieldLife = metrics.shieldLife ?? 0;
+  const anodeAge = currentInputs.lastAnodeReplaceYearsAgo ?? currentInputs.calendarAge;
+  const neverServiced = currentInputs.lastAnodeReplaceYearsAgo === undefined || currentInputs.lastAnodeReplaceYearsAgo === null;
+  const isFusedRisk = neverServiced && currentInputs.calendarAge > 6;
+  
+  if (shieldLife < 1 && !currentInputs.visualRust) {
+    // Only show if we're not already showing rust (rust implies depleted anode)
+    const corrosionMultiplier = metrics.stressFactors?.corrosion || 1;
+    
+    if (isFusedRisk) {
+      // Can't recommend replacement - rod is likely fused
+      findings.push({
+        id: 'anode-fused',
+        icon: <Shield className="w-6 h-6" />,
+        title: 'Anode Protection Expired',
+        measurement: `${anodeAge}+ years without replacement`,
+        explanation: `Your tank's anode rod—the sacrificial metal that corrodes instead of your tank—has been depleted for years. After ${currentInputs.calendarAge} years without service, the anode is likely fused to the tank and cannot be replaced without risking damage. Your steel tank is now corroding directly, which is irreversible.`,
+        severity: 'warning',
+        severityValue: 80,
+        educationalTopic: 'anode-rod',
+      });
+    } else {
+      // Anode can still be replaced
+      findings.push({
+        id: 'anode-depleted',
+        icon: <Shield className="w-6 h-6" />,
+        title: 'Anode Rod Depleted',
+        measurement: `~${shieldLife.toFixed(1)} years of protection left`,
+        explanation: `The anode rod is a sacrificial metal that corrodes so your tank doesn't. After ${anodeAge} years${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}, yours is depleted. Without this protection, your ${currentInputs.manufacturer || ''} tank's steel lining is now corroding ${corrosionMultiplier.toFixed(1)}x faster. This is the #1 cause of premature tank failure—but it's fixable with a $20-50 part.`,
+        severity: shieldLife < 0.5 ? 'warning' : 'info',
+        severityValue: Math.min(90, Math.round(80 - shieldLife * 20)),
+        educationalTopic: 'anode-rod',
+      });
+    }
+  }
+  
   // Overdue maintenance - with specific impact
   if (currentInputs.lastFlushYearsAgo !== undefined && currentInputs.lastFlushYearsAgo > 2) {
     const sedimentEstimate = currentInputs.lastFlushYearsAgo * (currentInputs.hardnessGPG > 10 ? 2 : 1); // rough inches
@@ -890,7 +927,7 @@ export function FindingsSummaryPage({
       icon: <Wrench className="w-6 h-6" />,
       title: 'Sediment Buildup Likely',
       measurement: `${currentInputs.lastFlushYearsAgo}+ years since last flush`,
-      explanation: `With ${currentInputs.hardnessGPG || 'your'} GPG water hardness and no flush in ${currentInputs.lastFlushYearsAgo}+ years, there's likely ${sedimentEstimate}-${sedimentEstimate + 2}" of sedite at the tank bottom. This insulates the burner from the water, reducing efficiency by 15-30% and causing the popping/rumbling sounds common in neglected tanks.`,
+      explanation: `With ${currentInputs.hardnessGPG || 'your'} GPG water hardness and no flush in ${currentInputs.lastFlushYearsAgo}+ years, there's likely ${sedimentEstimate}-${sedimentEstimate + 2}" of sediment at the tank bottom. This insulates the burner from the water, reducing efficiency by 15-30% and causing the popping/rumbling sounds common in neglected tanks.`,
       severity: 'info',
       severityValue: Math.min(100, Math.round((currentInputs.lastFlushYearsAgo / 5) * 100)),
       educationalTopic: 'sediment',
