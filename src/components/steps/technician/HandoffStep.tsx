@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { TechnicianInspectionData } from '@/types/technicianInspection';
 import type { FuelType } from '@/lib/opterraAlgorithm';
+import { submitLead, CaptureSource } from '@/lib/leadService';
 
 function getUnitTypeIcon(fuelType: FuelType) {
   switch (fuelType) {
@@ -66,14 +67,26 @@ interface HandoffStepProps {
   data: TechnicianInspectionData;
   onComplete: () => void;
   onSendRemoteLink?: (contact: { type: 'email' | 'sms'; value: string }) => void;
+  // Optional IDs for lead tracking
+  propertyId?: string;
+  waterHeaterId?: string;
+  contractorId?: string;
 }
 
-export function HandoffStep({ data, onComplete, onSendRemoteLink }: HandoffStepProps) {
+export function HandoffStep({ 
+  data, 
+  onComplete, 
+  onSendRemoteLink,
+  propertyId,
+  waterHeaterId,
+  contractorId,
+}: HandoffStepProps) {
   const [mode, setMode] = useState<HandoffMode>('select');
   const [contactType, setContactType] = useState<'email' | 'sms'>('email');
   const [contactValue, setContactValue] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   
   const hasIssues = data.location.isLeaking || data.location.visualRust;
   
@@ -86,11 +99,36 @@ export function HandoffStep({ data, onComplete, onSendRemoteLink }: HandoffStepP
     setTimeout(() => setLinkCopied(false), 2000);
   };
   
-  const handleSendLink = () => {
-    if (contactValue.trim()) {
-      onSendRemoteLink?.({ type: contactType, value: contactValue.trim() });
-      setLinkSent(true);
+  const handleSendLink = async () => {
+    if (!contactValue.trim()) return;
+    
+    setIsSending(true);
+    
+    // Submit lead to database
+    const leadResult = await submitLead({
+      customerName: 'Homeowner', // We don't have their name yet
+      customerPhone: contactType === 'sms' ? contactValue.trim() : '',
+      customerEmail: contactType === 'email' ? contactValue.trim() : undefined,
+      captureSource: 'handoff_remote' as CaptureSource,
+      captureContext: {
+        buildingType: data.buildingType,
+        hasIssues,
+        reportLink,
+      },
+      propertyId,
+      waterHeaterId,
+      contractorId,
+      preferredContactMethod: contactType === 'sms' ? 'sms' : 'email',
+    });
+
+    if (!leadResult.success) {
+      console.warn('[HandoffStep] Failed to save lead:', leadResult.error);
+      // Don't block the flow, just log the error
     }
+
+    setIsSending(false);
+    onSendRemoteLink?.({ type: contactType, value: contactValue.trim() });
+    setLinkSent(true);
   };
   
   return (

@@ -420,6 +420,12 @@ export function ReplacementOptionsPage({
           setShowContactForm(false);
           onSchedule();
         }}
+        captureContext={{
+          selectedTier: selectedTier,
+          selectedTimeline: selectedTimeline,
+          isSafetyReplacement: isSafetyReplacement,
+          priceRange: selectedPriceRange,
+        }}
       />
     </div>
   );
