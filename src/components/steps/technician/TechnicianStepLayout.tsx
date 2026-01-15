@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -9,6 +10,7 @@ import { cn } from '@/lib/utils';
  * - Header with icon, title, and subtitle
  * - Content area with proper spacing
  * - Continue button with disabled state
+ * - Optional back button
  */
 
 interface TechnicianStepLayoutProps {
@@ -26,6 +28,8 @@ interface TechnicianStepLayoutProps {
   onContinue?: () => void;
   /** Whether continue button should be disabled */
   continueDisabled?: boolean;
+  /** Called when back button is clicked */
+  onBack?: () => void;
   /** Additional content to render after the continue button */
   footer?: React.ReactNode;
   /** Hide the continue button (for custom footers) */
@@ -42,6 +46,7 @@ export function TechnicianStepLayout({
   continueText = 'Continue',
   onContinue,
   continueDisabled = false,
+  onBack,
   footer,
   hideContinue = false,
   contentClassName,
@@ -49,7 +54,20 @@ export function TechnicianStepLayout({
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="text-center">
+      <div className="text-center relative">
+        {/* Back button - positioned absolutely in top-left */}
+        {onBack && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="absolute left-0 top-0 gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back
+          </Button>
+        )}
+        
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-4">
           {icon}
         </div>

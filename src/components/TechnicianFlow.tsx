@@ -310,6 +310,7 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
             <AddressLookupStep
               onSelectProperty={handlePropertySelect}
               onCreateNew={handleCreateNewProperty}
+              onBack={onBack}
             />
           );
         } else if (setupSubStep === 'building') {

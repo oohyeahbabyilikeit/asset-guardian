@@ -56,6 +56,7 @@ export interface NewPropertyAddress {
 interface AddressLookupStepProps {
   onSelectProperty: (property: PropertyWithAssets | null, gpsCoords?: { lat: number; lng: number }) => void;
   onCreateNew: (address: NewPropertyAddress) => void;
+  onBack?: () => void;
 }
 
 function getInspectionStatus(lastAssessment: { created_at: string } | null): {
@@ -92,7 +93,7 @@ function getInspectionStatus(lastAssessment: { created_at: string } | null): {
   };
 }
 
-export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLookupStepProps) {
+export function AddressLookupStep({ onSelectProperty, onCreateNew, onBack }: AddressLookupStepProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<PropertyWithAssets[]>([]);
@@ -258,11 +259,7 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
         subtitle="Enter the property address for this inspection"
         onContinue={handleSubmitNewAddress}
         continueDisabled={!isAddressValid}
-        footer={
-          <Button variant="outline" onClick={() => setShowAddressForm(false)} className="w-full mt-3">
-            Back to Search
-          </Button>
-        }
+        onBack={() => setShowAddressForm(false)}
       >
         <StepCard>
           <div className="space-y-4">
@@ -323,6 +320,7 @@ export function AddressLookupStep({ onSelectProperty, onCreateNew }: AddressLook
       icon={<MapPin className="h-7 w-7" />}
       title="Property Lookup"
       subtitle="Search by address or use GPS to auto-fill location"
+      onBack={onBack}
       hideContinue
     >
       {/* GPS Auto-Fill Button */}
