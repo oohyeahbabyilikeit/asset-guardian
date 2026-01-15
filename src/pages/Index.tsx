@@ -129,6 +129,18 @@ const Index = () => {
     });
   }, []);
 
+  // Handle quick random scenario - skips onboarding, goes straight to command center
+  const handleQuickRandom = useCallback(() => {
+    const scenario = generateRandomScenario();
+    setState({
+      screen: 'command-center',
+      mode: 'demo',
+      demoScenario: scenario,
+      technicianData: null,
+      onboardingData: DEFAULT_ONBOARDING_DATA,
+    });
+  }, []);
+
   // Handle navigation to replacement options ("See My Options" CTA)
   const handleServiceRequest = useCallback(() => {
     setState(prev => ({
@@ -281,7 +293,7 @@ const Index = () => {
   // Render based on current screen
   switch (state.screen) {
     case 'mode-select':
-      return <ModeSelectScreen onSelectMode={handleModeSelect} />;
+      return <ModeSelectScreen onSelectMode={handleModeSelect} onQuickRandom={handleQuickRandom} />;
 
     case 'technician-flow':
       return (
