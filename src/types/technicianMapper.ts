@@ -17,6 +17,10 @@ export function mapTechnicianToForensicInputs(
     // Measurements
     housePsi: tech.measurements.housePsi,
     
+    // NEW v8.0: Asset identification for pricing lookup
+    modelNumber: tech.asset.model || undefined,
+    manufacturer: tech.asset.brand || undefined,
+    
     // Location & Condition
     tempSetting: tech.location.tempSetting,
     location: tech.location.location,

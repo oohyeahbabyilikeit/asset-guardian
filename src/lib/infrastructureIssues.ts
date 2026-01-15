@@ -11,7 +11,7 @@
  * - OPTIMIZATION: Premium protection (included in BEST only)
  */
 
-import type { ForensicInputs, OpterraMetrics, QualityTier } from './opterraAlgorithm';
+import type { ForensicInputs, OpterraMetrics, QualityTier, LocationType } from './opterraAlgorithm';
 
 export type IssueCategory = 'VIOLATION' | 'INFRASTRUCTURE' | 'OPTIMIZATION';
 
@@ -221,4 +221,35 @@ export function getIssuesByCategory(
   category: IssueCategory
 ): InfrastructureIssue[] {
   return issues.filter(issue => issue.category === category);
+}
+
+/**
+ * Detect installation complexity based on location and infrastructure issues
+ * 
+ * Priority:
+ * 1. DIFFICULT_ACCESS: Attic, crawlspace, or exterior locations
+ * 2. CODE_UPGRADE: Any VIOLATION category issues requiring permits
+ * 3. STANDARD: Default
+ */
+export type InstallComplexity = 'STANDARD' | 'CODE_UPGRADE' | 'DIFFICULT_ACCESS' | 'NEW_INSTALL';
+
+export function detectInstallComplexity(
+  location: LocationType,
+  issues: InfrastructureIssue[]
+): InstallComplexity {
+  // Check for difficult access locations first (takes priority)
+  if (location === 'ATTIC' || location === 'CRAWLSPACE' || location === 'EXTERIOR') {
+    return 'DIFFICULT_ACCESS';
+  }
+  
+  // Check for code violations requiring permits
+  const hasCodeViolations = issues.some(
+    issue => issue.category === 'VIOLATION'
+  );
+  
+  if (hasCodeViolations) {
+    return 'CODE_UPGRADE';
+  }
+  
+  return 'STANDARD';
 }
