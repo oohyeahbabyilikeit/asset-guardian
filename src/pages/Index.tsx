@@ -62,6 +62,13 @@ const Index = () => {
 
   // Handle technician flow completion
   const handleTechnicianComplete = useCallback((data: TechnicianInspectionData) => {
+    // DEBUG: Log the complete technician data at handoff
+    console.log('[Index] handleTechnicianComplete called with data:', data);
+    console.log('[Index] Brand:', data.asset.brand);
+    console.log('[Index] Age:', data.calendarAge);
+    console.log('[Index] Capacity:', data.asset.tankCapacity);
+    console.log('[Index] PSI:', data.measurements.housePsi);
+    
     setState(prev => ({
       ...prev,
       technicianData: data,
@@ -120,7 +127,43 @@ const Index = () => {
     let inputs: ForensicInputs;
     let asset: AssetData;
 
-    if (state.mode === 'demo' && state.demoScenario) {
+    // DEBUG: Log data flow to trace technician data
+    console.log('[Index] Computing inputs - Mode:', state.mode);
+    console.log('[Index] technicianData:', state.technicianData);
+    console.log('[Index] onboardingData:', state.onboardingData);
+
+    if (state.mode === 'technician' && state.technicianData) {
+      // Technician mode: ALWAYS use technician data first (priority)
+      const baseInputs = mapTechnicianToForensicInputs(state.technicianData);
+      
+      if (state.onboardingData) {
+        inputs = mapOnboardingToForensicInputs(state.onboardingData, baseInputs);
+      } else {
+        inputs = baseInputs;
+      }
+
+      // Map technician display data and extend with required AssetData fields
+      const displayData = mapTechnicianToAssetDisplay(state.technicianData);
+      const installDate = displayData.installYear 
+        ? `${displayData.installYear}-01-01` 
+        : new Date(Date.now() - displayData.calendarAge * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      asset = {
+        id: displayData.id,
+        type: displayData.type,
+        brand: displayData.brand,
+        model: displayData.model,
+        serialNumber: displayData.serialNumber,
+        installDate,
+        paperAge: displayData.calendarAge,
+        biologicalAge: displayData.biologicalAge ?? displayData.calendarAge,
+        location: displayData.location,
+        specs: displayData.specs,
+      };
+
+      console.log('[Index] Mapped technician inputs:', inputs);
+      console.log('[Index] Mapped technician asset:', asset);
+    } else if (state.mode === 'demo' && state.demoScenario) {
       // Demo mode: use random scenario as base, merge with onboarding
       const baseInputs = state.demoScenario.inputs;
       
@@ -149,36 +192,13 @@ const Index = () => {
           piping: '3/4" Copper',
         },
       };
-    } else if (state.technicianData) {
-      // Technician mode: map technician data, merge with onboarding
-      const baseInputs = mapTechnicianToForensicInputs(state.technicianData);
-      
-      if (state.onboardingData) {
-        inputs = mapOnboardingToForensicInputs(state.onboardingData, baseInputs);
-      } else {
-        inputs = baseInputs;
-      }
-
-      // Map technician display data and extend with required AssetData fields
-      const displayData = mapTechnicianToAssetDisplay(state.technicianData);
-      const installDate = displayData.installYear 
-        ? `${displayData.installYear}-01-01` 
-        : new Date(Date.now() - displayData.calendarAge * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
-      asset = {
-        id: displayData.id,
-        type: displayData.type,
-        brand: displayData.brand,
-        model: displayData.model,
-        serialNumber: displayData.serialNumber,
-        installDate,
-        paperAge: displayData.calendarAge,
-        biologicalAge: displayData.biologicalAge ?? displayData.calendarAge,
-        location: displayData.location,
-        specs: displayData.specs,
-      };
     } else {
       // Fallback: generate random for initial render safety
+      // This should NOT happen if data flow is correct
+      console.warn('[Index] FALLBACK TO RANDOM - This indicates data loss!');
+      console.warn('[Index] state.mode:', state.mode);
+      console.warn('[Index] state.technicianData:', state.technicianData);
+      
       const fallback = generateRandomScenario();
       inputs = fallback.inputs;
       const installDate = new Date(Date.now() - inputs.calendarAge * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
