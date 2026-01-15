@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
 import { ForensicInputs, OpterraResult, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import { InfrastructureIssue, getIssuesByCategory } from '@/lib/infrastructureIssues';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaintenanceEducationCard } from './MaintenanceEducationCard';
 import { WaterHeaterChatbot } from './WaterHeaterChatbot';
@@ -405,143 +405,87 @@ function RecommendationEducationStep({
       transition={{ duration: 0.4 }}
       className="px-4"
     >
-      {/* Header badge */}
-      <motion.div 
-        className="flex items-center gap-2 mb-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <span className="text-sm text-muted-foreground">Understanding Our Recommendation</span>
-      </motion.div>
-
       {/* Main education card */}
-      <Card className={cn("overflow-hidden border-2", content.borderColor)}>
+      <Card className={cn("overflow-hidden border", content.borderColor)}>
         <CardContent className="p-0">
           
-          {/* Header */}
-          <div className={cn("p-6 pb-4", content.headerBg)}>
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <h2 className="text-xl font-semibold text-foreground mb-1">
-                {content.headline}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {content.subtitle}
-              </p>
-            </motion.div>
+          {/* Header - compact */}
+          <div className={cn("px-4 py-3", content.headerBg)}>
+            <h2 className="text-lg font-semibold text-foreground">
+              {content.headline}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {content.subtitle}
+            </p>
           </div>
 
-          {/* What we found summary */}
+          {/* What we found - inline chips */}
           {topFindings.length > 0 && (
-            <>
-              <div className="mx-6 border-t border-border" />
-              <motion.div 
-                className="p-6 py-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-3">
-                  Based on what we found
-                </p>
-                <div className="space-y-2">
-                  {topFindings.map((f, idx) => (
-                    <motion.div
-                      key={f.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + idx * 0.1 }}
-                      className="flex items-start gap-2"
-                    >
-                      <span className={cn(
-                        "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
-                        f.severity === 'critical' ? 'bg-destructive' : 
-                        f.severity === 'warning' ? 'bg-amber-500' : 'bg-muted-foreground'
-                      )} />
-                      <p className="text-sm text-foreground">
-                        <span className="font-medium">{f.title}</span>
-                        {f.measurement && (
-                          <span className="text-muted-foreground"> — {f.measurement}</span>
-                        )}
-                      </p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            </>
+            <div className="px-4 py-2 border-t border-border bg-muted/20">
+              <div className="flex flex-wrap gap-1.5">
+                {topFindings.map((f) => (
+                  <span
+                    key={f.id}
+                    className={cn(
+                      "text-xs px-2 py-0.5 rounded-full",
+                      f.severity === 'critical' ? 'bg-destructive/10 text-destructive' : 
+                      f.severity === 'warning' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'
+                    )}
+                  >
+                    {f.title}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
 
-          {/* Educational sections */}
-          <div className="mx-6 border-t border-border" />
-          <motion.div 
-            className="p-6 space-y-5"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            {content.sections.map((section, idx) => (
-              <motion.div
+          {/* Educational sections - compact grid */}
+          <div className="px-4 py-3 space-y-2.5 border-t border-border">
+            {content.sections.map((section) => (
+              <div
                 key={section.title}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 + idx * 0.15 }}
-                className="flex gap-3"
+                className="flex gap-2.5"
               >
-                <div className="p-2 rounded-lg bg-muted/50 h-fit text-muted-foreground">
-                  {section.icon}
+                <div className="p-1.5 rounded-md bg-muted/50 h-fit text-muted-foreground">
+                  {React.cloneElement(section.icon as React.ReactElement, { className: 'w-4 h-4' })}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-sm text-foreground mb-1">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm text-foreground">
                     {section.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-snug">
                     {section.content}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
-          {/* Callout box */}
-          <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="mx-6 mb-6 p-4 bg-muted/30 rounded-lg border border-border"
-          >
-            <div className="flex gap-3">
-              <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+          {/* Callout - compact */}
+          <div className="mx-4 mb-3 px-3 py-2 bg-muted/30 rounded-md border border-border">
+            <div className="flex gap-2 items-start">
+              <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-foreground">
+                <p className="text-xs font-medium text-foreground">
                   {content.callout.title}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground">
                   {content.callout.text}
                 </p>
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Action button */}
-          <motion.div 
-            className="p-4 bg-muted/30 border-t border-border"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.9 }}
-          >
+          <div className="p-3 bg-muted/30 border-t border-border">
             <Button 
               onClick={onComplete}
               className="w-full"
-              size="lg"
             >
               <span>See My Options</span>
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
-          </motion.div>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
