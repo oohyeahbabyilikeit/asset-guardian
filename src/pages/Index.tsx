@@ -8,6 +8,7 @@ import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
 import { PanicMode } from '@/components/PanicMode';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { FindingsSummaryPage } from '@/components/FindingsSummaryPage';
+import { PriceAnalysisLoader } from '@/components/PriceAnalysisLoader';
 import { type ForensicInputs, calculateOpterraRisk, type OpterraResult } from '@/lib/opterraAlgorithm';
 import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
 import { type TechnicianInspectionData, DEFAULT_TECHNICIAN_DATA } from '@/types/technicianInspection';
@@ -15,6 +16,8 @@ import { mapTechnicianToForensicInputs, mapTechnicianToAssetDisplay } from '@/ty
 import { type OnboardingData, DEFAULT_ONBOARDING_DATA, mapOnboardingToForensicInputs } from '@/types/onboarding';
 import type { AssetData } from '@/data/mockAsset';
 import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
+import type { TierPricing } from '@/hooks/useTieredPricing';
+import type { QualityTier } from '@/lib/opterraAlgorithm';
 
 type AppScreen = 
   | 'mode-select'
@@ -23,6 +26,7 @@ type AppScreen =
   | 'command-center'
   | 'forensic-report'
   | 'findings-summary'
+  | 'analyzing-options'
   | 'replacement-options'
   | 'panic-mode'
   | 'maintenance-plan';
@@ -33,6 +37,7 @@ interface AppState {
   technicianData: TechnicianInspectionData | null;
   onboardingData: OnboardingData | null;
   demoScenario: GeneratedScenario | null;
+  prefetchedTiers?: Record<QualityTier, TierPricing>;
 }
 
 const Index = () => {
@@ -151,11 +156,21 @@ const Index = () => {
     }));
   }, []);
 
-  // Handle navigation to replacement options (from findings summary)
+  // Handle navigation to analyzing options (from findings summary)
   const handleServiceRequest = useCallback(() => {
     setState(prev => ({
       ...prev,
+      screen: 'analyzing-options',
+      prefetchedTiers: undefined,
+    }));
+  }, []);
+
+  // Handle analysis complete - transition to replacement options
+  const handleAnalysisComplete = useCallback((prefetchedTiers: Record<QualityTier, TierPricing>) => {
+    setState(prev => ({
+      ...prev,
       screen: 'replacement-options',
+      prefetchedTiers,
     }));
   }, []);
 
@@ -365,6 +380,16 @@ const Index = () => {
         />
       );
 
+    case 'analyzing-options':
+      return (
+        <PriceAnalysisLoader
+          currentInputs={currentInputs}
+          infrastructureIssues={getInfrastructureIssues(currentInputs, opterraResult.metrics)}
+          onComplete={handleAnalysisComplete}
+          onBack={handleBackToCommandCenter}
+        />
+      );
+
     case 'replacement-options':
       return (
         <ReplacementOptionsPage
@@ -374,6 +399,7 @@ const Index = () => {
           infrastructureIssues={getInfrastructureIssues(currentInputs, opterraResult.metrics)}
           isSafetyReplacement={isCritical}
           agingRate={opterraResult.metrics.agingRate}
+          prefetchedTiers={state.prefetchedTiers}
         />
       );
 

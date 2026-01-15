@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, MessageCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTieredPricing, DISPLAY_TIERS, TIER_CONFIG } from '@/hooks/useTieredPricing';
+import { useTieredPricing, DISPLAY_TIERS, TIER_CONFIG, TierPricing } from '@/hooks/useTieredPricing';
 import { TierEducationDrawer } from '@/components/TierEducationDrawer';
 import { PlumberContactForm } from './PlumberContactForm';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ interface ReplacementOptionsPageProps {
   isSafetyReplacement: boolean;
   agingRate: number;
   monthlyBudget?: number;
+  prefetchedTiers?: Record<QualityTier, TierPricing>;
 }
 
 const TIER_DISPLAY: Record<QualityTier, { 
@@ -100,6 +101,7 @@ export function ReplacementOptionsPage({
   isSafetyReplacement,
   agingRate,
   monthlyBudget = 0,
+  prefetchedTiers,
 }: ReplacementOptionsPageProps) {
   const [selectedTier, setSelectedTier] = useState<QualityTier>('STANDARD');
   const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'thinking' | null>(null);
@@ -111,13 +113,18 @@ export function ReplacementOptionsPage({
     [currentInputs.location, infrastructureIssues]
   );
 
-  const { tiers, allLoading } = useTieredPricing(
+  // Use prefetched tiers if available, otherwise fetch
+  const shouldFetch = !prefetchedTiers;
+  const { tiers: fetchedTiers, allLoading } = useTieredPricing(
     currentInputs, 
     undefined, 
     detectedComplexity, 
-    true, 
+    shouldFetch, 
     infrastructureIssues
   );
+
+  // Use prefetched tiers if available
+  const tiers = prefetchedTiers ?? fetchedTiers;
 
   const getPriceRange = (tier: QualityTier) => {
     const tierData = tiers[tier];
