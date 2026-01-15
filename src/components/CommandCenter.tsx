@@ -164,7 +164,6 @@ export function CommandCenter({
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
-  const [dockVisible, setDockVisible] = useState(false); // Keep dock visible after animation
   
   // Single container ref for smooth scrolling
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -183,27 +182,9 @@ export function CommandCenter({
   // Motion value for continuous scroll animation
   const scrollY = useMotionValue(0);
   
-  // ActionDock animation synced to scroll - stays visible once revealed
-  const actionDockOpacity = useTransform(scrollY, (value) => {
-    if (dockVisible) return 1; // Keep visible after animation
-    const threshold = dockTargetRef.current;
-    const startReveal = threshold - 180;
-    const endReveal = threshold - 20;
-    if (value <= startReveal) return 0;
-    if (value >= endReveal) return 1;
-    return (value - startReveal) / (endReveal - startReveal);
-  });
-  
-  const actionDockY = useTransform(scrollY, (value) => {
-    if (dockVisible) return 0; // Keep in position after animation
-    const threshold = dockTargetRef.current;
-    const startReveal = threshold - 180;
-    const endReveal = threshold - 20;
-    if (value <= startReveal) return 40;
-    if (value >= endReveal) return 0;
-    const progress = (value - startReveal) / (endReveal - startReveal);
-    return 40 * (1 - progress);
-  });
+  // Dock animation - imperative motion values (not scroll-dependent)
+  const actionDockOpacity = useMotionValue(0);
+  const actionDockY = useMotionValue(40);
   
   // Sync scrollY motion value to container scrollTop using rAF for smooth updates
   useEffect(() => {
@@ -321,15 +302,20 @@ export function CommandCenter({
           keyframes.push(positions.end);
           times.push(TIMELINE.END);
           
+          // Animate dock reveal at the right moment (when scroll reaches dock)
+          const dockRevealTime = TIMELINE.TOTAL_DURATION * TIMELINE.DOCK;
+          setTimeout(() => {
+            animate(actionDockOpacity, 1, { duration: 0.4, ease: elegantEase });
+            animate(actionDockY, 0, { duration: 0.4, ease: elegantEase });
+          }, dockRevealTime * 1000);
+          
           // Animate scrollY through keyframes, then scroll back to top
           const controls = animate(scrollY, keyframes, {
             duration: TIMELINE.TOTAL_DURATION,
             times,
             ease: 'easeInOut',
             onComplete: () => {
-              // Lock dock visible before scrolling back
-              setDockVisible(true);
-              // Immediate smooth scroll back to top (no delay)
+              // Immediate smooth scroll back to top (dock stays visible)
               requestAnimationFrame(() => {
                 animate(scrollY, 0, {
                   duration: 1.0,
@@ -354,7 +340,7 @@ export function CommandCenter({
     return () => {
       clearTimeout(startTimeout);
     };
-  }, [isAnimating, scrollY, hasHardWaterCard]);
+  }, [isAnimating, scrollY, actionDockOpacity, actionDockY, hasHardWaterCard]);
   
   // Extract metrics for easier access
   const {
