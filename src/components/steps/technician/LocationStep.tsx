@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { 
   Home, 
   Warehouse, 
@@ -13,7 +14,8 @@ import {
   MapPin,
   Thermometer,
   Camera,
-  CheckCircle
+  CheckCircle,
+  Eye
 } from 'lucide-react';
 import type { LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
 import type { LocationType, TempSetting } from '@/lib/opterraAlgorithm';
@@ -21,7 +23,8 @@ import { useConditionScan } from '@/hooks/useConditionScan';
 import { TechnicianStepLayout, StepCard, BinaryToggle } from './TechnicianStepLayout';
 import { cn } from '@/lib/utils';
 
-type SubStep = 'location' | 'rust-check' | 'leak-check' | 'photo' | 'leak-source' | 'finished-area' | 'temp-setting';
+// Consolidated sub-steps: condition-check = rust + leak, environment = finished-area + temp
+type SubStep = 'location' | 'condition-check' | 'photo' | 'leak-source' | 'environment';
 
 const LOCATIONS: { value: LocationType; label: string; icon: React.ReactNode; risk?: boolean }[] = [
   { value: 'GARAGE', label: 'Garage', icon: <Warehouse className="h-5 w-5" /> },
@@ -60,11 +63,11 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
   
   // Dynamic sub-steps - leak-source only shown if leaking
   const getSubSteps = (): SubStep[] => {
-    const steps: SubStep[] = ['location', 'rust-check', 'leak-check', 'photo'];
+    const steps: SubStep[] = ['location', 'condition-check', 'photo'];
     if (data.isLeaking) {
       steps.push('leak-source');
     }
-    steps.push('finished-area', 'temp-setting');
+    steps.push('environment');
     return steps;
   };
   
@@ -99,18 +102,14 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
     switch (currentSubStep) {
       case 'location':
         return data.location !== undefined;
-      case 'rust-check':
-        return data.visualRust !== undefined;
-      case 'leak-check':
-        return data.isLeaking !== undefined;
+      case 'condition-check':
+        return data.visualRust !== undefined && data.isLeaking !== undefined;
       case 'photo':
         return conditionPhotoUrl !== undefined;
       case 'leak-source':
         return data.leakSource !== undefined;
-      case 'finished-area':
-        return data.isFinishedArea !== undefined;
-      case 'temp-setting':
-        return data.tempSetting !== undefined;
+      case 'environment':
+        return data.isFinishedArea !== undefined && data.tempSetting !== undefined;
       default:
         return false;
     }
@@ -128,12 +127,10 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
   const getStepTitle = (): string => {
     switch (currentSubStep) {
       case 'location': return 'Unit Location';
-      case 'rust-check': return 'Rust Check';
-      case 'leak-check': return 'Leak Check';
+      case 'condition-check': return 'Condition Check';
       case 'photo': return 'Condition Photo';
       case 'leak-source': return 'Leak Source';
-      case 'finished-area': return 'Living Area Check';
-      case 'temp-setting': return 'Temperature Setting';
+      case 'environment': return 'Environment';
       default: return 'Location & Condition';
     }
   };
@@ -141,12 +138,10 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
   const getStepIcon = () => {
     switch (currentSubStep) {
       case 'location': return <MapPin className="h-7 w-7" />;
-      case 'rust-check': return <AlertTriangle className="h-7 w-7" />;
-      case 'leak-check': return <Droplet className="h-7 w-7" />;
+      case 'condition-check': return <Eye className="h-7 w-7" />;
       case 'photo': return <Camera className="h-7 w-7" />;
       case 'leak-source': return <Droplet className="h-7 w-7" />;
-      case 'finished-area': return <Home className="h-7 w-7" />;
-      case 'temp-setting': return <Thermometer className="h-7 w-7" />;
+      case 'environment': return <Home className="h-7 w-7" />;
       default: return <MapPin className="h-7 w-7" />;
     }
   };
@@ -206,107 +201,106 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
     </StepCard>
   );
 
-  const renderRustCheckStep = () => (
+  // Combined rust + leak check
+  const renderConditionCheckStep = () => (
     <StepCard className="border-0 bg-transparent shadow-none">
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        Is there visible rust or corrosion on the unit?
-      </p>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          type="button"
-          onClick={() => onUpdate({ visualRust: false })}
-          className={cn(
-            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
-            data.visualRust === false
-              ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
-              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
-          )}
-        >
-          <CheckCircle className={cn(
-            "h-10 w-10 transition-colors",
-            data.visualRust === false ? "text-primary" : "text-muted-foreground"
-          )} />
-          <span className={cn("font-semibold text-lg", data.visualRust === false && "text-primary")}>No Rust</span>
-          <span className="text-xs text-muted-foreground">Clean condition</span>
-        </button>
-        
-        <button
-          type="button"
-          onClick={() => onUpdate({ visualRust: true })}
-          className={cn(
-            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
-            data.visualRust === true
-              ? "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20"
-              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
-          )}
-        >
-          <AlertTriangle className={cn(
-            "h-10 w-10 transition-colors",
-            data.visualRust === true ? "text-destructive" : "text-muted-foreground"
-          )} />
-          <span className={cn("font-semibold text-lg", data.visualRust === true && "text-destructive")}>Visible Rust</span>
-          <span className="text-xs text-muted-foreground">Corrosion present</span>
-        </button>
-      </div>
-      
-      {data.visualRust === true && (
-        <div className="mt-4 p-3 bg-orange-500/10 rounded-xl flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
-          <p className="text-sm text-orange-700">Rust indicates age/wear - note severity in photo</p>
+      {/* Section 1: Rust Check */}
+      <div className="mb-6">
+        <p className="text-xs font-medium text-muted-foreground mb-3">Visible rust or corrosion?</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => onUpdate({ visualRust: false })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+              data.visualRust === false
+                ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
+                : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+            )}
+          >
+            <CheckCircle className={cn(
+              "h-8 w-8 transition-colors",
+              data.visualRust === false ? "text-primary" : "text-muted-foreground"
+            )} />
+            <span className={cn("font-semibold", data.visualRust === false && "text-primary")}>No Rust</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => onUpdate({ visualRust: true })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+              data.visualRust === true
+                ? "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20"
+                : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+            )}
+          >
+            <AlertTriangle className={cn(
+              "h-8 w-8 transition-colors",
+              data.visualRust === true ? "text-destructive" : "text-muted-foreground"
+            )} />
+            <span className={cn("font-semibold", data.visualRust === true && "text-destructive")}>Rust Present</span>
+          </button>
         </div>
-      )}
-    </StepCard>
-  );
+      </div>
 
-  const renderLeakCheckStep = () => (
-    <StepCard className="border-0 bg-transparent shadow-none">
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        Is there an active leak or water around the unit?
-      </p>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          type="button"
-          onClick={() => onUpdate({ isLeaking: false })}
-          className={cn(
-            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
-            data.isLeaking === false
-              ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
-              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
-          )}
-        >
-          <CheckCircle className={cn(
-            "h-10 w-10 transition-colors",
-            data.isLeaking === false ? "text-primary" : "text-muted-foreground"
-          )} />
-          <span className={cn("font-semibold text-lg", data.isLeaking === false && "text-primary")}>Dry</span>
-          <span className="text-xs text-muted-foreground">No water present</span>
-        </button>
-        
-        <button
-          type="button"
-          onClick={() => onUpdate({ isLeaking: true })}
-          className={cn(
-            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
-            data.isLeaking === true
-              ? "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20"
-              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
-          )}
-        >
-          <Droplet className={cn(
-            "h-10 w-10 transition-colors",
-            data.isLeaking === true ? "text-destructive" : "text-muted-foreground"
-          )} />
-          <span className="font-semibold text-lg">Leaking</span>
-          <span className="text-xs text-muted-foreground">Water detected</span>
-        </button>
+      <Separator className="my-4" />
+
+      {/* Section 2: Leak Check */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-3">Active leak or water around unit?</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => onUpdate({ isLeaking: false })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+              data.isLeaking === false
+                ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
+                : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+            )}
+          >
+            <CheckCircle className={cn(
+              "h-8 w-8 transition-colors",
+              data.isLeaking === false ? "text-primary" : "text-muted-foreground"
+            )} />
+            <span className={cn("font-semibold", data.isLeaking === false && "text-primary")}>Dry</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => onUpdate({ isLeaking: true })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+              data.isLeaking === true
+                ? "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20"
+                : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+            )}
+          >
+            <Droplet className={cn(
+              "h-8 w-8 transition-colors",
+              data.isLeaking === true ? "text-destructive" : "text-muted-foreground"
+            )} />
+            <span className={cn("font-semibold", data.isLeaking === true && "text-destructive")}>Leaking</span>
+          </button>
+        </div>
       </div>
       
-      {data.isLeaking === true && (
-        <div className="mt-4 p-3 bg-red-500/10 rounded-xl flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
-          <p className="text-sm text-red-700">Critical issue - you'll identify the source next</p>
+      {/* Warnings */}
+      {(data.visualRust === true || data.isLeaking === true) && (
+        <div className="mt-4 space-y-2">
+          {data.visualRust === true && (
+            <div className="p-2.5 bg-orange-500/10 rounded-lg flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
+              <p className="text-xs text-orange-700">Rust indicates age/wear</p>
+            </div>
+          )}
+          {data.isLeaking === true && (
+            <div className="p-2.5 bg-red-500/10 rounded-lg flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+              <p className="text-xs text-red-700">Critical - you'll identify leak source next</p>
+            </div>
+          )}
         </div>
       )}
     </StepCard>
@@ -428,119 +422,114 @@ export function LocationStep({ data, equipmentData, onUpdate, onEquipmentUpdate,
     </StepCard>
   );
 
-  const renderFinishedAreaStep = () => (
+  // Combined finished-area + temp-setting
+  const renderEnvironmentStep = () => (
     <StepCard className="border-0 bg-transparent shadow-none">
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        Is the unit in a finished living area?
-      </p>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          type="button"
-          onClick={() => onUpdate({ isFinishedArea: false })}
-          className={cn(
-            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
-            data.isFinishedArea === false
-              ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
-              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
-          )}
-        >
-          <CheckCircle className={cn(
-            "h-10 w-10 transition-colors",
-            data.isFinishedArea === false ? "text-primary" : "text-muted-foreground"
-          )} />
-          <span className={cn("font-semibold text-lg", data.isFinishedArea === false && "text-primary")}>No</span>
-          <span className="text-xs text-muted-foreground text-center">Garage, basement, etc.</span>
-        </button>
-        
-        <button
-          type="button"
-          onClick={() => onUpdate({ isFinishedArea: true })}
-          className={cn(
-            "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
-            data.isFinishedArea === true
-              ? "border-amber-500 bg-amber-500/10 shadow-md ring-2 ring-amber-500/20"
-              : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
-          )}
-        >
-          <Home className={cn(
-            "h-10 w-10 transition-colors",
-            data.isFinishedArea === true ? "text-amber-500" : "text-muted-foreground"
-          )} />
-          <span className={cn("font-semibold text-lg", data.isFinishedArea === true && "text-amber-600")}>Yes</span>
-          <span className="text-xs text-muted-foreground text-center">Living space</span>
-        </button>
-      </div>
-      
-      {data.isFinishedArea === true && (
-        <div className="mt-4 p-3 bg-amber-500/10 rounded-xl flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-          <p className="text-sm text-amber-700">Higher damage risk if leak occurs</p>
+      {/* Section 1: Finished Area */}
+      <div className="mb-6">
+        <p className="text-xs font-medium text-muted-foreground mb-3">Is the unit in a finished living area?</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => onUpdate({ isFinishedArea: false })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+              data.isFinishedArea === false
+                ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
+                : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+            )}
+          >
+            <Warehouse className={cn(
+              "h-8 w-8 transition-colors",
+              data.isFinishedArea === false ? "text-primary" : "text-muted-foreground"
+            )} />
+            <span className={cn("font-semibold", data.isFinishedArea === false && "text-primary")}>No</span>
+            <span className="text-[10px] text-muted-foreground">Garage, basement</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => onUpdate({ isFinishedArea: true })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+              data.isFinishedArea === true
+                ? "border-amber-500 bg-amber-500/10 shadow-md ring-2 ring-amber-500/20"
+                : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+            )}
+          >
+            <Home className={cn(
+              "h-8 w-8 transition-colors",
+              data.isFinishedArea === true ? "text-amber-500" : "text-muted-foreground"
+            )} />
+            <span className={cn("font-semibold", data.isFinishedArea === true && "text-amber-600")}>Yes</span>
+            <span className="text-[10px] text-muted-foreground">Living space</span>
+          </button>
         </div>
-      )}
-    </StepCard>
-  );
+        {data.isFinishedArea === true && (
+          <div className="mt-2 p-2 bg-amber-500/10 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-700">Higher damage risk if leak occurs</p>
+          </div>
+        )}
+      </div>
 
-  const renderTempSettingStep = () => (
-    <StepCard className="border-0 bg-transparent shadow-none">
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        What's the thermostat dial setting?
-      </p>
-      
-      <div className="grid grid-cols-3 gap-3">
-        {TEMP_CHIPS.map((t) => {
-          const isSelected = data.tempSetting === t.value;
-          const getSelectedStyles = () => {
-            if (t.value === 'HOT') return "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20";
-            if (t.value === 'LOW') return "border-blue-500 bg-blue-500/10 shadow-md ring-2 ring-blue-500/20";
-            return "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20";
-          };
-          const getIconColor = () => {
-            if (t.value === 'HOT') return "text-destructive";
-            if (t.value === 'LOW') return "text-blue-500";
-            return "text-primary";
-          };
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => onUpdate({ tempSetting: t.value })}
-              className={cn(
-                "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
-                isSelected
-                  ? getSelectedStyles()
-                  : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
-              )}
-            >
-              <Thermometer className={cn(
-                "h-8 w-8 transition-colors",
-                isSelected ? getIconColor() : "text-muted-foreground"
-              )} />
-              <span className={cn("font-semibold", isSelected && getIconColor())}>{t.label}</span>
-              <span className="text-xs text-muted-foreground">{t.temp}</span>
-            </button>
-          );
-        })}
-      </div>
-      
-      {data.tempSetting === 'HOT' && (
-        <div className="mt-4 p-3 bg-orange-500/10 rounded-xl flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
-          <p className="text-sm text-orange-700">High temp accelerates wear and scale buildup</p>
+      <Separator className="my-4" />
+
+      {/* Section 2: Temperature Setting */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-3">Thermostat dial setting</p>
+        <div className="grid grid-cols-3 gap-2">
+          {TEMP_CHIPS.map((t) => {
+            const isSelected = data.tempSetting === t.value;
+            const getSelectedStyles = () => {
+              if (t.value === 'HOT') return "border-destructive bg-destructive/10 shadow-md ring-2 ring-destructive/20";
+              if (t.value === 'LOW') return "border-blue-500 bg-blue-500/10 shadow-md ring-2 ring-blue-500/20";
+              return "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20";
+            };
+            const getIconColor = () => {
+              if (t.value === 'HOT') return "text-destructive";
+              if (t.value === 'LOW') return "text-blue-500";
+              return "text-primary";
+            };
+            return (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => onUpdate({ tempSetting: t.value })}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
+                  isSelected
+                    ? getSelectedStyles()
+                    : "border-muted bg-card hover:border-primary/50 hover:bg-muted/50"
+                )}
+              >
+                <Thermometer className={cn(
+                  "h-6 w-6 transition-colors",
+                  isSelected ? getIconColor() : "text-muted-foreground"
+                )} />
+                <span className={cn("font-semibold text-sm", isSelected && getIconColor())}>{t.label}</span>
+                <span className="text-[10px] text-muted-foreground">{t.temp}</span>
+              </button>
+            );
+          })}
         </div>
-      )}
+        {data.tempSetting === 'HOT' && (
+          <div className="mt-2 p-2 bg-orange-500/10 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-orange-600 shrink-0" />
+            <p className="text-xs text-orange-700">High temp accelerates wear and scale</p>
+          </div>
+        )}
+      </div>
     </StepCard>
   );
 
   const renderCurrentSubStep = () => {
     switch (currentSubStep) {
       case 'location': return renderLocationStep();
-      case 'rust-check': return renderRustCheckStep();
-      case 'leak-check': return renderLeakCheckStep();
+      case 'condition-check': return renderConditionCheckStep();
       case 'photo': return renderPhotoStep();
       case 'leak-source': return renderLeakSourceStep();
-      case 'finished-area': return renderFinishedAreaStep();
-      case 'temp-setting': return renderTempSettingStep();
+      case 'environment': return renderEnvironmentStep();
       default: return null;
     }
   };
