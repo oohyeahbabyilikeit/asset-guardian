@@ -302,11 +302,11 @@ export function CommandCenter({
           keyframes.push(positions.end);
           times.push(TIMELINE.END);
           
-          // Animate dock reveal earlier (around benchmarks section)
-          const dockRevealTime = TIMELINE.TOTAL_DURATION * 0.5;
+          // Animate dock reveal when scroll nears bottom
+          const dockRevealTime = TIMELINE.TOTAL_DURATION * 0.75;
           setTimeout(() => {
-            animate(actionDockOpacity, 1, { duration: 0.4, ease: elegantEase });
-            animate(actionDockY, 0, { duration: 0.4, ease: elegantEase });
+            animate(actionDockOpacity, 1, { duration: 0.35, ease: elegantEase });
+            animate(actionDockY, 0, { duration: 0.35, ease: elegantEase });
           }, dockRevealTime * 1000);
           
           // Animate scrollY through keyframes, then scroll back to top
