@@ -164,7 +164,6 @@ export function CommandCenter({
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
-  const [maxScroll, setMaxScroll] = useState(1000);
   
   // Single container ref for smooth scrolling
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -175,34 +174,51 @@ export function CommandCenter({
   const historyRef = useRef<HTMLDivElement>(null);
   const benchmarksRef = useRef<HTMLDivElement>(null);
   const hardWaterRef = useRef<HTMLDivElement>(null);
-  const actionDockRef = useRef<HTMLDivElement>(null);
+  const dockAnchorRef = useRef<HTMLDivElement>(null); // Sentinel for dock position
+
+  // Store dock target in ref to avoid re-render during animation
+  const dockTargetRef = useRef(1000);
 
   // Motion value for continuous scroll animation
   const scrollY = useMotionValue(0);
   
-  // ActionDock animation synced to scroll position for smooth entrance
-  const dockThreshold = maxScroll * 0.75;
-  const actionDockOpacity = useTransform(
-    scrollY,
-    [dockThreshold * 0.8, dockThreshold],
-    [0, 1]
-  );
-  const actionDockY = useTransform(
-    scrollY,
-    [dockThreshold * 0.8, dockThreshold],
-    [60, 0]
-  );
+  // ActionDock animation synced to scroll - pure transform, no state dependencies
+  const actionDockOpacity = useTransform(scrollY, (value) => {
+    const threshold = dockTargetRef.current;
+    const startReveal = threshold - 180;
+    const endReveal = threshold - 20;
+    if (value <= startReveal) return 0;
+    if (value >= endReveal) return 1;
+    return (value - startReveal) / (endReveal - startReveal);
+  });
   
-  // Sync scrollY motion value to container scrollTop
+  const actionDockY = useTransform(scrollY, (value) => {
+    const threshold = dockTargetRef.current;
+    const startReveal = threshold - 180;
+    const endReveal = threshold - 20;
+    if (value <= startReveal) return 40;
+    if (value >= endReveal) return 0;
+    const progress = (value - startReveal) / (endReveal - startReveal);
+    return 40 * (1 - progress);
+  });
+  
+  // Sync scrollY motion value to container scrollTop using rAF for smooth updates
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
     
+    let rafId: number;
     const unsubscribe = scrollY.on('change', (latest) => {
-      container.scrollTop = latest;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        container.scrollTop = latest;
+      });
     });
     
-    return unsubscribe;
+    return () => {
+      cancelAnimationFrame(rafId);
+      unsubscribe();
+    };
   }, [scrollY]);
 
   // Block user scroll during animation
@@ -261,12 +277,12 @@ export function CommandCenter({
             history: getOffset(historyRef),
             benchmarks: getOffset(benchmarksRef),
             hardWater: hasHardWaterCard ? getOffset(hardWaterRef) : null,
-            dock: getOffset(actionDockRef),
+            dock: getOffset(dockAnchorRef),
             end: container.scrollHeight - container.clientHeight,
           };
           
-          // Update maxScroll for ActionDock transforms
-          setMaxScroll(positions.end);
+          // Store dock target in ref for ActionDock transforms (no re-render)
+          dockTargetRef.current = positions.dock;
           
           // Build keyframes and times based on which sections exist
           const keyframes: number[] = [0]; // Start at top
@@ -294,12 +310,12 @@ export function CommandCenter({
             times.push(TIMELINE.HARDWATER);
           }
           
-          // Dock
+          // Dock - scroll to dock position
           keyframes.push(positions.dock);
           times.push(TIMELINE.DOCK);
           
-          // End (hold at dock)
-          keyframes.push(positions.dock);
+          // End - brief hold at dock (reduced duration)
+          keyframes.push(positions.end);
           times.push(TIMELINE.END);
           
           // Animate scrollY through keyframes, then scroll back to top
@@ -308,16 +324,16 @@ export function CommandCenter({
             times,
             ease: 'easeInOut',
             onComplete: () => {
-              // Brief pause at bottom, then smooth scroll back to top
-              setTimeout(() => {
+              // Immediate smooth scroll back to top (no delay)
+              requestAnimationFrame(() => {
                 animate(scrollY, 0, {
-                  duration: 1.2,
+                  duration: 1.0,
                   ease: elegantEase,
                   onComplete: () => {
                     setIsAnimating(false);
                   },
                 });
-              }, 600);
+              });
             },
           });
           
@@ -498,31 +514,36 @@ export function CommandCenter({
           )}
         </motion.div>
 
-        {/* Action Dock - slides up from bottom synced with scroll timeline */}
-        <motion.div
-          ref={actionDockRef}
-          style={{ 
-            opacity: actionDockOpacity,
-            y: actionDockY,
-          }}
-        >
-          <ActionDock
-            onPanicMode={onPanicMode}
-            onServiceRequest={onServiceRequest}
-            onMaintenancePlan={onMaintenancePlan}
-            recommendation={recommendation}
-            fuelType={currentInputs.fuelType}
-            // Tank-specific
-            monthsToFlush={monthsToFlush}
-            flushStatus={flushStatus}
-            // Tankless-specific
-            monthsToDescale={isTanklessUnit ? (descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12) : undefined}
-            descaleStatus={descaleStatus === 'impossible' ? 'lockout' : descaleStatus === 'lockout' ? 'lockout' : (descaleStatus as 'optimal' | 'schedule' | 'due' | 'lockout' | undefined)}
-            // Hybrid-specific
-            airFilterStatus={currentInputs.airFilterStatus}
-          />
-        </motion.div>
+        {/* Dock anchor sentinel - in normal flow for accurate measurement */}
+        <div ref={dockAnchorRef} className="h-1" aria-hidden="true" />
       </div>
+
+      {/* Action Dock - fixed overlay with GPU-accelerated animation */}
+      <motion.div
+        className="fixed bottom-0 left-0 right-0 z-50 will-change-transform"
+        style={{ 
+          opacity: actionDockOpacity,
+          y: actionDockY,
+          transform: 'translateZ(0)', // Force GPU layer
+        }}
+      >
+        <ActionDock
+          onPanicMode={onPanicMode}
+          onServiceRequest={onServiceRequest}
+          onMaintenancePlan={onMaintenancePlan}
+          recommendation={recommendation}
+          fuelType={currentInputs.fuelType}
+          position="static"
+          // Tank-specific
+          monthsToFlush={monthsToFlush}
+          flushStatus={flushStatus}
+          // Tankless-specific
+          monthsToDescale={isTanklessUnit ? (descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12) : undefined}
+          descaleStatus={descaleStatus === 'impossible' ? 'lockout' : descaleStatus === 'lockout' ? 'lockout' : (descaleStatus as 'optimal' | 'schedule' | 'due' | 'lockout' | undefined)}
+          // Hybrid-specific
+          airFilterStatus={currentInputs.airFilterStatus}
+        />
+      </motion.div>
 
       {/* Educational Drawer */}
       <EducationalDrawer 
