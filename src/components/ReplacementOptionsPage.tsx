@@ -97,6 +97,8 @@ const TIER_DISPLAY: Record<QualityTier, {
   },
 };
 
+const LOADER_DURATION_MS = 3500;
+
 export function ReplacementOptionsPage({
   onBack,
   onSchedule,
@@ -113,6 +115,7 @@ export function ReplacementOptionsPage({
   const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'thinking' | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
   const [isOverlayVisible, setIsOverlayVisible] = useState(showFakeLoader);
+  const [loaderProgress, setLoaderProgress] = useState(0);
 
   // Loader overlay timer - show for fixed duration then hide
   useEffect(() => {
@@ -121,10 +124,31 @@ export function ReplacementOptionsPage({
       const timer = setTimeout(() => {
         setIsOverlayVisible(false);
         onFakeLoaderDone?.();
-      }, 3500);
+      }, LOADER_DURATION_MS);
       return () => clearTimeout(timer);
     }
   }, [showFakeLoader, onFakeLoaderDone]);
+
+  // Smooth time-based progress bar
+  useEffect(() => {
+    if (!isOverlayVisible) {
+      setLoaderProgress(0);
+      return;
+    }
+    
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(100, (elapsed / LOADER_DURATION_MS) * 100);
+      setLoaderProgress(progress);
+      
+      if (elapsed >= LOADER_DURATION_MS) {
+        clearInterval(interval);
+      }
+    }, 50);
+    
+    return () => clearInterval(interval);
+  }, [isOverlayVisible]);
 
   // Loader animation content
   const capacityDisplay = `${currentInputs.tankCapacity || 50} gallon`;
@@ -137,8 +161,7 @@ export function ReplacementOptionsPage({
     'Reviewing installation complexity...',
     'Generating options...',
   ], [capacityDisplay, fuelDisplay, ventDisplay]);
-  const { displayedLines, currentLineIndex, isComplete: typewriterComplete } = useTypewriter({ lines: analysisSteps, typingSpeed: 60, lineDelay: 400 });
-  const loaderProgress = Math.min(100, Math.round(((currentLineIndex + 1) / analysisSteps.length) * 100));
+  const { displayedLines, currentLineIndex, isComplete: typewriterComplete } = useTypewriter({ lines: analysisSteps, typingSpeed: 13, lineDelay: 200 });
   const FuelIcon = currentInputs.fuelType === 'ELECTRIC' ? Zap : Flame;
 
   // Auto-detect installation complexity based on location and infrastructure issues
