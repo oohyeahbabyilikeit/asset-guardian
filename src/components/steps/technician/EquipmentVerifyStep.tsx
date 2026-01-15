@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import type { AssetIdentification, LocationCondition, EquipmentChecklist } from '@/types/technicianInspection';
 import type { VentType } from '@/lib/opterraAlgorithm';
 import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
@@ -24,7 +25,8 @@ interface EquipmentVerifyStepProps {
   onNext: () => void;
 }
 
-type SubStep = 'exp-tank' | 'venting' | 'flue' | 'connection' | 'extras';
+// Consolidated: venting-config = venting + flue
+type SubStep = 'exp-tank' | 'venting-config' | 'connection' | 'extras';
 
 const VENT_TYPE_OPTIONS: { value: VentType; label: string; desc: string }[] = [
   { value: 'ATMOSPHERIC', label: 'Atmospheric', desc: 'Natural draft, B-vent' },
@@ -61,10 +63,10 @@ export function EquipmentVerifyStep({
   const isGasUnit = assetData.fuelType === 'GAS' || assetData.fuelType === 'TANKLESS_GAS';
   const isHighRiskLocation = ['ATTIC', 'UPPER_FLOOR', 'MAIN_LIVING'].includes(locationData.location as string);
   
-  // Build step order based on fuel type
+  // Build step order based on fuel type - consolidated venting+flue into venting-config
   const getSubSteps = (): SubStep[] => {
     if (isGasUnit) {
-      return ['exp-tank', 'venting', 'flue', 'connection', 'extras'];
+      return ['exp-tank', 'venting-config', 'connection', 'extras'];
     }
     return ['exp-tank', 'connection', 'extras'];
   };
@@ -79,10 +81,8 @@ export function EquipmentVerifyStep({
     switch (currentSubStep) {
       case 'exp-tank':
         return equipmentData.expTankStatus !== undefined;
-      case 'venting':
-        return assetData.ventType !== undefined;
-      case 'flue':
-        return assetData.ventingScenario !== undefined;
+      case 'venting-config':
+        return assetData.ventType !== undefined && assetData.ventingScenario !== undefined;
       case 'connection':
         return equipmentData.connectionType !== undefined;
       case 'extras':
@@ -103,8 +103,7 @@ export function EquipmentVerifyStep({
   const getStepTitle = (): string => {
     switch (currentSubStep) {
       case 'exp-tank': return 'Expansion Tank';
-      case 'venting': return 'Vent Type';
-      case 'flue': return 'Flue Scenario';
+      case 'venting-config': return 'Venting Configuration';
       case 'connection': return 'Pipe Connection';
       case 'extras': return 'Additional Equipment';
       default: return 'Equipment';
@@ -114,8 +113,7 @@ export function EquipmentVerifyStep({
   const getStepIcon = () => {
     switch (currentSubStep) {
       case 'exp-tank': return <Container className="h-7 w-7" />;
-      case 'venting': return <Wind className="h-7 w-7" />;
-      case 'flue': return <Wind className="h-7 w-7" />;
+      case 'venting-config': return <Wind className="h-7 w-7" />;
       case 'connection': return <Wrench className="h-7 w-7" />;
       case 'extras': return <ShieldCheck className="h-7 w-7" />;
       default: return <Settings2 className="h-7 w-7" />;
@@ -201,71 +199,70 @@ export function EquipmentVerifyStep({
     </StepCard>
   );
 
-  const renderVentingStep = () => (
+  // Combined venting + flue
+  const renderVentingConfigStep = () => (
     <StepCard className="border-0 bg-transparent shadow-none">
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        Identify the venting system type
-      </p>
-      
-      <div className="space-y-3">
-        {VENT_TYPE_OPTIONS.map((vent) => (
-          <button
-            key={vent.value}
-            type="button"
-            onClick={() => onAssetUpdate({ ventType: vent.value })}
-            className={cn(
-              "w-full p-4 rounded-xl border-2 transition-all text-left flex justify-between items-center",
-              assetData.ventType === vent.value
-                ? "border-primary bg-primary/10"
-                : "border-muted bg-card hover:border-primary/40"
-            )}
-          >
-            <div>
-              <span className="font-medium text-sm">{vent.label}</span>
-              <p className="text-xs text-muted-foreground mt-0.5">{vent.desc}</p>
-            </div>
-            {assetData.ventType === vent.value && (
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-            )}
-          </button>
-        ))}
+      {/* Section 1: Vent Type */}
+      <div className="mb-5">
+        <p className="text-xs font-medium text-muted-foreground mb-3">Vent Type</p>
+        <div className="space-y-2">
+          {VENT_TYPE_OPTIONS.map((vent) => (
+            <button
+              key={vent.value}
+              type="button"
+              onClick={() => onAssetUpdate({ ventType: vent.value })}
+              className={cn(
+                "w-full p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
+                assetData.ventType === vent.value
+                  ? "border-primary bg-primary/10"
+                  : "border-muted bg-card hover:border-primary/40"
+              )}
+            >
+              <div>
+                <span className="font-medium text-sm">{vent.label}</span>
+                <p className="text-xs text-muted-foreground">{vent.desc}</p>
+              </div>
+              {assetData.ventType === vent.value && (
+                <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
-    </StepCard>
-  );
 
-  const renderFlueStep = () => (
-    <StepCard className="border-0 bg-transparent shadow-none">
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        How is the unit vented to exterior?
-      </p>
-      
-      <div className="space-y-3">
-        {FLUE_SCENARIO_OPTIONS.map((flue) => (
-          <button
-            key={flue.value}
-            type="button"
-            onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
-            className={cn(
-              "w-full p-4 rounded-xl border-2 transition-all text-left flex justify-between items-center",
-              assetData.ventingScenario === flue.value
-                ? flue.variant === 'warning'
-                  ? "border-orange-500 bg-orange-500/10"
-                  : "border-primary bg-primary/10"
-                : "border-muted bg-card hover:border-primary/40"
-            )}
-          >
-            <div>
-              <span className="font-medium text-sm">{flue.label}</span>
-              <p className="text-xs text-muted-foreground mt-0.5">{flue.desc}</p>
-            </div>
-            {assetData.ventingScenario === flue.value && (
-              <CheckCircle2 className={cn(
-                "h-5 w-5",
-                flue.variant === 'warning' ? "text-orange-500" : "text-primary"
-              )} />
-            )}
-          </button>
-        ))}
+      <Separator className="my-4" />
+
+      {/* Section 2: Flue Scenario */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-3">Flue Scenario</p>
+        <div className="space-y-2">
+          {FLUE_SCENARIO_OPTIONS.map((flue) => (
+            <button
+              key={flue.value}
+              type="button"
+              onClick={() => onAssetUpdate({ ventingScenario: flue.value })}
+              className={cn(
+                "w-full p-3 rounded-xl border-2 transition-all text-left flex justify-between items-center",
+                assetData.ventingScenario === flue.value
+                  ? flue.variant === 'warning'
+                    ? "border-orange-500 bg-orange-500/10"
+                    : "border-primary bg-primary/10"
+                  : "border-muted bg-card hover:border-primary/40"
+              )}
+            >
+              <div>
+                <span className="font-medium text-sm">{flue.label}</span>
+                <p className="text-xs text-muted-foreground">{flue.desc}</p>
+              </div>
+              {assetData.ventingScenario === flue.value && (
+                <CheckCircle2 className={cn(
+                  "h-5 w-5 shrink-0",
+                  flue.variant === 'warning' ? "text-orange-500" : "text-primary"
+                )} />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {assetData.ventingScenario === 'ORPHANED_FLUE' && (
@@ -409,8 +406,7 @@ export function EquipmentVerifyStep({
   const renderCurrentStep = () => {
     switch (currentSubStep) {
       case 'exp-tank': return renderExpTankStep();
-      case 'venting': return renderVentingStep();
-      case 'flue': return renderFlueStep();
+      case 'venting-config': return renderVentingConfigStep();
       case 'connection': return renderConnectionStep();
       case 'extras': return renderExtrasStep();
       default: return null;
