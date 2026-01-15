@@ -405,87 +405,135 @@ function RecommendationEducationStep({
       transition={{ duration: 0.4 }}
       className="px-4"
     >
-      {/* Main education card */}
-      <Card className={cn("overflow-hidden border", content.borderColor)}>
+      {/* Main education card - matching FindingStep style */}
+      <Card className={cn("overflow-hidden border-2 border-border/50")}>
         <CardContent className="p-0">
           
-          {/* Header - compact */}
-          <div className={cn("px-4 py-3", content.headerBg)}>
-            <h2 className="text-lg font-semibold text-foreground">
+          {/* Header with gradient - matching other cards */}
+          <div className={cn("p-5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent")}>
+            <motion.div 
+              className="inline-flex p-2.5 rounded-xl mb-3 bg-primary/10 text-primary"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", delay: 0.2 }}
+            >
+              <TrendingUp className="w-6 h-6" />
+            </motion.div>
+            <motion.h2 
+              className="text-xl font-semibold text-foreground mb-1"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
               {content.headline}
-            </h2>
-            <p className="text-xs text-muted-foreground">
+            </motion.h2>
+            <motion.p 
+              className="text-sm text-muted-foreground"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
               {content.subtitle}
-            </p>
+            </motion.p>
           </div>
 
-          {/* What we found - inline chips */}
+          {/* Findings chips */}
           {topFindings.length > 0 && (
-            <div className="px-4 py-2 border-t border-border bg-muted/20">
+            <motion.div 
+              className="px-5 py-3 border-t border-border/50 bg-muted/20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">
+                Based on what we found
+              </p>
               <div className="flex flex-wrap gap-1.5">
-                {topFindings.map((f) => (
-                  <span
+                {topFindings.map((f, idx) => (
+                  <motion.span
                     key={f.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.5 + idx * 0.1 }}
                     className={cn(
-                      "text-xs px-2 py-0.5 rounded-full",
+                      "text-xs px-2.5 py-1 rounded-full font-medium",
                       f.severity === 'critical' ? 'bg-destructive/10 text-destructive' : 
                       f.severity === 'warning' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'
                     )}
                   >
                     {f.title}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
 
-          {/* Educational sections - compact grid */}
-          <div className="px-4 py-3 space-y-2.5 border-t border-border">
-            {content.sections.map((section) => (
-              <div
+          {/* Educational content - clean list */}
+          <motion.div 
+            className="p-5 space-y-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            {content.sections.map((section, idx) => (
+              <motion.div
                 key={section.title}
-                className="flex gap-2.5"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 + idx * 0.1 }}
+                className="flex gap-3"
               >
-                <div className="p-1.5 rounded-md bg-muted/50 h-fit text-muted-foreground">
-                  {React.cloneElement(section.icon as React.ReactElement, { className: 'w-4 h-4' })}
+                <div className="p-2 rounded-lg bg-muted/60 h-fit text-muted-foreground flex-shrink-0">
+                  {section.icon}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm text-foreground">
+                <div className="flex-1">
+                  <h3 className="font-medium text-foreground mb-0.5">
                     {section.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground leading-snug">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     {section.content}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
-          {/* Callout - compact */}
-          <div className="mx-4 mb-3 px-3 py-2 bg-muted/30 rounded-md border border-border">
-            <div className="flex gap-2 items-start">
-              <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+          {/* Callout */}
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+            className="mx-5 mb-5 p-3.5 bg-primary/5 rounded-xl border border-primary/20"
+          >
+            <div className="flex gap-3">
+              <Info className="w-5 h-5 text-primary flex-shrink-0" />
               <div>
-                <p className="text-xs font-medium text-foreground">
+                <p className="text-sm font-medium text-foreground">
                   {content.callout.title}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground mt-0.5">
                   {content.callout.text}
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Action button */}
-          <div className="p-3 bg-muted/30 border-t border-border">
+          <motion.div 
+            className="p-4 bg-muted/30 border-t border-border"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+          >
             <Button 
               onClick={onComplete}
               className="w-full"
+              size="lg"
             >
               <span>See My Options</span>
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
-          </div>
+          </motion.div>
         </CardContent>
       </Card>
     </motion.div>
