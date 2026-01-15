@@ -1254,6 +1254,15 @@ export function FindingsSummaryPage({
         )}
       </AnimatePresence>
 
+      {/* Chat FAB */}
+      <button
+        onClick={() => setShowChatbot(true)}
+        className="fixed bottom-6 right-6 z-20 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center"
+        style={{ boxShadow: '0 4px 20px -4px hsl(var(--primary) / 0.5)' }}
+      >
+        <MessageCircle className="w-6 h-6" />
+      </button>
+
       {/* Educational drawer */}
       {openTopic && (
         <EducationalDrawer
@@ -1262,6 +1271,56 @@ export function FindingsSummaryPage({
           onClose={() => setOpenTopic(null)}
         />
       )}
+
+      {/* AI Chatbot */}
+      <AnimatePresence>
+        {showChatbot && (
+          <WaterHeaterChatbot
+            onClose={() => setShowChatbot(false)}
+            context={{
+              inputs: {
+                manufacturer: currentInputs.manufacturer,
+                modelNumber: currentInputs.modelNumber,
+                calendarAgeYears: currentInputs.calendarAge,
+                fuelType: currentInputs.fuelType,
+                tankCapacityGallons: currentInputs.tankCapacity,
+                hasPrv: currentInputs.hasPrv,
+                hasExpTank: currentInputs.hasExpTank,
+                expTankStatus: currentInputs.expTankStatus,
+                isClosedLoop: currentInputs.isClosedLoop,
+                streetHardnessGpg: currentInputs.streetHardnessGPG,
+                hasSoftener: currentInputs.hasSoftener,
+                housePsi: currentInputs.housePsi,
+                visualRust: currentInputs.visualRust,
+                isLeaking: currentInputs.isLeaking,
+                leakSource: currentInputs.leakSource,
+              },
+              metrics: {
+                healthScore: metrics.healthScore,
+                bioAge: metrics.bioAge,
+                stressFactors: metrics.stressFactors,
+              },
+              recommendation: {
+                action: verdict.action,
+                badge: verdict.badge,
+                title: verdict.title,
+                description: verdict.reason,
+              },
+              findings: findings.map(f => ({
+                title: f.title,
+                measurement: f.measurement,
+                explanation: f.explanation,
+                severity: f.severity,
+              })),
+              financial: {
+                totalReplacementCost: financial.estReplacementCost,
+                monthlyBudget: financial.monthlyBudget,
+                targetDate: financial.targetReplacementDate,
+              },
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
