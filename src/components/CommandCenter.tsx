@@ -164,6 +164,7 @@ export function CommandCenter({
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
+  const [dockVisible, setDockVisible] = useState(false); // Keep dock visible after animation
   
   // Single container ref for smooth scrolling
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -182,8 +183,9 @@ export function CommandCenter({
   // Motion value for continuous scroll animation
   const scrollY = useMotionValue(0);
   
-  // ActionDock animation synced to scroll - pure transform, no state dependencies
+  // ActionDock animation synced to scroll - stays visible once revealed
   const actionDockOpacity = useTransform(scrollY, (value) => {
+    if (dockVisible) return 1; // Keep visible after animation
     const threshold = dockTargetRef.current;
     const startReveal = threshold - 180;
     const endReveal = threshold - 20;
@@ -193,6 +195,7 @@ export function CommandCenter({
   });
   
   const actionDockY = useTransform(scrollY, (value) => {
+    if (dockVisible) return 0; // Keep in position after animation
     const threshold = dockTargetRef.current;
     const startReveal = threshold - 180;
     const endReveal = threshold - 20;
@@ -324,6 +327,8 @@ export function CommandCenter({
             times,
             ease: 'easeInOut',
             onComplete: () => {
+              // Lock dock visible before scrolling back
+              setDockVisible(true);
               // Immediate smooth scroll back to top (no delay)
               requestAnimationFrame(() => {
                 animate(scrollY, 0, {
