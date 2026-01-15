@@ -20,7 +20,8 @@ export type EducationalTopic =
   | 'failure-rate'
   | 'hardness'
   | 'thermal'
-  | 'temperature';
+  | 'temperature'
+  | 'tank-failure';
 
 interface EducationalDrawerProps {
   topic: EducationalTopic;
@@ -236,6 +237,30 @@ const topicContent: Record<EducationalTopic, {
       }
     ],
     source: 'Aggregate data from manufacturer specs and field service records'
+  },
+  'tank-failure': {
+    icon: <Droplets className="w-5 h-5" />,
+    title: 'Tank Body Leaks',
+    description: 'Why a leaking tank cannot be repaired',
+    sections: [
+      {
+        heading: 'What\'s Happening',
+        content: 'When water leaks from the tank body itself (not fittings or valves), it indicates the inner steel lining has corroded through. The glass lining that protects the steel has failed, allowing water to reach and rust through the metal.'
+      },
+      {
+        heading: 'Why It Can\'t Be Repaired',
+        content: 'Unlike a fitting leak which can be tightened or replaced, a tank body breach means the structural integrity is compromised. The corrosion will continue spreading. Welding or patching is not viable due to the pressure vessel nature of the tank.'
+      },
+      {
+        heading: 'Immediate Risks',
+        content: 'A small leak can become a catastrophic rupture with little warning. A 50-gallon tank can release its entire contents in minutes, causing significant water damage. If located above living spaces or near electrical systems, the risk compounds.'
+      },
+      {
+        heading: 'What To Do Now',
+        content: 'Turn off power (breaker for electric, gas valve for gas units) and shut off the cold water supply to the tank. Place towels or a bucket to catch drips. Schedule replacement as soon as possible—this is not a situation that can wait.'
+      }
+    ],
+    source: 'Water heater manufacturer safety guidelines'
   }
 };
 

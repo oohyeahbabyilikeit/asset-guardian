@@ -711,14 +711,50 @@ export function FindingsSummaryPage({
   // Build finding cards based on actual detected issues
   const findings: FindingCard[] = [];
   
-  // Active leak - highest priority
-  if (isLeaking) {
+  // Active leak - differentiated by source
+  if (isLeaking && currentInputs.leakSource) {
+    const leakSource = currentInputs.leakSource;
+    
+    if (leakSource === 'TANK_BODY') {
+      findings.push({
+        id: 'leak-tank-body',
+        icon: <AlertCircle className="w-6 h-6" />,
+        title: 'Tank Body Leak - Critical Failure',
+        measurement: 'Immediate replacement needed',
+        explanation: 'Water is leaking from the tank itself. This indicates internal corrosion has breached the tank wall. This cannot be repaired - the tank must be replaced before catastrophic failure.',
+        severity: 'critical',
+        severityValue: 98,
+        educationalTopic: 'tank-failure',
+      });
+    } else if (leakSource === 'FITTING_VALVE') {
+      findings.push({
+        id: 'leak-fitting',
+        icon: <Wrench className="w-6 h-6" />,
+        title: 'Fitting Leak - Repairable',
+        measurement: 'Service appointment needed',
+        explanation: 'Good news: water is leaking from a connection or valve, NOT the tank itself. This is a repairable issue - a plumber can tighten or replace the fitting. Your water heater tank is not failing.',
+        severity: 'warning',
+        severityValue: 75,
+      });
+    } else if (leakSource === 'DRAIN_PAN') {
+      findings.push({
+        id: 'leak-drain-pan',
+        icon: <Droplets className="w-6 h-6" />,
+        title: 'Water in Drain Pan',
+        measurement: 'Source investigation needed',
+        explanation: 'Water was found in the drain pan beneath your water heater. This could be condensation, a minor fitting drip, or an early sign of tank issues. A professional should inspect to determine the source.',
+        severity: 'warning',
+        severityValue: 70,
+      });
+    }
+  } else if (isLeaking) {
+    // Legacy fallback for when source wasn't captured
     findings.push({
       id: 'leaking',
       icon: <AlertCircle className="w-6 h-6" />,
       title: 'Active Leak Detected',
-      measurement: currentInputs.leakSource ? `Source: ${currentInputs.leakSource}` : undefined,
-      explanation: 'Water damage can occur quickly and may affect surrounding areas. This should be addressed immediately to prevent further damage.',
+      measurement: 'Source unknown',
+      explanation: 'Water damage can occur quickly and may affect surrounding areas. A professional should inspect to identify the leak source.',
       severity: 'critical',
       severityValue: 95,
     });
