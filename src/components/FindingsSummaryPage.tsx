@@ -122,6 +122,136 @@ function SeverityGauge({
   );
 }
 
+// Maintenance cost constants for year-by-year projections
+const MAINTENANCE_COSTS = {
+  FLUSH: { cost: 150, intervalYears: 2, label: 'Tank Flush' },
+  ANODE: { cost: 350, intervalYears: 5, label: 'Anode Replacement' },
+  ELEMENT: { cost: 250, intervalYears: 6, label: 'Element Service' }, // Electric only
+  DESCALE: { cost: 200, intervalYears: 2, label: 'Descale' }, // Tankless only
+  TPR_VALVE: { cost: 125, intervalYears: 5, label: 'T&P Valve' },
+  THERMOSTAT: { cost: 175, intervalYears: 8, label: 'Thermostat' },
+};
+
+// Calculate year-by-year maintenance forecast
+function calculateMaintenanceForecast(
+  currentAge: number,
+  yearsToProject: number,
+  fuelType: string,
+  repairCostsNow: number,
+  replacementCost: number
+): {
+  repairPath: { year: number; label: string; cost: number; cumulative: number }[];
+  replacePath: { year: number; label: string; cost: number; cumulative: number }[];
+  totalRepairPath: number;
+  totalReplacePath: number;
+} {
+  const repairPath: { year: number; label: string; cost: number; cumulative: number }[] = [];
+  const replacePath: { year: number; label: string; cost: number; cumulative: number }[] = [];
+  
+  let repairCumulative = 0;
+  let replaceCumulative = 0;
+  
+  // Year 0: Initial costs
+  if (repairCostsNow > 0) {
+    repairCumulative += repairCostsNow;
+    repairPath.push({
+      year: 0,
+      label: 'Repairs Today',
+      cost: repairCostsNow,
+      cumulative: repairCumulative,
+    });
+  }
+  
+  replaceCumulative += replacementCost;
+  replacePath.push({
+    year: 0,
+    label: 'Replace Now',
+    cost: replacementCost,
+    cumulative: replaceCumulative,
+  });
+  
+  // Project years 1 through yearsToProject
+  const isElectric = fuelType === 'ELECTRIC' || fuelType === 'HYBRID';
+  const isTankless = fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
+  
+  for (let year = 1; year <= yearsToProject; year++) {
+    const projectedAge = currentAge + year;
+    let yearCost = 0;
+    const yearItems: string[] = [];
+    
+    // Repair path: aging unit needs more maintenance
+    if (!isTankless) {
+      // Flush every 2 years (more frequent as unit ages)
+      if (year % 2 === 0 || projectedAge > 10) {
+        yearCost += MAINTENANCE_COSTS.FLUSH.cost;
+        yearItems.push('Flush');
+      }
+      
+      // Anode check/replace (critical after 5 years)
+      if (projectedAge >= 8 && year % 3 === 0) {
+        yearCost += MAINTENANCE_COSTS.ANODE.cost;
+        yearItems.push('Anode');
+      }
+      
+      // Electric elements degrade
+      if (isElectric && projectedAge > 8 && year === 2) {
+        yearCost += MAINTENANCE_COSTS.ELEMENT.cost;
+        yearItems.push('Element');
+      }
+      
+      // T&P valve replacement
+      if (projectedAge > 10 && year === 3) {
+        yearCost += MAINTENANCE_COSTS.TPR_VALVE.cost;
+        yearItems.push('T&P Valve');
+      }
+    } else {
+      // Tankless: descale every 2 years
+      if (year % 2 === 0) {
+        yearCost += MAINTENANCE_COSTS.DESCALE.cost;
+        yearItems.push('Descale');
+      }
+    }
+    
+    // Add eventual replacement in repair path (at end of projection)
+    if (year === yearsToProject) {
+      // Apply inflation to replacement cost
+      const inflatedReplacement = Math.round(replacementCost * Math.pow(1.03, year));
+      yearCost += inflatedReplacement;
+      yearItems.push(`Replace (${year}yr inflation)`);
+    }
+    
+    if (yearCost > 0) {
+      repairCumulative += yearCost;
+      repairPath.push({
+        year,
+        label: yearItems.join(' + '),
+        cost: yearCost,
+        cumulative: repairCumulative,
+      });
+    }
+    
+    // Replace path: new unit has minimal costs for first few years
+    if (year >= 3 && year % 3 === 0) {
+      // Only occasional maintenance after year 3
+      const newUnitMaintenance = 75; // Basic checkup
+      replaceCumulative += newUnitMaintenance;
+      replacePath.push({
+        year,
+        label: 'Routine check',
+        cost: newUnitMaintenance,
+        cumulative: replaceCumulative,
+      });
+    }
+  }
+  
+  return {
+    repairPath,
+    replacePath,
+    totalRepairPath: repairCumulative,
+    totalReplacePath: replaceCumulative,
+  };
+}
+
 // Economic Guidance Step Component (special rendering for the recommendation)
 function EconomicGuidanceStep({
   finding,
@@ -129,6 +259,8 @@ function EconomicGuidanceStep({
   totalSteps,
   financial,
   repairCosts,
+  currentAge,
+  fuelType,
   onComplete,
 }: {
   finding: FindingCard;
@@ -141,15 +273,24 @@ function EconomicGuidanceStep({
     monthlyBudget: number;
   };
   repairCosts: number;
+  currentAge: number;
+  fuelType: string;
   onComplete: () => void;
 }) {
   const isReplacementRecommended = finding.severity === 'critical' || finding.severity === 'warning';
-  const showComparison = repairCosts > 0 && isReplacementRecommended;
+  const showComparison = repairCosts > 0 || isReplacementRecommended;
   
-  // Calculate cost comparison
-  const repairPath = repairCosts + Math.round(financial.estReplacementCost * 0.85);
-  const replacePath = financial.estReplacementCost;
-  const yearsUntilReplace = Math.max(1, Math.round(financial.monthsUntilTarget / 12));
+  // Calculate year-by-year forecast
+  const yearsToProject = Math.max(2, Math.min(5, Math.round(financial.monthsUntilTarget / 12) + 1));
+  const forecast = calculateMaintenanceForecast(
+    currentAge,
+    yearsToProject,
+    fuelType,
+    repairCosts,
+    financial.estReplacementCost
+  );
+  
+  const savings = forecast.totalRepairPath - forecast.totalReplacePath;
 
   return (
     <motion.div
@@ -236,7 +377,7 @@ function EconomicGuidanceStep({
               {finding.explanation}
             </motion.p>
 
-            {/* Cost Comparison Chart - only show if there are meaningful repair costs */}
+            {/* Year-by-Year Cost Comparison Table */}
             {showComparison && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -246,42 +387,103 @@ function EconomicGuidanceStep({
               >
                 <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  The Numbers
+                  {yearsToProject}-Year Cost Projection
                 </h4>
-                <div className="space-y-3">
-                  {/* Repair path */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Repair Now + Replace in ~{yearsUntilReplace} yr</span>
-                      <span className="font-medium text-foreground">${repairPath.toLocaleString()}</span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <motion.div 
-                        className="h-full bg-amber-500/70"
-                        initial={{ width: 0 }}
-                        animate={{ width: '100%' }}
-                        transition={{ duration: 0.8, delay: 0.8 }}
-                      />
-                    </div>
+                
+                {/* Cost table */}
+                <div className="bg-muted/30 rounded-lg border border-border overflow-hidden">
+                  {/* Header row */}
+                  <div className="grid grid-cols-3 gap-2 p-2 bg-muted/50 border-b border-border text-xs font-medium">
+                    <div className="text-muted-foreground">Year</div>
+                    <div className="text-amber-600">Keep Repairing</div>
+                    <div className="text-primary">Replace Now</div>
                   </div>
-                  {/* Replace path */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Replace Now</span>
-                      <span className="font-medium text-primary">${replacePath.toLocaleString()}</span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <motion.div 
-                        className="h-full bg-primary"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(replacePath / repairPath) * 100}%` }}
-                        transition={{ duration: 0.8, delay: 0.9 }}
-                      />
-                    </div>
+                  
+                  {/* Year-by-year rows */}
+                  <div className="divide-y divide-border/50">
+                    {Array.from({ length: yearsToProject + 1 }, (_, yearIndex) => {
+                      const repairItem = forecast.repairPath.find(r => r.year === yearIndex);
+                      const replaceItem = forecast.replacePath.find(r => r.year === yearIndex);
+                      
+                      // Skip years with no activity on either path
+                      if (!repairItem && !replaceItem && yearIndex > 0) return null;
+                      
+                      return (
+                        <motion.div
+                          key={yearIndex}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.8 + yearIndex * 0.1 }}
+                          className="grid grid-cols-3 gap-2 p-2 text-xs"
+                        >
+                          <div className="text-muted-foreground font-medium">
+                            {yearIndex === 0 ? 'Today' : `Year ${yearIndex}`}
+                          </div>
+                          <div className="text-foreground">
+                            {repairItem ? (
+                              <div>
+                                <div className="font-medium text-amber-600">
+                                  ${repairItem.cost.toLocaleString()}
+                                </div>
+                                <div className="text-muted-foreground text-[10px] truncate">
+                                  {repairItem.label}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                          <div className="text-foreground">
+                            {replaceItem ? (
+                              <div>
+                                <div className="font-medium text-primary">
+                                  ${replaceItem.cost.toLocaleString()}
+                                </div>
+                                <div className="text-muted-foreground text-[10px] truncate">
+                                  {replaceItem.label}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    }).filter(Boolean)}
                   </div>
+                  
+                  {/* Total row */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.2 }}
+                    className="grid grid-cols-3 gap-2 p-2 bg-muted/50 border-t border-border font-medium text-sm"
+                  >
+                    <div className="text-foreground">{yearsToProject}-Year Total</div>
+                    <div className="text-amber-600">${forecast.totalRepairPath.toLocaleString()}</div>
+                    <div className="text-primary">${forecast.totalReplacePath.toLocaleString()}</div>
+                  </motion.div>
                 </div>
+                
+                {/* Savings callout */}
+                {savings > 0 && isReplacementRecommended && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1.3 }}
+                    className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/30"
+                  >
+                    <p className="text-sm text-foreground font-medium">
+                      Replacing now saves ~${savings.toLocaleString()} over {yearsToProject} years
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Plus you avoid emergency failures and water damage risk
+                    </p>
+                  </motion.div>
+                )}
+                
                 <p className="text-xs text-muted-foreground mt-3 italic">
-                  Sometimes replacing now saves money over time
+                  Projections include 3% annual inflation on equipment costs
                 </p>
               </motion.div>
             )}
@@ -996,6 +1198,8 @@ export function FindingsSummaryPage({
               monthlyBudget: financial.monthlyBudget,
             }}
             repairCosts={infrastructureIssues.reduce((sum, issue) => sum + (issue.costMin || 0), 0)}
+            currentAge={currentInputs.calendarAge}
+            fuelType={currentInputs.fuelType}
             onComplete={handleCompleteStep}
           />
         ) : (
