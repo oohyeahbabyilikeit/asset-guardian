@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap, Wrench, Users, Thermometer, Waves, Wind, Activity, AlertCircle, Search, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { AlgorithmCalculationTrace } from './AlgorithmCalculationTrace';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -1006,7 +1007,7 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             </Button>
             <div>
               <h1 className="text-lg font-bold">OPTERRA Test Harness</h1>
-              <p className="text-xs text-muted-foreground">v7.12 Physics Engine - Scenario Presets</p>
+              <p className="text-xs text-muted-foreground">v8.0 Safe Mode Engine - Asset-First Testing</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1037,6 +1038,68 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
         <ScrollArea className="lg:w-96 lg:border-r border-border">
           <div className="p-4 space-y-6">
             
+            {/* ==================== */}
+            {/* ASSET TYPE SELECTOR - FIRST */}
+            {/* ==================== */}
+            <section>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                <Flame className="w-3.5 h-3.5" /> Select Asset Type
+              </h2>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'GAS', label: 'Gas Tank', icon: Flame, desc: 'Standard gas' },
+                  { value: 'ELECTRIC', label: 'Electric Tank', icon: Zap, desc: 'Standard electric' },
+                  { value: 'HYBRID', label: 'Heat Pump', icon: Wind, desc: 'Hybrid unit' },
+                  { value: 'TANKLESS_GAS', label: 'Tankless Gas', icon: Activity, desc: 'On-demand gas' },
+                  { value: 'TANKLESS_ELECTRIC', label: 'Tankless Elec', icon: Zap, desc: 'On-demand elec' },
+                ].map((type) => (
+                  <button
+                    key={type.value}
+                    onClick={() => updateInput('fuelType', type.value as FuelType)}
+                    className={cn(
+                      "p-3 rounded-lg border-2 text-left transition-all",
+                      inputs.fuelType === type.value 
+                        ? "border-primary bg-primary/10" 
+                        : "border-border hover:border-muted-foreground/50"
+                    )}
+                  >
+                    <type.icon className={cn("w-5 h-5 mb-1", 
+                      inputs.fuelType === type.value ? "text-primary" : "text-muted-foreground")} 
+                    />
+                    <div className="text-sm font-medium">{type.label}</div>
+                    <div className="text-xs text-muted-foreground">{type.desc}</div>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Safe Mode Banner for Tankless */}
+              {isTanklessUnit && (
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 mt-3">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                    <div className="text-xs text-blue-600">
+                      <strong>v8.0 Safe Mode:</strong> Uses exception-based logic gates:
+                      <span className="font-mono ml-1">DEAD → DYING → DIRTY → HEALTHY</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Hybrid Pivot Banner */}
+              {isHybrid && (
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 mt-3">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <div className="text-xs text-emerald-600">
+                      <strong>Hybrid Pivot:</strong> Heat pumps now use Electric Tank physics (no compressor inputs needed).
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <Separator />
+
             {/* ==================== */}
             {/* AGE & WARRANTY */}
             {/* ==================== */}
@@ -1460,28 +1523,13 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
             <Separator />
 
             {/* ==================== */}
-            {/* EQUIPMENT */}
+            {/* EQUIPMENT (Fuel type moved to top) */}
             {/* ==================== */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5" /> Equipment
+                <Zap className="w-3.5 h-3.5" /> Equipment Settings
               </h2>
               <div className="space-y-3">
-                <div>
-                  <Label className="text-xs">Fuel Type</Label>
-                  <Select value={inputs.fuelType} onValueChange={(v) => updateInput('fuelType', v as FuelType)}>
-                    <SelectTrigger className="mt-1 h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GAS">Gas Tank</SelectItem>
-                      <SelectItem value="ELECTRIC">Electric Tank</SelectItem>
-                      <SelectItem value="HYBRID">Heat Pump / Hybrid</SelectItem>
-                      <SelectItem value="TANKLESS_GAS">Tankless Gas</SelectItem>
-                      <SelectItem value="TANKLESS_ELECTRIC">Tankless Electric</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 {!isTanklessUnit && (
                   <div>
                     <Label className="text-xs">Vent Type</Label>
@@ -1706,85 +1754,91 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 <Separator />
                 <section>
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-orange-500 mb-3 flex items-center gap-2">
-                    <Flame className="w-3.5 h-3.5" /> Gas Tankless
+                    <Flame className="w-3.5 h-3.5" /> Gas Tankless (Safe Mode)
                   </h2>
                   <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">Igniter Health: {inputs.igniterHealth ?? 100}%</Label>
-                      <Slider 
-                        value={[inputs.igniterHealth ?? 100]}
-                        onValueChange={([v]) => updateInput('igniterHealth', v)}
-                        min={0}
-                        max={100}
-                        step={5}
-                        className="mt-2"
-                      />
+                    {/* ACTIVE INPUTS - Used by Safe Mode */}
+                    <div className="p-2 rounded bg-orange-500/5 border border-orange-500/20">
+                      <div className="text-[10px] font-semibold uppercase text-orange-600 mb-2">Active Inputs</div>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">Vent Status</Label>
+                          <Select 
+                            value={inputs.tanklessVentStatus || 'CLEAR'} 
+                            onValueChange={(v) => updateInput('tanklessVentStatus', v as VentStatus)}
+                          >
+                            <SelectTrigger className="mt-1 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="CLEAR">Clear</SelectItem>
+                              <SelectItem value="RESTRICTED">Restricted</SelectItem>
+                              <SelectItem value="BLOCKED">Blocked ⚠️ DEAD Gate</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Gas Line Size</Label>
+                          <Select 
+                            value={inputs.gasLineSize || '3/4'} 
+                            onValueChange={(v) => updateInput('gasLineSize', v as '1/2' | '3/4' | '1')}
+                          >
+                            <SelectTrigger className="mt-1 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1/2">1/2" (max 120k BTU)</SelectItem>
+                              <SelectItem value="3/4">3/4" (max 260k BTU)</SelectItem>
+                              <SelectItem value="1">1" (max 500k BTU)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">BTU Rating</Label>
+                          <Input
+                            type="number"
+                            value={inputs.btuRating ?? 199000}
+                            onChange={(e) => updateInput('btuRating', Number(e.target.value))}
+                            className="mt-1 h-9"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-xs">Flame Rod Status</Label>
-                      <Select 
-                        value={inputs.flameRodStatus || 'GOOD'} 
-                        onValueChange={(v) => updateInput('flameRodStatus', v as FlameRodStatus)}
-                      >
-                        <SelectTrigger className="mt-1 h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="GOOD">Good</SelectItem>
-                          <SelectItem value="WORN">Worn</SelectItem>
-                          <SelectItem value="FAILING">Failing</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Vent Status</Label>
-                      <Select 
-                        value={inputs.tanklessVentStatus || 'CLEAR'} 
-                        onValueChange={(v) => updateInput('tanklessVentStatus', v as VentStatus)}
-                      >
-                        <SelectTrigger className="mt-1 h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CLEAR">Clear</SelectItem>
-                          <SelectItem value="RESTRICTED">Restricted</SelectItem>
-                          <SelectItem value="BLOCKED">Blocked ⚠️ CO Risk</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Gas Line Size</Label>
-                      <Select 
-                        value={inputs.gasLineSize || '3/4'} 
-                        onValueChange={(v) => updateInput('gasLineSize', v as '1/2' | '3/4' | '1')}
-                      >
-                        <SelectTrigger className="mt-1 h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1/2">1/2" (max 120k BTU)</SelectItem>
-                          <SelectItem value="3/4">3/4" (max 260k BTU)</SelectItem>
-                          <SelectItem value="1">1" (max 500k BTU)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Gas Run Length (feet)</Label>
-                      <Input
-                        type="number"
-                        value={inputs.gasRunLength ?? 20}
-                        onChange={(e) => updateInput('gasRunLength', Number(e.target.value))}
-                        className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">BTU Rating</Label>
-                      <Input
-                        type="number"
-                        value={inputs.btuRating ?? 199000}
-                        onChange={(e) => updateInput('btuRating', Number(e.target.value))}
-                        className="mt-1 h-9"
-                      />
+                    
+                    {/* DEPRECATED - No longer used in Safe Mode */}
+                    <div className="opacity-50">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-2">Deprecated (v7.x)</div>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs italic">Igniter Health <span className="text-muted-foreground">(unused)</span></Label>
+                          <Slider 
+                            value={[inputs.igniterHealth ?? 100]}
+                            onValueChange={([v]) => updateInput('igniterHealth', v)}
+                            min={0}
+                            max={100}
+                            step={5}
+                            className="mt-2"
+                            disabled
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs italic">Flame Rod Status <span className="text-muted-foreground">(unused)</span></Label>
+                          <Select 
+                            value={inputs.flameRodStatus || 'GOOD'} 
+                            onValueChange={(v) => updateInput('flameRodStatus', v as FlameRodStatus)}
+                            disabled
+                          >
+                            <SelectTrigger className="mt-1 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="GOOD">Good</SelectItem>
+                              <SelectItem value="WORN">Worn</SelectItem>
+                              <SelectItem value="FAILING">Failing</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -1799,19 +1853,27 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                 <Separator />
                 <section>
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-blue-500 mb-3 flex items-center gap-2">
-                    <Zap className="w-3.5 h-3.5" /> Electric Tankless
+                    <Zap className="w-3.5 h-3.5" /> Electric Tankless (Safe Mode)
                   </h2>
                   <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">Element Health: {inputs.elementHealth ?? 100}%</Label>
-                      <Slider 
-                        value={[inputs.elementHealth ?? 100]}
-                        onValueChange={([v]) => updateInput('elementHealth', v)}
-                        min={0}
-                        max={100}
-                        step={5}
-                        className="mt-2"
-                      />
+                    <p className="text-xs text-muted-foreground italic">
+                      Safe Mode uses age, error codes, and water quality only. No element-specific inputs.
+                    </p>
+                    {/* DEPRECATED */}
+                    <div className="opacity-50">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-2">Deprecated (v7.x)</div>
+                      <div>
+                        <Label className="text-xs italic">Element Health <span className="text-muted-foreground">(unused)</span></Label>
+                        <Slider 
+                          value={[inputs.elementHealth ?? 100]}
+                          onValueChange={([v]) => updateInput('elementHealth', v)}
+                          min={0}
+                          max={100}
+                          step={5}
+                          className="mt-2"
+                          disabled
+                        />
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -2084,28 +2146,50 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   </div>
                 </div>
 
-                {/* Tankless-Specific Metrics */}
-                {isTanklessUnit && result.metrics.descaleStatus && (
+                {/* Tankless-Specific Metrics (Safe Mode) */}
+                {isTanklessUnit && (
                   <div className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tankless Metrics</h3>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      Tankless Safe Mode Status
+                      <span className="text-[10px] font-normal text-blue-500">(v8.0)</span>
+                    </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <MetricCard 
-                        icon={<Waves className="w-4 h-4" />}
-                        label="Scale Buildup" 
-                        value={`${result.metrics.scaleBuildupScore?.toFixed(0) ?? 0}%`} 
-                        status={(result.metrics.scaleBuildupScore ?? 0) >= 80 ? 'critical' : (result.metrics.scaleBuildupScore ?? 0) >= 30 ? 'warning' : 'ok'}
-                      />
-                      <MetricCard 
                         icon={<Activity className="w-4 h-4" />}
-                        label="Flow Loss" 
-                        value={`${result.metrics.flowDegradation?.toFixed(0) ?? 0}%`} 
-                        status={(result.metrics.flowDegradation ?? 0) >= 30 ? 'warning' : 'ok'}
+                        label="Logic Gate" 
+                        value={
+                          result.metrics.failProb >= 99 ? 'DEAD' :
+                          result.metrics.failProb >= 70 ? 'DYING' :
+                          result.metrics.descaleStatus === 'due' || result.metrics.descaleStatus === 'run_to_failure' ? 'DIRTY' :
+                          'HEALTHY'
+                        } 
+                        status={
+                          result.metrics.failProb >= 99 ? 'critical' :
+                          result.metrics.failProb >= 70 ? 'warning' :
+                          'ok'
+                        }
                       />
                       <MetricCard 
                         icon={<Wrench className="w-4 h-4" />}
                         label="Descale Status" 
-                        value={result.metrics.descaleStatus?.toUpperCase() ?? 'N/A'} 
-                        status={result.metrics.descaleStatus === 'lockout' || result.metrics.descaleStatus === 'impossible' ? 'critical' : result.metrics.descaleStatus === 'critical' || result.metrics.descaleStatus === 'due' ? 'warning' : 'ok'}
+                        value={result.metrics.descaleStatus?.toUpperCase().replace('_', ' ') ?? 'OPTIMAL'} 
+                        status={
+                          result.metrics.descaleStatus === 'lockout' || 
+                          result.metrics.descaleStatus === 'impossible' || 
+                          result.metrics.descaleStatus === 'run_to_failure' ? 'critical' : 
+                          result.metrics.descaleStatus === 'critical' || result.metrics.descaleStatus === 'due' ? 'warning' : 'ok'
+                        }
+                      />
+                      <MetricCard 
+                        icon={<AlertTriangle className="w-4 h-4" />}
+                        label="Primary Stressor" 
+                        value={result.metrics.primaryStressor || 'Normal Wear'} 
+                        status={
+                          result.metrics.primaryStressor?.includes('Breach') || 
+                          result.metrics.primaryStressor?.includes('Obstruction') ? 'critical' :
+                          result.metrics.primaryStressor?.includes('Error') ||
+                          result.metrics.primaryStressor?.includes('Scale') ? 'warning' : 'ok'
+                        }
                       />
                     </div>
                   </div>
