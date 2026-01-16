@@ -213,16 +213,14 @@ const TEST_SCENARIOS: TestScenario[] = [
   },
   {
     name: 'Tankless Scale Crisis',
-    description: 'Heavily scaled tankless never descaled',
+    description: 'Never descaled tankless in hard water area',
     inputs: {
       fuelType: 'TANKLESS_GAS',
       calendarAge: 5,
       hardnessGPG: 18,
-      scaleBuildup: 4,
       lastDescaleYearsAgo: undefined,
       hasIsolationValves: false,
-      flowRateGPM: 2.5,
-      ratedFlowGPM: 9.5,
+      errorCodeCount: 2,
     }
   },
   {
@@ -434,20 +432,9 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
   }
 
   // =====================
-  // TANKLESS CRITICAL
+  // TANKLESS CRITICAL (v8.0 Safe Mode)
   // =====================
   if (isTanklessUnit) {
-    // Scale Lockout
-    if ((inputs.scaleBuildup ?? 0) >= 80) {
-      issues.push({
-        id: 'scale_lockout',
-        severity: 'critical',
-        title: 'Scale Lockout - Unit Condemned',
-        detail: `Heat exchanger ${inputs.scaleBuildup}% blocked. Descaling impossible - replacement required.`,
-        value: 'LOCKOUT'
-      });
-    }
-
     // No Isolation Valves - Maintenance Impossible
     if (inputs.hasIsolationValves === false) {
       issues.push({
@@ -459,7 +446,26 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
       });
     }
 
-    // Gas Starvation (v7.8)
+    // Error codes indicate issues
+    if ((inputs.errorCodeCount ?? 0) >= 3) {
+      issues.push({
+        id: 'error_codes_critical',
+        severity: 'critical',
+        title: 'Multiple Error Codes',
+        detail: `${inputs.errorCodeCount} error codes detected. Unit may be in lockout or approaching failure.`,
+        value: `${inputs.errorCodeCount} ERRORS`
+      });
+    } else if ((inputs.errorCodeCount ?? 0) >= 1) {
+      issues.push({
+        id: 'error_codes_warn',
+        severity: 'warning',
+        title: 'Error Codes Present',
+        detail: `${inputs.errorCodeCount} error code(s) detected. Investigate and clear.`,
+        value: `${inputs.errorCodeCount} ERROR(S)`
+      });
+    }
+
+    // Gas Starvation (Gas Tankless only)
     if (inputs.fuelType === 'TANKLESS_GAS' && inputs.gasLineSize && inputs.btuRating) {
       const maxBtuByPipe: Record<string, number> = {
         '1/2': 120000,
@@ -476,28 +482,6 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
           value: 'UNDERSIZED'
         });
       }
-    }
-
-    // Flame Rod Failing (Gas Tankless)
-    if (inputs.flameRodStatus === 'FAILING') {
-      issues.push({
-        id: 'flame_rod_failing',
-        severity: 'critical',
-        title: 'Flame Rod Failing',
-        detail: 'Flame rod degraded - unit will lockout on ignition failure. Replace immediately.',
-        value: 'REPLACE NOW'
-      });
-    }
-
-    // Vent Blocked (Gas Tankless)
-    if (inputs.tanklessVentStatus === 'BLOCKED') {
-      issues.push({
-        id: 'vent_blocked',
-        severity: 'critical',
-        title: 'Vent Blocked - Safety Hazard',
-        detail: 'Blocked vent prevents combustion exhaust. CO poisoning risk - do not operate.',
-        value: 'CO RISK'
-      });
     }
   }
 
@@ -535,42 +519,46 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
     });
   }
 
-  // Sediment Issues
-  if (metrics.sedimentLbs >= 5 && metrics.sedimentLbs <= 15) {
-    issues.push({
-      id: 'sediment_service',
-      severity: 'warning',
-      title: 'Sediment Buildup',
-      detail: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment detected. Professional flush recommended.`,
-      value: `${metrics.sedimentLbs.toFixed(1)} lbs`
-    });
-  } else if (metrics.sedimentLbs > 15) {
-    issues.push({
-      id: 'sediment_lockout',
-      severity: 'critical',
-      title: 'Sediment Lockout',
-      detail: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment - too hard to flush safely. Flush could cause leaks.`,
-      value: `${metrics.sedimentLbs.toFixed(1)} lbs`
-    });
+  // Sediment Issues (Tank units only - tankless don't accumulate sediment the same way)
+  if (!isTanklessUnit) {
+    if (metrics.sedimentLbs >= 5 && metrics.sedimentLbs <= 15) {
+      issues.push({
+        id: 'sediment_service',
+        severity: 'warning',
+        title: 'Sediment Buildup',
+        detail: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment detected. Professional flush recommended.`,
+        value: `${metrics.sedimentLbs.toFixed(1)} lbs`
+      });
+    } else if (metrics.sedimentLbs > 15) {
+      issues.push({
+        id: 'sediment_lockout',
+        severity: 'critical',
+        title: 'Sediment Lockout',
+        detail: `${metrics.sedimentLbs.toFixed(1)} lbs of sediment - too hard to flush safely. Flush could cause leaks.`,
+        value: `${metrics.sedimentLbs.toFixed(1)} lbs`
+      });
+    }
   }
 
-  // Anode Issues
-  if (metrics.shieldLife <= 0) {
-    issues.push({
-      id: 'anode_depleted',
-      severity: 'warning',
-      title: 'Anode Rod Depleted',
-      detail: 'Sacrificial anode exhausted. Tank interior now corroding directly.',
-      value: 'DEPLETED'
-    });
-  } else if (metrics.shieldLife < 2) {
-    issues.push({
-      id: 'anode_low',
-      severity: 'info',
-      title: 'Low Anode Life',
-      detail: `Approximately ${metrics.shieldLife.toFixed(1)} years of anode protection remaining.`,
-      value: `${metrics.shieldLife.toFixed(1)} yrs`
-    });
+  // Anode Issues (Tank units only - tankless don't have anodes)
+  if (!isTanklessUnit) {
+    if (metrics.shieldLife <= 0) {
+      issues.push({
+        id: 'anode_depleted',
+        severity: 'warning',
+        title: 'Anode Rod Depleted',
+        detail: 'Sacrificial anode exhausted. Tank interior now corroding directly.',
+        value: 'DEPLETED'
+      });
+    } else if (metrics.shieldLife < 2) {
+      issues.push({
+        id: 'anode_low',
+        severity: 'info',
+        title: 'Low Anode Life',
+        detail: `Approximately ${metrics.shieldLife.toFixed(1)} years of anode protection remaining.`,
+        value: `${metrics.shieldLife.toFixed(1)} yrs`
+      });
+    }
   }
 
   // Water Quality / Softener
