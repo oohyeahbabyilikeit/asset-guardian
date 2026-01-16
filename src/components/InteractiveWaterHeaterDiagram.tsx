@@ -129,7 +129,8 @@ export function InteractiveWaterHeaterDiagram({
       case 'anode-rod':
         return { label: 'Estimated Life Remaining', value: anodePercent };
       case 'tank-body':
-        return { label: 'Estimated Sediment', value: sedimentLbs };
+        // This component is only used for tank/hybrid, not tankless
+        return { label: 'Estimated Sediment', value: `${sedimentLbs} lbs` };
       case 'compressor':
         return { label: 'Compressor Health', value: compressorHealth };
       case 'air-filter':
