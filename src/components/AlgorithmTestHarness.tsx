@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, RotateCcw, AlertTriangle, CheckCircle2, XCircle, Info, Gauge, Shield, Flame, Droplets, MapPin, Clock, Zap, Wrench, Users, Thermometer, Waves, Wind, Activity, AlertCircle, Search, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { AlgorithmCalculationTrace } from './AlgorithmCalculationTrace';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -2285,6 +2286,9 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                     </div>
                   </div>
                 </div>
+
+                {/* Calculation Trace - Step-by-step breakdown */}
+                <AlgorithmCalculationTrace inputs={inputs} result={result} />
 
                 {/* Projections */}
                 <div className="space-y-2">
