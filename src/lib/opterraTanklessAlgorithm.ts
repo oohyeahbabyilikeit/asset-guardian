@@ -344,8 +344,8 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
     failProb: parseFloat(failProb.toFixed(1)),
     healthScore: failProbToHealthScore(failProb),
     
-    // UI MAPPING: "Sediment" gauge displays "Scale %"
-    sedimentLbs: parseFloat(scaleBuildupScore.toFixed(1)), 
+    // Tankless: sedimentLbs is N/A - use scaleBuildupScore instead
+    sedimentLbs: 0, 
     
     shieldLife: 0, // N/A for tankless (no anode)
     effectivePsi: data.housePsi,

@@ -1,8 +1,8 @@
-import { ChevronRight, Droplets, Gauge, Shield, Thermometer, Zap, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, Droplets, Gauge, Shield, Thermometer, Zap, AlertOctagon, CheckCircle2, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, calculateOpterraRisk, isTankless } from '@/lib/opterraAlgorithm';
 
 interface DiscoveryFlowProps {
   inputs: ForensicInputs;
@@ -148,24 +148,52 @@ export function DiscoveryFlow({ inputs, onComplete }: DiscoveryFlowProps) {
     });
   }
 
-  if (metrics.sedimentLbs > 10) {
-    issues.push({
-      id: 'sediment',
-      icon: <Droplets className="w-5 h-5" />,
-      title: 'Heavy Sediment',
-      value: `${metrics.sedimentLbs.toFixed(0)} lbs`,
-      explanation: 'Significant buildup reduces efficiency. Flushing recommended.',
-      severity: 'concern',
-    });
-  } else if (metrics.sedimentLbs > 5) {
-    issues.push({
-      id: 'sediment',
-      icon: <Droplets className="w-5 h-5" />,
-      title: 'Sediment Buildup',
-      value: `${metrics.sedimentLbs.toFixed(0)} lbs`,
-      explanation: 'Moderate accumulation. Consider flushing to maintain efficiency.',
-      severity: 'attention',
-    });
+  // Tankless: use scaleBuildupScore (%) | Tank: use sedimentLbs
+  const isTanklessUnit = isTankless(inputs.fuelType);
+  const scalePercent = metrics.scaleBuildupScore ?? 0;
+  
+  if (isTanklessUnit) {
+    // Tankless: Show scale buildup as percentage
+    if (scalePercent > 25) {
+      issues.push({
+        id: 'scale',
+        icon: <Flame className="w-5 h-5" />,
+        title: 'Heavy Scale Buildup',
+        value: `${scalePercent.toFixed(0)}%`,
+        explanation: 'Significant scale in heat exchanger reduces efficiency. Descaling recommended.',
+        severity: 'concern',
+      });
+    } else if (scalePercent > 10) {
+      issues.push({
+        id: 'scale',
+        icon: <Flame className="w-5 h-5" />,
+        title: 'Scale Buildup',
+        value: `${scalePercent.toFixed(0)}%`,
+        explanation: 'Moderate scale accumulation. Consider descaling to maintain efficiency.',
+        severity: 'attention',
+      });
+    }
+  } else {
+    // Tank: Show sediment in pounds
+    if (metrics.sedimentLbs > 10) {
+      issues.push({
+        id: 'sediment',
+        icon: <Droplets className="w-5 h-5" />,
+        title: 'Heavy Sediment',
+        value: `${metrics.sedimentLbs.toFixed(0)} lbs`,
+        explanation: 'Significant buildup reduces efficiency. Flushing recommended.',
+        severity: 'concern',
+      });
+    } else if (metrics.sedimentLbs > 5) {
+      issues.push({
+        id: 'sediment',
+        icon: <Droplets className="w-5 h-5" />,
+        title: 'Sediment Buildup',
+        value: `${metrics.sedimentLbs.toFixed(0)} lbs`,
+        explanation: 'Moderate accumulation. Consider flushing to maintain efficiency.',
+        severity: 'attention',
+      });
+    }
   }
 
   if (metrics.shieldLife <= 0) {

@@ -48,6 +48,8 @@ export function SmartMaintenanceCard({
   };
 
   // Generate the "why" explanation based on their data
+  // Note: This component is only used for tank water heaters (flush/anode tasks)
+  // Tankless units use different maintenance tasks (descale, filter_clean, etc.)
   const getWhyExplanation = () => {
     if (isFlush) {
       if (sedimentLbs > 1) {
