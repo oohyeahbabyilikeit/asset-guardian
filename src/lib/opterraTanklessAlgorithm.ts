@@ -1,7 +1,14 @@
 /**
- * OPTERRA v7.2 - TANKLESS RISK ENGINE
+ * OPTERRA TANKLESS MVP ENGINE (v8.0 "Safe Mode")
  * 
- * @see docs/algorithm-changelog.md for version history and physics model
+ * Strategy: Replaces complex fluid dynamics with exception-based logic.
+ * Avoids "100x Aging" bugs and "Negative Flow" errors.
+ * 
+ * Logic Gates:
+ * 1. DEAD (Safety/Leak) -> REPLACE
+ * 2. DYING (Codes/Old) -> REPAIR/REPLACE
+ * 3. DIRTY (Scale Risk) -> MAINTAIN
+ * 4. HEALTHY -> PASS
  */
 
 import { 
@@ -9,44 +16,15 @@ import {
   OpterraMetrics, 
   Recommendation, 
   FinancialForecast, 
-  RiskLevel,
-  failProbToHealthScore,
   TierProfile,
   VentType,
-  resolveHardness
+  failProbToHealthScore,
+  resolveHardness,
+  RiskLevel
 } from './opterraAlgorithm';
 
 // --- CONSTANTS ---
 
-const TANKLESS = {
-  // Reliability: Tankless units fail faster once neglected (Steep Beta)
-  ETA_GAS: 15.5,           // Characteristic life (years) for gas tankless
-  ETA_ELEC: 14.0,          // Characteristic life (years) for electric tankless
-  BETA: 2.8,               // Steeper wear curve than tanks (2.2)
-  
-  // Scale Physics (% Blockage per GPG per Year)
-  SCALE_FACTOR_GAS: 1.1,   // High heat intensity = fast scaling
-  SCALE_FACTOR_ELEC: 0.8,  // Lower heat intensity
-  
-  // Thresholds
-  // FIX v7.7 "3-Year Lockout": Raised from 40 to 60
-  // At 40, 15 GPG water hit lockout in Year 3 (20% of life). Too aggressive.
-  // At 60, units get a descaling chance before condemnation.
-  LIMIT_SCALE_LOCKOUT: 60, // % Blockage: Flushing risks pinhole leaks (was 40)
-  LIMIT_SCALE_DUE: 10,     // % Blockage: Efficiency dropping
-  LIMIT_FLOW_LOSS: 20,     // % GPM Loss: Critical restriction
-  
-  // Costs
-  COST_BASE_GAS: 3800,
-  COST_BASE_ELEC: 2800,
-  COST_VALVE_UPGRADE: 600,
-  
-  // Limits
-  MAX_BIO_AGE: 25,
-  MAX_STRESS_CAP: 15.0,
-};
-
-// Tankless tier profiles for financial forecasting
 const TANKLESS_TIER_PROFILES: Record<string, TierProfile> = {
   BUILDER: {
     tier: 'BUILDER',
@@ -93,7 +71,6 @@ const TANKLESS_TIER_PROFILES: Record<string, TierProfile> = {
 // --- HELPER FUNCTIONS ---
 
 function getTanklessLocationRisk(location: string, isFinished: boolean): RiskLevel {
-  // Tankless hold less water, but attic leaks are still catastrophic
   switch (location) {
     case 'ATTIC':
     case 'UPPER_FLOOR':
@@ -112,280 +89,135 @@ function getTanklessLocationRisk(location: string, isFinished: boolean): RiskLev
   }
 }
 
-function detectTanklessTier(data: ForensicInputs): TierProfile {
-  // Detect tier based on warranty years (best indicator)
-  if (data.warrantyYears >= 12) {
-    return TANKLESS_TIER_PROFILES.PROFESSIONAL;
-  } else if (data.warrantyYears >= 10) {
-    return TANKLESS_TIER_PROFILES.STANDARD;
-  } else if (data.warrantyYears >= 7) {
-    return TANKLESS_TIER_PROFILES.STANDARD;
-  } else {
-    return TANKLESS_TIER_PROFILES.BUILDER;
-  }
-}
-
-/**
- * NEW v7.8: Gas Starvation Detection ("Gas Starvation" Fix)
- * Undersized gas lines cause lean burn, sooting, and premature HX failure.
- * This is the #1 cause of early tankless death that gets misdiagnosed as scale.
- */
-function detectGasStarvation(data: ForensicInputs): { isStarving: boolean; severity: number; message: string } {
-  // Only applies to gas tankless
-  if (data.fuelType !== 'TANKLESS_GAS') {
-    return { isStarving: false, severity: 0, message: '' };
-  }
-  
-  // If we don't have gas line data, can't diagnose
-  if (!data.gasLineSize || !data.btuRating) {
-    return { isStarving: false, severity: 0, message: '' };
-  }
-  
-  const runLength = data.gasRunLength ?? 30;  // Default 30 feet if unknown
-  
-  // Gas line capacity chart (approximate CFH at 0.5" WC drop)
-  // 1/2" pipe: ~70 CFH, 3/4" pipe: ~150 CFH, 1" pipe: ~275 CFH
-  // Natural gas: ~1000 BTU/CF, so 199k BTU needs ~200 CFH
-  const pipeCapacityCFH: Record<string, number> = {
-    '1/2': 70 - (runLength > 30 ? 15 : 0),   // Derate for long runs
-    '3/4': 150 - (runLength > 50 ? 25 : 0),
-    '1': 275 - (runLength > 75 ? 40 : 0),
-  };
-  
-  const requiredCFH = data.btuRating / 1000;  // BTU to CFH conversion
-  const availableCFH = pipeCapacityCFH[data.gasLineSize] || 150;
-  
-  if (requiredCFH > availableCFH) {
-    const shortfall = Math.round(((requiredCFH - availableCFH) / requiredCFH) * 100);
-    return {
-      isStarving: true,
-      severity: Math.min(100, shortfall * 2),  // Severity scales with shortfall
-      message: `${data.gasLineSize}" gas line cannot supply ${data.btuRating / 1000}k BTU unit. Running ${shortfall}% lean.`
-    };
-  }
-  
-  return { isStarving: false, severity: 0, message: '' };
-}
-
 // --- CORE CALCULATION ENGINE ---
 
 export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
-
-  // =========================================
-  // 1. CYCLE INTENSITY (The "Odometer")
-  // Tankless wear is driven by ON/OFF cycles (Igniter, Fan, Relays)
-  // =========================================
-  const usageMultipliers = { light: 0.7, normal: 1.0, heavy: 1.6 };
-  const usageMultiplier = usageMultipliers[data.usageType] || 1.0;
-  
-  // Grandma Rule: Fewer people = fewer cycles
-  const occupancyFactor = Math.max(0.4, data.peopleCount / 2.5);
-  
-  // Recirculation Penalty: The "Silent Killer" of tankless
-  // Without on-demand controls, recirc pumps force 24/7 firing
-  const recircPenalty = (data.hasRecirculationLoop || data.hasCircPump) ? 2.5 : 1.0;
-
-  const cycleStress = Math.min(4.0, usageMultiplier * occupancyFactor * recircPenalty);
-
-  // =========================================
-  // 2. SCALE ACCUMULATION (The "Artery Blockage")
-  // Scale insulates the copper heat exchanger, causing overheating/cracking
-  // =========================================
-  // v7.6: Use Digital-First hardness resolver for all physics calculations
-  // This uses measuredHardnessGPG (test strip) if available, or infers from softener status
-  const { effectiveHardness } = resolveHardness(data);
-  // For tankless, if softener is working, use 0.2 GPG (less buffer than tank)
-  const tanklessEffectiveHardness = (data.hasSoftener && effectiveHardness < 1.5) 
-    ? 0.2 
-    : effectiveHardness;
-  const yearsSinceDescale = data.lastDescaleYearsAgo ?? data.calendarAge;
-  
-  const fuelFactor = data.fuelType === 'TANKLESS_ELECTRIC' 
-    ? TANKLESS.SCALE_FACTOR_ELEC 
-    : TANKLESS.SCALE_FACTOR_GAS;
-    
-  // Temperature Penalty: 140°F precipitates scale 50% faster than 120°F
-  const tempPenalty = data.tempSetting === 'HOT' ? 1.5 : 1.0;
-  
-  // Physics Formula: Hardness * Time * Intensity * Temp
-  const rawScaleScore = tanklessEffectiveHardness * yearsSinceDescale * cycleStress * fuelFactor * tempPenalty;
-  
-  // Residual Scarring: Flushing removes 90%, but 10% stays forever
-  const residualScarring = Math.max(0, (data.calendarAge - yearsSinceDescale)) * 0.5;
-  
-  const scaleBuildupScore = Math.min(100, rawScaleScore + residualScarring);
-
-  // =========================================
-  // 3. FLOW DEGRADATION (The Vital Sign)
-  // If Rated 10 GPM but measuring 7 GPM, the unit is choking
-  // =========================================
-  // FIX v7.6: Only use MEASURED flow loss, don't infer from scale ("Tankless Insulator" Fix)
-  // Scale is a THERMAL insulator first, flow restrictor second.
-  // Thin scale can crack heat exchangers while barely affecting GPM.
-  let flowLossPercent = 0;
-  // FIX v7.10: Use explicit null checks so 0 GPM is processed correctly (not skipped)
-  // A completely clogged unit (0 GPM) was previously getting a "perfect flow" score
-  if (data.ratedFlowGPM && data.flowRateGPM !== undefined && data.flowRateGPM !== null) {
-    const rawLoss = ((data.ratedFlowGPM - data.flowRateGPM) / data.ratedFlowGPM) * 100;
-    // Clamp: negative loss (over-flow from high pressure) becomes 0, max at 100%
-    // Prevents "113% flow" display from units flowing above rated GPM
-    flowLossPercent = Math.min(100, Math.max(0, rawLoss));
-  }
-  // If not measured, flow loss stays at 0 (unknown) — we warn on SCALE instead
-
-  // =========================================
-  // 4. STRESS FACTORS & BIO-AGE
-  // =========================================
-  
-  // Scale Stress: Non-linear (Exponential heat stress on copper)
-  // FIX v7.10: Changed divisor from 10 to 30 to prevent 100x multiplier explosion
-  // At 100% scale: 1 + (100/30)^2 = 1 + 11.1 = 12.1x (reasonable)
-  // At 60% scale (lockout): 1 + (60/30)^2 = 1 + 4 = 5x
-  const scaleStress = 1.0 + Math.pow(scaleBuildupScore / 30, 2.0);
-
-  // Flow Stress: Physical restriction
-  let flowStress = 1.0;
-  if (data.inletFilterStatus === 'DIRTY') flowStress = 1.5;
-  if (data.inletFilterStatus === 'CLOGGED') flowStress = 3.0;
-  if (flowLossPercent > 10) flowStress += (flowLossPercent / 10);
-
-  // Venting Stress (gas only)
-  let ventStress = 1.0;
-  if (data.fuelType === 'TANKLESS_GAS') {
-    if (data.tanklessVentStatus === 'RESTRICTED') ventStress = 2.0;
-    if (data.tanklessVentStatus === 'BLOCKED') ventStress = 5.0;
-  }
-
-  // Gas Starvation Stress (gas only) - undersized gas lines cause lean burn and sooting
-  const gasStarvation = detectGasStarvation(data);
-  const gasStarvationStress = gasStarvation.isStarving ? 1.0 + (gasStarvation.severity / 50) : 1.0;
-
-  // Total Stress
-  const totalStress = Math.min(TANKLESS.MAX_STRESS_CAP, scaleStress * cycleStress * flowStress * ventStress * gasStarvationStress);
-  const bioAge = data.calendarAge * totalStress;
-  const cappedBioAge = Math.min(bioAge, TANKLESS.MAX_BIO_AGE);
-
-  // =========================================
-  // 5. FAILURE PROBABILITY (Weibull)
-  // =========================================
-  const eta = data.fuelType === 'TANKLESS_GAS' ? TANKLESS.ETA_GAS : TANKLESS.ETA_ELEC;
-  
-  const rNow = Math.exp(-Math.pow(cappedBioAge / eta, TANKLESS.BETA));
-  const rNext = Math.exp(-Math.pow((cappedBioAge + 1) / eta, TANKLESS.BETA));
-  let failProb = (1 - (rNext / rNow)) * 100;
-  
-  // Statistical cap
-  failProb = Math.min(failProb, 85.0);
-  
-  // Overrides for critical conditions
-  if ((data.errorCodeCount || 0) > 5) failProb = Math.max(failProb, 75.0);
-  if ((data.errorCodeCount || 0) > 10) failProb = Math.max(failProb, 85.0);
-  if (data.isLeaking) failProb = 99.9;
-  if (data.tanklessVentStatus === 'BLOCKED') failProb = 99.9;
-
-  // =========================================
-  // 6. MAINTENANCE STATUS (Descale Eligibility)
-  // =========================================
-  // CRITICAL: Check scale lockout FIRST - if scale is too high, unit needs replacement
-  // regardless of valve status. Installing valves won't help at 60%+ scale.
-  // FIX v7.9 "Descale Liability": Add "Point of No Return" for never-flushed old units
-  // Descaling reveals pinholes that were plugged by scale - tech gets blamed for "breaking it"
-  let descaleStatus: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure' = 'optimal';
-  
-  // FIX v7.9: Point of No Return - Old units that have NEVER been descaled
-  // The scale is now structural - removing it will reveal hidden pinhole leaks
-  const neverDescaled = data.lastDescaleYearsAgo === undefined || data.lastDescaleYearsAgo === null;
-  const isOldNeverFlushed = data.calendarAge > 5 && neverDescaled;
-  
-  if (scaleBuildupScore > TANKLESS.LIMIT_SCALE_LOCKOUT) {
-    descaleStatus = 'lockout'; // Scale too high - acid flush risks pinhole leaks, replacement needed
-  } else if (isOldNeverFlushed && scaleBuildupScore > 20) {
-    // FIX v7.9: Run to failure - descaling now is high liability
-    descaleStatus = 'run_to_failure';
-  } else if (!data.hasIsolationValves && data.calendarAge > 1) {
-    descaleStatus = 'impossible'; // Cannot be flushed without valves
-  } else if (scaleBuildupScore > 25) {
-    descaleStatus = 'critical';
-  } else if (scaleBuildupScore > TANKLESS.LIMIT_SCALE_DUE) {
-    descaleStatus = 'due';
-  }
-
-  // =========================================
-  // 7. PROJECTIONS (Life Extension)
-  // =========================================
-  const remainingCapacity = Math.max(0, TANKLESS.MAX_BIO_AGE - cappedBioAge);
-  const yearsLeftCurrent = totalStress > 0 ? remainingCapacity / totalStress : remainingCapacity;
-  
-  // Optimized: If descaled and filters cleaned
-  const optimizedStress = Math.max(1.0, 1.0 * cycleStress * 1.0 * 1.0); // Reset scale/flow/vent stress
-  const yearsLeftOptimized = remainingCapacity / optimizedStress;
-  const lifeExtension = Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
-
-  // =========================================
-  // 8. IDENTIFY PRIMARY STRESSOR
-  // =========================================
-  // FIX v7.6: Correct physics terminology ("Tankless Insulator" Fix)
-  // Scale is a THERMAL problem (efficiency loss, overheating) not just flow restriction
+  // Default "Healthy" State
+  let failProb = 5.0; 
+  let healthScore = 95;
   let primaryStressor = 'Normal Wear';
-  if (scaleBuildupScore > 15) primaryStressor = 'Thermal Efficiency Loss';
-  if (flowLossPercent > 15) primaryStressor = 'Flow Restriction';
-  if (gasStarvation.isStarving) primaryStressor = 'Gas Line Undersized';
-  if (data.hasRecirculationLoop || data.hasCircPump) primaryStressor = 'Recirculation Fatigue';
-  if ((data.errorCodeCount || 0) > 5) primaryStressor = 'System Electronics';
-  if (data.tanklessVentStatus === 'RESTRICTED' || data.tanklessVentStatus === 'BLOCKED') {
+  let descaleStatus: OpterraMetrics['descaleStatus'] = 'optimal';
+  let scaleBuildupScore = 0;
+
+  // 1. DEAD GATES (Immediate Failure)
+  if (data.isLeaking) {
+    failProb = 99.9;
+    healthScore = 0;
+    primaryStressor = 'Heat Exchanger Breach';
+  } 
+  else if (data.tanklessVentStatus === 'BLOCKED') {
+    failProb = 99.9;
+    healthScore = 0;
     primaryStressor = 'Vent Obstruction';
   }
+  
+  // 2. DYING GATES (Operational Failure)
+  else if ((data.errorCodeCount || 0) > 0) {
+    failProb = 75.0;
+    healthScore = 35;
+    primaryStressor = 'System Electronics';
+  }
+  else if (data.calendarAge > 15) {
+    failProb = 85.0;
+    healthScore = 20;
+    primaryStressor = 'End of Service Life';
+  }
 
-  // =========================================
-  // MAP TO SHARED METRICS INTERFACE
-  // =========================================
+  // 3. DIRTY GATES (Maintenance required)
+  else {
+    // Heuristic: High Hardness + No Maintenance = Scale Risk
+    const { effectiveHardness } = resolveHardness(data);
+    const isHardWater = effectiveHardness > 10;
+    const neverDescaled = data.lastDescaleYearsAgo === undefined || data.lastDescaleYearsAgo === null;
+    
+    // Estimate scale buildup for UI display
+    const yearsSinceDescale = data.lastDescaleYearsAgo ?? data.calendarAge;
+    scaleBuildupScore = Math.min(100, effectiveHardness * yearsSinceDescale * 0.8);
+    
+    // "Point of No Return" Logic
+    // If unit is old, hard water, and NEVER flushed: DO NOT FLUSH.
+    // Flushing now strips the "structural scale" holding the pinholes shut.
+    if (isHardWater && neverDescaled && data.calendarAge > 6) {
+      descaleStatus = 'run_to_failure';
+      primaryStressor = 'Calcification (Non-Serviceable)';
+      healthScore = 60;
+      failProb = 40;
+    } 
+    // Standard Maintenance Due
+    else if (isHardWater && neverDescaled && data.calendarAge > 2) {
+      descaleStatus = 'due';
+      primaryStressor = 'Scale Accumulation';
+      healthScore = 75;
+      failProb = 30;
+    }
+    // Critical scale buildup
+    else if (scaleBuildupScore > 60) {
+      descaleStatus = 'lockout';
+      primaryStressor = 'Severe Scale Buildup';
+      healthScore = 50;
+      failProb = 50;
+    }
+    // Moderate scale
+    else if (scaleBuildupScore > 25) {
+      descaleStatus = 'critical';
+      primaryStressor = 'Scale Accumulation';
+      healthScore = 70;
+      failProb = 25;
+    }
+    else if (scaleBuildupScore > 10) {
+      descaleStatus = 'due';
+      primaryStressor = 'Normal Wear';
+      healthScore = 85;
+      failProb = 15;
+    }
+  }
+
+  // Determine flush status from descale status
+  let flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout' = 'optimal';
+  if (descaleStatus === 'lockout' || descaleStatus === 'run_to_failure') {
+    flushStatus = 'lockout';
+  } else if (descaleStatus === 'critical') {
+    flushStatus = 'due';
+  } else if (descaleStatus === 'due') {
+    flushStatus = 'schedule';
+  }
+
+  // MVP Metrics Return (Simplified)
   return {
-    bioAge: parseFloat(cappedBioAge.toFixed(1)),
+    bioAge: data.calendarAge,
     failProb: parseFloat(failProb.toFixed(1)),
-    healthScore: failProbToHealthScore(failProb),
-    
-    // Tankless: sedimentLbs is N/A - use scaleBuildupScore instead
-    sedimentLbs: 0, 
-    
-    shieldLife: 0, // N/A for tankless (no anode)
+    healthScore,
+    sedimentLbs: 0,
+    shieldLife: 0,
     effectivePsi: data.housePsi,
-    
-    // Tankless Specifics
     scaleBuildupScore: parseFloat(scaleBuildupScore.toFixed(1)),
-    flowDegradation: parseFloat(flowLossPercent.toFixed(1)),
+    flowDegradation: 0,
     descaleStatus,
-    
     stressFactors: {
-      total: parseFloat(totalStress.toFixed(2)),
-      mechanical: parseFloat(cycleStress.toFixed(2)), // Cycles
-      chemical: parseFloat(scaleStress.toFixed(2)),   // Scale
-      pressure: parseFloat(flowStress.toFixed(2)),    // Flow
-      corrosion: parseFloat(scaleStress.toFixed(2)),  // Scale (Legacy map)
-      temp: tempPenalty,
+      total: 1.0,
+      mechanical: 1.0,
+      chemical: 1.0,
+      pressure: 1.0, 
+      corrosion: 1.0,
+      temp: 1.0,
       tempMechanical: 1.0,
-      tempChemical: tempPenalty,
-      circ: recircPenalty,
+      tempChemical: 1.0,
+      circ: 1.0,
       loop: 1.0,
-      sediment: parseFloat(scaleStress.toFixed(2)), // Legacy map to scale
-      usageIntensity: parseFloat(cycleStress.toFixed(2)),
-      undersizing: 0 // N/A for tankless
+      sediment: 1.0,
+      usageIntensity: 1.0,
+      undersizing: 1.0
     },
-    
     riskLevel: getTanklessLocationRisk(data.location, data.isFinishedArea),
-    sedimentRate: 0, // N/A
-    monthsToFlush: descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12,
-    monthsToLockout: scaleBuildupScore > 30 ? Math.round((60 - scaleBuildupScore) * 2) : null,
-    flushStatus: descaleStatus === 'impossible' ? 'lockout' : 
-                 descaleStatus === 'lockout' ? 'lockout' :
-                 descaleStatus === 'run_to_failure' ? 'lockout' :  // Map to lockout for UI
-                 descaleStatus === 'critical' ? 'due' : 
-                 descaleStatus === 'due' ? 'schedule' : 'optimal',
-    
-    agingRate: parseFloat(totalStress.toFixed(2)),
-    optimizedRate: parseFloat(optimizedStress.toFixed(2)),
-    yearsLeftCurrent: parseFloat(yearsLeftCurrent.toFixed(1)),
-    yearsLeftOptimized: parseFloat(yearsLeftOptimized.toFixed(1)),
-    lifeExtension: parseFloat(lifeExtension.toFixed(1)),
+    sedimentRate: 0, 
+    monthsToFlush: descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12, 
+    monthsToLockout: scaleBuildupScore > 30 ? Math.round((60 - scaleBuildupScore) * 2) : null, 
+    flushStatus,
+    agingRate: 1.0, 
+    optimizedRate: 1.0, 
+    yearsLeftCurrent: Math.max(0, 15 - data.calendarAge), 
+    yearsLeftOptimized: Math.max(0, 15 - data.calendarAge), 
+    lifeExtension: 0,
     primaryStressor
   };
 }
@@ -393,266 +225,182 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
 // --- RECOMMENDATION ENGINE ---
 
 export function getTanklessRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
-  
-  // =========================================
-  // TIER 0: CRITICAL / FATAL
-  // =========================================
+  // PRIORITY 1: SAFETY (Leaks/Vents)
   if (data.tanklessVentStatus === 'BLOCKED') {
-    return { 
+    return {
       action: 'REPLACE', 
-      title: 'Vent Blockage', 
-      reason: 'Exhaust blocked. CO Hazard. Immediate action required.', 
+      title: 'Vent Obstruction', 
       urgent: true, 
       badgeColor: 'red', 
-      badge: 'CRITICAL' 
+      badge: 'CRITICAL',
+      reason: 'Critical safety hazard detected in venting system.'
     };
   }
-  
   if (data.isLeaking) {
-    return { 
+    return {
       action: 'REPLACE', 
-      title: 'Heat Exchanger Breach', 
-      reason: 'Internal leak detected. Unit is non-repairable.', 
+      title: 'Heat Exchanger Failure', 
       urgent: true, 
       badgeColor: 'red', 
-      badge: 'CRITICAL' 
+      badge: 'CRITICAL',
+      reason: 'Internal leakage detected. Heat exchanger integrity compromised.'
     };
   }
-  
-  if ((data.errorCodeCount || 0) > 10) {
-    return { 
+
+  // PRIORITY 2: AGE/ERROR OUT
+  if ((data.errorCodeCount || 0) > 0) {
+    const codeCount = data.errorCodeCount || 0;
+    if (codeCount > 10) {
+      return {
+        action: 'REPLACE', 
+        title: 'Chronic System Errors', 
+        urgent: true, 
+        badgeColor: 'red', 
+        badge: 'CRITICAL',
+        reason: `Unit is displaying ${codeCount} error codes. System reliability is compromised.`
+      };
+    }
+    return {
       action: 'REPAIR', 
       title: 'System Error Codes', 
-      reason: `Unit throwing ${data.errorCodeCount} error codes. Diagnostics required.`, 
       urgent: true, 
-      badgeColor: 'red', 
-      badge: 'SERVICE' 
+      badgeColor: 'orange', 
+      badge: 'SERVICE',
+      reason: `Unit is displaying ${codeCount} error codes. Diagnostics required.`
     };
   }
   
-  // =========================================
-  // FIX v7.9: Run to Failure (Descale Liability)
-  // Never-flushed old units have scale acting as sealant for pinholes
-  // Descaling now reveals leaks - high liability for technician
-  // =========================================
+  if (data.calendarAge > 15) {
+    return {
+      action: 'REPLACE', 
+      title: 'End of Service Life', 
+      urgent: false, 
+      badgeColor: 'orange', 
+      badge: 'REPLACE',
+      reason: 'Unit has exceeded statistical life expectancy (15 years).'
+    };
+  }
+
+  // PRIORITY 3: MAINTENANCE (Simple Scale Check)
   if (metrics.descaleStatus === 'run_to_failure') {
-    return { 
+    return {
       action: 'PASS', 
       title: 'Run to Failure', 
-      reason: `Unit is ${data.calendarAge} years old and never descaled. Scale may be plugging pinholes. Descaling now risks exposing leaks. Budget for replacement.`, 
       urgent: false, 
-      badgeColor: 'yellow', 
+      badgeColor: 'orange', 
       badge: 'MONITOR',
-      note: 'Descale Liability: Do not recommend maintenance that could reveal hidden damage'
+      reason: 'Unit is functioning but too calcified to safely flush. Monitor for leaks.'
     };
   }
-
-  // =========================================
-  // TIER 1: SCALE LOCKOUT
-  // =========================================
+  
   if (metrics.descaleStatus === 'lockout') {
-    return { 
+    return {
       action: 'REPLACE', 
       title: 'Scale Lockout', 
-      reason: `Heat exchanger is ${metrics.scaleBuildupScore?.toFixed(0)}% blocked. Descaling now risks leaks.`, 
       urgent: false, 
-      badgeColor: 'red', 
-      badge: 'REPLACE' 
-    };
-  }
-
-  // =========================================
-  // TIER 2: MAINTENANCE BLOCKED (No Valves)
-  // =========================================
-  if (metrics.descaleStatus === 'impossible') {
-    return { 
-      action: 'UPGRADE', 
-      title: 'Isolation Valves Needed', 
-      reason: 'Unit cannot be serviced without valves. Install to allow flushing.', 
-      urgent: true, 
       badgeColor: 'orange', 
-      badge: 'SERVICE' 
-    };
-  }
-
-  // =========================================
-  // TIER 3: MAINTENANCE REQUIRED
-  // =========================================
-  if (data.inletFilterStatus === 'CLOGGED') {
-    return { 
-      action: 'MAINTAIN', 
-      title: 'Inlet Screen Clogged', 
-      reason: 'Water flow restricted. Clean inlet filter immediately.', 
-      urgent: true, 
-      badgeColor: 'orange', 
-      badge: 'SERVICE' 
+      badge: 'REPLACE',
+      reason: 'Scale buildup has exceeded serviceable limits. Descaling risks revealing pinhole leaks.'
     };
   }
   
   if (metrics.descaleStatus === 'critical') {
-    return { 
+    return {
       action: 'MAINTAIN', 
       title: 'Descale Critical', 
-      reason: `Scale buildup at ${metrics.scaleBuildupScore?.toFixed(0)}%. Flush immediately to prevent damage.`, 
       urgent: true, 
       badgeColor: 'orange', 
-      badge: 'SERVICE' 
+      badge: 'SERVICE',
+      reason: 'Heavy scale accumulation detected. Immediate descaling recommended.'
     };
   }
   
   if (metrics.descaleStatus === 'due') {
-    return { 
+    return {
       action: 'MAINTAIN', 
       title: 'Descale Required', 
-      reason: `Efficiency reduced by scale buildup. Schedule maintenance flush.`, 
       urgent: false, 
       badgeColor: 'yellow', 
-      badge: 'SERVICE' 
-    };
-  }
-  
-  // Igniter / Flame Rod issues (gas only)
-  if (data.fuelType === 'TANKLESS_GAS' && data.flameRodStatus === 'FAILING') {
-    return { 
-      action: 'REPAIR', 
-      title: 'Flame Rod Failing', 
-      reason: 'Ignition sensor degraded. Replace to prevent no-heat failures.', 
-      urgent: true, 
-      badgeColor: 'orange', 
-      badge: 'SERVICE' 
-    };
-  }
-  
-  if (data.fuelType === 'TANKLESS_GAS' && (data.igniterHealth || 100) < 50) {
-    return { 
-      action: 'REPAIR', 
-      title: 'Igniter Weak', 
-      reason: `Igniter health at ${data.igniterHealth}%. Service recommended.`, 
-      urgent: false, 
-      badgeColor: 'yellow', 
-      badge: 'SERVICE' 
-    };
-  }
-  
-  // Element health (electric only)
-  if (data.fuelType === 'TANKLESS_ELECTRIC' && (data.elementHealth || 100) < 50) {
-    return { 
-      action: 'REPAIR', 
-      title: 'Heating Element Degraded', 
-      reason: `Element health at ${data.elementHealth}%. Replace for consistent temps.`, 
-      urgent: false, 
-      badgeColor: 'yellow', 
-      badge: 'SERVICE' 
+      badge: 'SERVICE',
+      reason: 'Hard water exposure without recent maintenance detected.'
     };
   }
 
-  // =========================================
-  // TIER 4: HARD WATER WARNING
-  // =========================================
-  if (data.hardnessGPG > 15 && !data.hasSoftener) {
-    return { 
+  // PRIORITY 4: GAS STARVATION (The #1 Killer)
+  if (data.btuRating && data.btuRating > 150000 && data.gasLineSize === '1/2') {
+    return {
       action: 'UPGRADE', 
-      title: 'Hard Water Risk', 
-      reason: `Hardness (${data.hardnessGPG} GPG) is accelerating scale. Water softener recommended.`, 
-      urgent: false, 
-      badgeColor: 'blue', 
-      badge: 'MONITOR' 
+      title: 'Gas Supply Starvation', 
+      urgent: true, 
+      badgeColor: 'red', 
+      badge: 'CRITICAL',
+      reason: '1/2" gas line is insufficient for this unit output. System is running lean.'
     };
   }
 
-  // =========================================
-  // TIER 5: HEALTHY
-  // =========================================
-  return { 
+  // PRIORITY 5: ISOLATION VALVES (Serviceability)
+  if (!data.hasIsolationValves && data.calendarAge > 1) {
+    return {
+      action: 'UPGRADE', 
+      title: 'Install Isolation Valves', 
+      urgent: false, 
+      badgeColor: 'yellow', 
+      badge: 'SERVICE',
+      reason: 'Unit cannot be descaled without isolation valves. Install to enable maintenance.'
+    };
+  }
+
+  // DEFAULT
+  return {
     action: 'PASS', 
     title: 'System Healthy', 
-    reason: 'Tankless unit operating efficiently.', 
     urgent: false, 
     badgeColor: 'green', 
-    badge: 'OPTIMAL' 
+    badge: 'OPTIMAL',
+    reason: 'No critical issues or maintenance needs detected.'
   };
 }
 
-// --- FINANCIAL FORECAST ---
+// --- FINANCIAL ENGINE ---
 
 export function getTanklessFinancials(metrics: OpterraMetrics, data: ForensicInputs): FinancialForecast {
-  const currentTier = detectTanklessTier(data);
-  
-  // Base cost depends on fuel type
-  const BASE_COST = data.fuelType === 'TANKLESS_GAS' 
-    ? currentTier.baseCostGas 
-    : currentTier.baseCostElectric;
-  
-  let totalCost = BASE_COST;
-  
-  // Vent upgrade adders (gas only)
-  if (data.fuelType === 'TANKLESS_GAS') {
-    if (data.ventType === 'POWER_VENT') totalCost += 800;
-    if (data.ventType === 'DIRECT_VENT') totalCost += 600;
+  // Detect tier based on warranty years
+  let currentTier = TANKLESS_TIER_PROFILES.STANDARD;
+  if (data.warrantyYears >= 12) {
+    currentTier = TANKLESS_TIER_PROFILES.PROFESSIONAL;
+  } else if (data.warrantyYears >= 10) {
+    currentTier = TANKLESS_TIER_PROFILES.STANDARD;
+  } else if (data.warrantyYears >= 7) {
+    currentTier = TANKLESS_TIER_PROFILES.STANDARD;
+  } else {
+    currentTier = TANKLESS_TIER_PROFILES.BUILDER;
   }
   
-  // Installation complexity adder
-  if (data.location === 'ATTIC' || data.location === 'CRAWLSPACE') {
-    totalCost += 400; // Difficult access
-  }
+  // Simple inflation logic for MVP
+  const yearsLeft = Math.max(0, 15 - data.calendarAge);
+  const baseCost = data.fuelType === 'TANKLESS_ELECTRIC' 
+    ? currentTier.baseCostElectric 
+    : currentTier.baseCostGas;
+  const inflation = Math.pow(1.03, yearsLeft);
+  const futureCost = baseCost * inflation;
 
-  const yearsLeft = Math.max(0, metrics.yearsLeftCurrent);
-  const futureCost = totalCost * Math.pow(1.03, yearsLeft); // 3% annual inflation
-  const monthsUntilTarget = Math.max(0, Math.ceil(yearsLeft * 12));
-  
-  let urgency: 'LOW' | 'MED' | 'HIGH' | 'IMMEDIATE' = 'LOW';
-  if (monthsUntilTarget <= 0 || metrics.failProb > 60) urgency = 'IMMEDIATE';
-  else if (monthsUntilTarget < 12 || metrics.failProb > 40) urgency = 'HIGH';
-  else if (monthsUntilTarget < 36 || metrics.failProb > 25) urgency = 'MED';
-  
-  // Calculate upgrade option (next tier up)
-  let upgradeTier: TierProfile | undefined;
-  let upgradeCost: number | undefined;
-  let upgradeValueProp: string | undefined;
-  
-  if (currentTier.tier !== 'PREMIUM') {
-    const nextTierMap: Record<string, string> = {
-      'BUILDER': 'STANDARD',
-      'STANDARD': 'PROFESSIONAL',
-      'PROFESSIONAL': 'PREMIUM'
-    };
-    const nextTierKey = nextTierMap[currentTier.tier];
-    if (nextTierKey) {
-      upgradeTier = TANKLESS_TIER_PROFILES[nextTierKey];
-      upgradeCost = data.fuelType === 'TANKLESS_GAS' 
-        ? upgradeTier.baseCostGas 
-        : upgradeTier.baseCostElectric;
-      upgradeValueProp = `+${upgradeTier.warrantyYears - currentTier.warrantyYears} years warranty, ${upgradeTier.features[0]}`;
-    }
-  }
-
-  // Monthly budget calculation
-  const monthlyBudget = monthsUntilTarget > 0 
-    ? Math.ceil(futureCost / monthsUntilTarget) 
-    : Math.round(futureCost);
-  
-  // Target replacement date
-  const targetDate = new Date();
-  targetDate.setMonth(targetDate.getMonth() + monthsUntilTarget);
-  const targetReplacementDate = monthsUntilTarget <= 0 
-    ? "Now" 
-    : targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  // Determine urgency
+  let budgetUrgency: 'LOW' | 'MED' | 'HIGH' | 'IMMEDIATE' = 'LOW';
+  if (yearsLeft <= 0 || metrics.healthScore < 30) budgetUrgency = 'IMMEDIATE';
+  else if (yearsLeft < 2 || metrics.healthScore < 50) budgetUrgency = 'HIGH';
+  else if (yearsLeft < 5 || metrics.healthScore < 70) budgetUrgency = 'MED';
 
   return {
-    targetReplacementDate,
-    monthsUntilTarget,
+    targetReplacementDate: new Date(new Date().getFullYear() + yearsLeft, 0, 1).toISOString(),
+    monthsUntilTarget: yearsLeft * 12,
     estReplacementCost: Math.round(futureCost),
-    estReplacementCostMin: Math.round(futureCost * 0.85),
-    estReplacementCostMax: Math.round(futureCost * 1.15),
-    monthlyBudget,
-    budgetUrgency: urgency,
-    recommendation: urgency === 'IMMEDIATE' 
-      ? 'Plan for replacement immediately.' 
-      : `Budget $${monthlyBudget}/mo for ${Math.ceil(monthsUntilTarget / 12)} years.`,
-    currentTier,
-    likeForLikeCost: Math.round(totalCost),
-    upgradeTier,
-    upgradeCost,
-    upgradeValueProp
+    estReplacementCostMin: Math.round(futureCost * 0.9),
+    estReplacementCostMax: Math.round(futureCost * 1.1),
+    monthlyBudget: Math.round(futureCost / Math.max(yearsLeft * 12, 1)),
+    budgetUrgency,
+    recommendation: metrics.healthScore < 50 ? 'Prepare for Replacement' : 'Save for Future',
+    currentTier, 
+    likeForLikeCost: baseCost,
+    upgradeCost: 0
   };
 }

@@ -141,19 +141,21 @@ const CONSTANTS = {
   MOTOR_LIMIT: 1500,          // Cycles before replacement
 
   // Clock B: Resin Decay Rates (% per year)
-  // FIX v1.3 "City Water Death Clock": Reduced from 10.0 to 6.0
-  // High-quality 8-10% cross-link resin lasts 15-20 years on city water.
-  // 10% decay implied a hard 10-year limit. 6% allows 15+ year lifespan.
-  CITY_WATER_DECAY: 6.0,          // Chlorine kills resin (was 10.0)
-  CITY_WATER_CARBON_DECAY: 3.5,   // Carbon filter protects (reduced proportionally)
+  // FIX v8.0: Modern 8-10% cross-link resin lasts 15-20 years on city water
+  // Reduced base rates to reflect actual industry lifespan data
+  CITY_WATER_DECAY: 6.0,          // Chlorine (reduced from 10.0)
+  CITY_WATER_CARBON_DECAY: 3.0,   // Carbon filter protects (50% reduction)
   
-  // NEW v1.5: Chloramine accelerators ("Chloramine Meltdown" Fix)
-  // Chloramines are 2x more destructive than chlorine - swells rubber, turns resin to mush
+  // FIX v8.0 "Chloramine Meltdown": Chloramine is the REAL killer
+  // Chloramines (NH2Cl) are 2x more destructive than chlorine
+  // - Swells rubber seals and O-rings
+  // - Turns resin beads to mush
+  // - Carbon helps but can't fully neutralize
   CITY_WATER_CHLORAMINE_DECAY: 12.0,         // Chloramine without carbon filter
-  CITY_WATER_CHLORAMINE_CARBON_DECAY: 7.0,   // Carbon helps but still aggressive
+  CITY_WATER_CHLORAMINE_CARBON_DECAY: 6.0,   // Carbon cuts damage in half
   
   WELL_WATER_DECAY: 12.0,         // Iron/sediment coating
-  WELL_WATER_IRON_DECAY: 20.0,    // NEW v1.1: Iron staining = faster decay
+  WELL_WATER_IRON_DECAY: 20.0,    // Iron staining = faster decay
 
   // Clock C: Salt — v1.2 SCALED BY SIZE
   SALT_KNEE: 6,               // NEW v1.2: 24k unit = 6 lbs/regen
