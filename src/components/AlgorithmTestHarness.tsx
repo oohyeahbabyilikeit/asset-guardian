@@ -715,22 +715,25 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
       });
     }
 
-    if ((inputs.compressorHealth ?? 100) < 50) {
-      issues.push({
-        id: 'compressor_failing',
-        severity: 'critical',
-        title: 'Compressor Failing',
-        detail: `Compressor health at ${inputs.compressorHealth}%. Unit will fail soon.`,
-        value: `${inputs.compressorHealth}%`
-      });
-    } else if ((inputs.compressorHealth ?? 100) < 75) {
-      issues.push({
-        id: 'compressor_degraded',
-        severity: 'warning',
-        title: 'Compressor Degraded',
-        detail: `Compressor health at ${inputs.compressorHealth}%. Efficiency reduced.`,
-        value: `${inputs.compressorHealth}%`
-      });
+    // Only check compressor health for Hybrid units
+    if (inputs.fuelType === 'HYBRID') {
+      if ((inputs.compressorHealth ?? 100) < 50) {
+        issues.push({
+          id: 'compressor_failing',
+          severity: 'critical',
+          title: 'Compressor Failing',
+          detail: `Compressor health at ${inputs.compressorHealth}%. Unit will fail soon.`,
+          value: `${inputs.compressorHealth}%`
+        });
+      } else if ((inputs.compressorHealth ?? 100) < 75) {
+        issues.push({
+          id: 'compressor_degraded',
+          severity: 'warning',
+          title: 'Compressor Degraded',
+          detail: `Compressor health at ${inputs.compressorHealth}%. Efficiency reduced.`,
+          value: `${inputs.compressorHealth}%`
+        });
+      }
     }
 
     if (inputs.roomVolumeType === 'CLOSET_LOUVERED') {
@@ -1106,31 +1109,46 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Warranty</Label>
+                  <Label className="text-xs">
+                    Warranty {isTanklessUnit && <span className="text-muted-foreground">(Heat Exchanger)</span>}
+                  </Label>
                   <Select value={String(inputs.warrantyYears)} onValueChange={(v) => updateInput('warrantyYears', Number(v))}>
                     <SelectTrigger className="mt-1 h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="6">6 Years (Builder)</SelectItem>
-                      <SelectItem value="9">9 Years (Standard)</SelectItem>
-                      <SelectItem value="12">12 Years (Pro)</SelectItem>
-                      <SelectItem value="15">15 Years (Premium)</SelectItem>
+                      {isTanklessUnit ? (
+                        <>
+                          <SelectItem value="5">5 Years (Builder)</SelectItem>
+                          <SelectItem value="10">10 Years (Standard)</SelectItem>
+                          <SelectItem value="12">12 Years (Premium)</SelectItem>
+                          <SelectItem value="15">15 Years (Pro)</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="6">6 Years (Builder)</SelectItem>
+                          <SelectItem value="9">9 Years (Standard)</SelectItem>
+                          <SelectItem value="12">12 Years (Pro)</SelectItem>
+                          <SelectItem value="15">15 Years (Premium)</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Anode Count</Label>
-                  <Select value={String(inputs.anodeCount ?? 1)} onValueChange={(v) => updateInput('anodeCount', Number(v) as 1 | 2)}>
-                    <SelectTrigger className="mt-1 h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 Anode (Standard)</SelectItem>
-                      <SelectItem value="2">2 Anodes (Pro/Premium)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!isTanklessUnit && (
+                  <div>
+                    <Label className="text-xs">Anode Count</Label>
+                    <Select value={String(inputs.anodeCount ?? 1)} onValueChange={(v) => updateInput('anodeCount', Number(v) as 1 | 2)}>
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 Anode (Standard)</SelectItem>
+                        <SelectItem value="2">2 Anodes (Pro/Premium)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -1750,41 +1768,6 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                       </div>
                     </div>
                     
-                    {/* DEPRECATED - No longer used in Safe Mode */}
-                    <div className="opacity-50">
-                      <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-2">Deprecated (v7.x)</div>
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-xs italic">Igniter Health <span className="text-muted-foreground">(unused)</span></Label>
-                          <Slider 
-                            value={[inputs.igniterHealth ?? 100]}
-                            onValueChange={([v]) => updateInput('igniterHealth', v)}
-                            min={0}
-                            max={100}
-                            step={5}
-                            className="mt-2"
-                            disabled
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs italic">Flame Rod Status <span className="text-muted-foreground">(unused)</span></Label>
-                          <Select 
-                            value={inputs.flameRodStatus || 'GOOD'} 
-                            onValueChange={(v) => updateInput('flameRodStatus', v as FlameRodStatus)}
-                            disabled
-                          >
-                            <SelectTrigger className="mt-1 h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="GOOD">Good</SelectItem>
-                              <SelectItem value="WORN">Worn</SelectItem>
-                              <SelectItem value="FAILING">Failing</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </section>
               </>
@@ -1804,22 +1787,6 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
                     <p className="text-xs text-muted-foreground italic">
                       Safe Mode uses age, error codes, and water quality only. No element-specific inputs.
                     </p>
-                    {/* DEPRECATED */}
-                    <div className="opacity-50">
-                      <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-2">Deprecated (v7.x)</div>
-                      <div>
-                        <Label className="text-xs italic">Element Health <span className="text-muted-foreground">(unused)</span></Label>
-                        <Slider 
-                          value={[inputs.elementHealth ?? 100]}
-                          onValueChange={([v]) => updateInput('elementHealth', v)}
-                          min={0}
-                          max={100}
-                          step={5}
-                          className="mt-2"
-                          disabled
-                        />
-                      </div>
-                    </div>
                   </div>
                 </section>
               </>
