@@ -1656,90 +1656,47 @@ export function AlgorithmTestHarness({ onBack }: AlgorithmTestHarnessProps) {
               <>
                 <Separator />
                 <section>
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5" /> Tankless Diagnostics
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-blue-500 mb-3 flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5" /> Tankless (Safe Mode)
                   </h2>
                   <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">Current Flow Rate (GPM)</Label>
-                      <Input
-                        type="number"
-                        step={0.1}
-                        value={inputs.flowRateGPM ?? ''}
-                        placeholder="Measured"
-                        onChange={(e) => updateInput('flowRateGPM', e.target.value ? Number(e.target.value) : undefined)}
-                        className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Rated Flow Rate (GPM)</Label>
-                      <Input
-                        type="number"
-                        step={0.1}
-                        value={inputs.ratedFlowGPM ?? 9.5}
-                        onChange={(e) => updateInput('ratedFlowGPM', Number(e.target.value))}
-                        className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Inlet Water Temp (°F)</Label>
-                      <Input
-                        type="number"
-                        value={inputs.inletWaterTemp ?? 55}
-                        onChange={(e) => updateInput('inletWaterTemp', Number(e.target.value))}
-                        className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Scale Buildup: {inputs.scaleBuildup ?? 0}%</Label>
-                      <Slider 
-                        value={[inputs.scaleBuildup ?? 0]}
-                        onValueChange={([v]) => updateInput('scaleBuildup', v)}
-                        min={0}
-                        max={100}
-                        step={5}
-                        className="mt-2"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <Label className="text-xs">Has Isolation Valves</Label>
-                      <Switch 
-                        checked={inputs.hasIsolationValves ?? true} 
-                        onCheckedChange={(v) => updateInput('hasIsolationValves', v)} 
-                      />
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <Label className="text-xs">Has Recirculation Loop</Label>
-                      <Switch 
-                        checked={inputs.hasRecirculationLoop ?? false} 
-                        onCheckedChange={(v) => updateInput('hasRecirculationLoop', v)} 
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Error Code Count</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={inputs.errorCodeCount ?? 0}
-                        onChange={(e) => updateInput('errorCodeCount', Number(e.target.value))}
-                        className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Inlet Filter Status</Label>
-                      <Select 
-                        value={inputs.inletFilterStatus || 'CLEAN'} 
-                        onValueChange={(v) => updateInput('inletFilterStatus', v as InletFilterStatus)}
-                      >
-                        <SelectTrigger className="mt-1 h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CLEAN">Clean</SelectItem>
-                          <SelectItem value="DIRTY">Dirty</SelectItem>
-                          <SelectItem value="CLOGGED">Clogged</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="p-2 rounded bg-blue-500/5 border border-blue-500/20">
+                      <div className="text-[10px] font-semibold uppercase text-blue-600 mb-2">Active Inputs</div>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">Error Code Count</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={inputs.errorCodeCount ?? 0}
+                            onChange={(e) => updateInput('errorCodeCount', Number(e.target.value))}
+                            className="mt-1 h-9"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between py-1">
+                          <Label className="text-xs">Has Isolation Valves</Label>
+                          <Switch 
+                            checked={inputs.hasIsolationValves ?? true} 
+                            onCheckedChange={(v) => updateInput('hasIsolationValves', v)} 
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Inlet Filter Status</Label>
+                          <Select 
+                            value={inputs.inletFilterStatus || 'CLEAN'} 
+                            onValueChange={(v) => updateInput('inletFilterStatus', v as InletFilterStatus)}
+                          >
+                            <SelectTrigger className="mt-1 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="CLEAN">Clean</SelectItem>
+                              <SelectItem value="DIRTY">Dirty</SelectItem>
+                              <SelectItem value="CLOGGED">Clogged</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </section>
