@@ -1,18 +1,7 @@
 /**
  * OPTERRA v7.2 - TANKLESS RISK ENGINE
  * 
- * PHYSICS MODEL:
- * Unlike tank water heaters which are Pressure Vessels (failing via fatigue/bursting),
- * Tankless units are Flow Engines (failing via fouling/clogging).
- * 
- * - Primary Stressor: Scale Accumulation (Heat Exchanger Insulation)
- * - Secondary Stressor: Flow Restriction (Inlet Screen/Calcification)
- * - Mechanical Stress: Ignition Cycles (Usage Intensity)
- * 
- * KEY PHYSICS SHIFTS:
- * - Sediment → Scale: Track "Heat Exchanger Blockage %" instead of "pounds of sediment"
- * - Pressure → Flow: Track "Flow Degradation" (Rated GPM vs. Actual GPM)
- * - Anode → Valves: Maintenance eligibility determined by Isolation Valves
+ * @see docs/algorithm-changelog.md for version history and physics model
  */
 
 import { 
@@ -267,8 +256,12 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
     if (data.tanklessVentStatus === 'BLOCKED') ventStress = 5.0;
   }
 
+  // Gas Starvation Stress (gas only) - undersized gas lines cause lean burn and sooting
+  const gasStarvation = detectGasStarvation(data);
+  const gasStarvationStress = gasStarvation.isStarving ? 1.0 + (gasStarvation.severity / 50) : 1.0;
+
   // Total Stress
-  const totalStress = Math.min(TANKLESS.MAX_STRESS_CAP, scaleStress * cycleStress * flowStress * ventStress);
+  const totalStress = Math.min(TANKLESS.MAX_STRESS_CAP, scaleStress * cycleStress * flowStress * ventStress * gasStarvationStress);
   const bioAge = data.calendarAge * totalStress;
   const cappedBioAge = Math.min(bioAge, TANKLESS.MAX_BIO_AGE);
 
@@ -336,6 +329,7 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   let primaryStressor = 'Normal Wear';
   if (scaleBuildupScore > 15) primaryStressor = 'Thermal Efficiency Loss';
   if (flowLossPercent > 15) primaryStressor = 'Flow Restriction';
+  if (gasStarvation.isStarving) primaryStressor = 'Gas Line Undersized';
   if (data.hasRecirculationLoop || data.hasCircPump) primaryStressor = 'Recirculation Fatigue';
   if ((data.errorCodeCount || 0) > 5) primaryStressor = 'System Electronics';
   if (data.tanklessVentStatus === 'RESTRICTED' || data.tanklessVentStatus === 'BLOCKED') {

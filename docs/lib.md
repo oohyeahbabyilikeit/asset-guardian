@@ -2,14 +2,14 @@
 
 Core algorithms, calculations, and service integrations.
 
+> **Note**: For algorithm version history and physics model details, see [algorithm-changelog.md](./algorithm-changelog.md)
+
 ---
 
 ## Opterra Algorithm
 
 ### opterraAlgorithm.ts
 `src/lib/opterraAlgorithm.ts`
-
-The core risk assessment algorithm for tank water heaters.
 
 ```typescript
 interface ForensicInputs {

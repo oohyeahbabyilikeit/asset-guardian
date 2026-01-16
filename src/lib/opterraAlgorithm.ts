@@ -3,41 +3,7 @@
  * 
  * A physics-based reliability algorithm with economic optimization logic.
  * 
- * CHANGES v7.2:
- * - TIER MATCHING: Added quality tier detection (BUILDER/STANDARD/PROFESSIONAL/PREMIUM)
- * - LIKE-FOR-LIKE: Replacement quotes now match original unit quality tier
- * - VENTING COSTS: Added Power Vent (+$800) and Direct Vent (+$600) adders
- * - UPGRADE OFFERS: Financial forecast now includes upgrade vs like-for-like options
- * 
- * CHANGES v7.1:
- * - ANODE FIX: Unified AGE_ANODE_LIMIT to 8 years (was 6 in algorithm, 8 in repair options)
- * - ANODE FIX: Added hardnessGPG factor to anode decay rate calculation
- * 
- * CHANGES v7.0:
- * - FIX "GRANDMA PARADOX": Lowered occupancy floor from 1.0 to 0.4 so single residents get credit for low wear
- * - FIX "FRAT HOUSE AGGRESSION": Capped usageIntensity at 4.0x and anode usage penalty at 2.0x
- * - FIX "SOAP MATH": Renamed local usageIntensity to styleMultiplier in HardWaterTax for clarity
- * - NEW: Added plumbingProtection ($10/GPG) line item to HardWaterTax for realistic ROI
- * 
- * CHANGES v6.9:
- * - USAGE CALIBRATION: peopleCount and usageType now affect ALL calculations
- * 
- * CHANGES v6.6:
- * - PHYSICS FIX: Implemented "Duty Cycle" logic (0.25 dampener) for Thermal Expansion.
- * 
- * CHANGES v6.5:
- * - ARRHENIUS ADJUSTMENT: Lowered 'HOT' (140°F) penalty from 2.0x to 1.5x.
- * 
- * CHANGES v6.4:
- * - PHYSICS FIX: Quadratic Sediment Stress (Soft Start curve)
- * - NEW FEATURE: Financial Forecasting Engine (Budget & Date Prediction)
- * 
- * CHANGES v6.2:
- * - ARCHITECTURE: Split recommendation into getRawRecommendation + optimizeEconomicDecision
- * - ECONOMIC LAYER: Added ROI logic for repair vs. replacement decisions
- * 
- * CHANGES v6.1:
- * - PHYSICS ADAPTER: Added 'getEffectivePressure' to calculate internal tank stress
+ * @see docs/algorithm-changelog.md for version history
  */
 
 // --- TYPES & INTERFACES ---
@@ -271,11 +237,6 @@ export interface Recommendation {
   note?: string; // Internal debugging note
 }
 
-// Legacy types for backwards compatibility
-export type RecommendationAction = 
-  | 'REPLACE_URGENT' | 'REPLACE_UNSERVICEABLE' | 'REPLACE_EXPIRED' 
-  | 'REPLACE_LIABILITY' | 'REPLACE_RISK' | 'REPLACE_FATIGUE'
-  | 'INSTALL_PRV' | 'INSTALL_EXP_TANK' | 'MONITOR';
 
 export type RecommendationBadge = 'CRITICAL' | 'REPLACE' | 'SERVICE' | 'MONITOR' | 'OPTIMAL';
 
@@ -2081,43 +2042,3 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   return { metrics, verdict, financial, hardWaterTax };
 }
 
-// Exported wrapper for backward compatibility
-export function getRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
-  return optimizeEconomicDecision(getRawRecommendation(metrics, data), data, metrics);
-}
-
-// --- LEGACY COMPATIBILITY ---
-
-// Legacy location risk function
-export function calculateLocationRiskLevel(location: LocationType, isFinished: boolean): RiskLevel {
-  return getLocationRisk(location, isFinished);
-}
-
-// Legacy baseline risk data
-export interface BaselineRisk {
-  age: number;
-  failureProbability: number;
-}
-
-export const industryBaseline: BaselineRisk[] = [
-  { age: 1, failureProbability: 0.5 },
-  { age: 2, failureProbability: 1.2 },
-  { age: 3, failureProbability: 2.1 },
-  { age: 4, failureProbability: 3.2 },
-  { age: 5, failureProbability: 4.8 },
-  { age: 6, failureProbability: 6.8 },
-  { age: 7, failureProbability: 9.2 },
-  { age: 8, failureProbability: 12.1 },
-  { age: 9, failureProbability: 15.5 },
-  { age: 10, failureProbability: 19.4 },
-  { age: 11, failureProbability: 23.8 },
-  { age: 12, failureProbability: 28.7 },
-  { age: 13, failureProbability: 34.1 },
-  { age: 14, failureProbability: 39.9 },
-  { age: 15, failureProbability: 46.1 },
-];
-
-export function getBaselineRisk(age: number): number {
-  const entry = industryBaseline.find(b => b.age === Math.round(age));
-  return entry?.failureProbability ?? 0;
-}
