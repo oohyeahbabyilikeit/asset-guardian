@@ -3,6 +3,7 @@ import { CommandCenter } from '@/components/CommandCenter';
 import { ModeSelectScreen } from '@/components/ModeSelectScreen';
 import { TechnicianFlow } from '@/components/TechnicianFlow';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
+import { AlgorithmTestHarness } from '@/components/AlgorithmTestHarness';
 import { ForensicReport } from '@/components/ForensicReport';
 import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
 import { PanicMode } from '@/components/PanicMode';
@@ -24,6 +25,7 @@ type AppScreen =
   | 'technician-flow'
   | 'onboarding'
   | 'command-center'
+  | 'test-harness'
   | 'forensic-report'
   | 'findings-summary'
   | 'analyzing-options'
@@ -199,6 +201,14 @@ const Index = () => {
       screen: 'command-center',
     }));
   }, []);
+
+  // Open the algorithm test harness from the dashboard
+  const handleOpenTestHarness = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      screen: 'test-harness',
+    }));
+  }, []);
   const { currentInputs, currentAsset, opterraResult } = useMemo(() => {
     let inputs: ForensicInputs;
     let asset: AssetData;
@@ -347,6 +357,7 @@ const Index = () => {
           onServiceRequest={handleViewFindings}
           onViewReport={handleViewReport}
           onMaintenancePlan={handleViewFindings}
+          onTestHarness={handleOpenTestHarness}
           currentAsset={currentAsset}
           currentInputs={currentInputs}
           opterraResult={opterraResult}
@@ -359,6 +370,9 @@ const Index = () => {
           softenerStatus="optimal"
         />
       );
+
+    case 'test-harness':
+      return <AlgorithmTestHarness onBack={handleBackToCommandCenter} />;
 
     case 'findings-summary':
       return (

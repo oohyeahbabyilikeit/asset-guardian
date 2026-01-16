@@ -62,12 +62,13 @@ export function DashboardHeader({
           {onTestHarness && (
             <Button 
               variant="ghost" 
-              size="icon" 
+              size="sm"
               onClick={onTestHarness} 
               className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
               title="Test harness"
             >
-              <FlaskConical className="w-4 h-4" />
+              <FlaskConical className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Test Harness</span>
             </Button>
           )}
           
