@@ -28,35 +28,44 @@ interface ReplacementOptionsPageProps {
 const TIER_DISPLAY: Record<QualityTier, { 
   name: string; 
   icon: typeof Shield;
-  accent: string;
-  bgGradient: string;
-  borderColor: string;
-  selectedBorder: string;
   tagline: string;
   badge?: string;
   features: string[];
+  // Visual styling
+  iconBg: string;
+  iconColor: string;
+  cardBg: string;
+  cardBorder: string;
+  selectedBorder: string;
+  selectedGlow: string;
+  badgeBg: string;
+  badgeText: string;
+  priceColor: string;
+  checkColor: string;
 }> = {
   BUILDER: { 
     name: 'Good', 
     icon: Shield,
-    accent: 'text-muted-foreground',
-    bgGradient: 'bg-card/50',
-    borderColor: 'border-border',
-    selectedBorder: 'border-muted-foreground',
     tagline: 'Reliable basics',
     features: [
       'Standard tank lining',
       '6-year parts warranty',
       'Code-compliant installation',
     ],
+    iconBg: 'bg-slate-500/20',
+    iconColor: 'text-slate-400',
+    cardBg: 'bg-gradient-to-br from-slate-900/80 via-slate-800/50 to-slate-900/30',
+    cardBorder: 'border-slate-600/40',
+    selectedBorder: 'border-slate-400',
+    selectedGlow: 'shadow-[0_0_30px_-5px_rgba(148,163,184,0.4)]',
+    badgeBg: 'bg-slate-600',
+    badgeText: 'text-slate-100',
+    priceColor: 'text-slate-300',
+    checkColor: 'text-slate-400',
   },
   STANDARD: { 
     name: 'Better', 
     icon: Zap,
-    accent: 'text-primary',
-    bgGradient: 'bg-gradient-to-br from-primary/8 via-primary/4 to-transparent',
-    borderColor: 'border-primary/30',
-    selectedBorder: 'border-primary',
     tagline: 'Best value for most homes',
     badge: '★ Most Popular',
     features: [
@@ -64,29 +73,40 @@ const TIER_DISPLAY: Record<QualityTier, {
       '9-year parts warranty',
       'Pressure protection included',
     ],
+    iconBg: 'bg-gradient-to-br from-primary/30 to-amber-500/20',
+    iconColor: 'text-primary',
+    cardBg: 'bg-gradient-to-br from-primary/15 via-amber-900/20 to-primary/5',
+    cardBorder: 'border-primary/40',
+    selectedBorder: 'border-primary',
+    selectedGlow: 'shadow-[0_0_40px_-5px_hsl(var(--primary)/0.5)]',
+    badgeBg: 'bg-gradient-to-r from-primary to-amber-500',
+    badgeText: 'text-white font-semibold',
+    priceColor: 'text-primary',
+    checkColor: 'text-primary',
   },
   PROFESSIONAL: { 
     name: 'Best', 
     icon: Crown,
-    accent: 'text-amber-500',
-    bgGradient: 'bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent',
-    borderColor: 'border-amber-500/30',
-    selectedBorder: 'border-amber-500',
     tagline: 'Maximum peace of mind',
-    badge: '👑 Premium',
     features: [
       'Premium materials throughout',
       '12-year parts warranty',
       'Complete protection package',
     ],
+    iconBg: 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20',
+    iconColor: 'text-amber-400',
+    cardBg: 'bg-gradient-to-br from-amber-900/30 via-yellow-900/20 to-amber-950/40',
+    cardBorder: 'border-amber-500/40',
+    selectedBorder: 'border-amber-400',
+    selectedGlow: 'shadow-[0_0_40px_-5px_rgba(251,191,36,0.4)]',
+    badgeBg: 'bg-gradient-to-r from-amber-400 to-yellow-500',
+    badgeText: 'text-amber-950 font-semibold',
+    priceColor: 'text-amber-400',
+    checkColor: 'text-amber-400',
   },
   PREMIUM: { 
     name: 'Premium', 
     icon: Crown,
-    accent: 'text-purple-400',
-    bgGradient: 'bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent',
-    borderColor: 'border-purple-500/30',
-    selectedBorder: 'border-purple-500',
     tagline: 'Commercial grade',
     badge: '⚡ Pro',
     features: [
@@ -94,6 +114,16 @@ const TIER_DISPLAY: Record<QualityTier, {
       '12-year full warranty',
       'Smart monitoring ready',
     ],
+    iconBg: 'bg-gradient-to-br from-purple-500/30 to-violet-600/20',
+    iconColor: 'text-purple-400',
+    cardBg: 'bg-gradient-to-br from-purple-900/30 via-violet-900/20 to-purple-950/40',
+    cardBorder: 'border-purple-500/40',
+    selectedBorder: 'border-purple-400',
+    selectedGlow: 'shadow-[0_0_40px_-5px_rgba(168,85,247,0.4)]',
+    badgeBg: 'bg-gradient-to-r from-purple-400 to-violet-500',
+    badgeText: 'text-purple-950 font-semibold',
+    priceColor: 'text-purple-400',
+    checkColor: 'text-purple-400',
   },
 };
 
@@ -307,9 +337,9 @@ export function ReplacementOptionsPage({
           All options include professional installation and protect your home.
         </p>
 
-        {/* Tier Cards - Clean card style */}
-        <div className="space-y-3 mb-6">
-          {DISPLAY_TIERS.map((tier) => {
+        {/* Tier Cards - Beautiful Visual Design */}
+        <div className="space-y-4 mb-6">
+          {DISPLAY_TIERS.map((tier, tierIndex) => {
             const config = TIER_DISPLAY[tier];
             const tierPricing = TIER_CONFIG[tier];
             const tierData = tiers[tier];
@@ -318,68 +348,98 @@ export function ReplacementOptionsPage({
             const isRecommended = tier === 'STANDARD';
             const priceRange = getPriceRange(tier);
             const infraCount = tierData.includedIssues.length;
-            const isBest = tier === 'PROFESSIONAL';
 
             return (
-              <button
+              <motion.button
                 key={tier}
                 onClick={() => setSelectedTier(tier)}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: tierIndex * 0.1, duration: 0.3 }}
                 className={cn(
-                  'w-full text-left rounded-xl border-2 transition-all duration-200 overflow-hidden',
+                  'w-full text-left rounded-2xl border-2 transition-all duration-300 overflow-hidden relative group',
+                  config.cardBg,
                   isSelected 
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-muted-foreground/50 bg-card/50',
+                    ? cn(config.selectedBorder, config.selectedGlow)
+                    : cn(config.cardBorder, 'hover:scale-[1.02]'),
                 )}
               >
+                {/* Subtle animated gradient overlay on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                </div>
+
                 {/* Badge for recommended */}
                 {isRecommended && (
                   <div className={cn(
-                    "text-xs font-medium py-1.5 px-3 text-center",
-                    isSelected 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-primary/10 text-primary"
+                    "text-xs py-2 px-4 text-center flex items-center justify-center gap-1.5",
+                    config.badgeBg,
+                    config.badgeText
                   )}>
-                    ★ Most Popular
+                    <span className="animate-pulse">★</span>
+                    Most Popular
                   </div>
                 )}
 
-                <div className="p-4">
+                <div className="p-5">
                   {/* Header Row */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {/* Selection indicator */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      {/* Selection indicator with icon */}
                       <div className={cn(
-                        'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                        isSelected 
-                          ? 'border-primary bg-primary'
-                          : 'border-muted-foreground/30'
+                        'relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300',
+                        config.iconBg,
+                        isSelected && 'ring-2 ring-offset-2 ring-offset-background',
+                        isSelected && config.selectedBorder.replace('border-', 'ring-')
                       )}>
-                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                        <TierIcon className={cn('w-6 h-6', config.iconColor)} />
+                        {/* Selection checkmark overlay */}
+                        <AnimatePresence>
+                          {isSelected && (
+                            <motion.div
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }}
+                              className={cn(
+                                'absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center',
+                                tier === 'STANDARD' ? 'bg-primary' : 
+                                tier === 'PROFESSIONAL' ? 'bg-amber-400' :
+                                tier === 'PREMIUM' ? 'bg-purple-400' : 'bg-slate-400'
+                              )}
+                            >
+                              <Check className="w-3 h-3 text-white" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
 
-                      {/* Tier Name */}
-                      <div className="flex items-center gap-2">
-                        <TierIcon className={cn('w-5 h-5', isSelected ? 'text-primary' : 'text-muted-foreground')} />
-                        <span className={cn(
-                          'font-semibold text-lg',
-                          isSelected ? 'text-foreground' : 'text-foreground/80'
-                        )}>{config.name}</span>
+                      {/* Tier Name & Tagline */}
+                      <div>
+                        <h3 className={cn(
+                          'font-bold text-xl tracking-tight',
+                          isSelected ? 'text-foreground' : 'text-foreground/90'
+                        )}>
+                          {config.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {config.tagline}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Price */}
+                    {/* Price Block */}
                     <div className="text-right">
                       {tierData.loading ? (
-                        <Skeleton className="h-6 w-20" />
+                        <Skeleton className="h-8 w-24" />
                       ) : priceRange ? (
                         <div>
                           <span className={cn(
-                            'font-bold text-base',
-                            isSelected ? 'text-primary' : 'text-foreground'
+                            'font-bold text-xl tracking-tight',
+                            isSelected ? config.priceColor : 'text-foreground'
                           )}>
                             {formatPriceRange(priceRange)}
                           </span>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground mt-0.5">
                             {tierPricing.warranty}yr warranty
                           </p>
                         </div>
@@ -389,27 +449,66 @@ export function ReplacementOptionsPage({
                     </div>
                   </div>
 
-                  {/* Features */}
-                  <div className="ml-8 space-y-1.5">
+                  {/* Divider */}
+                  <div className={cn(
+                    'h-px mb-4',
+                    isSelected ? 'bg-white/10' : 'bg-border/50'
+                  )} />
+
+                  {/* Features Grid */}
+                  <div className="space-y-2.5">
                     {config.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm">
-                        <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                        <span className="text-muted-foreground text-sm">{feature}</span>
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className={cn(
+                          'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0',
+                          isSelected ? config.iconBg : 'bg-muted/50'
+                        )}>
+                          <Check className={cn('w-3 h-3', isSelected ? config.checkColor : 'text-muted-foreground')} />
+                        </div>
+                        <span className={cn(
+                          'text-sm',
+                          isSelected ? 'text-foreground' : 'text-muted-foreground'
+                        )}>
+                          {feature}
+                        </span>
                       </div>
                     ))}
                     
-                    {/* Infrastructure items */}
+                    {/* Infrastructure items - highlighted */}
                     {infraCount > 0 && (
-                      <div className="flex items-center gap-2 text-sm pt-1">
-                        <Shield className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                        <span className="font-medium text-sm text-primary">
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className={cn(
+                          'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0',
+                          config.iconBg
+                        )}>
+                          <Shield className={cn('w-3 h-3', config.iconColor)} />
+                        </div>
+                        <span className={cn('font-medium text-sm', config.priceColor)}>
                           +{infraCount} infrastructure fix{infraCount > 1 ? 'es' : ''} included
                         </span>
                       </div>
                     )}
                   </div>
                 </div>
-              </button>
+
+                {/* Bottom accent bar when selected */}
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      exit={{ scaleX: 0 }}
+                      className={cn(
+                        'h-1 origin-left',
+                        tier === 'STANDARD' ? 'bg-gradient-to-r from-primary to-amber-500' :
+                        tier === 'PROFESSIONAL' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' :
+                        tier === 'PREMIUM' ? 'bg-gradient-to-r from-purple-400 to-violet-500' :
+                        'bg-slate-400'
+                      )}
+                    />
+                  )}
+                </AnimatePresence>
+              </motion.button>
             );
           })}
         </div>
