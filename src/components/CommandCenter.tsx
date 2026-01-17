@@ -12,7 +12,6 @@ import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
 import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
 import { AssetNavigation } from '@/components/AssetNavigation';
 import { TanklessDiagram } from '@/components/TanklessDiagram';
-import { VitalsGrid } from '@/components/VitalsGrid';
 import { HealthScore, AssetData } from '@/data/mockAsset';
 import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
 
