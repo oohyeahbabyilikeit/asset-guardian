@@ -12,16 +12,20 @@ import { Button } from '@/components/ui/button';
 
 export type EducationalTopic = 
   | 'aging' 
+  | 'aging-tankless'
   | 'pressure' 
   | 'thermal-expansion' 
   | 'anode-rod' 
   | 'sediment' 
+  | 'scale-tankless'
   | 'prv'
   | 'failure-rate'
   | 'hardness'
+  | 'hardness-tankless'
   | 'thermal'
   | 'temperature'
-  | 'tank-failure';
+  | 'tank-failure'
+  | 'heat-exchanger';
 
 interface EducationalDrawerProps {
   topic: EducationalTopic;
@@ -57,6 +61,26 @@ const topicContent: Record<EducationalTopic, {
       }
     ],
     source: 'Based on DOE appliance lifespan data and manufacturer specifications'
+  },
+  'aging-tankless': {
+    icon: <Clock className="w-5 h-5" />,
+    title: 'Understanding Tankless Water Heater Aging',
+    description: 'How tankless units age differently from tank systems',
+    sections: [
+      {
+        heading: 'Expected Lifespan',
+        content: 'Tankless water heaters typically last 15-20+ years with proper maintenance. They outlast tank units because they don\'t store water continuously, reducing corrosion exposure. The heat exchanger is the critical component that determines lifespan.'
+      },
+      {
+        heading: 'What Determines Lifespan',
+        content: 'The heat exchanger\'s condition is the primary factor. Scale buildup from hard water coats the exchanger, reducing efficiency and eventually causing overheating. Regular descaling is essential—especially in hard water areas.'
+      },
+      {
+        heading: 'What Accelerates Aging',
+        content: 'Hard water (scale buildup), undersized gas lines (causing flame rollout), clogged inlet filters, and skipped descaling are the main accelerators. Unlike tank units, tankless systems don\'t have anode rods to worry about.'
+      }
+    ],
+    source: 'Based on tankless manufacturer specifications and field service data'
   },
   'pressure': {
     icon: <Gauge className="w-5 h-5" />,
@@ -145,7 +169,7 @@ const topicContent: Record<EducationalTopic, {
     sections: [
       {
         heading: 'What Is Sediment?',
-        content: 'Minerals dissolved in water (calcium, magnesium, iron) settle to the bottom of the tank as water heats. This is especially common in areas with hard water. Over time, this creates a layer of sedite on the tank floor.'
+        content: 'Minerals dissolved in water (calcium, magnesium, iron) settle to the bottom of the tank as water heats. This is especially common in areas with hard water. Over time, this creates a layer of sediment on the tank floor.'
       },
       {
         heading: 'Effects on Performance',
@@ -157,6 +181,46 @@ const topicContent: Record<EducationalTopic, {
       }
     ],
     source: 'DOE water heater maintenance recommendations'
+  },
+  'scale-tankless': {
+    icon: <Droplets className="w-5 h-5" />,
+    title: 'Scale Buildup in Tankless Units',
+    description: 'How minerals affect your heat exchanger',
+    sections: [
+      {
+        heading: 'What Is Scale?',
+        content: 'Unlike tank sediment that settles, scale in tankless units coats the heat exchanger\'s internal passages. Hard water minerals (calcium, magnesium) precipitate out when water is rapidly heated, building up on the exchanger surfaces.'
+      },
+      {
+        heading: 'Effects on Performance',
+        content: 'Scale insulates the heat exchanger, forcing the burner to work harder and reducing hot water output. Eventually, scale can restrict flow, trigger error codes, and cause the unit to overheat and shut down. Efficiency drops significantly.'
+      },
+      {
+        heading: 'Prevention & Removal',
+        content: 'Professional descaling every 1-3 years (depending on water hardness) dissolves scale buildup. Isolation valves allow easy service access. A water softener can dramatically reduce scale formation and extend descale intervals.'
+      }
+    ],
+    source: 'Tankless manufacturer maintenance guidelines'
+  },
+  'heat-exchanger': {
+    icon: <Droplets className="w-5 h-5" />,
+    title: 'Heat Exchanger Health',
+    description: 'The critical component in tankless water heaters',
+    sections: [
+      {
+        heading: 'What It Does',
+        content: 'The heat exchanger is the core of a tankless unit—it rapidly transfers heat from the burner or element to flowing water. Unlike tanks that store hot water, tankless units heat water on-demand through this component.'
+      },
+      {
+        heading: 'Common Problems',
+        content: 'Scale buildup is the #1 issue, coating internal passages and reducing heat transfer. In gas units, flame rollout from undersized gas lines can damage the exchanger. Leaks from the exchanger indicate the unit has reached end-of-life.'
+      },
+      {
+        heading: 'Maintenance',
+        content: 'Regular descaling (every 1-3 years based on water hardness) keeps the exchanger clean. Inlet filters should be checked annually. Error codes often indicate exchanger-related issues that need professional diagnosis.'
+      }
+    ],
+    source: 'Tankless water heater manufacturer specifications'
   },
   'hardness': {
     icon: <Droplets className="w-5 h-5" />,
@@ -177,6 +241,26 @@ const topicContent: Record<EducationalTopic, {
       }
     ],
     source: 'USGS water quality standards'
+  },
+  'hardness-tankless': {
+    icon: <Droplets className="w-5 h-5" />,
+    title: 'Water Hardness & Tankless Units',
+    description: 'How hard water affects your tankless water heater',
+    sections: [
+      {
+        heading: 'What Is Hard Water?',
+        content: 'Water hardness measures dissolved calcium and magnesium content, typically in "grains per gallon" (gpg). Water above 7 gpg is considered moderately hard. Many US regions have naturally hard water from groundwater sources.'
+      },
+      {
+        heading: 'Effects on Tankless Units',
+        content: 'Hard water causes scale to coat the heat exchanger\'s internal passages. This is more problematic than tank sediment because it directly affects heat transfer and can restrict water flow. The higher the hardness, the more frequently descaling is needed.'
+      },
+      {
+        heading: 'Treatment Options',
+        content: 'Water softeners dramatically reduce scale formation and extend descale intervals from 1-2 years to 3-5+ years. Regular descaling (with or without a softener) keeps the heat exchanger clean. Isolation valves make descaling service much easier.'
+      }
+    ],
+    source: 'USGS water quality standards and tankless manufacturer guidelines'
   },
   'temperature': {
     icon: <ThermometerSun className="w-5 h-5" />,

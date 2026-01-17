@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
-import { ForensicInputs, OpterraResult, OpterraMetrics } from '@/lib/opterraAlgorithm';
+import { ForensicInputs, OpterraResult, OpterraMetrics, isTankless } from '@/lib/opterraAlgorithm';
 import { InfrastructureIssue, getIssuesByCategory } from '@/lib/infrastructureIssues';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -724,6 +724,7 @@ export function FindingsSummaryPage({
   const hasViolations = violations.length > 0;
   const isCritical = verdict.badge === 'CRITICAL';
   const isLeaking = currentInputs.isLeaking;
+  const isTanklessUnit = isTankless(currentInputs.fuelType);
   
   // Determine if this unit should be replaced - affects how we frame findings
   const isReplacementRecommended = verdict.action === 'REPLACE' || verdict.badge === 'CRITICAL';
@@ -736,23 +737,39 @@ export function FindingsSummaryPage({
     const leakSource = currentInputs.leakSource;
     
     if (leakSource === 'TANK_BODY') {
-      findings.push({
-        id: 'leak-tank-body',
-        icon: <AlertCircle className="w-6 h-6" />,
-        title: 'Tank Body Leak - Critical Failure',
-        measurement: 'Immediate replacement needed',
-        explanation: 'Water is leaking from the tank itself. This indicates internal corrosion has breached the tank wall. This cannot be repaired - the tank must be replaced before catastrophic failure.',
-        severity: 'critical',
-        severityValue: 98,
-        educationalTopic: 'tank-failure',
-      });
+      if (isTanklessUnit) {
+        // Tankless leak = heat exchanger failure
+        findings.push({
+          id: 'leak-heat-exchanger',
+          icon: <AlertCircle className="w-6 h-6" />,
+          title: 'Heat Exchanger Leak - Critical Failure',
+          measurement: 'Immediate replacement needed',
+          explanation: 'Water is leaking from the heat exchanger. This is the core component of your tankless unit and cannot be economically repaired. The unit must be replaced.',
+          severity: 'critical',
+          severityValue: 98,
+          educationalTopic: 'heat-exchanger',
+        });
+      } else {
+        findings.push({
+          id: 'leak-tank-body',
+          icon: <AlertCircle className="w-6 h-6" />,
+          title: 'Tank Body Leak - Critical Failure',
+          measurement: 'Immediate replacement needed',
+          explanation: 'Water is leaking from the tank itself. This indicates internal corrosion has breached the tank wall. This cannot be repaired - the tank must be replaced before catastrophic failure.',
+          severity: 'critical',
+          severityValue: 98,
+          educationalTopic: 'tank-failure',
+        });
+      }
     } else if (leakSource === 'FITTING_VALVE') {
       findings.push({
         id: 'leak-fitting',
         icon: <Wrench className="w-6 h-6" />,
         title: 'Fitting Leak - Repairable',
         measurement: 'Service appointment needed',
-        explanation: 'Good news: water is leaking from a connection or valve, NOT the tank itself. This is a repairable issue - a plumber can tighten or replace the fitting. Your water heater tank is not failing.',
+        explanation: isTanklessUnit 
+          ? 'Good news: water is leaking from a connection or valve, NOT the heat exchanger. This is a repairable issue - a plumber can tighten or replace the fitting. Your tankless unit is not failing.'
+          : 'Good news: water is leaking from a connection or valve, NOT the tank itself. This is a repairable issue - a plumber can tighten or replace the fitting. Your water heater tank is not failing.',
         severity: 'warning',
         severityValue: 75,
       });
@@ -762,7 +779,9 @@ export function FindingsSummaryPage({
         icon: <Droplets className="w-6 h-6" />,
         title: 'Water in Drain Pan',
         measurement: 'Source investigation needed',
-        explanation: 'Water was found in the drain pan beneath your water heater. This could be condensation, a minor fitting drip, or an early sign of tank issues. A professional should inspect to determine the source.',
+        explanation: isTanklessUnit
+          ? 'Water was found in the drain pan beneath your tankless unit. This could be condensation (normal for some models), a minor fitting drip, or an early sign of heat exchanger issues. A professional should inspect to determine the source.'
+          : 'Water was found in the drain pan beneath your water heater. This could be condensation, a minor fitting drip, or an early sign of tank issues. A professional should inspect to determine the source.',
         severity: 'warning',
         severityValue: 70,
       });
@@ -873,7 +892,7 @@ export function FindingsSummaryPage({
     }
   }
   
-  // Hard water issues - with specific impact
+  // Hard water issues - with specific impact (different for tankless vs tank)
   const hardnessMultiplier = metrics.stressFactors?.chemical || 1;
   if (currentInputs.hardnessGPG > 15) {
     const scalePerYear = (currentInputs.hardnessGPG * 0.15).toFixed(1); // rough estimate lbs/year
@@ -883,22 +902,28 @@ export function FindingsSummaryPage({
         id: 'hardness-critical',
         icon: <Droplets className="w-6 h-6" />,
         title: 'Hard Water Accelerated Deterioration',
-        measurement: `~${totalScale} lbs of scale deposited over ${currentInputs.calendarAge || 'several'} years`,
-        explanation: `At ${currentInputs.hardnessGPG} GPG, your extremely hard water deposited roughly ${scalePerYear} lbs of scale annually—coating heating elements and insulating the tank bottom. ${currentInputs.hasSoftener ? 'Your softener helped, but this level overwhelmed it.' : 'A water softener would have significantly extended this unit\'s life.'} For your next water heater: ${currentInputs.hasSoftener ? 'ensure your softener is properly sized and maintained' : 'strongly consider a water softener'}.`,
+        measurement: isTanklessUnit 
+          ? `${currentInputs.hardnessGPG} GPG over ${currentInputs.calendarAge || 'several'} years`
+          : `~${totalScale} lbs of scale deposited over ${currentInputs.calendarAge || 'several'} years`,
+        explanation: isTanklessUnit
+          ? `At ${currentInputs.hardnessGPG} GPG, your extremely hard water caused rapid scale buildup in the heat exchanger—reducing flow and efficiency until failure. ${currentInputs.hasSoftener ? 'Your softener helped, but this level overwhelmed it.' : 'A water softener would have significantly extended this unit\'s life.'} For your next tankless unit: ${currentInputs.hasSoftener ? 'ensure your softener is properly sized' : 'strongly consider a water softener'} and descale annually.`
+          : `At ${currentInputs.hardnessGPG} GPG, your extremely hard water deposited roughly ${scalePerYear} lbs of scale annually—coating heating elements and insulating the tank bottom. ${currentInputs.hasSoftener ? 'Your softener helped, but this level overwhelmed it.' : 'A water softener would have significantly extended this unit\'s life.'} For your next water heater: ${currentInputs.hasSoftener ? 'ensure your softener is properly sized and maintained' : 'strongly consider a water softener'}.`,
         severity: 'info',
         severityValue: 55,
-        educationalTopic: 'hardness',
+        educationalTopic: isTanklessUnit ? 'hardness-tankless' : 'hardness',
       });
     } else {
       findings.push({
         id: 'hardness-critical',
         icon: <Droplets className="w-6 h-6" />,
-        title: 'Severe Hard Water Damage',
+        title: isTanklessUnit ? 'Severe Scale Buildup Risk' : 'Severe Hard Water Damage',
         measurement: `${currentInputs.hardnessGPG} GPG (very hard)`,
-        explanation: `At ${currentInputs.hardnessGPG} grains per gallon, your water is depositing roughly ${scalePerYear} lbs of scale per year inside your tank. ${currentInputs.hasSoftener ? 'Even with your softener, this level is causing significant wear.' : 'Without a water softener, this mineral buildup is coating your heating elements and insulating the tank bottom.'} This is aging your system ${hardnessMultiplier.toFixed(1)}x faster than soft water would.`,
+        explanation: isTanklessUnit
+          ? `At ${currentInputs.hardnessGPG} grains per gallon, scale is building up rapidly in your heat exchanger. ${currentInputs.hasSoftener ? 'Even with your softener, this level requires frequent descaling.' : 'Without a water softener, you need to descale every 6-12 months to prevent damage.'} This is aging your system ${hardnessMultiplier.toFixed(1)}x faster than soft water would.`
+          : `At ${currentInputs.hardnessGPG} grains per gallon, your water is depositing roughly ${scalePerYear} lbs of scale per year inside your tank. ${currentInputs.hasSoftener ? 'Even with your softener, this level is causing significant wear.' : 'Without a water softener, this mineral buildup is coating your heating elements and insulating the tank bottom.'} This is aging your system ${hardnessMultiplier.toFixed(1)}x faster than soft water would.`,
         severity: 'warning',
         severityValue: Math.min(100, Math.round((currentInputs.hardnessGPG / 25) * 100)),
-        educationalTopic: 'hardness',
+        educationalTopic: isTanklessUnit ? 'hardness-tankless' : 'hardness',
       });
     }
   } else if (currentInputs.hardnessGPG > 10) {
@@ -908,57 +933,74 @@ export function FindingsSummaryPage({
         icon: <Droplets className="w-6 h-6" />,
         title: 'Moderate Hard Water Contributed to Wear',
         measurement: `${currentInputs.hardnessGPG} GPG over ${currentInputs.calendarAge || 'several'} years`,
-        explanation: `Your ${currentInputs.hardnessGPG} GPG water caused gradual scale buildup that reduced heating efficiency and stressed components. For your next unit: ${currentInputs.hasSoftener ? 'maintain your softener and consider annual flushes' : 'consider a water softener to protect your investment'}.`,
+        explanation: isTanklessUnit
+          ? `Your ${currentInputs.hardnessGPG} GPG water caused gradual scale buildup in the heat exchanger that reduced efficiency and stressed components. For your next tankless unit: ${currentInputs.hasSoftener ? 'maintain your softener and descale regularly' : 'consider a water softener and plan for annual descaling'}.`
+          : `Your ${currentInputs.hardnessGPG} GPG water caused gradual scale buildup that reduced heating efficiency and stressed components. For your next unit: ${currentInputs.hasSoftener ? 'maintain your softener and consider annual flushes' : 'consider a water softener to protect your investment'}.`,
         severity: 'info',
         severityValue: 45,
-        educationalTopic: 'hardness',
+        educationalTopic: isTanklessUnit ? 'hardness-tankless' : 'hardness',
       });
     } else {
       findings.push({
         id: 'hardness-moderate',
         icon: <Droplets className="w-6 h-6" />,
-        title: 'Hard Water Wear',
+        title: isTanklessUnit ? 'Scale Buildup Concern' : 'Hard Water Wear',
         measurement: `${currentInputs.hardnessGPG} GPG (moderately hard)`,
-        explanation: `Your ${currentInputs.hardnessGPG} GPG water hardness is causing gradual scale buildup on heating elements. Over ${currentInputs.calendarAge || 'several'} years, this accumulates into ${currentInputs.hasSoftener ? 'reduced efficiency despite your softener.' : 'thick deposits that reduce heating efficiency by 15-25% and stress tank components.'}`,
+        explanation: isTanklessUnit
+          ? `Your ${currentInputs.hardnessGPG} GPG water hardness is causing gradual scale buildup in the heat exchanger. Over ${currentInputs.calendarAge || 'several'} years, this reduces efficiency and can restrict water flow. ${currentInputs.hasSoftener ? 'Your softener helps, but regular descaling is still recommended.' : 'Regular descaling (every 1-2 years) will prevent damage.'}`
+          : `Your ${currentInputs.hardnessGPG} GPG water hardness is causing gradual scale buildup on heating elements. Over ${currentInputs.calendarAge || 'several'} years, this accumulates into ${currentInputs.hasSoftener ? 'reduced efficiency despite your softener.' : 'thick deposits that reduce heating efficiency by 15-25% and stress tank components.'}`,
         severity: 'info',
         severityValue: Math.round((currentInputs.hardnessGPG / 25) * 100),
-        educationalTopic: 'hardness',
+        educationalTopic: isTanklessUnit ? 'hardness-tankless' : 'hardness',
       });
     }
   }
   
-  // Aging unit - with specific brand context
-  if (currentInputs.calendarAge >= 10) {
-    const yearsOver = currentInputs.calendarAge - 10;
-    const failureRisk = Math.min(95, 20 + (currentInputs.calendarAge - 8) * 8); // rough failure curve
+  // Aging unit - with specific brand context (different thresholds for tankless)
+  const agingThreshold = isTanklessUnit ? 15 : 10;
+  const expectedLifespan = isTanklessUnit ? '15-20 years' : '8-12 years';
+  
+  if (currentInputs.calendarAge >= agingThreshold) {
+    const yearsOver = currentInputs.calendarAge - agingThreshold;
+    const failureRisk = isTanklessUnit 
+      ? Math.min(95, 15 + (currentInputs.calendarAge - 12) * 5) // tankless has flatter failure curve
+      : Math.min(95, 20 + (currentInputs.calendarAge - 8) * 8);
     if (isReplacementRecommended) {
       findings.push({
         id: 'aging',
         icon: <Clock className="w-6 h-6" />,
         title: 'Unit Exceeded Design Lifespan',
-        measurement: `${currentInputs.calendarAge} years (industry average: 8-12 years)`,
-        explanation: currentInputs.manufacturer 
-          ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, this unit reached ${yearsOver > 0 ? `${yearsOver} years past` : ''} its expected service life. Industry data shows ~${failureRisk}% of similar units have failed by this age.`
-          : `At ${currentInputs.calendarAge} years, this unit exceeded the typical 8-12 year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age.`,
+        measurement: `${currentInputs.calendarAge} years (industry average: ${expectedLifespan})`,
+        explanation: isTanklessUnit
+          ? (currentInputs.manufacturer 
+            ? `${currentInputs.manufacturer} tankless units typically last 15-20 years with proper maintenance. At ${currentInputs.calendarAge} years, this unit has reached the end of its service life. Heat exchanger efficiency degrades over time, even with regular descaling.`
+            : `At ${currentInputs.calendarAge} years, this tankless unit has exceeded the typical 15-20 year design life. Industry data shows increasing failure rates at this age as heat exchangers wear out.`)
+          : (currentInputs.manufacturer 
+            ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, this unit reached ${yearsOver > 0 ? `${yearsOver} years past` : ''} its expected service life. Industry data shows ~${failureRisk}% of similar units have failed by this age.`
+            : `At ${currentInputs.calendarAge} years, this unit exceeded the typical 8-12 year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age.`),
         severity: 'info',
         severityValue: 50,
-        educationalTopic: 'aging',
+        educationalTopic: isTanklessUnit ? 'aging-tankless' : 'aging',
       });
     } else {
       findings.push({
         id: 'aging',
         icon: <Clock className="w-6 h-6" />,
-        title: currentInputs.calendarAge >= 12 ? 'Past Expected Lifespan' : 'Approaching End of Life',
+        title: currentInputs.calendarAge >= (isTanklessUnit ? 18 : 12) ? 'Past Expected Lifespan' : 'Approaching End of Life',
         measurement: `${currentInputs.calendarAge} years old`,
-        explanation: currentInputs.manufacturer 
-          ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, yours is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the design lifespan. Industry data shows ~${failureRisk}% of similar units have failed by this age. ${currentInputs.modelNumber ? `Model ${currentInputs.modelNumber} was` : 'Units from this era were'} built before current efficiency standards.`
-          : `At ${currentInputs.calendarAge} years, your unit is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the typical 10-year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age, with failure rates accelerating each additional year.`,
-        severity: currentInputs.calendarAge >= 12 ? 'warning' : 'info',
-        severityValue: Math.min(100, Math.round((currentInputs.calendarAge / 15) * 100)),
-        educationalTopic: 'aging',
+        explanation: isTanklessUnit
+          ? (currentInputs.manufacturer 
+            ? `${currentInputs.manufacturer} tankless units typically last 15-20 years. At ${currentInputs.calendarAge} years, yours is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the typical design lifespan. Heat exchanger efficiency naturally degrades over time.`
+            : `At ${currentInputs.calendarAge} years, your tankless unit is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the typical 15-20 year design life. Consider planning for replacement as parts become harder to find.`)
+          : (currentInputs.manufacturer 
+            ? `${currentInputs.manufacturer} tanks are typically warrantied for 6-12 years. At ${currentInputs.calendarAge} years, yours is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the design lifespan. Industry data shows ~${failureRisk}% of similar units have failed by this age. ${currentInputs.modelNumber ? `Model ${currentInputs.modelNumber} was` : 'Units from this era were'} built before current efficiency standards.`
+            : `At ${currentInputs.calendarAge} years, your unit is ${yearsOver > 0 ? `${yearsOver} years past` : 'at'} the typical 10-year design life. Industry data shows ~${failureRisk}% of water heaters have failed by this age, with failure rates accelerating each additional year.`),
+        severity: currentInputs.calendarAge >= (isTanklessUnit ? 18 : 12) ? 'warning' : 'info',
+        severityValue: Math.min(100, Math.round((currentInputs.calendarAge / (isTanklessUnit ? 20 : 15)) * 100)),
+        educationalTopic: isTanklessUnit ? 'aging-tankless' : 'aging',
       });
     }
-  } else if (metrics.bioAge >= 10) {
+  } else if (metrics.bioAge >= agingThreshold) {
     const ageDelta = metrics.bioAge - currentInputs.calendarAge;
     if (isReplacementRecommended) {
       findings.push({
@@ -966,10 +1008,12 @@ export function FindingsSummaryPage({
         icon: <Clock className="w-6 h-6" />,
         title: 'Environmental Stress Caused Premature Failure',
         measurement: `${currentInputs.calendarAge} years old with ${metrics.bioAge.toFixed(0)}-year wear`,
-        explanation: `Although only ${currentInputs.calendarAge} years old, this unit accumulated ${ageDelta.toFixed(1)} years of extra wear from ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion, ' : ''}environmental factors. For your next unit: address these issues at installation to maximize lifespan.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For'),
+        explanation: isTanklessUnit
+          ? `Although only ${currentInputs.calendarAge} years old, this tankless unit accumulated ${ageDelta.toFixed(1)} years of extra wear from ${currentInputs.hardnessGPG > 10 ? 'hard water scale buildup, ' : ''}${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}environmental factors. For your next unit: ${currentInputs.hardnessGPG > 10 ? 'install a water softener and ' : ''}plan for regular descaling.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For')
+          : `Although only ${currentInputs.calendarAge} years old, this unit accumulated ${ageDelta.toFixed(1)} years of extra wear from ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion, ' : ''}environmental factors. For your next unit: address these issues at installation to maximize lifespan.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For'),
         severity: 'info',
         severityValue: 50,
-        educationalTopic: 'aging',
+        educationalTopic: isTanklessUnit ? 'aging-tankless' : 'aging',
       });
     } else {
       findings.push({
@@ -977,16 +1021,18 @@ export function FindingsSummaryPage({
         icon: <Clock className="w-6 h-6" />,
         title: 'Premature Aging Detected',
         measurement: `${currentInputs.calendarAge} years old → ${metrics.bioAge.toFixed(1)} bio-age`,
-        explanation: `Your ${currentInputs.manufacturer || 'water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion stress, ' : ''}and other environmental factors.`.replace(/, $/, '.'),
+        explanation: isTanklessUnit
+          ? `Your ${currentInputs.manufacturer || 'tankless water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.hardnessGPG > 10 ? 'hard water scale buildup, ' : ''}${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}environmental factors.`.replace(/, environmental factors/, ' and other factors').replace(/,\s*$/, '.')
+          : `Your ${currentInputs.manufacturer || 'water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion stress, ' : ''}and other environmental factors.`.replace(/, $/, '.'),
         severity: 'warning',
-        severityValue: Math.min(100, Math.round((metrics.bioAge / 15) * 100)),
-        educationalTopic: 'aging',
+        severityValue: Math.min(100, Math.round((metrics.bioAge / (isTanklessUnit ? 20 : 15)) * 100)),
+        educationalTopic: isTanklessUnit ? 'aging-tankless' : 'aging',
       });
     }
   }
   
-  // Visual rust - with context
-  if (currentInputs.visualRust) {
+  // Visual rust - with context (skip for tankless - they have different corrosion patterns)
+  if (currentInputs.visualRust && !isTanklessUnit) {
     if (isReplacementRecommended) {
       findings.push({
         id: 'rust',
@@ -1010,58 +1056,56 @@ export function FindingsSummaryPage({
     }
   }
   
-  // Depleted anode rod - the tank's sacrificial protection is gone
-  const shieldLife = metrics.shieldLife ?? 0;
-  const anodeAge = currentInputs.lastAnodeReplaceYearsAgo ?? currentInputs.calendarAge;
-  const neverServiced = currentInputs.lastAnodeReplaceYearsAgo === undefined || currentInputs.lastAnodeReplaceYearsAgo === null;
-  const isFusedRisk = neverServiced && currentInputs.calendarAge > 6;
-  
-  if (shieldLife < 1 && !currentInputs.visualRust) {
-    // Only show if we're not already showing rust (rust implies depleted anode)
-    const corrosionMultiplier = metrics.stressFactors?.corrosion || 1;
+  // Depleted anode rod - TANK ONLY (tankless units don't have anode rods)
+  if (!isTanklessUnit) {
+    const shieldLife = metrics.shieldLife ?? 0;
+    const anodeAge = currentInputs.lastAnodeReplaceYearsAgo ?? currentInputs.calendarAge;
+    const neverServiced = currentInputs.lastAnodeReplaceYearsAgo === undefined || currentInputs.lastAnodeReplaceYearsAgo === null;
+    const isFusedRisk = neverServiced && currentInputs.calendarAge > 6;
     
-    if (isReplacementRecommended) {
-      // Frame as lesson learned for next unit
-      findings.push({
-        id: 'anode-depleted',
-        icon: <Shield className="w-6 h-6" />,
-        title: 'Anode Protection Was Missing',
-        measurement: `Depleted for ~${Math.max(0, anodeAge - 5)} years`,
-        explanation: `This unit's anode rod—designed to sacrifice itself to protect the tank—was never replaced. For ${anodeAge} years, the tank corroded unprotected${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}. For your next water heater: replace the anode rod every 3-5 years ($20-50 part) to maximize tank life.`,
-        severity: 'info',
-        severityValue: 50,
-        educationalTopic: 'anode-rod',
-      });
-    } else if (isFusedRisk) {
-      // Can't recommend replacement - rod is likely fused
-      findings.push({
-        id: 'anode-fused',
-        icon: <Shield className="w-6 h-6" />,
-        title: 'Anode Protection Expired',
-        measurement: `${anodeAge}+ years without replacement`,
-        explanation: `Your tank's anode rod—the sacrificial metal that corrodes instead of your tank—has been depleted for years. After ${currentInputs.calendarAge} years without service, the anode is likely fused to the tank and cannot be replaced without risking damage. Your steel tank is now corroding directly, which is irreversible.`,
-        severity: 'warning',
-        severityValue: 80,
-        educationalTopic: 'anode-rod',
-      });
-    } else {
-      // Anode can still be replaced
-      findings.push({
-        id: 'anode-depleted',
-        icon: <Shield className="w-6 h-6" />,
-        title: 'Anode Rod Depleted',
-        measurement: `~${shieldLife.toFixed(1)} years of protection left`,
-        explanation: `The anode rod is a sacrificial metal that corrodes so your tank doesn't. After ${anodeAge} years${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}, yours is depleted. Without this protection, your ${currentInputs.manufacturer || ''} tank's steel lining is now corroding ${corrosionMultiplier.toFixed(1)}x faster. This is the #1 cause of premature tank failure—but it's fixable with a $20-50 part.`,
-        severity: shieldLife < 0.5 ? 'warning' : 'info',
-        severityValue: Math.min(90, Math.round(80 - shieldLife * 20)),
-        educationalTopic: 'anode-rod',
-      });
+    if (shieldLife < 1 && !currentInputs.visualRust) {
+      const corrosionMultiplier = metrics.stressFactors?.corrosion || 1;
+      
+      if (isReplacementRecommended) {
+        findings.push({
+          id: 'anode-depleted',
+          icon: <Shield className="w-6 h-6" />,
+          title: 'Anode Protection Was Missing',
+          measurement: `Depleted for ~${Math.max(0, anodeAge - 5)} years`,
+          explanation: `This unit's anode rod—designed to sacrifice itself to protect the tank—was never replaced. For ${anodeAge} years, the tank corroded unprotected${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}. For your next water heater: replace the anode rod every 3-5 years ($20-50 part) to maximize tank life.`,
+          severity: 'info',
+          severityValue: 50,
+          educationalTopic: 'anode-rod',
+        });
+      } else if (isFusedRisk) {
+        findings.push({
+          id: 'anode-fused',
+          icon: <Shield className="w-6 h-6" />,
+          title: 'Anode Protection Expired',
+          measurement: `${anodeAge}+ years without replacement`,
+          explanation: `Your tank's anode rod—the sacrificial metal that corrodes instead of your tank—has been depleted for years. After ${currentInputs.calendarAge} years without service, the anode is likely fused to the tank and cannot be replaced without risking damage. Your steel tank is now corroding directly, which is irreversible.`,
+          severity: 'warning',
+          severityValue: 80,
+          educationalTopic: 'anode-rod',
+        });
+      } else {
+        findings.push({
+          id: 'anode-depleted',
+          icon: <Shield className="w-6 h-6" />,
+          title: 'Anode Rod Depleted',
+          measurement: `~${shieldLife.toFixed(1)} years of protection left`,
+          explanation: `The anode rod is a sacrificial metal that corrodes so your tank doesn't. After ${anodeAge} years${currentInputs.hardnessGPG > 10 ? ` in ${currentInputs.hardnessGPG} GPG hard water` : ''}, yours is depleted. Without this protection, your ${currentInputs.manufacturer || ''} tank's steel lining is now corroding ${corrosionMultiplier.toFixed(1)}x faster. This is the #1 cause of premature tank failure—but it's fixable with a $20-50 part.`,
+          severity: shieldLife < 0.5 ? 'warning' : 'info',
+          severityValue: Math.min(90, Math.round(80 - shieldLife * 20)),
+          educationalTopic: 'anode-rod',
+        });
+      }
     }
   }
   
-  // Overdue maintenance - with specific impact
-  if (currentInputs.lastFlushYearsAgo !== undefined && currentInputs.lastFlushYearsAgo > 2) {
-    const sedimentEstimate = currentInputs.lastFlushYearsAgo * (currentInputs.hardnessGPG > 10 ? 2 : 1); // rough inches
+  // Overdue maintenance - TANK ONLY (tankless uses descaling, not flushing)
+  if (!isTanklessUnit && currentInputs.lastFlushYearsAgo !== undefined && currentInputs.lastFlushYearsAgo > 2) {
+    const sedimentEstimate = currentInputs.lastFlushYearsAgo * (currentInputs.hardnessGPG > 10 ? 2 : 1);
     if (isReplacementRecommended) {
       findings.push({
         id: 'flush-overdue',
