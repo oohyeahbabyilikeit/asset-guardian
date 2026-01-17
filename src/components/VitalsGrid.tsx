@@ -1,4 +1,4 @@
-import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge, Container, Info, Users, Droplets, Zap, Flame, AlertTriangle, Wrench } from 'lucide-react';
+import { Activity, ShieldAlert, CheckCircle2, Clock, Gauge, Container, Info, Users, Droplets, AlertTriangle, Wrench, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type VitalsData } from '@/data/mockAsset';
 import { getRiskLevelInfo, type RiskLevel, type FuelType, isTankless } from '@/lib/opterraAlgorithm';
@@ -7,14 +7,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface VitalsGridProps {
   vitals: VitalsData;
   fuelType?: FuelType;
-  // Tankless-specific props
+  // Tankless-specific props (v8.0 aligned)
   scaleBuildupScore?: number;
-  flowDegradation?: number;
   descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure';
   hasIsolationValves?: boolean;
-  igniterHealth?: number;
-  elementHealth?: number;
   errorCodeCount?: number;
+  // NEW: Algorithm outputs for tankless
+  healthScore?: number;
+  primaryStressor?: string;
+  riskLevel?: RiskLevel;
 }
 
 interface ActionItemProps {
@@ -69,12 +70,13 @@ export function VitalsGrid({
   vitals, 
   fuelType = 'GAS',
   scaleBuildupScore = 0,
-  flowDegradation = 0,
   descaleStatus = 'optimal',
   hasIsolationValves = true,
-  igniterHealth = 85,
-  elementHealth = 90,
   errorCodeCount = 0,
+  // NEW: Algorithm outputs
+  healthScore = 100,
+  primaryStressor = 'Normal Wear',
+  riskLevel = 1 as RiskLevel, // 1 = LOW (contained)
 }: VitalsGridProps) {
   const isTanklessUnit = isTankless(fuelType);
   
@@ -102,22 +104,23 @@ export function VitalsGrid({
     return `${info.label} RISK`;
   };
 
-  // === TANKLESS-SPECIFIC VITALS ===
+  // === TANKLESS-SPECIFIC VITALS (v8.0 Safe Mode) ===
   if (isTanklessUnit) {
+    // Health score status (primary metric from algorithm)
+    const healthStatus: 'critical' | 'warning' | 'optimal' = 
+      healthScore < 40 ? 'critical' : 
+      healthScore < 70 ? 'warning' : 'optimal';
+    
     // Scale buildup status
     const scaleStatus: 'critical' | 'warning' | 'optimal' = 
       scaleBuildupScore > 35 ? 'critical' : 
       scaleBuildupScore > 15 ? 'warning' : 'optimal';
     
-    // Flow degradation status
-    const flowStatus: 'critical' | 'warning' | 'optimal' = 
-      flowDegradation > 25 ? 'critical' : 
-      flowDegradation > 10 ? 'warning' : 'optimal';
-    
     // Descale status mapping
     const descaleStatusMapping: Record<string, 'critical' | 'warning' | 'optimal'> = {
       'impossible': 'critical',
       'lockout': 'critical',
+      'run_to_failure': 'critical',
       'critical': 'critical',
       'due': 'warning',
       'optimal': 'optimal'
@@ -128,42 +131,37 @@ export function VitalsGrid({
     const valveStatus: 'critical' | 'warning' | 'optimal' = 
       !hasIsolationValves ? 'critical' : 'optimal';
     
-    // Igniter/Element health status
-    const igniterStatus: 'critical' | 'warning' | 'optimal' = 
-      igniterHealth < 40 ? 'critical' : 
-      igniterHealth < 70 ? 'warning' : 'optimal';
-    
-    const elementStatus: 'critical' | 'warning' | 'optimal' = 
-      elementHealth < 40 ? 'critical' : 
-      elementHealth < 70 ? 'warning' : 'optimal';
-    
     // Error code status
     const errorStatus: 'critical' | 'warning' | 'optimal' = 
       errorCodeCount > 5 ? 'critical' : 
       errorCodeCount > 0 ? 'warning' : 'optimal';
+    
+    // Location risk status (1=LOW, 2=MOD, 3=HIGH, 4=EXTREME)
+    const locationRiskStatus: 'critical' | 'warning' | 'optimal' = 
+      riskLevel >= 3 ? 'critical' :
+      riskLevel >= 2 ? 'warning' : 'optimal';
 
     const tanklessItems = [
-      // Scale Buildup (replaces sediment)
+      // System Health (primary - from algorithm)
+      {
+        status: healthStatus,
+        icon: <Heart className="w-5 h-5" />,
+        title: healthStatus === 'critical' ? 'System Critical' :
+               healthStatus === 'warning' ? 'System Stressed' : 'System Healthy',
+        subtitle: `${healthScore}% health • ${primaryStressor}`,
+        tooltip: healthStatus !== 'optimal' 
+          ? `Primary issue: ${primaryStressor}. Address to improve system health.`
+          : 'Unit is operating within normal parameters.',
+      },
+      // Scale Buildup (heat exchanger)
       {
         status: scaleStatus,
         icon: <Droplets className="w-5 h-5" />,
-        title: scaleStatus === 'optimal' ? 'Scale Level Normal' : 'Scale Buildup',
-        subtitle: `${scaleBuildupScore.toFixed(0)}% heat exchanger blockage`,
+        title: scaleStatus === 'optimal' ? 'Heat Exchanger Clear' : 'Scale Buildup',
+        subtitle: `${scaleBuildupScore.toFixed(0)}% blockage estimated`,
         tooltip: scaleStatus !== 'optimal' 
           ? 'Scale insulates the heat exchanger, reducing efficiency and causing overheating.'
           : 'Heat exchanger efficiency is good.',
-      },
-      // Flow Degradation
-      {
-        status: flowStatus,
-        icon: <Gauge className="w-5 h-5" />,
-        title: flowStatus === 'optimal' ? 'Flow Rate Normal' : 'Flow Restricted',
-        subtitle: flowStatus === 'optimal' 
-          ? 'Output at rated capacity' 
-          : `${flowDegradation.toFixed(0)}% below rated GPM`,
-        tooltip: flowStatus !== 'optimal'
-          ? 'Flow restriction indicates clogged inlet filter or scaled heat exchanger.'
-          : null,
       },
       // Descale Status
       {
@@ -172,18 +170,20 @@ export function VitalsGrid({
         title: descaleStatus === 'optimal' ? 'Descale Not Needed' :
                descaleStatus === 'due' ? 'Descale Due' :
                descaleStatus === 'critical' ? 'Descale Critical' :
-               descaleStatus === 'lockout' ? 'Descale Risky' : 'Descale Impossible',
+               descaleStatus === 'lockout' ? 'Descale Risky' : 
+               descaleStatus === 'run_to_failure' ? 'Run to Failure' : 'Descale Impossible',
         subtitle: descaleStatus === 'optimal' ? 'Heat exchanger clean' :
                   descaleStatus === 'due' ? 'Schedule maintenance flush' :
                   descaleStatus === 'critical' ? 'Immediate service needed' :
-                  descaleStatus === 'lockout' ? 'Risk of damage if flushed' : 'No isolation valves',
-        tooltip: descaleStatus === 'lockout' 
+                  descaleStatus === 'lockout' ? 'Risk of damage if flushed' : 
+                  descaleStatus === 'run_to_failure' ? 'Scale too severe to service' : 'No isolation valves',
+        tooltip: descaleStatus === 'lockout' || descaleStatus === 'run_to_failure'
           ? 'Scale buildup is too severe. Acid flush may cause pinhole leaks.'
           : descaleStatus === 'impossible'
           ? 'Without isolation valves, the unit cannot be serviced.'
           : null,
       },
-      // Isolation Valves
+      // Isolation Valves (serviceability)
       {
         status: valveStatus,
         icon: <Container className="w-5 h-5" />,
@@ -193,52 +193,29 @@ export function VitalsGrid({
           ? 'Isolation valves are required to flush the heat exchanger. Install valves to enable maintenance.'
           : null,
       },
-      // Igniter Health (gas) or Element Health (electric)
-      fuelType === 'TANKLESS_GAS' ? {
-        status: igniterStatus,
-        icon: <Flame className="w-5 h-5" />,
-        title: igniterStatus === 'optimal' ? 'Igniter Healthy' : 'Igniter Degraded',
-        subtitle: `${igniterHealth}% health`,
-        tooltip: igniterStatus !== 'optimal'
-          ? 'Weak igniter can cause intermittent hot water failures.'
-          : null,
-      } : {
-        status: elementStatus,
-        icon: <Zap className="w-5 h-5" />,
-        title: elementStatus === 'optimal' ? 'Elements Healthy' : 'Elements Degraded',
-        subtitle: `${elementHealth}% health`,
-        tooltip: elementStatus !== 'optimal'
-          ? 'Degraded heating elements reduce output capacity and efficiency.'
-          : null,
-      },
-      // Error Codes
+      // Error Codes (only show if present)
       ...(errorCodeCount > 0 ? [{
         status: errorStatus,
         icon: <AlertTriangle className="w-5 h-5" />,
         title: 'Error Codes',
-        subtitle: `${errorCodeCount} recent errors logged`,
+        subtitle: `${errorCodeCount} recent error${errorCodeCount > 1 ? 's' : ''} logged`,
         tooltip: 'Error codes indicate system issues requiring diagnostics.',
       }] : []),
-      // Aging Rate
+      // Location Risk (from algorithm)
       {
-        status: vitals.biologicalAge.status,
-        icon: <Clock className="w-5 h-5" />,
-        title: vitals.biologicalAge.agingRate > 1.5 ? 'Accelerated Wear' : 'Aging Rate',
-        subtitle: `${vitals.biologicalAge.agingRate.toFixed(1)}x Normal Speed`,
-        tooltip: vitals.biologicalAge.agingRate > 1.2 
-          ? `${vitals.biologicalAge.primaryStressor} is causing accelerated wear.${vitals.biologicalAge.lifeExtension > 0.5 ? ` Fix to gain ~${vitals.biologicalAge.lifeExtension.toFixed(1)} years.` : ''}`
-          : 'Your unit is aging at a healthy rate.',
-      },
-      // Liability Status
-      {
-        status: vitals.liabilityStatus.status,
+        status: locationRiskStatus,
         icon: <ShieldAlert className="w-5 h-5" />,
-        title: vitals.liabilityStatus.status === 'optimal' 
-          ? 'Coverage Verified' 
-          : `${vitals.liabilityStatus.location} Installation`,
-        subtitle: vitals.liabilityStatus.status === 'optimal'
-          ? 'Liability insured'
-          : formatRiskLevel(vitals.liabilityStatus.riskLevel),
+        title: locationRiskStatus === 'optimal' 
+          ? 'Contained Location' 
+          : locationRiskStatus === 'warning'
+          ? 'Recoverable Location'
+          : 'High-Risk Location',
+        subtitle: locationRiskStatus === 'optimal'
+          ? 'Leak damage would be minimal'
+          : formatRiskLevel(riskLevel),
+        tooltip: locationRiskStatus !== 'optimal'
+          ? 'Unit location increases potential damage costs if a leak occurs.'
+          : null,
       },
     ];
 

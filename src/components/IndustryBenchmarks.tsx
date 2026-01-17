@@ -138,12 +138,17 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
   const [factorsOpen, setFactorsOpen] = useState(false);
   
   const isReplacementRequired = recommendation?.action === 'REPLACE';
+  
+  // Check if tankless unit
+  const isTanklessUnit = inputs.fuelType === 'TANKLESS_GAS' || inputs.fuelType === 'TANKLESS_ELECTRIC';
 
-  const averageLifespan = inputs.fuelType === 'GAS' ? 12 : 13;
+  // Different lifespans for different unit types
+  const averageLifespan = isTanklessUnit ? 20 : (inputs.fuelType === 'GAS' ? 12 : 13);
   const effectiveAge = bioAge ?? asset.paperAge;
   const lifespanProgress = Math.min((effectiveAge / averageLifespan) * 100, 120);
 
-  const factors = [
+  // Tank-specific factors (don't show for tankless)
+  const tankFactors = [
     {
       id: 'pressure',
       icon: Gauge,
@@ -189,6 +194,49 @@ export function IndustryBenchmarks({ asset, inputs, onLearnMore, agingRate = 1.0
       explanation: 'Higher temperatures accelerate corrosion and sediment formation. Most manufacturers recommend 120°F or below.'
     },
   ];
+
+  // Tankless-specific factors
+  const tanklessFactors = [
+    {
+      id: 'hardness-tankless',
+      icon: Droplets,
+      label: inputs.hasSoftener ? 'Hard water (mitigated)' : 'Hard water',
+      threshold: '> 7 gpg',
+      current: inputs.hasSoftener 
+        ? `${inputs.hardnessGPG} gpg (softener installed)` 
+        : `${inputs.hardnessGPG} gpg`,
+      isAbove: inputs.hasSoftener ? false : inputs.hardnessGPG > 7,
+      isCritical: inputs.hardnessGPG > 15 && !inputs.hasSoftener,
+      explanation: inputs.hasSoftener 
+        ? 'Your water softener prevents scale buildup in the heat exchanger. Maintain salt levels for continued protection.'
+        : 'Hard water causes scale buildup in the heat exchanger, reducing flow rate and efficiency. Descaling is required more frequently in hard water areas.'
+    },
+    {
+      id: 'descale',
+      icon: Activity,
+      label: 'Descale maintenance',
+      threshold: 'Every 1-2 years',
+      current: inputs.lastDescaleYearsAgo !== undefined 
+        ? (inputs.lastDescaleYearsAgo === 0 ? 'Current' : `${inputs.lastDescaleYearsAgo} yr${inputs.lastDescaleYearsAgo > 1 ? 's' : ''} ago`)
+        : 'Unknown',
+      isAbove: inputs.lastDescaleYearsAgo !== undefined && inputs.lastDescaleYearsAgo > 2,
+      isCritical: inputs.lastDescaleYearsAgo !== undefined && inputs.lastDescaleYearsAgo > 3,
+      explanation: 'Regular descaling removes mineral deposits from the heat exchanger. In hard water areas, annual descaling may be needed to maintain efficiency.'
+    },
+    {
+      id: 'valves',
+      icon: Gauge,
+      label: 'Isolation valves',
+      threshold: 'Required',
+      current: inputs.hasIsolationValves ? 'Installed' : 'Missing',
+      isAbove: !inputs.hasIsolationValves,
+      isCritical: !inputs.hasIsolationValves,
+      explanation: 'Isolation valves are required to perform descaling maintenance. Without them, the unit cannot be properly serviced and will require replacement when scale builds up.'
+    },
+  ];
+
+  // Use appropriate factors based on unit type
+  const factors = isTanklessUnit ? tanklessFactors : tankFactors;
 
   const toggleFactor = (id: string) => {
     setExpandedFactor(expandedFactor === id ? null : id);
