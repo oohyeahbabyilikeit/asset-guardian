@@ -492,19 +492,13 @@ export function CommandCenter({
               compressorHealth={currentInputs.compressorHealth || 85}
               hasExpansionTank={currentInputs.hasExpTank}
               hasPRV={currentInputs.hasPrv}
-              // Tankless-specific props
-              flowRateGPM={currentInputs.flowRateGPM}
-              ratedFlowGPM={currentInputs.ratedFlowGPM}
-              scaleBuildup={scaleBuildupScore}
-              igniterHealth={currentInputs.igniterHealth}
-              elementHealth={currentInputs.elementHealth}
+              // Tankless-specific props (v8.0 SIMPLIFIED)
               inletFilterStatus={currentInputs.inletFilterStatus}
-              flameRodStatus={currentInputs.flameRodStatus}
               tanklessVentStatus={currentInputs.tanklessVentStatus}
               errorCodeCount={currentInputs.errorCodeCount}
               hasIsolationValves={currentInputs.hasIsolationValves}
               descaleStatus={descaleStatus}
-              flowDegradation={flowDegradation}
+              healthScore={dynamicHealthScore.score}
             />
           </motion.div>
 

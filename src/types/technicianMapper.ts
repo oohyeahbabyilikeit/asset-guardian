@@ -81,24 +81,16 @@ export function mapTechnicianToForensicInputs(
     // NEW v7.9: Room Volume Type ("Hybrid Suffocation" Fix)
     roomVolumeType: tech.hybrid?.roomVolumeType,
     
-    // Tankless-specific
-    flowRateGPM: tech.measurements.flowRateGPM,
-    ratedFlowGPM: tech.asset.ratedFlowGPM,
-    flameRodStatus: tech.tankless?.flameRodStatus,
+    // Tankless-specific (v8.0 SIMPLIFIED - algorithm calculates scale from hardness × time)
     inletFilterStatus: tech.tankless?.inletFilterStatus,
     tanklessVentStatus: tech.tankless?.tanklessVentStatus,
     errorCodeCount: tech.tankless?.errorCodeCount,
-    scaleBuildup: tech.tankless?.scaleBuildup,
     hasIsolationValves: tech.equipment.hasIsolationValves,
-    igniterHealth: tech.tankless?.igniterHealth,
-    elementHealth: tech.tankless?.elementHealth,
     // NEW v7.8: Gas Starvation Detection
     gasLineSize: tech.tankless?.gasLineSize,
     gasRunLength: tech.tankless?.gasRunLength,
     // NEW v7.9: Descale Liability
     lastDescaleYearsAgo: tech.tankless?.lastDescaleYearsAgo,
-    // NEW v7.7: Winter Flow Diagnosis
-    inletWaterTemp: tech.tankless?.inletWaterTemp,
   };
   
   // Apply homeowner overrides if provided

@@ -160,11 +160,10 @@ export function mapInspectionToWaterHeater(
     street_hardness_gpg: data.streetHardnessGPG || undefined,
     building_type: data.buildingType || 'residential',
     
-    // Tankless-specific
+    // Tankless-specific (v8.0 SIMPLIFIED - removed deprecated fields)
     rated_flow_gpm: data.asset.ratedFlowGPM || undefined,
     gas_line_size: data.tankless?.gasLineSize || undefined,
     last_descale_years_ago: data.tankless?.lastDescaleYearsAgo ?? undefined,
-    flame_rod_status: data.tankless?.flameRodStatus || undefined,
     inlet_filter_status: data.tankless?.inletFilterStatus || undefined,
     error_code_count: data.tankless?.errorCodeCount || 0,
     

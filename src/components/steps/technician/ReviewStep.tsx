@@ -469,13 +469,12 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
               isAIDetected={aiDetectedFields.errorCodeCount}
               isCritical={data.tankless.errorCodeCount > 0}
             />
-            {data.tankless.scaleBuildup !== undefined && (
+            {data.tankless.lastDescaleYearsAgo !== undefined && (
               <ReviewItem
-                label="Scale Buildup"
-                value={data.tankless.scaleBuildup}
-                suffix="%"
+                label="Last Descale"
+                value={data.tankless.lastDescaleYearsAgo}
+                suffix=" years ago"
                 icon={<Box className="h-4 w-4" />}
-                isAIDetected={aiDetectedFields.scaleDepositsVisible}
               />
             )}
           </div>
