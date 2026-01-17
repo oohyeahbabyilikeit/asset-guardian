@@ -5,7 +5,6 @@ import { Progress } from '@/components/ui/progress';
 import { HouseholdStep } from '@/components/steps/HouseholdStep';
 import { ResidencyStep } from '@/components/steps/ResidencyStep';
 import { HeaterHistoryStep } from '@/components/steps/HeaterHistoryStep';
-import { SoftenerContextStep } from '@/components/steps/SoftenerContextStep';
 import { SymptomsStep } from '@/components/steps/SymptomsStep';
 import { OnboardingData, DEFAULT_ONBOARDING_DATA } from '@/types/onboarding';
 import type { UsageType } from '@/lib/opterraAlgorithm';
@@ -16,7 +15,8 @@ interface OnboardingFlowProps {
   onComplete: (data: OnboardingData) => void;
 }
 
-type Step = 'household' | 'residency' | 'heater-history' | 'softener-context' | 'symptoms';
+// SIMPLIFIED: Removed softener-context step (Gatekeeper approach)
+type Step = 'household' | 'residency' | 'heater-history' | 'symptoms';
 
 export function OnboardingFlow({
   initialData,
@@ -29,10 +29,8 @@ export function OnboardingFlow({
     hasSoftener,
   });
   
-  // Determine steps based on whether they have a softener
-  const allSteps: Step[] = hasSoftener
-    ? ['household', 'residency', 'heater-history', 'softener-context', 'symptoms']
-    : ['household', 'residency', 'heater-history', 'symptoms'];
+  // Simplified steps - no longer need softener context
+  const allSteps: Step[] = ['household', 'residency', 'heater-history', 'symptoms'];
   
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const currentStep = allSteps[currentStepIndex];
@@ -97,23 +95,6 @@ export function OnboardingFlow({
           />
         );
       
-      case 'softener-context':
-        return (
-          <SoftenerContextStep
-            wasHereWhenMoved={data.softenerWasHereWhenMoved}
-            installYearsAgo={data.softenerInstallYearsAgo}
-            serviceFrequency={data.softenerServiceFrequency}
-            waterSource={data.waterSource}
-            saltStatus={data.softenerSaltStatus}
-            onWasHereChange={(wasHere) => updateData('softenerWasHereWhenMoved', wasHere)}
-            onInstallYearsChange={(years) => updateData('softenerInstallYearsAgo', years)}
-            onServiceFrequencyChange={(freq) => updateData('softenerServiceFrequency', freq)}
-            onWaterSourceChange={(source) => updateData('waterSource', source)}
-            onSaltStatusChange={(status) => updateData('softenerSaltStatus', status)}
-            onNext={goNext}
-          />
-        );
-      
       case 'symptoms':
         return (
           <SymptomsStep
@@ -133,7 +114,6 @@ export function OnboardingFlow({
       case 'household': return 'Household';
       case 'residency': return 'Residency';
       case 'heater-history': return 'Service History';
-      case 'softener-context': return 'Water Softener';
       case 'symptoms': return 'Symptoms';
       default: return '';
     }

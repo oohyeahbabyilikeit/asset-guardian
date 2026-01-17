@@ -452,18 +452,6 @@ export function ReviewStep({ data, aiDetectedFields, onUpdate, onConfirm }: Revi
                 icon={<Box className="h-4 w-4" />}
                 isAIDetected={aiDetectedFields.saltCondition}
               />
-              <ReviewItem
-                label="Carbon Pre-Filter"
-                value={data.softener.hasCarbonFilter || false}
-                icon={<CircleDot className="h-4 w-4" />}
-                isAIDetected={aiDetectedFields.hasCarbonFilter}
-              />
-              <ReviewItem
-                label="Iron Staining Visible"
-                value={data.softener.visualIron || false}
-                icon={<AlertTriangle className="h-4 w-4" />}
-                isAIDetected={aiDetectedFields.visualIron}
-              />
             </>
           )}
         </div>

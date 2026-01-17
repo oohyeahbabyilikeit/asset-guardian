@@ -9,21 +9,8 @@ import type {
   VentStatus 
 } from '@/lib/opterraAlgorithm';
 
-// Re-export types from algorithm files for consistency
-import { 
-  SoftenerQualityTier, 
-  ControlHead, 
-  VisualHeight, 
-  SaltLevelState 
-} from '@/lib/softenerAlgorithm';
-
-export type { SoftenerQualityTier, ControlHead, VisualHeight, SaltLevelState };
-
 // Salt status options (for technician quick-check)
 export type SaltStatusType = 'OK' | 'EMPTY' | 'UNKNOWN';
-
-// Visual condition for age estimation (when serial decode fails)
-export type SoftenerVisualCondition = 'NEW' | 'WEATHERED' | 'AGED';
 
 // Step 1: Asset Identification
 export interface AssetIdentification {
@@ -49,7 +36,7 @@ export interface AssetIdentification {
 // Step 2: Pressure & Water Measurements
 export interface WaterMeasurements {
   housePsi: number;
-  measuredHardnessGPG?: number;  // Optional test strip
+  measuredHardnessGPG?: number;  // Test strip result - CRITICAL for softener check
   flowRateGPM?: number;          // Tankless: current flow
   flowRateUnknown?: boolean;     // True if tech couldn't determine flow rate
 }
@@ -89,18 +76,12 @@ export interface EquipmentChecklist {
   nippleMaterial?: NippleMaterial;
 }
 
-// Step 5: Softener Inspection (if present)
+// Step 5: Softener Inspection - SIMPLIFIED "Gatekeeper" approach
+// Only 3 fields: presence, salt status, and hardness (in measurements)
 export interface SoftenerInspection {
   hasSoftener?: boolean;  // undefined = not answered yet
   saltStatus?: SaltStatusType;
-  qualityTier?: SoftenerQualityTier;
-  controlHead?: ControlHead;
-  visualHeight?: VisualHeight;
-  visualIron?: boolean;
-  hasCarbonFilter?: boolean;
-  visualCondition?: SoftenerVisualCondition;  // Visual age proxy for pre-existing units
-  // NEW v7.9: Sanitizer Type ("Chloramine Meltdown" Fix)
-  sanitizerType?: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';
+  // measuredHardnessGPG lives in WaterMeasurements - that's the test strip result
 }
 
 // Step 6: Hybrid-Specific (if applicable)

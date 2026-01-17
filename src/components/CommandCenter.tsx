@@ -13,7 +13,6 @@ import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opter
 import { AssetNavigation } from '@/components/AssetNavigation';
 import { TanklessDiagram } from '@/components/TanklessDiagram';
 import { VitalsGrid } from '@/components/VitalsGrid';
-import { SoftenerCenter } from '@/components/SoftenerCenter';
 import { HealthScore, AssetData } from '@/data/mockAsset';
 import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
 

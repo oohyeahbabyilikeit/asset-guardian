@@ -48,9 +48,6 @@ verify_jwt = false
 [functions.read-error-codes]
 verify_jwt = false
 
-[functions.scan-softener-plate]
-verify_jwt = false
-
 [functions.analyze-filter-condition]
 verify_jwt = false
 
@@ -64,7 +61,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.chat-water-heater]
-verify_jwt = false
-
-[functions.sync-inspection]
 verify_jwt = false

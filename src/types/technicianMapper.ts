@@ -1,6 +1,5 @@
-import type { TechnicianInspectionData, SoftenerVisualCondition } from './technicianInspection';
+import type { TechnicianInspectionData } from './technicianInspection';
 import type { ForensicInputs } from '@/lib/opterraAlgorithm';
-import type { SoftenerInputs, SaltLevelState } from '@/lib/softenerAlgorithm';
 
 /**
  * Map technician inspection data to ForensicInputs for the Opterra algorithm
@@ -34,7 +33,7 @@ export function mapTechnicianToForensicInputs(
     measuredHardnessGPG: tech.measurements.measuredHardnessGPG,
     hardnessGPG: tech.streetHardnessGPG,  // Legacy fallback
     
-    // Softener
+    // Softener (Gatekeeper approach - just 2 fields)
     hasSoftener: tech.softener.hasSoftener,
     softenerSaltStatus: tech.softener.saltStatus,
     
@@ -104,85 +103,6 @@ export function mapTechnicianToForensicInputs(
   
   // Apply homeowner overrides if provided
   return { ...baseInputs, ...homeownerOverrides };
-}
-
-/**
- * Estimate softener age from visual condition
- * Used as fallback when serial decode fails and unit is pre-existing
- */
-function getAgeFromVisualCondition(condition?: SoftenerVisualCondition): number {
-  switch (condition) {
-    case 'NEW': return 3;       // Looks new: ~3 years (conservative)
-    case 'WEATHERED': return 8; // Yellowing, faded labels: ~8 years
-    case 'AGED': return 12;     // Brittle plastic, illegible: 10+ years
-    default: return 5;          // Unknown = conservative mid-range
-  }
-}
-
-/**
- * Map technician softener inspection to SoftenerInputs
- */
-export function mapTechnicianToSoftenerInputs(
-  tech: TechnicianInspectionData,
-  homeownerOverrides?: Partial<SoftenerInputs>
-): SoftenerInputs | null {
-  if (!tech.softener.hasSoftener) {
-    return null;
-  }
-  
-  // Use visual condition to estimate age (key fix for pre-existing softeners)
-  const visualAge = getAgeFromVisualCondition(tech.softener.visualCondition);
-  
-  const baseInputs: SoftenerInputs = {
-    ageYears: visualAge,  // Now uses visual condition, not 0
-    hardnessGPG: tech.streetHardnessGPG,
-    people: 3,  // Default, overwritten by homeowner
-    isCityWater: true,  // Default, overwritten by homeowner
-    hasCarbonFilter: tech.softener.hasCarbonFilter || false,
-    visualHeight: tech.softener.visualHeight || 'WAIST',
-    controlHead: tech.softener.controlHead || 'DIGITAL',
-    visualIron: tech.softener.visualIron || false,
-    carbonAgeYears: null,
-    saltLevelState: mapSaltStatusToLevelState(tech.softener.saltStatus),
-    qualityTier: tech.softener.qualityTier || 'STANDARD',
-    capacity: getCapacityFromVisualHeight(tech.softener.visualHeight),
-    // NEW v7.9: Sanitizer Type ("Chloramine Meltdown" Fix)
-    sanitizerType: tech.softener.sanitizerType || 'UNKNOWN',
-  };
-  
-  return { ...baseInputs, ...homeownerOverrides };
-}
-
-/**
- * Map salt status to salt level state
- */
-function mapSaltStatusToLevelState(
-  status?: 'OK' | 'EMPTY' | 'UNKNOWN'
-): SaltLevelState {
-  switch (status) {
-    case 'OK':
-      return 'OK';
-    case 'EMPTY':
-      return 'LOW';  // Map EMPTY to LOW for algorithm
-    case 'UNKNOWN':
-    default:
-      return 'OK';  // Conservative default
-  }
-}
-
-/**
- * Get grain capacity from visual height
- */
-function getCapacityFromVisualHeight(height?: 'KNEE' | 'WAIST' | 'CHEST'): number {
-  switch (height) {
-    case 'KNEE':
-      return 24000;
-    case 'CHEST':
-      return 48000;
-    case 'WAIST':
-    default:
-      return 32000;
-  }
 }
 
 /**

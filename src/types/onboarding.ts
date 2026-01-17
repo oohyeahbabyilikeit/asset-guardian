@@ -1,5 +1,4 @@
 import type { ForensicInputs, UsageType, SoftenerSaltStatus } from '@/lib/opterraAlgorithm';
-import type { SoftenerInputs } from '@/lib/softenerAlgorithm';
 
 // Symptom flags that map to algorithm inputs
 export interface Symptoms {
@@ -28,14 +27,11 @@ export interface OnboardingData {
   isAnnuallyMaintained?: boolean;        // NEW v7.7: Has tank been flushed yearly?
   lastDescaleYearsAgo?: number | null;   // NEW v7.9: Tankless only
   
-  // Step 4: Softener Context (if applicable)
+  // Step 4: Softener Context - SIMPLIFIED (Gatekeeper approach)
   hasSoftener: boolean;
-  softenerWasHereWhenMoved: boolean | null; // null = not sure
-  softenerInstallYearsAgo: number | null;   // null if was here when moved
-  softenerServiceFrequency: 'professional' | 'diy_salt' | 'never' | 'unknown';
-  softenerSaltStatus: SoftenerSaltStatus;   // NEW v7.6: Quick visual check
+  softenerSaltStatus: SoftenerSaltStatus;   // Quick visual check: OK, EMPTY, UNKNOWN
   waterSource: 'city' | 'well' | null;      // null = not answered yet
-  sanitizerType?: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';  // NEW v7.9: Chloramine Meltdown Fix
+  sanitizerType?: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';  // From ZIP lookup
   
   // Step 5: Symptoms
   symptoms: Symptoms;
@@ -50,9 +46,6 @@ export const DEFAULT_ONBOARDING_DATA: OnboardingData = {
   isAnnuallyMaintained: false,
   lastDescaleYearsAgo: null,
   hasSoftener: false,
-  softenerWasHereWhenMoved: null,
-  softenerInstallYearsAgo: null,
-  softenerServiceFrequency: 'unknown',
   softenerSaltStatus: 'UNKNOWN',
   waterSource: null,
   sanitizerType: 'UNKNOWN',
@@ -89,61 +82,12 @@ export function mapOnboardingToForensicInputs(
     peopleCount: onboarding.peopleCount,
     usageType: onboarding.usageType,
     hasSoftener: onboarding.hasSoftener,
-    softenerSaltStatus: onboarding.softenerSaltStatus, // NEW v7.6
+    softenerSaltStatus: onboarding.softenerSaltStatus,
     lastFlushYearsAgo,
     lastAnodeReplaceYearsAgo,
-    isAnnuallyMaintained: onboarding.isAnnuallyMaintained, // NEW v7.7
-    lastDescaleYearsAgo: onboarding.lastDescaleYearsAgo ?? undefined, // NEW v7.9
+    isAnnuallyMaintained: onboarding.isAnnuallyMaintained,
+    lastDescaleYearsAgo: onboarding.lastDescaleYearsAgo ?? undefined,
     visualRust,
     isLeaking,
-  };
-}
-
-// Map onboarding data to SoftenerInputs
-export function mapOnboardingToSoftenerInputs(
-  onboarding: OnboardingData,
-  baseInputs: SoftenerInputs
-): SoftenerInputs {
-  if (!onboarding.hasSoftener) {
-    return baseInputs;
-  }
-  
-  // Calculate softener age with priority logic:
-  // 1. If homeowner installed it, use their stated age
-  // 2. If pre-existing, use MAX of technician's visual age estimate vs residency fallback
-  // This fixes the "softener age blind spot" where inherited old units were under-aged
-  let softenerAge: number;
-  if (onboarding.softenerWasHereWhenMoved === true) {
-    // Pre-existing softener: Use technician's visual assessment as floor
-    // Fall back to yearsAtAddress + 3 if tech didn't assess
-    const residencyFallback = onboarding.yearsAtAddress + 3;
-    softenerAge = Math.max(baseInputs.ageYears, residencyFallback);
-  } else if (onboarding.softenerInstallYearsAgo !== null) {
-    // Homeowner knows when it was installed
-    softenerAge = onboarding.softenerInstallYearsAgo;
-  } else {
-    softenerAge = baseInputs.ageYears;
-  }
-  
-  // Determine if user has professional salt service (suppresses salt alerts)
-  const hasProfessionalService = onboarding.softenerServiceFrequency === 'professional';
-  
-  return {
-    ...baseInputs,
-    people: onboarding.peopleCount,
-    ageYears: softenerAge,
-    isCityWater: onboarding.waterSource === 'city',
-    hasProfessionalService,  // NEW v1.4: Suppress salt alerts if professional service
-    sanitizerType: onboarding.sanitizerType || 'UNKNOWN',  // NEW v7.9: Chloramine fix
-    // v1.1: Visual proxies default to conservative values
-    // These will be updated by technician inspection or user input
-    visualHeight: baseInputs.visualHeight,
-    controlHead: baseInputs.controlHead,
-    visualIron: onboarding.waterSource === 'well' && onboarding.symptoms.discoloredWater,
-    // v1.2: New fields — default to null/OK, technician will update
-    carbonAgeYears: null,       // Will come from technician inspection
-    saltLevelState: 'OK',       // Will come from visual inspection
-    // hardnessGPG: will come from API
-    // hasCarbonFilter: will come from technician inspection
   };
 }
