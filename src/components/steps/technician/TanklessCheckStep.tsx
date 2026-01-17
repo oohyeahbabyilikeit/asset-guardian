@@ -17,14 +17,7 @@ import { ScanHeroCard } from '@/components/ui/ScanHeroCard';
 import { TechnicianStepLayout, StepCard } from './TechnicianStepLayout';
 import { cn } from '@/lib/utils';
 
-type SubStep = 'error-codes' | 'gas-line' | 'inlet-filter' | 'scale';
-
-const SCALE_CHIPS = [
-  { value: 0, label: 'None', sublabel: '0%', variant: 'success' as const },
-  { value: 30, label: 'Light', sublabel: '~30%' },
-  { value: 60, label: 'Moderate', sublabel: '~60%', variant: 'warning' as const },
-  { value: 90, label: 'Severe', sublabel: '90%+', variant: 'danger' as const },
-];
+type SubStep = 'error-codes' | 'gas-line' | 'inlet-filter';
 
 const GAS_LINE_CHIPS = [
   { value: '1/2', label: '½"', sublabel: '⚠️ Undersized', variant: 'danger' as const },
@@ -123,7 +116,6 @@ export function TanklessCheckStep({
       case 'error-codes': return 'Error Codes';
       case 'gas-line': return 'Gas Line Size';
       case 'inlet-filter': return 'Inlet Filter';
-      case 'scale': return 'Scale Buildup';
       default: return 'Tankless Check';
     }
   };
@@ -133,7 +125,6 @@ export function TanklessCheckStep({
       case 'error-codes': return <Monitor className="h-7 w-7" />;
       case 'gas-line': return <Gauge className="h-7 w-7" />;
       case 'inlet-filter': return <Filter className="h-7 w-7" />;
-      case 'scale': return <Waves className="h-7 w-7" />;
       default: return <Wind className="h-7 w-7" />;
     }
   };
@@ -287,14 +278,11 @@ export function TanklessCheckStep({
     </ScanHeroCard>
   );
 
-  );
-
   const renderCurrentSubStep = () => {
     switch (currentSubStep) {
       case 'error-codes': return renderErrorCodesStep();
       case 'gas-line': return renderGasLineStep();
       case 'inlet-filter': return renderInletFilterStep();
-      case 'scale': return renderScaleStep();
       default: return null;
     }
   };
