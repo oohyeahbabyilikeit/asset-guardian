@@ -233,7 +233,8 @@ function buildTankSteps(
 
   // Step 4: Sediment Accumulation
   const sedimentFactor = inputs.fuelType === 'ELECTRIC' ? 0.08 : 0.044;
-  const yearsSinceFlush = inputs.lastFlushYearsAgo ?? inputs.calendarAge;
+  // FIX v7.10: Cap yearsSinceFlush to calendarAge - can't have sediment from before unit existed
+  const yearsSinceFlush = Math.min(inputs.lastFlushYearsAgo ?? inputs.calendarAge, inputs.calendarAge);
   const sedimentLbs = sedimentFactor * effectiveHardness * yearsSinceFlush * usageIntensity;
   
   steps.push({

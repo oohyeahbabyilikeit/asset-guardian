@@ -843,7 +843,9 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     sedimentLbs = Math.min(steadyStateResidual, yearlyAccumulation * 1.5);
   } else if (data.lastFlushYearsAgo !== undefined && data.lastFlushYearsAgo !== null) {
     // Tank was flushed once - calculate residual + new accumulation
-    const ageAtFlush = data.calendarAge - data.lastFlushYearsAgo;
+    // FIX v7.10: Cap lastFlushYearsAgo to calendarAge - can't have sediment from before unit existed
+    const effectiveYearsSinceFlush = Math.min(data.lastFlushYearsAgo, data.calendarAge);
+    const ageAtFlush = Math.max(0, data.calendarAge - effectiveYearsSinceFlush);
     const sedimentAtFlush = ageAtFlush * effectiveHardness * sedFactor * volumeFactor;
     
     // FIX v7.9 "Concrete Flush Fallacy": Dynamic flush efficiency based on sediment age
@@ -860,7 +862,7 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     }
     
     const residualLbs = sedimentAtFlush * (1 - flushEfficiency);
-    const newAccumulationLbs = data.lastFlushYearsAgo * effectiveHardness * sedFactor * volumeFactor;
+    const newAccumulationLbs = effectiveYearsSinceFlush * effectiveHardness * sedFactor * volumeFactor;
     sedimentLbs = residualLbs + newAccumulationLbs;
   } else {
     // Never flushed - full lifetime accumulation
