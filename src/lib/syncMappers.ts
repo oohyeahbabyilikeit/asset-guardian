@@ -191,19 +191,9 @@ export function mapInspectionToSoftener(
 
   return {
     property_id: propertyId,
-    capacity_grains: getCapacityFromVisualHeight(data.softener.visualHeight),
-    control_head: data.softener.controlHead || undefined,
-    visual_height: data.softener.visualHeight || undefined,
-    has_carbon_filter: data.softener.hasCarbonFilter,
     created_by: createdBy,
     photo_urls: photoUrls,
-    
-    // v7.8-7.9 fields
     salt_status: data.softener.saltStatus || 'UNKNOWN',
-    quality_tier: data.softener.qualityTier || 'STANDARD',
-    visual_iron: data.softener.visualIron || false,
-    visual_condition: data.softener.visualCondition || 'WEATHERED',
-    sanitizer_type: data.softener.sanitizerType || 'UNKNOWN',
   };
 }
 
