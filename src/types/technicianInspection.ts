@@ -94,21 +94,17 @@ export interface HybridInspection {
 }
 
 // Step 7: Tankless-Specific (if applicable)
+// v8.0 SIMPLIFIED: Algorithm calculates scale from hardness × time
+// Removed deprecated fields: scaleBuildup slider, igniterHealth, elementHealth, flameRodStatus, inletWaterTemp
 export interface TanklessInspection {
-  flameRodStatus?: FlameRodStatus;     // Gas only
   inletFilterStatus: InletFilterStatus;
   tanklessVentStatus?: VentStatus;     // Gas only
   errorCodeCount: number;
-  scaleBuildup?: number;               // 0-100 (if known)
-  igniterHealth?: number;              // Gas only
-  elementHealth?: number;              // Electric only
   // NEW v7.8: Gas Starvation Detection
   gasLineSize?: '1/2' | '3/4' | '1';   // Inch diameter
   gasRunLength?: number;               // Feet from meter
   // NEW v7.9: Descale Liability
   lastDescaleYearsAgo?: number;        // Years since last descale
-  // NEW v7.7: Winter Flow Diagnosis
-  inletWaterTemp?: number;             // Degrees F (optional)
 }
 
 // Building type for inspection context
@@ -182,6 +178,7 @@ export const DEFAULT_HYBRID_INSPECTION: HybridInspection = {
 export const DEFAULT_TANKLESS_INSPECTION: TanklessInspection = {
   inletFilterStatus: 'CLEAN',
   errorCodeCount: 0,
+  tanklessVentStatus: 'CLEAR',
 };
 
 export const DEFAULT_TECHNICIAN_DATA: TechnicianInspectionData = {

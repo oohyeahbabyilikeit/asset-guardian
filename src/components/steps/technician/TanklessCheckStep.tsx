@@ -53,13 +53,13 @@ export function TanklessCheckStep({
 }: TanklessCheckStepProps) {
   const isGas = fuelType === 'TANKLESS_GAS';
   
-  // Dynamic sub-steps based on fuel type
+  // Dynamic sub-steps based on fuel type (v8.0: removed scale slider - algorithm calculates)
   const getSubSteps = (): SubStep[] => {
     const steps: SubStep[] = ['error-codes'];
     if (isGas) {
       steps.push('gas-line');
     }
-    steps.push('inlet-filter', 'scale');
+    steps.push('inlet-filter');
     return steps;
   };
   
@@ -104,8 +104,6 @@ export function TanklessCheckStep({
         return data.gasLineSize !== undefined;
       case 'inlet-filter':
         return data.inletFilterStatus !== undefined;
-      case 'scale':
-        return data.scaleBuildup !== undefined;
       default:
         return false;
     }
@@ -289,41 +287,6 @@ export function TanklessCheckStep({
     </ScanHeroCard>
   );
 
-  const renderScaleStep = () => (
-    <StepCard className="border-0 bg-transparent shadow-none">
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        Estimate scale buildup inside the unit
-      </p>
-      
-      <div className="grid grid-cols-2 gap-3">
-        {SCALE_CHIPS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onUpdate({ scaleBuildup: opt.value })}
-            className={cn(
-              "flex flex-col items-center gap-1 py-5 rounded-xl border-2 transition-all",
-              data.scaleBuildup === opt.value
-                ? opt.variant === 'danger' ? 'border-red-500 bg-red-50 text-red-700'
-                : opt.variant === 'warning' ? 'border-amber-500 bg-amber-50 text-amber-700'
-                : opt.variant === 'success' ? 'border-green-500 bg-green-50 text-green-700'
-                : 'border-primary bg-primary/10 text-foreground'
-                : 'border-muted hover:border-primary/50'
-            )}
-          >
-            <div className="font-bold text-lg">{opt.label}</div>
-            <div className="text-xs opacity-70">{opt.sublabel}</div>
-          </button>
-        ))}
-      </div>
-      
-      {data.scaleBuildup !== undefined && data.scaleBuildup >= 60 && (
-        <div className="mt-4 p-3 bg-amber-500/10 rounded-xl flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-          <p className="text-sm text-amber-700">Descaling recommended - flow restriction likely</p>
-        </div>
-      )}
-    </StepCard>
   );
 
   const renderCurrentSubStep = () => {

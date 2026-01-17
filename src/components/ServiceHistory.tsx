@@ -31,20 +31,14 @@ interface ServiceHistoryProps {
   compressorHealth?: number;
   hasExpansionTank?: boolean;
   hasPRV?: boolean;
-  // TANKLESS support
-  flowRateGPM?: number;
-  ratedFlowGPM?: number;
-  scaleBuildup?: number;
-  igniterHealth?: number;
-  elementHealth?: number;
+  // TANKLESS support (v8.0 SIMPLIFIED - algorithm calculates scale/flow)
   inletFilterStatus?: InletFilterStatus;
-  flameRodStatus?: FlameRodStatus;
   tanklessVentStatus?: VentStatus;
   errorCodeCount?: number;
   // NEW: Tankless algorithm outputs
   hasIsolationValves?: boolean;
   descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure';
-  flowDegradation?: number;
+  healthScore?: number;  // From algorithm for tankless display
 }
 
 // Integrated Water Heater SVG Diagram Component
@@ -897,20 +891,14 @@ export function ServiceHistory({
   compressorHealth = 85,
   hasExpansionTank,
   hasPRV,
-  // TANKLESS props
-  flowRateGPM = 9.5,
-  ratedFlowGPM = 9.5,
-  scaleBuildup = 0,
-  igniterHealth = 85,
-  elementHealth = 90,
+  // TANKLESS props (v8.0 SIMPLIFIED)
   inletFilterStatus = 'CLEAN',
-  flameRodStatus = 'GOOD',
   tanklessVentStatus = 'CLEAR',
   errorCodeCount = 0,
   // NEW: Tankless algorithm outputs
   hasIsolationValves = true,
   descaleStatus = 'optimal',
-  flowDegradation = 0,
+  healthScore = 75,
 }: ServiceHistoryProps) {
   // Breach detection
   const isBreach = isLeaking || visualRust;
@@ -936,13 +924,8 @@ export function ServiceHistory({
   const anodeStatus = anodeDepleted ? 'critical' : anodeDepletionPercent > 70 ? 'warning' : 'good';
   const sedimentStatus = sedimentPercent > 50 ? 'critical' : sedimentHigh ? 'warning' : 'good';
 
-  // TANKLESS-specific calculations
-  // FIX v7.10: Cap flow capacity between 0-100% to prevent "113%" display from over-flow
-  const rawFlowCapacity = ratedFlowGPM > 0 ? Math.round((flowRateGPM / ratedFlowGPM) * 100) : 100;
-  const flowCapacityPercent = Math.min(100, Math.max(0, rawFlowCapacity));
-  const needsDescale = scaleBuildup > 20;
-  const needsIgniter = fuelType === 'TANKLESS_GAS' && igniterHealth < 60;
-  const needsElement = fuelType === 'TANKLESS_ELECTRIC' && elementHealth < 60;
+  // TANKLESS-specific calculations (v8.0 SIMPLIFIED - removed deprecated fields)
+  const needsDescale = descaleStatus === 'due' || descaleStatus === 'critical';
   const needsInletFilter = inletFilterStatus !== 'CLEAN';
 
   // SAFE FLUSH LOGIC GATES
@@ -992,7 +975,7 @@ export function ServiceHistory({
   };
 
   // Determine if any tankless service is needed
-  const tanklessServiceNeeded = isTanklessUnit && (needsDescale || needsIgniter || needsElement || needsInletFilter);
+  const tanklessServiceNeeded = isTanklessUnit && (needsDescale || needsInletFilter);
 
   return (
     <div className="command-card mx-4">
@@ -1025,13 +1008,11 @@ export function ServiceHistory({
           {isTanklessUnit ? (
             <TanklessDiagram 
               fuelType={fuelType}
-              scalePercent={scaleBuildup}
-              flowCapacityPercent={flowCapacityPercent}
-              igniterHealth={igniterHealth}
-              elementHealth={elementHealth}
+              healthScore={healthScore}
+              descaleStatus={descaleStatus}
               inletFilterStatus={inletFilterStatus}
-              flameRodStatus={flameRodStatus}
               ventStatus={tanklessVentStatus}
+              hasIsolationValves={hasIsolationValves}
               isBreach={isBreach}
               errorCodeCount={errorCodeCount}
             />
@@ -1053,27 +1034,30 @@ export function ServiceHistory({
           {/* Stats Row - Unit-type aware */}
           <div className="flex justify-center gap-6 mt-4 w-full">
             {isTanklessUnit ? (
-              // TANKLESS: Show Scale % and Flow Capacity
+              // TANKLESS: Show Descale Status and Health Score
               <>
                 <div className="text-center data-display px-4 py-2 flex-1">
                   <div className={cn(
                     "text-lg font-bold font-data",
-                    scaleBuildup > 30 ? "text-red-400" : 
-                    scaleBuildup > 15 ? "text-amber-400" : "text-emerald-400"
+                    descaleStatus === 'critical' || descaleStatus === 'lockout' ? "text-red-400" : 
+                    descaleStatus === 'due' ? "text-amber-400" : "text-emerald-400"
                   )}>
-                    {scaleBuildup.toFixed(0)}%
+                    {descaleStatus === 'optimal' ? 'OK' : 
+                     descaleStatus === 'due' ? 'DUE' :
+                     descaleStatus === 'critical' ? 'CRIT' : 
+                     descaleStatus.toUpperCase()}
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Scale Buildup</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Descale</div>
                 </div>
                 <div className="text-center data-display px-4 py-2 flex-1">
                   <div className={cn(
                     "text-lg font-bold font-data",
-                    flowCapacityPercent < 70 ? "text-red-400" : 
-                    flowCapacityPercent < 85 ? "text-amber-400" : "text-emerald-400"
+                    healthScore < 40 ? "text-red-400" : 
+                    healthScore < 70 ? "text-amber-400" : "text-emerald-400"
                   )}>
-                    {flowCapacityPercent}%
+                    {healthScore}%
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Flow Capacity</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Health</div>
                 </div>
               </>
             ) : (
