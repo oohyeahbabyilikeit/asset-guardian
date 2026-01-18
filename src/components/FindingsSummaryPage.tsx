@@ -13,7 +13,7 @@ import { WaterHeaterChatbot } from './WaterHeaterChatbot';
 import { SaveReportModal, SaveReportContext } from './SaveReportModal';
 import { hasLeadBeenCaptured } from '@/lib/leadService';
 import { getCachedFinding } from '@/hooks/useGeneratedFindings';
-import { getCachedRationale, RationaleSection } from '@/hooks/useReplacementRationale';
+import { useReplacementRationale } from '@/hooks/useReplacementRationale';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Helper to apply AI-generated content to a finding if available
@@ -285,6 +285,7 @@ function RecommendationEducationStep({
   topFindings,
   recommendationType,
   currentInputs,
+  opterraResult,
   onComplete,
 }: {
   finding: FindingCard;
@@ -297,12 +298,18 @@ function RecommendationEducationStep({
   topFindings: FindingCard[];
   recommendationType: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR';
   currentInputs: ForensicInputs;
+  opterraResult: OpterraResult;
   onComplete: () => void;
 }) {
-  // Try to get AI-generated rationale for replacement recommendations
-  const aiRationale = (recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON') 
-    ? getCachedRationale(currentInputs) 
-    : null;
+  // Fetch AI-generated rationale for replacement recommendations
+  const shouldFetchRationale = recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON';
+  const { rationale: aiRationale, isLoading: isRationaleLoading } = useReplacementRationale(
+    shouldFetchRationale ? currentInputs : null,
+    shouldFetchRationale ? opterraResult : null,
+    recommendationType as 'REPLACE_NOW' | 'REPLACE_SOON',
+    500, // estimated repair cost
+    financial.estReplacementCost
+  );
 
   // Map section headings to icons
   const getIconForHeading = (heading: string): React.ReactNode => {
@@ -331,10 +338,13 @@ function RecommendationEducationStep({
     return <Info className="w-5 h-5" />;
   };
 
+  // Log for debugging
+  console.log('[RecommendationEducationStep] recommendationType:', recommendationType, 'aiRationale:', aiRationale, 'isLoading:', isRationaleLoading);
+
   // Educational content based on recommendation type (with AI override for replacement)
   const getEducationContent = () => {
     // Use AI-generated content for replacement recommendations if available
-    if (aiRationale && aiRationale.sections.length > 0 && (recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON')) {
+    if (aiRationale && aiRationale.sections && aiRationale.sections.length > 0 && (recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON')) {
       const isUrgent = recommendationType === 'REPLACE_NOW';
       return {
         headline: isUrgent ? "Why Replacement Makes Sense Now" : "Why We Recommend Planning Ahead",
@@ -513,14 +523,26 @@ function RecommendationEducationStep({
             >
               {content.headline}
             </motion.h2>
-            <motion.p 
-              className="text-sm text-muted-foreground"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              {content.subtitle}
-            </motion.p>
+            <div className="flex items-center gap-2">
+              <motion.p 
+                className="text-sm text-muted-foreground"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                {content.subtitle}
+              </motion.p>
+              {content.isAIGenerated && (
+                <motion.span 
+                  className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  Personalized
+                </motion.span>
+              )}
+            </div>
           </div>
 
           {/* Educational content - clean list */}
@@ -530,27 +552,43 @@ function RecommendationEducationStep({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
-            {content.sections.map((section, idx) => (
-              <motion.div
-                key={section.title}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 + idx * 0.1 }}
-                className="flex gap-3"
-              >
-                <div className="p-2 rounded-lg bg-muted/60 h-fit text-muted-foreground flex-shrink-0">
-                  {section.icon}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-foreground mb-0.5">
-                    {section.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {section.content}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+            {/* Show loading skeleton if AI content is loading for replacement recommendations */}
+            {isRationaleLoading && shouldFetchRationale ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex gap-3">
+                    <Skeleton className="w-9 h-9 rounded-lg flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-3/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              content.sections.map((section, idx) => (
+                <motion.div
+                  key={section.title}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + idx * 0.1 }}
+                  className="flex gap-3"
+                >
+                  <div className="p-2 rounded-lg bg-muted/60 h-fit text-muted-foreground flex-shrink-0">
+                    {section.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-foreground mb-0.5">
+                      {section.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {section.content}
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </motion.div>
 
           {/* Callout */}
@@ -1649,6 +1687,7 @@ export function FindingsSummaryPage({
             topFindings={findings.filter(f => f.id !== 'economic-guidance')}
             recommendationType={economicGuidance.recommendation}
             currentInputs={currentInputs}
+            opterraResult={opterraResult}
             onComplete={handleCompleteStep}
           />
         ) : (
