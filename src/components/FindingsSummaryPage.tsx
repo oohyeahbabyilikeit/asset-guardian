@@ -528,6 +528,9 @@ function RecommendationEducationStep({
 
   const content = getEducationContent();
 
+  // Only show top 2 sections for cleaner UX (keep most important)
+  const displaySections = content.sections.slice(0, 2);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -536,88 +539,78 @@ function RecommendationEducationStep({
       transition={{ duration: 0.4 }}
       className="px-4"
     >
-      {/* Main education card - matching FindingStep style */}
-      <Card className={cn("overflow-hidden border-2 border-border/50")}>
+      {/* Simplified education card */}
+      <Card className="overflow-hidden border border-border/50">
         <CardContent className="p-0">
           
-          {/* Header with gradient - matching other cards */}
-          <div className={cn("p-5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent")}>
-            <motion.div 
-              className="inline-flex p-2.5 rounded-xl mb-3 bg-primary/10 text-primary"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", delay: 0.2 }}
-            >
-              <TrendingUp className="w-6 h-6" />
-            </motion.div>
-            <motion.h2 
-              className="text-xl font-semibold text-foreground mb-1"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              {content.headline}
-            </motion.h2>
-            <div className="flex items-center gap-2">
-              <motion.p 
-                className="text-sm text-muted-foreground"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
+          {/* Compact header */}
+          <div className="p-4 pb-3 border-b border-border/50">
+            <div className="flex items-start gap-3">
+              <motion.div 
+                className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: 0.2 }}
               >
-                {content.subtitle}
-              </motion.p>
-              {content.isAIGenerated && (
-                <motion.span 
-                  className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5 }}
+                <TrendingUp className="w-5 h-5" />
+              </motion.div>
+              <div className="flex-1 min-w-0">
+                <motion.h2 
+                  className="text-lg font-semibold text-foreground"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
                 >
-                  Personalized
-                </motion.span>
-              )}
+                  {content.headline}
+                </motion.h2>
+                <motion.p 
+                  className="text-sm text-muted-foreground mt-0.5"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {content.subtitle}
+                </motion.p>
+              </div>
             </div>
           </div>
 
-          {/* Educational content - clean list */}
+          {/* Streamlined content - max 2 key points */}
           <motion.div 
-            className="p-5 space-y-4"
+            className="p-4 space-y-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.5 }}
           >
-            {/* Show loading skeleton if AI content is loading */}
             {isRationaleLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map((i) => (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
                   <div key={i} className="flex gap-3">
-                    <Skeleton className="w-9 h-9 rounded-lg flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-24" />
+                    <Skeleton className="w-8 h-8 rounded-lg flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-20" />
                       <Skeleton className="h-3 w-full" />
-                      <Skeleton className="h-3 w-3/4" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              content.sections.map((section, idx) => (
+              displaySections.map((section, idx) => (
                 <motion.div
                   key={section.title}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 + idx * 0.1 }}
+                  transition={{ delay: 0.5 + idx * 0.1 }}
                   className="flex gap-3"
                 >
-                  <div className="p-2 rounded-lg bg-muted/60 h-fit text-muted-foreground flex-shrink-0">
+                  <div className="p-1.5 rounded-md bg-muted/50 h-fit text-muted-foreground flex-shrink-0">
                     {section.icon}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-foreground mb-0.5">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-sm text-foreground">
                       {section.title}
                     </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
                       {section.content}
                     </p>
                   </div>
@@ -626,42 +619,30 @@ function RecommendationEducationStep({
             )}
           </motion.div>
 
-          {/* Callout */}
+          {/* Compact callout */}
           <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 }}
-            className="mx-5 mb-5 p-3.5 bg-primary/5 rounded-xl border border-primary/20"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+            className="mx-4 mb-4 p-3 bg-muted/40 rounded-lg"
           >
-            <div className="flex gap-3">
-              <Info className="w-5 h-5 text-primary flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {content.callout.title}
-                </p>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {content.callout.text}
-                </p>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{content.callout.title}:</span>{' '}
+              {content.callout.text}
+            </p>
           </motion.div>
 
           {/* Action button */}
-          <motion.div 
-            className="p-4 bg-muted/30 border-t border-border"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-          >
+          <div className="p-4 pt-0">
             <Button 
               onClick={onComplete}
               className="w-full"
-              size="lg"
+              size="default"
             >
               <span>See My Options</span>
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
-          </motion.div>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
