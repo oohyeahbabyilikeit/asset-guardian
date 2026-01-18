@@ -388,6 +388,17 @@ export function CommandCenter({
   // Check if this is a tankless unit
   const isTanklessUnit = currentInputs.fuelType === 'TANKLESS_GAS' || currentInputs.fuelType === 'TANKLESS_ELECTRIC';
 
+  // Derive economics-aware recommendation type (same logic as Index.tsx)
+  const budgetUrgency = financial?.budgetUrgency;
+  let recommendationType: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR' = 'MONITOR';
+  if (verdict.action === 'REPLACE' || budgetUrgency === 'IMMEDIATE') {
+    recommendationType = 'REPLACE_NOW';
+  } else if (budgetUrgency === 'HIGH' || bioAge >= 10) {
+    recommendationType = 'REPLACE_SOON';
+  } else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
+    recommendationType = 'MAINTAIN';
+  }
+
   // Derive dynamic health score from algorithm output
   const isBreach = currentInputs.isLeaking || currentInputs.visualRust;
   const dynamicHealthScore: HealthScore = {
@@ -483,6 +494,7 @@ export function CommandCenter({
               flushStatus={flushStatus}
               autoExpand={dynamicHealthScore.score < 50}
               recommendation={recommendation}
+              recommendationType={recommendationType}
               serviceHistory={serviceHistory}
               isLeaking={currentInputs.isLeaking}
               visualRust={currentInputs.visualRust}
