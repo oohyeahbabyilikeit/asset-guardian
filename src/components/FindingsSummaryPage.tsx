@@ -310,226 +310,84 @@ function RecommendationEducationStep({
     financial.estReplacementCost
   );
 
-  // Map section headings to icons
-  const getIconForHeading = (heading: string): React.ReactNode => {
-    const headingLower = heading.toLowerCase();
-    if (headingLower.includes('number') || headingLower.includes('data')) {
-      return <TrendingUp className="w-5 h-5" />;
-    }
-    if (headingLower.includes('economic') || headingLower.includes('cost') || headingLower.includes('money')) {
-      return <DollarSign className="w-5 h-5" />;
-    }
-    if (headingLower.includes('risk') || headingLower.includes('danger') || headingLower.includes('warning')) {
-      return <AlertCircle className="w-5 h-5" />;
-    }
-    if (headingLower.includes('opportunity') || headingLower.includes('benefit') || headingLower.includes('advantage')) {
-      return <CheckCircle2 className="w-5 h-5" />;
-    }
-    if (headingLower.includes('plan') || headingLower.includes('time') || headingLower.includes('schedule')) {
-      return <Calendar className="w-5 h-5" />;
-    }
-    if (headingLower.includes('peace') || headingLower.includes('safe') || headingLower.includes('protect')) {
-      return <Shield className="w-5 h-5" />;
-    }
-    if (headingLower.includes('maintain') || headingLower.includes('repair') || headingLower.includes('service') || headingLower.includes('running') || headingLower.includes('strong')) {
-      return <Wrench className="w-5 h-5" />;
-    }
-    if (headingLower.includes('healthy') || headingLower.includes('good') || headingLower.includes('working')) {
-      return <CheckCircle2 className="w-5 h-5" />;
-    }
-    if (headingLower.includes('favor') || headingLower.includes('positive')) {
-      return <TrendingUp className="w-5 h-5" />;
-    }
-    return <Info className="w-5 h-5" />;
-  };
-
   // Log for debugging
   console.log('[RecommendationEducationStep] recommendationType:', recommendationType, 'aiRationale:', aiRationale, 'isLoading:', isRationaleLoading);
 
-  // Educational content based on recommendation type (with AI override when available)
-  const getEducationContent = () => {
-    // Use AI-generated content if available for any recommendation type
-    if (aiRationale && aiRationale.sections && aiRationale.sections.length > 0 && aiRationale.isAIGenerated) {
-      const isUrgent = recommendationType === 'REPLACE_NOW';
-      const isReplacement = isUrgent || recommendationType === 'REPLACE_SOON';
-      const isMaintain = recommendationType === 'MAINTAIN';
-      
-      let headline = "Why Regular Check-ups Matter";
-      let subtitle = "Your system is healthy—let's keep it that way";
-      let borderColor = "border-emerald-500/50";
-      let headerBg = "bg-emerald-500/5";
-      
-      if (isUrgent) {
-        headline = "Why Replacement Makes Sense Now";
-        subtitle = "Based on your specific situation";
-        borderColor = "border-primary/50";
-        headerBg = "bg-primary/5";
-      } else if (recommendationType === 'REPLACE_SOON') {
-        headline = "Why We Recommend Planning Ahead";
-        subtitle = "The smart approach for your home";
-        borderColor = "border-amber-500/50";
-        headerBg = "bg-amber-500/5";
-      } else if (isMaintain) {
-        headline = "Your Unit Is in Good Shape";
-        subtitle = "Here's why we recommend maintenance";
-        borderColor = "border-primary/50";
-        headerBg = "bg-primary/5";
-      }
-      
-      return {
-        headline,
-        subtitle,
-        borderColor,
-        headerBg,
-        sections: aiRationale.sections.map(section => ({
-          title: section.heading,
-          icon: getIconForHeading(section.heading),
-          content: section.content,
-        })),
-        callout: isReplacement ? {
-          title: isUrgent ? "You're in control" : "Your timeline",
-          text: isUrgent 
-            ? "This is a good time to explore your options. We'll help you find the right solution for your needs and budget."
-            : `Based on our analysis, plan for replacement around ${financial.targetReplacementDate}. This gives you time to research options and budget accordingly.`,
-        } : {
-          title: isMaintain ? "The maintenance mindset" : "What to watch for",
-          text: isMaintain
-            ? "Think of your water heater like a car—regular oil changes (flushes) and part replacements (anodes) keep it running reliably for years."
-            : "Annual professional inspections catch small issues before they become big problems. Schedule your next check-up in 12 months.",
-        },
-        isAIGenerated: true,
-      };
-    }
+  // Extract key metrics for the "proof" section
+  const metrics = opterraResult.metrics;
+  const bioAge = metrics.bioAge;
+  const failProb = metrics.failProb;
+  const healthScore = metrics.healthScore;
+  const calendarAge = currentInputs.calendarAge;
 
-    // Static fallback content
+  // Get the primary AI-generated insight (just one sentence from first section)
+  const getAIInsight = (): string => {
+    if (aiRationale?.sections?.[0]?.content) {
+      // Extract just the first sentence or first ~100 chars
+      const content = aiRationale.sections[0].content;
+      const firstSentence = content.split(/[.!]/)[0];
+      return firstSentence.length > 120 ? firstSentence.slice(0, 117) + '...' : firstSentence + '.';
+    }
+    return '';
+  };
+
+  // Configuration based on recommendation type
+  const getVerdictConfig = () => {
     switch (recommendationType) {
       case 'REPLACE_NOW':
         return {
-          headline: "Why Replacement Makes Sense Now",
-          subtitle: "Making an informed decision for your home",
-          borderColor: "border-primary/50",
-          headerBg: "bg-primary/5",
-          sections: [
-            {
-              title: "The Economics",
-              icon: <DollarSign className="w-5 h-5" />,
-              content: "At this stage, repair costs often exceed their value. Investing in a new, efficient unit typically makes more financial sense than continuing to maintain aging equipment.",
-            },
-            {
-              title: "Peace of Mind",
-              icon: <Shield className="w-5 h-5" />,
-              content: "A new water heater comes with a fresh warranty, improved efficiency, and modern safety features. You'll have reliable hot water for years to come.",
-            },
-            {
-              title: "Plan on Your Terms",
-              icon: <Calendar className="w-5 h-5" />,
-              content: "Replacing proactively means you choose the timing, compare options, and find the best fit for your home—rather than making a rushed decision later.",
-            },
-          ],
-          callout: {
-            title: "You're in control",
-            text: "This is a good time to explore your options. We can help you understand what's available and find the right solution for your needs and budget.",
-          },
-          isAIGenerated: false,
+          icon: <AlertCircle className="w-5 h-5" />,
+          iconBg: 'bg-destructive/10 text-destructive',
+          headline: 'Replace Now',
+          subheadline: 'Your unit needs attention',
+          accentColor: 'border-destructive/30',
+          badgeColor: 'bg-destructive/10 text-destructive',
+          ctaText: 'See Replacement Options',
+          targetLabel: 'Recommended timeline',
+          targetValue: 'Within 1-3 months',
         };
-      
       case 'REPLACE_SOON':
         return {
-          headline: "Why We Recommend Planning Ahead",
-          subtitle: "The smart approach to water heater replacement",
-          borderColor: "border-amber-500/50",
-          headerBg: "bg-amber-500/5",
-          sections: [
-            {
-              title: "The Planning Advantage",
-              icon: <Calendar className="w-5 h-5" />,
-              content: "Your unit still has some life left, but the wear patterns we measured suggest it's approaching end-of-life. Planning now means you control the timing, budget, and can choose the right replacement—not just whatever's available in an emergency.",
-            },
-            {
-              title: "Budget Without Stress",
-              icon: <DollarSign className="w-5 h-5" />,
-              content: `By setting aside $${financial.monthlyBudget}/month, you'll have the funds ready when it's time. No emergency financing, no scrambling—just a smooth transition to a new, efficient unit.`,
-            },
-            {
-              title: "Watch for Warning Signs",
-              icon: <AlertCircle className="w-5 h-5" />,
-              content: "In the meantime, watch for: rusty water, rumbling sounds, moisture around the base, or inconsistent temperatures. These signal it's time to act on your plan.",
-            },
-          ],
-          callout: {
-            title: "Your target date",
-            text: `Based on our analysis, plan for replacement around ${financial.targetReplacementDate}. This gives you time to research options and budget accordingly.`,
-          },
-          isAIGenerated: false,
+          icon: <Clock className="w-5 h-5" />,
+          iconBg: 'bg-amber-500/10 text-amber-600',
+          headline: 'Plan Replacement',
+          subheadline: 'Your unit is on borrowed time',
+          accentColor: 'border-amber-500/30',
+          badgeColor: 'bg-amber-500/10 text-amber-600',
+          ctaText: 'See My Options',
+          targetLabel: 'Target replacement',
+          targetValue: financial.targetReplacementDate,
         };
-      
       case 'MAINTAIN':
         return {
-          headline: "Why We Recommend Maintenance",
-          subtitle: "Protecting your investment for years to come",
-          borderColor: "border-primary/50",
-          headerBg: "bg-primary/5",
-          sections: [
-            {
-              title: "Your Unit Has Life Left",
-              icon: <CheckCircle2 className="w-5 h-5" />,
-              content: "The issues we found are addressable, and your water heater has remaining service life. The repairs we're recommending will extend its lifespan and improve efficiency—a worthwhile investment.",
-            },
-            {
-              title: "Maintenance Pays Off",
-              icon: <Wrench className="w-5 h-5" />,
-              content: "Regular maintenance (annual flushes, anode checks, pressure management) can extend a water heater's life by 3-5 years. That's thousands of dollars in delayed replacement costs.",
-            },
-            {
-              title: "Prevention vs. Emergency",
-              icon: <Shield className="w-5 h-5" />,
-              content: "Addressing issues now prevents small problems from becoming expensive emergencies. A $150 flush today prevents the $800 repair (or early replacement) caused by sediment damage.",
-            },
-          ],
-          callout: {
-            title: "The maintenance mindset",
-            text: "Think of your water heater like a car—regular oil changes (flushes) and part replacements (anodes) keep it running reliably for years.",
-          },
-          isAIGenerated: false,
+          icon: <Wrench className="w-5 h-5" />,
+          iconBg: 'bg-primary/10 text-primary',
+          headline: 'Maintenance Recommended',
+          subheadline: 'A few repairs will keep you running',
+          accentColor: 'border-primary/30',
+          badgeColor: 'bg-primary/10 text-primary',
+          ctaText: 'See Maintenance Plan',
+          targetLabel: 'Expected lifespan',
+          targetValue: financial.targetReplacementDate,
         };
-      
       case 'MONITOR':
       default:
         return {
-          headline: "Why Regular Check-ups Matter",
-          subtitle: "Your system is healthy—let's keep it that way",
-          borderColor: "border-emerald-500/50",
-          headerBg: "bg-emerald-500/5",
-          sections: [
-            {
-              title: "You're in Good Shape",
-              icon: <CheckCircle2 className="w-5 h-5" />,
-              content: "Your water heater is performing well with no significant issues. That's great news! But even healthy systems benefit from regular monitoring and preventive care.",
-            },
-            {
-              title: "The Proactive Approach",
-              icon: <TrendingUp className="w-5 h-5" />,
-              content: "Most water heater failures are preventable. By staying ahead of maintenance and monitoring for early warning signs, you can maximize your unit's lifespan and avoid emergency situations.",
-            },
-            {
-              title: "Future Planning",
-              icon: <Calendar className="w-5 h-5" />,
-              content: `Even the best-maintained units eventually need replacement. We recommend budgeting $${financial.monthlyBudget}/month toward your eventual replacement around ${financial.targetReplacementDate}.`,
-            },
-          ],
-          callout: {
-            title: "What to watch for",
-            text: "Annual professional inspections catch small issues before they become big problems. Schedule your next check-up in 12 months.",
-          },
-          isAIGenerated: false,
+          icon: <CheckCircle2 className="w-5 h-5" />,
+          iconBg: 'bg-emerald-500/10 text-emerald-600',
+          headline: 'Looking Good',
+          subheadline: 'Your system is healthy',
+          accentColor: 'border-emerald-500/30',
+          badgeColor: 'bg-emerald-500/10 text-emerald-600',
+          ctaText: 'View Maintenance Tips',
+          targetLabel: 'Plan replacement around',
+          targetValue: financial.targetReplacementDate,
         };
     }
   };
 
-  const content = getEducationContent();
-
-  // Only show top 2 sections for cleaner UX (keep most important)
-  const displaySections = content.sections.slice(0, 2);
+  const config = getVerdictConfig();
+  const aiInsight = getAIInsight();
 
   return (
     <motion.div
@@ -539,107 +397,95 @@ function RecommendationEducationStep({
       transition={{ duration: 0.4 }}
       className="px-4"
     >
-      {/* Simplified education card */}
-      <Card className="overflow-hidden border border-border/50">
+      <Card className={cn("overflow-hidden border", config.accentColor)}>
         <CardContent className="p-0">
           
-          {/* Compact header */}
-          <div className="p-4 pb-3 border-b border-border/50">
-            <div className="flex items-start gap-3">
-              <motion.div 
-                className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", delay: 0.2 }}
-              >
-                <TrendingUp className="w-5 h-5" />
-              </motion.div>
-              <div className="flex-1 min-w-0">
-                <motion.h2 
-                  className="text-lg font-semibold text-foreground"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  {content.headline}
-                </motion.h2>
-                <motion.p 
-                  className="text-sm text-muted-foreground mt-0.5"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  {content.subtitle}
-                </motion.p>
+          {/* Verdict Header */}
+          <div className="p-4 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className={cn("p-2.5 rounded-xl", config.iconBg)}>
+                {config.icon}
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  {config.headline}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {config.subheadline}
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Streamlined content - max 2 key points */}
-          <motion.div 
-            className="p-4 space-y-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            {isRationaleLoading ? (
-              <div className="space-y-3">
-                {[1, 2].map((i) => (
-                  <div key={i} className="flex gap-3">
-                    <Skeleton className="w-8 h-8 rounded-lg flex-shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-3 w-full" />
-                    </div>
-                  </div>
-                ))}
+          {/* Key Stats - The Proof */}
+          <div className="grid grid-cols-3 divide-x divide-border/50 bg-muted/30">
+            <div className="p-3 text-center">
+              <div className="text-xl font-bold text-foreground">
+                {bioAge.toFixed(0)}
+                <span className="text-xs font-normal text-muted-foreground ml-0.5">yrs</span>
               </div>
+              <div className="text-xs text-muted-foreground">Bio Age</div>
+              {bioAge > calendarAge + 2 && (
+                <div className="text-[10px] text-amber-600 mt-0.5">
+                  ({calendarAge}yr unit)
+                </div>
+              )}
+            </div>
+            <div className="p-3 text-center">
+              <div className={cn(
+                "text-xl font-bold",
+                failProb > 30 ? "text-destructive" : failProb > 15 ? "text-amber-600" : "text-foreground"
+              )}>
+                {Math.round(failProb)}%
+              </div>
+              <div className="text-xs text-muted-foreground">Fail Risk</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">next 12mo</div>
+            </div>
+            <div className="p-3 text-center">
+              <div className={cn(
+                "text-xl font-bold",
+                healthScore < 40 ? "text-destructive" : healthScore < 60 ? "text-amber-600" : "text-emerald-600"
+              )}>
+                {healthScore}
+              </div>
+              <div className="text-xs text-muted-foreground">Health</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">out of 100</div>
+            </div>
+          </div>
+
+          {/* AI Insight - Just One Sentence */}
+          <div className="p-4">
+            {isRationaleLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : aiInsight ? (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {aiInsight}
+              </p>
             ) : (
-              displaySections.map((section, idx) => (
-                <motion.div
-                  key={section.title}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 + idx * 0.1 }}
-                  className="flex gap-3"
-                >
-                  <div className="p-1.5 rounded-md bg-muted/50 h-fit text-muted-foreground flex-shrink-0">
-                    {section.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm text-foreground">
-                      {section.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
-                      {section.content}
-                    </p>
-                  </div>
-                </motion.div>
-              ))
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Based on the conditions we measured, this is our recommendation for your situation.
+              </p>
             )}
-          </motion.div>
+            
+            {/* Target Date */}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{config.targetLabel}:</span>
+              <span className="text-xs font-medium text-foreground">{config.targetValue}</span>
+            </div>
+          </div>
 
-          {/* Compact callout */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="mx-4 mb-4 p-3 bg-muted/40 rounded-lg"
-          >
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{content.callout.title}:</span>{' '}
-              {content.callout.text}
-            </p>
-          </motion.div>
-
-          {/* Action button */}
+          {/* CTA */}
           <div className="p-4 pt-0">
             <Button 
               onClick={onComplete}
               className="w-full"
-              size="default"
+              size="lg"
             >
-              <span>See My Options</span>
+              {config.ctaText}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
