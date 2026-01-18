@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
+import { EducationalContext } from '@/hooks/useEducationalContent';
 import { ForensicInputs, OpterraResult, OpterraMetrics, isTankless } from '@/lib/opterraAlgorithm';
 import { InfrastructureIssue, getIssuesByCategory } from '@/lib/infrastructureIssues';
 import React, { useState, useEffect } from 'react';
@@ -1586,12 +1587,16 @@ export function FindingsSummaryPage({
         <MessageCircle className="w-6 h-6" />
       </button>
 
-      {/* Educational drawer */}
+      {/* Educational drawer with personalized LLM content */}
       {openTopic && (
         <EducationalDrawer
           topic={openTopic}
           isOpen={!!openTopic}
           onClose={() => setOpenTopic(null)}
+          context={{
+            inputs: currentInputs,
+            metrics: opterraResult.metrics,
+          }}
         />
       )}
 

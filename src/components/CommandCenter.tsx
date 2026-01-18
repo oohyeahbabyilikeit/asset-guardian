@@ -6,6 +6,7 @@ import { ServiceHistory } from '@/components/ServiceHistory';
 import { ActionDock } from '@/components/ActionDock';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
+import { EducationalContext } from '@/hooks/useEducationalContent';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
 import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
@@ -552,11 +553,15 @@ export function CommandCenter({
         />
       </motion.div>
 
-      {/* Educational Drawer */}
+      {/* Educational Drawer with personalized LLM content */}
       <EducationalDrawer 
         isOpen={!!educationalTopic}
         onClose={() => setEducationalTopic(null)}
         topic={educationalTopic || 'pressure'}
+        context={{
+          inputs: currentInputs,
+          metrics: opterraResult.metrics,
+        }}
       />
     </div>
   );
