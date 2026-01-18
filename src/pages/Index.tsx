@@ -444,7 +444,6 @@ const Index = () => {
           infrastructureIssues={getInfrastructureIssues(currentInputs, opterraResult.metrics)}
           isSafetyReplacement={isCritical}
           agingRate={opterraResult.metrics.agingRate}
-          prefetchedTiers={state.prefetchedTiers}
           showFakeLoader={state.showQuoteLoader}
           onFakeLoaderDone={handleLoaderComplete}
         />

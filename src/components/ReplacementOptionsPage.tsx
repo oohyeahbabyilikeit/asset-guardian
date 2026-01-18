@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, MessageCircle, CheckCircle2, Flame, Droplets } from 'lucide-react';
+import { ArrowLeft, Check, Shield, Zap, Crown, Calendar, Clock, Info, MessageCircle, CheckCircle2, Flame, Droplets, Sparkles, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useTieredPricing, DISPLAY_TIERS, TIER_CONFIG, TierPricing } from '@/hooks/useTieredPricing';
 import { TierEducationDrawer } from '@/components/TierEducationDrawer';
 import { PlumberContactForm } from './PlumberContactForm';
 import { toast } from 'sonner';
@@ -20,17 +18,19 @@ interface ReplacementOptionsPageProps {
   isSafetyReplacement: boolean;
   agingRate: number;
   monthlyBudget?: number;
-  prefetchedTiers?: Record<QualityTier, TierPricing>;
   showFakeLoader?: boolean;
   onFakeLoaderDone?: () => void;
 }
 
+// Technology-focused tier configuration (NO PRICES)
 const TIER_DISPLAY: Record<QualityTier, { 
   name: string; 
+  subtitle: string;
   icon: typeof Shield;
   tagline: string;
   badge?: string;
   features: string[];
+  whyChoose: string;
   // Visual styling
   iconBg: string;
   iconColor: string;
@@ -40,13 +40,14 @@ const TIER_DISPLAY: Record<QualityTier, {
   selectedGlow: string;
   badgeBg: string;
   badgeText: string;
-  priceColor: string;
   checkColor: string;
 }> = {
   BUILDER: { 
-    name: 'Good', 
+    name: 'Standard Protection', 
+    subtitle: 'Good',
     icon: Shield,
-    tagline: 'Reliable basics',
+    tagline: 'Reliable workhorse',
+    whyChoose: 'Meets code requirements. Lowest upfront investment.',
     features: [
       'Standard tank lining',
       '6-year parts warranty',
@@ -60,18 +61,20 @@ const TIER_DISPLAY: Record<QualityTier, {
     selectedGlow: 'shadow-[0_0_30px_-5px_rgba(148,163,184,0.4)]',
     badgeBg: 'bg-slate-600',
     badgeText: 'text-slate-100',
-    priceColor: 'text-slate-300',
     checkColor: 'text-slate-400',
   },
   STANDARD: { 
-    name: 'Better', 
+    name: 'Liability Shield', 
+    subtitle: 'Better',
     icon: Zap,
     tagline: 'Best value for most homes',
-    badge: '★ Most Popular',
+    badge: '★ Recommended',
+    whyChoose: 'Includes auto-shutoff, extended warranty, and pressure protection.',
     features: [
       'Enhanced corrosion protection',
       '9-year parts warranty',
       'Pressure protection included',
+      'Auto-shutoff valve ready',
     ],
     iconBg: 'bg-gradient-to-br from-primary/30 to-amber-500/20',
     iconColor: 'text-primary',
@@ -81,17 +84,19 @@ const TIER_DISPLAY: Record<QualityTier, {
     selectedGlow: 'shadow-[0_0_40px_-5px_hsl(var(--primary)/0.5)]',
     badgeBg: 'bg-gradient-to-r from-primary to-amber-500',
     badgeText: 'text-white font-semibold',
-    priceColor: 'text-primary',
     checkColor: 'text-primary',
   },
   PROFESSIONAL: { 
-    name: 'Best', 
+    name: 'Peace of Mind', 
+    subtitle: 'Best',
     icon: Crown,
-    tagline: 'Maximum peace of mind',
+    tagline: 'Maximum protection',
+    whyChoose: 'Premium build with 12-year warranty and complete protection package.',
     features: [
       'Premium materials throughout',
       '12-year parts warranty',
       'Complete protection package',
+      'Smart monitoring ready',
     ],
     iconBg: 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20',
     iconColor: 'text-amber-400',
@@ -101,18 +106,20 @@ const TIER_DISPLAY: Record<QualityTier, {
     selectedGlow: 'shadow-[0_0_40px_-5px_rgba(251,191,36,0.4)]',
     badgeBg: 'bg-gradient-to-r from-amber-400 to-yellow-500',
     badgeText: 'text-amber-950 font-semibold',
-    priceColor: 'text-amber-400',
     checkColor: 'text-amber-400',
   },
   PREMIUM: { 
-    name: 'Premium', 
+    name: 'Commercial Grade', 
+    subtitle: 'Premium',
     icon: Crown,
-    tagline: 'Commercial grade',
+    tagline: 'Built for decades',
     badge: '⚡ Pro',
+    whyChoose: 'Commercial-grade durability for demanding households.',
     features: [
       'Commercial-grade build',
       '12-year full warranty',
-      'Smart monitoring ready',
+      'Smart monitoring included',
+      'Lifetime support',
     ],
     iconBg: 'bg-gradient-to-br from-purple-500/30 to-violet-600/20',
     iconColor: 'text-purple-400',
@@ -122,12 +129,31 @@ const TIER_DISPLAY: Record<QualityTier, {
     selectedGlow: 'shadow-[0_0_40px_-5px_rgba(168,85,247,0.4)]',
     badgeBg: 'bg-gradient-to-r from-purple-400 to-violet-500',
     badgeText: 'text-purple-950 font-semibold',
-    priceColor: 'text-purple-400',
     checkColor: 'text-purple-400',
   },
 };
 
-const LOADER_DURATION_MS = 3500;
+const DISPLAY_TIERS: QualityTier[] = ['BUILDER', 'STANDARD', 'PROFESSIONAL'];
+
+const LOADER_DURATION_MS = 2500;
+
+// Get location-aware recommendation
+function getRecommendedTier(location?: string, hasPrv?: boolean, housePsi?: number): QualityTier {
+  // High-risk locations need better protection
+  const isHighRisk = location?.toLowerCase().includes('attic') || 
+                     location?.toLowerCase().includes('second') ||
+                     location?.toLowerCase().includes('upper') ||
+                     location?.toLowerCase().includes('finished');
+  
+  // Pressure issues need protection package
+  const hasPressureIssue = !hasPrv || (housePsi && housePsi > 80);
+  
+  if (isHighRisk || hasPressureIssue) {
+    return 'STANDARD'; // Liability Shield - includes protection features
+  }
+  
+  return 'STANDARD'; // Default to recommended tier
+}
 
 export function ReplacementOptionsPage({
   onBack,
@@ -137,17 +163,21 @@ export function ReplacementOptionsPage({
   isSafetyReplacement,
   agingRate,
   monthlyBudget = 0,
-  prefetchedTiers,
   showFakeLoader = false,
   onFakeLoaderDone,
 }: ReplacementOptionsPageProps) {
-  const [selectedTier, setSelectedTier] = useState<QualityTier>('STANDARD');
+  const recommendedTier = useMemo(() => 
+    getRecommendedTier(currentInputs.location, currentInputs.hasPrv, currentInputs.housePsi),
+    [currentInputs.location, currentInputs.hasPrv, currentInputs.housePsi]
+  );
+  
+  const [selectedTier, setSelectedTier] = useState<QualityTier>(recommendedTier);
   const [selectedTimeline, setSelectedTimeline] = useState<'now' | 'later' | 'thinking' | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
   const [isOverlayVisible, setIsOverlayVisible] = useState(showFakeLoader);
   const [loaderProgress, setLoaderProgress] = useState(0);
 
-  // Loader overlay timer - show for fixed duration then hide
+  // Loader overlay timer
   useEffect(() => {
     if (showFakeLoader) {
       setIsOverlayVisible(true);
@@ -159,7 +189,7 @@ export function ReplacementOptionsPage({
     }
   }, [showFakeLoader, onFakeLoaderDone]);
 
-  // Smooth time-based progress bar
+  // Smooth progress bar
   useEffect(() => {
     if (!isOverlayVisible) {
       setLoaderProgress(0);
@@ -187,55 +217,20 @@ export function ReplacementOptionsPage({
   const analysisSteps = useMemo(() => [
     `Analyzing ${capacityDisplay} ${fuelDisplay.toLowerCase()} unit...`,
     `Checking ${ventDisplay.toLowerCase()} venting requirements...`,
-    'Calculating material costs...',
-    'Reviewing installation complexity...',
-    'Generating options...',
+    'Reviewing your protection options...',
+    'Preparing recommendations...',
   ], [capacityDisplay, fuelDisplay, ventDisplay]);
-  const { displayedLines, currentLineIndex, isComplete: typewriterComplete } = useTypewriter({ lines: analysisSteps, typingSpeed: 13, lineDelay: 200 });
+  const { displayedLines, currentLineIndex, isComplete: typewriterComplete } = useTypewriter({ lines: analysisSteps, typingSpeed: 15, lineDelay: 300 });
   const FuelIcon = currentInputs.fuelType === 'ELECTRIC' ? Zap : Flame;
 
-  // Auto-detect installation complexity based on location and infrastructure issues
-  const detectedComplexity = useMemo(() => 
-    detectInstallComplexity(currentInputs.location, infrastructureIssues),
-    [currentInputs.location, infrastructureIssues]
-  );
-
-  // Use prefetched tiers if available, otherwise fetch
-  const shouldFetch = !prefetchedTiers;
-  const { tiers: fetchedTiers, allLoading } = useTieredPricing(
-    currentInputs, 
-    undefined, 
-    detectedComplexity, 
-    shouldFetch, 
-    infrastructureIssues
-  );
-
-  // Use prefetched tiers if available
-  const tiers = prefetchedTiers ?? fetchedTiers;
-
-  const getPriceRange = (tier: QualityTier) => {
-    const tierData = tiers[tier];
-    if (tierData.bundleTotal) {
-      return { low: tierData.bundleTotal.low, high: tierData.bundleTotal.high };
-    }
-    if (tierData.quote?.grandTotalRange) {
-      return { low: tierData.quote.grandTotalRange.low, high: tierData.quote.grandTotalRange.high };
-    }
-    if (tierData.quote?.grandTotal) {
-      return { low: tierData.quote.grandTotal, high: tierData.quote.grandTotal };
-    }
-    return null;
-  };
-
-  const formatPriceRange = (range: { low: number; high: number }) => {
-    const formatK = (n: number) => {
-      if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-      return `$${n.toLocaleString()}`;
-    };
-    return `${formatK(range.low)} – ${formatK(range.high)}`;
-  };
-
-  const selectedPriceRange = getPriceRange(selectedTier);
+  // Get location-aware messaging
+  const locationName = currentInputs.location?.toLowerCase().includes('attic') ? 'attic' 
+    : currentInputs.location?.toLowerCase().includes('basement') ? 'basement'
+    : currentInputs.location?.toLowerCase().includes('garage') ? 'garage'
+    : 'utility area';
+  
+  const isHighRiskLocation = currentInputs.location?.toLowerCase().includes('attic') || 
+                             currentInputs.location?.toLowerCase().includes('second');
 
   // Loader overlay
   if (isOverlayVisible) {
@@ -269,11 +264,10 @@ export function ReplacementOptionsPage({
                 transition={{ duration: 0.3 }}
               />
             </div>
-            <p className="text-xs text-gray-500 text-center">{loaderProgress}%</p>
           </div>
 
           {/* Terminal-style output */}
-          <div className="p-4 rounded-xl bg-black/40 font-mono text-sm space-y-2 min-h-[140px]">
+          <div className="p-4 rounded-xl bg-black/40 font-mono text-sm space-y-2 min-h-[120px]">
             <AnimatePresence mode="popLayout">
               {displayedLines.map((line, idx) => (
                 <motion.div
@@ -294,21 +288,11 @@ export function ReplacementOptionsPage({
               ))}
             </AnimatePresence>
           </div>
-
-          {/* Status */}
-          <div className="text-center text-gray-400">
-            <span className="flex items-center justify-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-              </span>
-              {typewriterComplete ? 'Finalizing' : 'Analyzing'}
-            </span>
-          </div>
         </div>
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -321,7 +305,7 @@ export function ReplacementOptionsPage({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="text-center flex-1">
-            <h1 className="font-semibold text-lg">Your Options</h1>
+            <h1 className="font-semibold text-lg">Protection Options</h1>
           </div>
           <TierEducationDrawer 
             infrastructureIssues={infrastructureIssues}
@@ -333,21 +317,33 @@ export function ReplacementOptionsPage({
 
       <div className="px-4 pt-4 pb-32 max-w-md mx-auto">
         {/* Intro */}
-        <p className="text-sm text-muted-foreground text-center mb-5">
-          All options include professional installation and protect your home.
+        <p className="text-sm text-muted-foreground text-center mb-2">
+          Choose your level of protection. All include professional installation.
         </p>
+        
+        {/* Location-aware recommendation callout */}
+        {isHighRiskLocation && (
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">For {locationName} installations</span>, we recommend 
+              the <span className="text-primary font-medium">Liability Shield</span> tier for flood damage protection.
+            </p>
+          </div>
+        )}
 
-        {/* Tier Cards - Beautiful Visual Design */}
+        {/* Tier Cards - Feature-focused (NO PRICES) */}
         <div className="space-y-4 mb-6">
           {DISPLAY_TIERS.map((tier, tierIndex) => {
             const config = TIER_DISPLAY[tier];
-            const tierPricing = TIER_CONFIG[tier];
-            const tierData = tiers[tier];
             const TierIcon = config.icon;
             const isSelected = selectedTier === tier;
-            const isRecommended = tier === 'STANDARD';
-            const priceRange = getPriceRange(tier);
-            const infraCount = tierData.includedIssues.length;
+            const isRecommended = tier === recommendedTier;
+            const infraCount = infrastructureIssues.filter(i => 
+              tier === 'BUILDER' ? i.includedInTiers?.includes('BUILDER') :
+              tier === 'STANDARD' ? i.includedInTiers?.includes('STANDARD') || i.includedInTiers?.includes('BUILDER') :
+              true
+            ).length;
 
             return (
               <motion.button
@@ -376,8 +372,8 @@ export function ReplacementOptionsPage({
                     config.badgeBg,
                     config.badgeText
                   )}>
-                    <span className="animate-pulse">★</span>
-                    Most Popular
+                    <Sparkles className="w-3 h-3" />
+                    Recommended for Your Home
                   </div>
                 )}
 
@@ -415,45 +411,33 @@ export function ReplacementOptionsPage({
 
                       {/* Tier Name & Tagline */}
                       <div>
-                        <h3 className={cn(
-                          'font-bold text-xl tracking-tight',
-                          isSelected ? 'text-foreground' : 'text-foreground/90'
-                        )}>
-                          {config.name}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className={cn(
+                            'font-bold text-lg tracking-tight',
+                            isSelected ? 'text-foreground' : 'text-foreground/90'
+                          )}>
+                            {config.name}
+                          </h3>
+                          <span className="text-xs text-muted-foreground">({config.subtitle})</span>
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {config.tagline}
                         </p>
                       </div>
                     </div>
-
-                    {/* Price Block */}
-                    <div className="text-right">
-                      {tierData.loading ? (
-                        <Skeleton className="h-8 w-24" />
-                      ) : priceRange ? (
-                        <div>
-                          <span className={cn(
-                            'font-bold text-xl tracking-tight',
-                            isSelected ? config.priceColor : 'text-foreground'
-                          )}>
-                            {formatPriceRange(priceRange)}
-                          </span>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {tierPricing.warranty}yr warranty
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Divider */}
+                  {/* Why Choose - highlighted context */}
                   <div className={cn(
-                    'h-px mb-4',
-                    isSelected ? 'bg-white/10' : 'bg-border/50'
-                  )} />
+                    'p-3 rounded-lg mb-4 text-xs',
+                    isSelected ? 'bg-white/10' : 'bg-muted/30'
+                  )}>
+                    <p className={cn(
+                      isSelected ? 'text-foreground' : 'text-muted-foreground'
+                    )}>
+                      {config.whyChoose}
+                    </p>
+                  </div>
 
                   {/* Features Grid */}
                   <div className="space-y-2.5">
@@ -483,7 +467,7 @@ export function ReplacementOptionsPage({
                         )}>
                           <Shield className={cn('w-3 h-3', config.iconColor)} />
                         </div>
-                        <span className={cn('font-medium text-sm', config.priceColor)}>
+                        <span className={cn('font-medium text-sm', config.checkColor)}>
                           +{infraCount} infrastructure fix{infraCount > 1 ? 'es' : ''} included
                         </span>
                       </div>
@@ -565,7 +549,6 @@ export function ReplacementOptionsPage({
                 <span className="font-medium text-foreground">Need more time</span>
                 <p className="text-xs text-muted-foreground">
                   Plan for the next 12 months
-                  {monthlyBudget > 0 && <span className="text-primary"> • ${monthlyBudget}/mo</span>}
                 </p>
               </div>
             </button>
@@ -603,17 +586,21 @@ export function ReplacementOptionsPage({
           )}
         </div>
 
-        {/* Summary card */}
-        {!allLoading && selectedPriceRange && selectedTimeline && selectedTimeline !== 'thinking' && (
+        {/* Summary card - NO PRICES */}
+        {selectedTimeline && selectedTimeline !== 'thinking' && (
           <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Selected</p>
-                <p className="font-semibold text-foreground">{TIER_DISPLAY[selectedTier].name}</p>
+            <div className="flex items-center gap-3">
+              <div className={cn('p-2 rounded-lg', TIER_DISPLAY[selectedTier].iconBg)}>
+                {(() => {
+                  const TierIcon = TIER_DISPLAY[selectedTier].icon;
+                  return <TierIcon className={cn('w-5 h-5', TIER_DISPLAY[selectedTier].iconColor)} />;
+                })()}
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-primary">{formatPriceRange(selectedPriceRange)}</p>
-                <p className="text-xs text-muted-foreground">installed</p>
+              <div>
+                <p className="font-semibold text-foreground">{TIER_DISPLAY[selectedTier].name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedTimeline === 'now' ? 'Ready for scheduling' : 'Quote valid for 30 days'}
+                </p>
               </div>
             </div>
           </div>
@@ -636,13 +623,15 @@ export function ReplacementOptionsPage({
               size="lg"
               variant={selectedTimeline === 'thinking' ? 'outline' : 'default'}
             >
-              {selectedTimeline === 'now' 
-                ? "Get Started"
-                : selectedTimeline === 'thinking'
-                  ? 'Back to Dashboard'
-                  : 'Request a Quote'
+              <MessageCircle className="w-4 h-4 mr-2" />
+              {selectedTimeline === 'thinking'
+                ? 'Back to Dashboard'
+                : 'Get Your Custom Quote'
               }
             </Button>
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              A local pro will call you with exact pricing for your home
+            </p>
           </div>
         </div>
       )}
@@ -657,9 +646,13 @@ export function ReplacementOptionsPage({
         }}
         captureContext={{
           selectedTier: selectedTier,
+          tierName: TIER_DISPLAY[selectedTier].name,
           selectedTimeline: selectedTimeline,
           isSafetyReplacement: isSafetyReplacement,
-          priceRange: selectedPriceRange,
+          location: currentInputs.location,
+          fuelType: currentInputs.fuelType,
+          tankCapacity: currentInputs.tankCapacity,
+          infrastructureIssuesCount: infrastructureIssues.length,
         }}
       />
     </div>

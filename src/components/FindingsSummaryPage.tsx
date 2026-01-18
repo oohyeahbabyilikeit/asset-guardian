@@ -532,34 +532,10 @@ function RecommendationEducationStep({
                     {damageScenario.description}
                   </p>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm font-semibold text-destructive">
-                      ${damageScenario.waterDamage.min.toLocaleString()}–${damageScenario.waterDamage.max.toLocaleString()}
+                    <span className="text-xs font-semibold text-destructive px-2 py-0.5 rounded bg-destructive/10">
+                      {damageScenario.waterDamage.max > 30000 ? 'MAJOR DAMAGE RISK' : 'SIGNIFICANT DAMAGE RISK'}
                     </span>
-                    <span className="text-xs text-muted-foreground">typical damage</span>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Money Breakdown (for replace recommendations) */}
-          {showRiskSection && (
-            <div className="px-4 py-3 border-b border-border/50">
-              <p className="text-xs font-medium text-muted-foreground mb-2">The math:</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-2.5 rounded-lg bg-muted/50 border border-border/50">
-                  <div className="text-xs text-muted-foreground mb-1">Keep repairing</div>
-                  <div className="text-sm font-semibold text-foreground">
-                    ~${estimatedRepairCost.toLocaleString()}/yr
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">+ rising risk</div>
-                </div>
-                <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20">
-                  <div className="text-xs text-primary mb-1">Replace now</div>
-                  <div className="text-sm font-semibold text-foreground">
-                    ~${estimatedReplacementCost.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">10+ yrs peace of mind</div>
                 </div>
               </div>
             </div>
