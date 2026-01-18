@@ -1,4 +1,4 @@
-import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2, MessageCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2, MessageCircle, Loader2, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDra
 import { EducationalContext } from '@/hooks/useEducationalContent';
 import { ForensicInputs, OpterraResult, OpterraMetrics, isTankless } from '@/lib/opterraAlgorithm';
 import { InfrastructureIssue, getIssuesByCategory } from '@/lib/infrastructureIssues';
+import { DAMAGE_SCENARIOS, getLocationKey } from '@/data/damageScenarios';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaintenanceEducationCard } from './MaintenanceEducationCard';
@@ -13,7 +14,6 @@ import { WaterHeaterChatbot } from './WaterHeaterChatbot';
 import { SaveReportModal, SaveReportContext } from './SaveReportModal';
 import { hasLeadBeenCaptured } from '@/lib/leadService';
 import { getCachedFinding } from '@/hooks/useGeneratedFindings';
-import { useRecommendationRationale } from '@/hooks/useRecommendationRationale';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Helper to apply AI-generated content to a finding if available
@@ -301,35 +301,77 @@ function RecommendationEducationStep({
   opterraResult: OpterraResult;
   onComplete: () => void;
 }) {
-  // Fetch AI-generated rationale for ALL recommendation types
-  const { rationale: aiRationale, isLoading: isRationaleLoading } = useRecommendationRationale(
-    currentInputs,
-    opterraResult,
-    recommendationType,
-    500, // estimated repair cost
-    financial.estReplacementCost
-  );
-
-  // Log for debugging
-  console.log('[RecommendationEducationStep] recommendationType:', recommendationType, 'aiRationale:', aiRationale, 'isLoading:', isRationaleLoading);
-
   // Extract key metrics for the "proof" section
   const metrics = opterraResult.metrics;
   const bioAge = metrics.bioAge;
   const failProb = metrics.failProb;
   const healthScore = metrics.healthScore;
   const calendarAge = currentInputs.calendarAge;
-
-  // Get the primary AI-generated insight (just one sentence from first section)
-  const getAIInsight = (): string => {
-    if (aiRationale?.sections?.[0]?.content) {
-      // Extract just the first sentence or first ~100 chars
-      const content = aiRationale.sections[0].content;
-      const firstSentence = content.split(/[.!]/)[0];
-      return firstSentence.length > 120 ? firstSentence.slice(0, 117) + '...' : firstSentence + '.';
+  
+  // Get damage scenario based on location
+  const locationKey = getLocationKey(currentInputs.location || 'basement');
+  const damageScenario = DAMAGE_SCENARIOS[locationKey];
+  
+  // Calculate estimated repair vs replace costs
+  const estimatedRepairCost = topFindings.length > 0 
+    ? Math.min(topFindings.length * 350, 1200) // Rough estimate based on findings
+    : 400;
+  const estimatedReplacementCost = financial.estReplacementCost;
+  
+  // Get contextual explanations for the key stats
+  const getStatContext = () => {
+    const contexts: { stat: string; explanation: string; severity: 'good' | 'warning' | 'critical' }[] = [];
+    
+    // Bio Age context
+    const ageDiff = bioAge - calendarAge;
+    if (ageDiff > 3) {
+      contexts.push({
+        stat: 'Bio Age',
+        explanation: `Your water conditions added ${ageDiff.toFixed(0)} years of wear`,
+        severity: ageDiff > 5 ? 'critical' : 'warning'
+      });
+    } else if (bioAge > 10) {
+      contexts.push({
+        stat: 'Bio Age',
+        explanation: 'Past typical service life for this type of unit',
+        severity: 'warning'
+      });
     }
-    return '';
+    
+    // Fail probability context
+    if (failProb > 25) {
+      contexts.push({
+        stat: 'Fail Risk',
+        explanation: '1 in 4 chance of failure in the next year',
+        severity: 'critical'
+      });
+    } else if (failProb > 15) {
+      contexts.push({
+        stat: 'Fail Risk', 
+        explanation: 'Elevated chance of unexpected breakdown',
+        severity: 'warning'
+      });
+    }
+    
+    // Health context
+    if (healthScore < 40) {
+      contexts.push({
+        stat: 'Health',
+        explanation: 'Multiple components showing significant wear',
+        severity: 'critical'
+      });
+    } else if (healthScore < 60) {
+      contexts.push({
+        stat: 'Health',
+        explanation: 'Some areas need attention soon',
+        severity: 'warning'
+      });
+    }
+    
+    return contexts;
   };
+  
+  const statContexts = getStatContext();
 
   // Configuration based on recommendation type
   const getVerdictConfig = () => {
@@ -387,7 +429,11 @@ function RecommendationEducationStep({
   };
 
   const config = getVerdictConfig();
-  const aiInsight = getAIInsight();
+  const showRiskSection = recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON';
+  const locationName = currentInputs.location?.toLowerCase().includes('attic') ? 'attic' 
+    : currentInputs.location?.toLowerCase().includes('basement') ? 'basement'
+    : currentInputs.location?.toLowerCase().includes('garage') ? 'garage'
+    : 'utility area';
 
   return (
     <motion.div
@@ -453,25 +499,75 @@ function RecommendationEducationStep({
             </div>
           </div>
 
-          {/* AI Insight - Just One Sentence */}
-          <div className="p-4">
-            {isRationaleLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
+          {/* Why This Matters - Context bullets */}
+          {statContexts.length > 0 && (
+            <div className="px-4 py-3 border-b border-border/50">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Why this matters:</p>
+              <div className="space-y-1.5">
+                {statContexts.slice(0, 2).map((ctx, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
+                      ctx.severity === 'critical' ? 'bg-destructive' : 'bg-amber-500'
+                    )} />
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{ctx.stat}:</span> {ctx.explanation}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ) : aiInsight ? (
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {aiInsight}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Based on the conditions we measured, this is our recommendation for your situation.
-              </p>
-            )}
-            
-            {/* Target Date */}
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+            </div>
+          )}
+
+          {/* What Could Happen - Risk Section (only for replace recommendations) */}
+          {showRiskSection && (
+            <div className="px-4 py-3 bg-destructive/5 border-b border-destructive/10">
+              <div className="flex items-start gap-2.5">
+                <Home className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-foreground mb-1">
+                    If it fails in your {locationName}:
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {damageScenario.description}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-semibold text-destructive">
+                      ${damageScenario.waterDamage.min.toLocaleString()}–${damageScenario.waterDamage.max.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground">typical damage</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Money Breakdown (for replace recommendations) */}
+          {showRiskSection && (
+            <div className="px-4 py-3 border-b border-border/50">
+              <p className="text-xs font-medium text-muted-foreground mb-2">The math:</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-2.5 rounded-lg bg-muted/50 border border-border/50">
+                  <div className="text-xs text-muted-foreground mb-1">Keep repairing</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    ~${estimatedRepairCost.toLocaleString()}/yr
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">+ rising risk</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="text-xs text-primary mb-1">Replace now</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    ~${estimatedReplacementCost.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">10+ yrs peace of mind</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Target Date */}
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">{config.targetLabel}:</span>
               <span className="text-xs font-medium text-foreground">{config.targetValue}</span>
