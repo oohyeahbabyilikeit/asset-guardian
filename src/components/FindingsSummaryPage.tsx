@@ -1354,7 +1354,7 @@ export function FindingsSummaryPage({
       };
     }
     
-    if (urgency === 'HIGH' || (bioAge >= 10 && age >= 8)) {
+    if (urgency === 'HIGH' || bioAge >= 10) {
       return {
         recommendation: 'REPLACE_SOON' as const,
         title: 'Start Planning Your Replacement',
