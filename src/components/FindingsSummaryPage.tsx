@@ -12,6 +12,24 @@ import { MaintenanceEducationCard } from './MaintenanceEducationCard';
 import { WaterHeaterChatbot } from './WaterHeaterChatbot';
 import { SaveReportModal, SaveReportContext } from './SaveReportModal';
 import { hasLeadBeenCaptured } from '@/lib/leadService';
+import { getCachedFinding } from '@/hooks/useGeneratedFindings';
+
+// Helper to apply AI-generated content to a finding if available
+function applyAIContent(
+  finding: FindingCard, 
+  currentInputs: ForensicInputs
+): FindingCard {
+  const cached = getCachedFinding(finding.id, currentInputs);
+  if (cached) {
+    return {
+      ...finding,
+      title: cached.title,
+      measurement: cached.measurement,
+      explanation: cached.explanation,
+    };
+  }
+  return finding;
+}
 
 interface FindingsSummaryPageProps {
   currentInputs: ForensicInputs;
@@ -1164,9 +1182,12 @@ export function FindingsSummaryPage({
   const sortedFindings = [...findings].sort((a, b) => b.severityValue - a.severityValue);
   const topFindings = sortedFindings.slice(0, 3);
 
-  // Clear and repopulate with top findings
+  // Apply AI-generated content to findings if available (from background prefetch)
+  const aiEnhancedFindings = topFindings.map(f => applyAIContent(f, currentInputs));
+
+  // Clear and repopulate with AI-enhanced findings
   findings.length = 0;
-  findings.push(...topFindings);
+  findings.push(...aiEnhancedFindings);
 
   // Always add economic guidance as final step
   const financial = opterraResult.financial;

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { CommandCenter } from '@/components/CommandCenter';
 import { ModeSelectScreen } from '@/components/ModeSelectScreen';
 import { TechnicianFlow } from '@/components/TechnicianFlow';
@@ -19,7 +19,7 @@ import type { AssetData } from '@/data/mockAsset';
 import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import type { TierPricing } from '@/hooks/useTieredPricing';
 import type { QualityTier } from '@/lib/opterraAlgorithm';
-
+import { usePrefetchFindings } from '@/hooks/useGeneratedFindings';
 type AppScreen = 
   | 'mode-select'
   | 'technician-flow'
@@ -51,6 +51,9 @@ const Index = () => {
     onboardingData: null,
     demoScenario: null,
   });
+  
+  const { prefetch: prefetchFindings } = usePrefetchFindings();
+  const prefetchTriggeredRef = useRef(false);
 
   // Handle mode selection
   const handleModeSelect = useCallback((mode: 'technician' | 'demo') => {
@@ -312,6 +315,29 @@ const Index = () => {
 
     return { currentInputs: inputs, currentAsset: asset, opterraResult: result };
   }, [state.mode, state.demoScenario, state.technicianData, state.onboardingData]);
+
+  // Prefetch AI-generated findings when entering command-center
+  useEffect(() => {
+    if (state.screen === 'command-center' && !prefetchTriggeredRef.current) {
+      prefetchTriggeredRef.current = true;
+      
+      // Determine recommendation type for prefetch
+      const urgency = opterraResult.financial.budgetUrgency;
+      const verdict = opterraResult.verdict;
+      let recommendationType: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR' = 'MONITOR';
+      
+      if (verdict.action === 'REPLACE' || urgency === 'IMMEDIATE') {
+        recommendationType = 'REPLACE_NOW';
+      } else if (urgency === 'HIGH' || opterraResult.metrics.bioAge >= 10) {
+        recommendationType = 'REPLACE_SOON';
+      } else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
+        recommendationType = 'MAINTAIN';
+      }
+      
+      console.log('[Index] Prefetching AI findings in background...');
+      prefetchFindings(currentInputs, opterraResult, recommendationType);
+    }
+  }, [state.screen, currentInputs, opterraResult, prefetchFindings]);
 
   // Derive status for CommandCenter
   const isHealthy = opterraResult.verdict.action === 'PASS';
