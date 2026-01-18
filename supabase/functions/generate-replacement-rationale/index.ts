@@ -114,6 +114,14 @@ CRITICAL RULES:
 5. Acknowledge this is a significant decision
 6. If location is risky (attic, upstairs, finished area), emphasize potential damage costs
 
+CRITICAL - AGING RATE LANGUAGE:
+When explaining accelerated wear or stress factors, ALWAYS use PERCENTAGE-BASED language:
+- NEVER say "1x faster" or "2x wear rate" (confusing multiplier jargon)
+- Instead say "100% faster", "twice as fast", "200% faster than normal"
+- For reference: 2.0x = "100% faster" or "twice as fast"
+- For reference: 7.0x = "600% faster" or "7 times normal wear"
+- Always provide context on what "normal" means
+
 Return a JSON object with exactly this structure:
 {
   "sections": [
@@ -197,9 +205,23 @@ Return a JSON object with exactly this structure:
   }
 });
 
+// Convert multiplier to percentage-based language
+function formatAgingPercent(multiplier: number): string {
+  if (multiplier <= 1.05) return 'at normal rate';
+  if (multiplier < 1.5) return `${Math.round((multiplier - 1) * 100)}% faster than normal`;
+  if (multiplier < 2.05 && multiplier >= 1.95) return 'twice as fast as normal';
+  if (multiplier < 3) return `${Math.round((multiplier - 1) * 100)}% faster than normal`;
+  return `${Math.round((multiplier - 1) * 100)}% faster (${multiplier.toFixed(0)} times normal wear)`;
+}
+
 function buildUserPrompt(ctx: RationaleContext): string {
   const locationRisk = getLocationRisk(ctx.installLocation, ctx.isFinishedArea);
   const isUrgent = ctx.recommendationType === 'REPLACE_NOW';
+  
+  // Pre-compute aging rate percentages for stress factors
+  const pressureRate = ctx.stressFactors?.pressure ? formatAgingPercent(ctx.stressFactors.pressure) : null;
+  const chemicalRate = ctx.stressFactors?.chemical ? formatAgingPercent(ctx.stressFactors.chemical) : null;
+  const sedimentRate = ctx.stressFactors?.sediment ? formatAgingPercent(ctx.stressFactors.sediment) : null;
   
   let prompt = `Generate a personalized explanation for why we're recommending ${isUrgent ? 'immediate' : 'planned'} replacement over repairs.
 
@@ -222,6 +244,20 @@ function buildUserPrompt(ctx: RationaleContext): string {
   
   if (ctx.sedimentLbs !== undefined && ctx.sedimentLbs > 0) {
     prompt += `\n- Sediment Accumulation: ~${ctx.sedimentLbs.toFixed(1)} lbs in tank`;
+  }
+
+  // Add stress factor percentages
+  if (pressureRate || chemicalRate || sedimentRate) {
+    prompt += `\n\n**Accelerated Wear Factors (use these percentages, NOT multipliers):**`;
+    if (pressureRate && pressureRate !== 'at normal rate') {
+      prompt += `\n- Pressure stress causing tank to wear ${pressureRate}`;
+    }
+    if (chemicalRate && chemicalRate !== 'at normal rate') {
+      prompt += `\n- Hard water causing chemical wear ${chemicalRate}`;
+    }
+    if (sedimentRate && sedimentRate !== 'at normal rate') {
+      prompt += `\n- Sediment causing heating stress ${sedimentRate}`;
+    }
   }
 
   prompt += `
