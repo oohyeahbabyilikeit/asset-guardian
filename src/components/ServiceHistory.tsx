@@ -22,6 +22,8 @@ interface ServiceHistoryProps {
   serviceHistory?: ServiceEvent[];
   autoExpand?: boolean;
   recommendation?: { action: 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS' | 'URGENT' };
+  // Economics-aware recommendation type (derived from urgency + bio-age)
+  recommendationType?: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR';
   isLeaking?: boolean;
   visualRust?: boolean;
   // HYBRID heat pump support
@@ -899,13 +901,18 @@ export function ServiceHistory({
   hasIsolationValves = true,
   descaleStatus = 'optimal',
   healthScore = 75,
+  recommendationType,
 }: ServiceHistoryProps) {
   // Breach detection
   const isBreach = isLeaking || visualRust;
   const isHybrid = fuelType === 'HYBRID';
   const isTanklessUnit = isTankless(fuelType);
   // Check if replacement is recommended (no maintenance should be shown)
-  const isReplacementRequired = recommendation?.action === 'REPLACE';
+  // Use economics-aware recommendationType if available, otherwise fall back to action
+  const isReplacementRequired = 
+    recommendationType === 'REPLACE_NOW' || 
+    recommendationType === 'REPLACE_SOON' || 
+    recommendation?.action === 'REPLACE';
   // Default to closed - user can expand to see details
   const [isOpen, setIsOpen] = useState(false);
 
