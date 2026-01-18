@@ -103,6 +103,13 @@ CRITICAL RULES:
 5. Explain what's working in their favor
 6. Give them actionable next steps for maintenance
 
+CRITICAL - AGING RATE LANGUAGE:
+When explaining how equipment protection reduces wear, use PERCENTAGE-BASED language:
+- Say "reducing wear by 80%" not "0.2x wear factor"
+- Say "water softener cuts chemical stress by 70%" not "0.3x multiplier"
+- For benefits: "50% less wear than typical" is clearer than "0.5x"
+- Always make the benefit concrete and relatable
+
 Return a JSON object with exactly this structure:
 {
   "sections": [

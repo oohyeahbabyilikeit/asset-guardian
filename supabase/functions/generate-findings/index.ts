@@ -85,7 +85,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are generating finding card content for a water heater assessment app. 
+const systemPrompt = `You are generating finding card content for a water heater assessment app. 
 Your job is to create clear, personalized content that explains issues in plain language using the homeowner's ACTUAL DATA.
 
 RULES:
@@ -96,6 +96,16 @@ RULES:
 5. Never use generic templates - every response should feel personalized
 6. If replacement is recommended, frame findings as "what caused this" rather than "what to fix"
 7. For measurement field, use their actual readings or timeframes
+
+CRITICAL - AGING RATE LANGUAGE:
+When explaining stress factors or accelerated wear, ALWAYS use PERCENTAGE-BASED language, NOT multipliers.
+- NEVER say "1x faster" (confusing - sounds like no change)
+- NEVER say "ages at 2x rate" or "3x wear factor" (jargon)
+- Instead use percentages: "100% faster", "200% faster", "twice as fast"
+- For reference: 2.0x multiplier = "100% faster" or "twice as fast"
+- For reference: 7.0x multiplier = "600% faster" or "7 times normal"
+- For reference: 1.5x multiplier = "50% faster"
+- Always explain what "normal" means for context
 
 Return ONLY valid JSON with this structure:
 {
@@ -168,6 +178,16 @@ Return ONLY valid JSON with this structure:
   }
 });
 
+// Convert multiplier to percentage-based language
+function formatAgingPercent(multiplier: number): string {
+  if (multiplier <= 1.05) return 'at normal rate';
+  if (multiplier < 1.5) return `${Math.round((multiplier - 1) * 100)}% faster than normal`;
+  if (multiplier < 2.05 && multiplier >= 1.95) return 'twice as fast as normal';
+  if (multiplier < 3) return `${Math.round((multiplier - 1) * 100)}% faster than normal`;
+  // For high multipliers, use both percentage and "X times" for clarity
+  return `${Math.round((multiplier - 1) * 100)}% faster (${multiplier.toFixed(0)} times normal wear)`;
+}
+
 function buildUserPrompt(findingType: string, ctx: FindingContext): string {
   const unitDesc = ctx.manufacturer 
     ? `${ctx.manufacturer} ${ctx.unitType} water heater` 
@@ -214,6 +234,8 @@ Generate finding explaining this needs investigation - could be condensation, mi
       // IMPORTANT: Distinguish between baseline PSI and effective PSI (thermal spikes)
       const effectivePsiCrit = ctx.effectivePsi || ctx.housePsi;
       const isTransientCrit = ctx.isTransientPressure ?? false;
+      const pressureMultiplierCrit = ctx.stressFactors.pressure || 1;
+      const pressurePercentCrit = formatAgingPercent(pressureMultiplierCrit);
       return `${baseInfo}
 FINDING: Critical high pressure
 Baseline House PSI: ${ctx.housePsi} (measured at meter)
@@ -226,10 +248,12 @@ ${isTransientCrit
 Has PRV: ${ctx.hasPrv ? 'Yes' : 'No'}
 Has Expansion Tank: ${ctx.hasExpTank ? 'Yes' : 'No'}
 Expansion Tank Status: ${ctx.expTankStatus || 'Unknown'}
-Pressure Stress Factor: ${ctx.stressFactors.pressure?.toFixed(1) || 'Unknown'}x
+
+AGING RATE IMPACT: ${pressurePercentCrit}
+(This means the pressure stress is causing the tank to age ${pressurePercentCrit} compared to a tank with normal 50-60 PSI pressure.)
 
 ${ctx.isReplacementRecommended 
-  ? `Frame as: Years of pressure spikes (${effectivePsiCrit} PSI thermal expansion, not the ${ctx.housePsi} PSI baseline) accelerated failure. The ${ctx.stressFactors.pressure?.toFixed(1)}x aging multiplier came from cyclic thermal expansion, not baseline pressure. Advise PRV + expansion tank for next unit.`
+  ? `Frame as: Years of pressure spikes (${effectivePsiCrit} PSI thermal expansion, not the ${ctx.housePsi} PSI baseline) accelerated failure. Use "${pressurePercentCrit}" to explain wear - NOT "${pressureMultiplierCrit.toFixed(1)}x". Advise PRV + expansion tank for next unit.`
   : 'Frame as: Current danger requiring immediate PRV installation/adjustment.'}`;
 
     case 'pressure-high':
@@ -246,6 +270,8 @@ ${ctx.isReplacementRecommended
       // IMPORTANT: Expansion tank issues cause THERMAL SPIKES, not constant high pressure
       const effectivePsiExp = ctx.effectivePsi || ctx.housePsi;
       const isTransientExp = ctx.isTransientPressure ?? false;
+      const pressureMultiplierExp = ctx.stressFactors.pressure || 1;
+      const pressurePercentExp = formatAgingPercent(pressureMultiplierExp);
       return `${baseInfo}
 FINDING: Thermal expansion issue
 Has Expansion Tank: ${ctx.hasExpTank ? 'Yes' : 'No'}
@@ -258,29 +284,35 @@ ${isTransientExp
   ? `CRITICAL: Every time the heater fires, trapped water expands and pressure spikes from ${ctx.housePsi} to ${effectivePsiExp} PSI.
    This cycling happens multiple times per day. Cyclic fatigue (like bending metal back and forth) is MUCH more damaging than constant load.` 
   : ''}
-Pressure Stress Factor: ${ctx.stressFactors.pressure?.toFixed(1) || 'Unknown'}x
 ${ctx.tankCapacity ? `Tank Capacity: ${ctx.tankCapacity} gallons (thermal expansion ~${(ctx.tankCapacity * 0.02).toFixed(1)} gallons)` : ''}
+
+AGING RATE IMPACT: ${pressurePercentExp}
+(The thermal expansion spikes are causing the tank to wear ${pressurePercentExp} compared to a properly protected system.)
 
 ${ctx.expTankStatus === 'WATERLOGGED' 
   ? 'The expansion tank bladder has failed - it is waterlogged and provides zero protection.'
   : 'Missing expansion tank in closed system causes uncontrolled pressure spikes.'}
 
 ${ctx.isReplacementRecommended
-  ? `Frame as: The ${ctx.stressFactors.pressure?.toFixed(1)}x aging multiplier is from THERMAL EXPANSION SPIKES to ${effectivePsiExp} PSI (not the baseline ${ctx.housePsi} PSI). This cyclic pressure fatigue caused premature failure. MUST install expansion tank with next unit.`
+  ? `Frame as: Thermal expansion spikes to ${effectivePsiExp} PSI (not the baseline ${ctx.housePsi} PSI) caused the tank to wear ${pressurePercentExp}. This cyclic pressure fatigue caused premature failure. MUST install expansion tank with next unit.`
   : 'Frame as: Current issue causing dangerous pressure spikes every heating cycle. Install expansion tank ASAP.'}`;
 
     case 'hardness-critical':
+      const chemicalMultiplier = ctx.stressFactors.chemical || 1;
+      const chemicalPercent = formatAgingPercent(chemicalMultiplier);
       return `${baseInfo}
 FINDING: Severe hard water
 Hardness: ${ctx.hardnessGPG} GPG (very hard is >15)
 Has Softener: ${ctx.hasSoftener ? 'Yes' : 'No'}
-Chemical Stress Factor: ${ctx.stressFactors.chemical?.toFixed(1) || 'Unknown'}x
 ${ctx.unitType === 'tankless' 
   ? `Scale Buildup: ${ctx.scaleBuildupScore || 'Unknown'}%` 
   : `Sediment: ~${ctx.sedimentLbs?.toFixed(0) || 'Unknown'} lbs accumulated`}
 
+AGING RATE IMPACT: ${chemicalPercent}
+(The hard water minerals are causing chemical wear ${chemicalPercent} compared to soft water.)
+
 ${ctx.isReplacementRecommended
-  ? 'Frame as: Hard water accelerated deterioration. Recommend softener for next unit.'
+  ? `Frame as: Hard water accelerated deterioration (${chemicalPercent}). Recommend softener for next unit.`
   : 'Frame as: Current hard water causing rapid scale/sediment buildup.'}`;
 
     case 'hardness-moderate':
@@ -315,28 +347,38 @@ Anode Rod Life: ${ctx.shieldLife?.toFixed(0) || 'Unknown'}%
 External rust visible on tank. Explain this is a warning sign of internal corrosion and potential tank failure.`;
 
     case 'sediment':
+      const sedimentMultiplier = ctx.stressFactors.sediment || 1;
+      const sedimentPercent = formatAgingPercent(sedimentMultiplier);
       return `${baseInfo}
 FINDING: Sediment buildup
 Hardness: ${ctx.hardnessGPG} GPG
 Last Flush: ${ctx.lastFlushYearsAgo ? `${ctx.lastFlushYearsAgo}+ years ago` : 'Unknown/Never'}
 Sediment Accumulated: ~${ctx.sedimentLbs?.toFixed(0) || 'Unknown'} lbs
-Sediment Stress Factor: ${ctx.stressFactors.sediment?.toFixed(1) || 'Unknown'}x
+
+AGING RATE IMPACT: ${sedimentPercent}
+(The sediment layer is causing the heating element to work harder, wearing the tank ${sedimentPercent}.)
 
 ${ctx.isReplacementRecommended
-  ? 'Frame as: Years of sediment buildup reduced efficiency and accelerated wear.'
+  ? `Frame as: Years of sediment buildup reduced efficiency and accelerated wear (${sedimentPercent}).`
   : 'Frame as: Sediment needs to be flushed to restore efficiency.'}`;
 
     case 'anode-rod':
+      // Anode depletion accelerates corrosion by approximately 200-400% when below 20%
+      const shieldLifePct = ctx.shieldLife ?? 50;
+      const anodeCorrosionRate = shieldLifePct < 10 ? '300-400% faster' : shieldLifePct < 20 ? '200-300% faster' : shieldLifePct < 40 ? '50-100% faster' : 'at normal rate';
       return `${baseInfo}
 FINDING: Anode rod depletion
 Calendar Age: ${ctx.calendarAge} years
-Shield Life Remaining: ${ctx.shieldLife?.toFixed(0) || 'Unknown'}%
+Shield Life Remaining: ${shieldLifePct.toFixed(0)}%
 Last Anode Replace: ${ctx.lastAnodeReplaceYearsAgo ? `${ctx.lastAnodeReplaceYearsAgo} years ago` : 'Unknown/Never'}
 Hardness: ${ctx.hardnessGPG} GPG
 
+CORROSION RATE: With only ${shieldLifePct.toFixed(0)}% anode protection remaining, unprotected steel is corroding ${anodeCorrosionRate} than a protected tank.
+(The anode rod sacrifices itself to protect the tank. When depleted, corrosion attacks the tank walls directly.)
+
 ${ctx.isReplacementRecommended
-  ? 'Frame as: Depleted anode allowed corrosion to accelerate. For reference on next unit.'
-  : 'Frame as: Anode rod needs replacement to continue protecting the tank.'}`;
+  ? `Frame as: With anode at ${shieldLifePct.toFixed(0)}%, corrosion has been accelerating ${anodeCorrosionRate}. For reference on next unit.`
+  : 'Frame as: Anode rod needs replacement to continue protecting the tank from corrosion.'}`;
 
     case 'descale':
       return `${baseInfo}
