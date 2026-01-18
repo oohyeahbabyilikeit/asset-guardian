@@ -1,4 +1,4 @@
-import { Info, X, Droplets, Gauge, Shield, ThermometerSun, Clock, Wrench } from 'lucide-react';
+import { Info, Droplets, Gauge, Shield, ThermometerSun, Clock, Wrench } from 'lucide-react';
 import {
   Drawer,
   DrawerClose,
@@ -9,6 +9,8 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useEducationalContent, EducationalContext } from '@/hooks/useEducationalContent';
 
 export type EducationalTopic = 
   | 'aging' 
@@ -33,6 +35,8 @@ interface EducationalDrawerProps {
   children?: React.ReactNode;
   isOpen?: boolean;
   onClose?: () => void;
+  /** Optional context for LLM-generated personalized content */
+  context?: EducationalContext;
 }
 
 const topicContent: Record<EducationalTopic, {
@@ -348,93 +352,60 @@ const topicContent: Record<EducationalTopic, {
   }
 };
 
-export function EducationalDrawer({ topic, trigger, children, isOpen, onClose }: EducationalDrawerProps) {
-  const content = topicContent[topic];
-  
-  const defaultTrigger = (
-    <button className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline">
-      <Info className="w-3 h-3" />
-      Learn more
-    </button>
-  );
-
-  // If controlled mode (isOpen/onClose provided)
-  if (typeof isOpen !== 'undefined') {
-    return (
-      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
-        <DrawerContent className="max-h-[85vh]">
-          <div className="mx-auto w-full max-w-lg">
-            <DrawerHeader className="text-left">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  {content.icon}
-                </div>
-                <div>
-                  <DrawerTitle className="text-lg">{content.title}</DrawerTitle>
-                  <DrawerDescription className="text-sm">
-                    {content.description}
-                  </DrawerDescription>
-                </div>
-              </div>
-            </DrawerHeader>
-            
-            <div className="px-4 pb-6 space-y-4 overflow-y-auto max-h-[50vh]">
-              {content.sections.map((section, index) => (
-                <div key={index} className="space-y-1.5">
-                  <h4 className="text-sm font-medium text-foreground">
-                    {section.heading}
-                  </h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {section.content}
-                  </p>
-                </div>
-              ))}
-              
-              {content.source && (
-                <div className="pt-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground italic">
-                    {content.source}
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-4 border-t border-border">
-              <DrawerClose asChild>
-                <Button variant="outline" className="w-full">
-                  Got it
-                </Button>
-              </DrawerClose>
-            </div>
-          </div>
-        </DrawerContent>
-      </Drawer>
-    );
-  }
-
-  // Trigger mode (original behavior)
+// Loading skeleton for drawer content
+function ContentSkeleton() {
   return (
-    <Drawer>
-      <DrawerTrigger asChild>
-        {trigger || children || defaultTrigger}
-      </DrawerTrigger>
-      <DrawerContent className="max-h-[85vh]">
-        <div className="mx-auto w-full max-w-lg">
-          <DrawerHeader className="text-left">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                {content.icon}
-              </div>
-              <div>
-                <DrawerTitle className="text-lg">{content.title}</DrawerTitle>
-                <DrawerDescription className="text-sm">
-                  {content.description}
-                </DrawerDescription>
-              </div>
-            </div>
-          </DrawerHeader>
-          
-          <div className="px-4 pb-6 space-y-4 overflow-y-auto max-h-[50vh]">
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-5/6" />
+      </div>
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+    </div>
+  );
+}
+
+// Content renderer (reusable for both static and dynamic content)
+function DrawerContentBody({ 
+  content, 
+  icon, 
+  isLoading 
+}: { 
+  content: { title: string; description: string; sections: { heading: string; content: string }[]; source?: string };
+  icon: React.ReactNode;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-lg">
+      <DrawerHeader className="text-left">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            {icon}
+          </div>
+          <div>
+            <DrawerTitle className="text-lg">{content.title}</DrawerTitle>
+            <DrawerDescription className="text-sm">
+              {content.description}
+            </DrawerDescription>
+          </div>
+        </div>
+      </DrawerHeader>
+      
+      <div className="px-4 pb-6 space-y-4 overflow-y-auto max-h-[50vh]">
+        {isLoading ? (
+          <ContentSkeleton />
+        ) : (
+          <>
             {content.sections.map((section, index) => (
               <div key={index} className="space-y-1.5">
                 <h4 className="text-sm font-medium text-foreground">
@@ -453,16 +424,76 @@ export function EducationalDrawer({ topic, trigger, children, isOpen, onClose }:
                 </p>
               </div>
             )}
-          </div>
-          
-          <div className="p-4 border-t border-border">
-            <DrawerClose asChild>
-              <Button variant="outline" className="w-full">
-                Got it
-              </Button>
-            </DrawerClose>
-          </div>
-        </div>
+          </>
+        )}
+      </div>
+      
+      <div className="p-4 border-t border-border">
+        <DrawerClose asChild>
+          <Button variant="outline" className="w-full">
+            Got it
+          </Button>
+        </DrawerClose>
+      </div>
+    </div>
+  );
+}
+
+export function EducationalDrawer({ topic, trigger, children, isOpen, onClose, context }: EducationalDrawerProps) {
+  // Get static content as fallback
+  const staticContent = topicContent[topic];
+  
+  // Only fetch LLM content if context is provided and drawer is open
+  const shouldFetchLLM = Boolean(context) && (isOpen === true || isOpen === undefined);
+  
+  const { content: llmContent, isLoading, error } = useEducationalContent({
+    topic,
+    context,
+    enabled: shouldFetchLLM,
+  });
+  
+  // Use LLM content if available, otherwise fallback to static
+  const displayContent = llmContent || {
+    title: staticContent.title,
+    description: staticContent.description,
+    sections: staticContent.sections,
+    source: staticContent.source,
+  };
+  
+  const defaultTrigger = (
+    <button className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline">
+      <Info className="w-3 h-3" />
+      Learn more
+    </button>
+  );
+
+  // If controlled mode (isOpen/onClose provided)
+  if (typeof isOpen !== 'undefined') {
+    return (
+      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerContentBody 
+            content={displayContent} 
+            icon={staticContent.icon} 
+            isLoading={isLoading && !llmContent} 
+          />
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  // Trigger mode (original behavior)
+  return (
+    <Drawer>
+      <DrawerTrigger asChild>
+        {trigger || children || defaultTrigger}
+      </DrawerTrigger>
+      <DrawerContent className="max-h-[85vh]">
+        <DrawerContentBody 
+          content={displayContent} 
+          icon={staticContent.icon} 
+          isLoading={isLoading && !llmContent} 
+        />
       </DrawerContent>
     </Drawer>
   );
