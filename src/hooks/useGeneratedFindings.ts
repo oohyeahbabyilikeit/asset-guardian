@@ -20,6 +20,10 @@ interface FindingContext {
   hardnessGPG: number;
   hasSoftener: boolean;
   housePsi: number;
+  // Effective PSI includes thermal expansion spikes (e.g., 120 PSI in closed loop)
+  effectivePsi?: number;
+  // True if pressure cycles between normal and spike (cyclic fatigue is worse than static load)
+  isTransientPressure?: boolean;
   hasPrv: boolean;
   hasExpTank: boolean;
   expTankStatus?: string;
@@ -73,6 +77,8 @@ function buildContext(
     hardnessGPG: inputs.hardnessGPG,
     hasSoftener: inputs.hasSoftener,
     housePsi: inputs.housePsi,
+    effectivePsi: result.metrics.effectivePsi,
+    isTransientPressure: result.metrics.isTransientPressure,
     hasPrv: inputs.hasPrv,
     hasExpTank: inputs.hasExpTank,
     expTankStatus: inputs.expTankStatus,
