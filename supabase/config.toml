@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.generate-replacement-rationale]
 verify_jwt = false
+
+[functions.generate-maintain-rationale]
+verify_jwt = false
