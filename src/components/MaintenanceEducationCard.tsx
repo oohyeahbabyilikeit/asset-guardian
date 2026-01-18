@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, DollarSign, Bell, Clock, Info, Wrench, AlertTriangle, Gauge } from 'lucide-react';
+import { Calendar, Bell, Clock, Info, Wrench, AlertTriangle, Gauge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { NotifyMeModal } from './NotifyMeModal';
-import { getMaintenancePrices, getMaintenancePriceByType, MaintenancePrice } from '@/lib/maintenancePricingService';
 import { calculateMaintenanceSchedule, MaintenanceSchedule, MaintenanceTask, getInfrastructureMaintenanceTasks } from '@/lib/maintenanceCalculations';
 import { ForensicInputs, OpterraMetrics, isTankless } from '@/lib/opterraAlgorithm';
 import { addMonths } from 'date-fns';
@@ -19,7 +18,6 @@ interface MaintenanceEducationCardProps {
 }
 
 interface ScheduledTask extends MaintenanceTask {
-  price: number;
   dueDate: Date;
 }
 
@@ -31,8 +29,6 @@ export function MaintenanceEducationCard({
   waterHeaterId,
 }: MaintenanceEducationCardProps) {
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
-  const [prices, setPrices] = useState<MaintenancePrice[]>([]);
-  const [isLoadingPrices, setIsLoadingPrices] = useState(true);
 
   // Determine unit type
   const unitType = useMemo(() => {
@@ -40,17 +36,6 @@ export function MaintenanceEducationCard({
     if (currentInputs.fuelType === 'HYBRID') return 'hybrid';
     return 'tank';
   }, [currentInputs.fuelType]);
-
-  // Fetch contractor pricing
-  useEffect(() => {
-    async function fetchPrices() {
-      setIsLoadingPrices(true);
-      const fetchedPrices = await getMaintenancePrices(contractorId || null, unitType);
-      setPrices(fetchedPrices);
-      setIsLoadingPrices(false);
-    }
-    fetchPrices();
-  }, [contractorId, unitType]);
 
   // Calculate maintenance schedule
   const maintenanceSchedule: MaintenanceSchedule = useMemo(() => {
@@ -62,19 +47,17 @@ export function MaintenanceEducationCard({
     return getInfrastructureMaintenanceTasks(currentInputs, metrics);
   }, [currentInputs, metrics]);
 
-  // Build scheduled tasks with pricing and due dates
+  // Build scheduled tasks with due dates (NO PRICES)
   const scheduledTasks: ScheduledTask[] = useMemo(() => {
     const tasks: ScheduledTask[] = [];
     const now = new Date();
 
-    // Helper to add a task with pricing
+    // Helper to add a task
     const addTask = (task: MaintenanceTask) => {
-      const priceInfo = getMaintenancePriceByType(prices, task.type);
       const dueDate = addMonths(now, task.monthsUntilDue);
 
       tasks.push({
         ...task,
-        price: priceInfo?.price || 100,
         dueDate,
       });
     };
@@ -105,29 +88,7 @@ export function MaintenanceEducationCard({
       if (b.urgency === 'overdue' && a.urgency !== 'overdue') return 1;
       return a.monthsUntilDue - b.monthsUntilDue;
     });
-  }, [maintenanceSchedule, infrastructureTasks, prices]);
-
-  // Calculate total annual maintenance cost
-  const annualCost = useMemo(() => {
-    let total = 0;
-    scheduledTasks.forEach((task) => {
-      // Estimate frequency based on task type
-      const intervalsMonths: Record<string, number> = {
-        flush: 12,
-        anode: 48,
-        descale: 12,
-        filter: 12,
-        air_filter: 12,
-        condensate: 12,
-        tp_valve: 12,
-        isolation_valve: 24,
-      };
-      const interval = intervalsMonths[task.type] || 12;
-      const timesPerYear = 12 / interval;
-      total += task.price * timesPerYear;
-    });
-    return Math.round(total);
-  }, [scheduledTasks]);
+  }, [maintenanceSchedule, infrastructureTasks]);
 
   // Format months until due
   const formatDueIn = (months: number): string => {
@@ -162,22 +123,6 @@ export function MaintenanceEducationCard({
     dueDate: task.dueDate,
   }));
 
-  if (isLoadingPrices) {
-    return (
-      <Card className="animate-pulse">
-        <CardHeader>
-          <div className="h-6 bg-muted rounded w-48" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="h-16 bg-muted rounded" />
-            <div className="h-16 bg-muted rounded" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <>
       <Card className="border-primary/20 shadow-md">
@@ -196,8 +141,7 @@ export function MaintenanceEducationCard({
                 </TooltipTrigger>
                 <TooltipContent side="left" className="max-w-xs">
                   <p className="text-sm">
-                    Pricing is based on {contractorId ? "your plumber's price book" : 'typical market rates'}.
-                    Actual costs may vary based on your specific situation.
+                    Keeping up with maintenance extends the life of your water heater and prevents unexpected failures.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -206,7 +150,7 @@ export function MaintenanceEducationCard({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Maintenance tasks list */}
+          {/* Maintenance tasks list - NO PRICES */}
           <div className="space-y-3">
             {scheduledTasks.map((task, index) => {
               const isInfrastructureCritical = task.isInfrastructure && task.urgency === 'overdue';
@@ -254,15 +198,11 @@ export function MaintenanceEducationCard({
                     <div className="text-right shrink-0">
                       <Badge 
                         variant="outline" 
-                        className={`mb-1 ${getUrgencyColor(task.urgency)}`}
+                        className={`${getUrgencyColor(task.urgency)}`}
                       >
                         <Clock className="w-3 h-3 mr-1" />
                         {task.monthsUntilDue === 0 && task.isInfrastructure ? 'Immediate' : formatDueIn(task.monthsUntilDue)}
                       </Badge>
-                      <div className="flex items-center justify-end gap-1 text-sm font-semibold">
-                        <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>{!contractorId && '~'}${task.price}</span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -270,12 +210,12 @@ export function MaintenanceEducationCard({
             })}
           </div>
 
-          {/* Annual cost summary */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
-            <span className="text-sm text-muted-foreground">Estimated annual maintenance:</span>
-            <span className="font-semibold">
-              {!contractorId && '~'}${annualCost}/year
-            </span>
+          {/* Why maintenance matters - educational (replaces pricing) */}
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+            <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              Regular maintenance can extend your water heater's life by 3-5 years and prevent costly emergency repairs.
+            </p>
           </div>
 
           {/* Notify Me CTA */}
@@ -289,7 +229,7 @@ export function MaintenanceEducationCard({
               Notify Me When Due
             </Button>
             <p className="text-xs text-center text-muted-foreground mt-2">
-              We'll have your plumber reach out 2 weeks before each service is needed.
+              We'll have a pro reach out when each service is needed.
             </p>
           </div>
         </CardContent>

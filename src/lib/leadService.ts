@@ -1,10 +1,13 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export type CaptureSource = 
-  | 'findings_summary' 
-  | 'handoff_remote' 
-  | 'replacement_quote' 
-  | 'maintenance_notify';
+  | 'findings_summary'      // From recommendation card CTA
+  | 'findings_cta'          // From findings page action
+  | 'replacement_quote'     // From tier selection page
+  | 'maintenance_notify'    // From maintenance schedule card
+  | 'handoff_remote'        // From technician handoff
+  | 'emergency_flow'        // From panic mode
+  | 'chat_escalation';      // From chatbot escalation
 
 export interface LeadSubmission {
   customerName: string;
