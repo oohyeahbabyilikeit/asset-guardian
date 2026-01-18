@@ -1,4 +1,4 @@
-import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2, MessageCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,8 @@ import { WaterHeaterChatbot } from './WaterHeaterChatbot';
 import { SaveReportModal, SaveReportContext } from './SaveReportModal';
 import { hasLeadBeenCaptured } from '@/lib/leadService';
 import { getCachedFinding } from '@/hooks/useGeneratedFindings';
+import { getCachedRationale, RationaleSection } from '@/hooks/useReplacementRationale';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Helper to apply AI-generated content to a finding if available
 function applyAIContent(
@@ -282,6 +284,7 @@ function RecommendationEducationStep({
   financial,
   topFindings,
   recommendationType,
+  currentInputs,
   onComplete,
 }: {
   finding: FindingCard;
@@ -293,10 +296,67 @@ function RecommendationEducationStep({
   };
   topFindings: FindingCard[];
   recommendationType: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR';
+  currentInputs: ForensicInputs;
   onComplete: () => void;
 }) {
-  // Educational content based on recommendation type
+  // Try to get AI-generated rationale for replacement recommendations
+  const aiRationale = (recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON') 
+    ? getCachedRationale(currentInputs) 
+    : null;
+
+  // Map section headings to icons
+  const getIconForHeading = (heading: string): React.ReactNode => {
+    const headingLower = heading.toLowerCase();
+    if (headingLower.includes('number') || headingLower.includes('data')) {
+      return <TrendingUp className="w-5 h-5" />;
+    }
+    if (headingLower.includes('economic') || headingLower.includes('cost') || headingLower.includes('money')) {
+      return <DollarSign className="w-5 h-5" />;
+    }
+    if (headingLower.includes('risk') || headingLower.includes('danger') || headingLower.includes('warning')) {
+      return <AlertCircle className="w-5 h-5" />;
+    }
+    if (headingLower.includes('opportunity') || headingLower.includes('benefit') || headingLower.includes('advantage')) {
+      return <CheckCircle2 className="w-5 h-5" />;
+    }
+    if (headingLower.includes('plan') || headingLower.includes('time') || headingLower.includes('schedule')) {
+      return <Calendar className="w-5 h-5" />;
+    }
+    if (headingLower.includes('peace') || headingLower.includes('safe') || headingLower.includes('protect')) {
+      return <Shield className="w-5 h-5" />;
+    }
+    if (headingLower.includes('maintain') || headingLower.includes('repair') || headingLower.includes('service')) {
+      return <Wrench className="w-5 h-5" />;
+    }
+    return <Info className="w-5 h-5" />;
+  };
+
+  // Educational content based on recommendation type (with AI override for replacement)
   const getEducationContent = () => {
+    // Use AI-generated content for replacement recommendations if available
+    if (aiRationale && aiRationale.sections.length > 0 && (recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON')) {
+      const isUrgent = recommendationType === 'REPLACE_NOW';
+      return {
+        headline: isUrgent ? "Why Replacement Makes Sense Now" : "Why We Recommend Planning Ahead",
+        subtitle: isUrgent ? "Based on your specific situation" : "The smart approach for your home",
+        borderColor: isUrgent ? "border-primary/50" : "border-amber-500/50",
+        headerBg: isUrgent ? "bg-primary/5" : "bg-amber-500/5",
+        sections: aiRationale.sections.map(section => ({
+          title: section.heading,
+          icon: getIconForHeading(section.heading),
+          content: section.content,
+        })),
+        callout: {
+          title: isUrgent ? "You're in control" : "Your timeline",
+          text: isUrgent 
+            ? "This is a good time to explore your options. We'll help you find the right solution for your needs and budget."
+            : `Based on our analysis, plan for replacement around ${financial.targetReplacementDate}. This gives you time to research options and budget accordingly.`,
+        },
+        isAIGenerated: true,
+      };
+    }
+
+    // Static fallback content
     switch (recommendationType) {
       case 'REPLACE_NOW':
         return {
@@ -325,6 +385,7 @@ function RecommendationEducationStep({
             title: "You're in control",
             text: "This is a good time to explore your options. We can help you understand what's available and find the right solution for your needs and budget.",
           },
+          isAIGenerated: false,
         };
       
       case 'REPLACE_SOON':
@@ -354,6 +415,7 @@ function RecommendationEducationStep({
             title: "Your target date",
             text: `Based on our analysis, plan for replacement around ${financial.targetReplacementDate}. This gives you time to research options and budget accordingly.`,
           },
+          isAIGenerated: false,
         };
       
       case 'MAINTAIN':
@@ -383,6 +445,7 @@ function RecommendationEducationStep({
             title: "The maintenance mindset",
             text: "Think of your water heater like a car—regular oil changes (flushes) and part replacements (anodes) keep it running reliably for years.",
           },
+          isAIGenerated: false,
         };
       
       case 'MONITOR':
@@ -413,6 +476,7 @@ function RecommendationEducationStep({
             title: "What to watch for",
             text: "Annual professional inspections catch small issues before they become big problems. Schedule your next check-up in 12 months.",
           },
+          isAIGenerated: false,
         };
     }
   };
@@ -1584,6 +1648,7 @@ export function FindingsSummaryPage({
             }}
             topFindings={findings.filter(f => f.id !== 'economic-guidance')}
             recommendationType={economicGuidance.recommendation}
+            currentInputs={currentInputs}
             onComplete={handleCompleteStep}
           />
         ) : (
