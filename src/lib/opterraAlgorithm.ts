@@ -182,7 +182,9 @@ export interface OpterraMetrics {
   shieldLife: number;      
   
   // NEW: The calculated max pressure the tank actually experiences
-  effectivePsi: number;    
+  effectivePsi: number;
+  // True if pressure cycles between normal and spike (cyclic fatigue is worse than static)
+  isTransientPressure: boolean;
   
   stressFactors: {
     total: number;
@@ -1109,6 +1111,7 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     sedimentLbs: parseFloat(sedimentLbs.toFixed(1)),
     shieldLife: parseFloat(shieldLife.toFixed(1)),
     effectivePsi: parseFloat(effectivePsi.toFixed(1)), // Derived PSI
+    isTransientPressure: isTransient, // True if cycling between normal and spike
     stressFactors: {
       total: parseFloat(totalStress.toFixed(2)),
       mechanical: parseFloat(mechanicalStress.toFixed(2)),

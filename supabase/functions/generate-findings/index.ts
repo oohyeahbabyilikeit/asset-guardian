@@ -22,6 +22,10 @@ interface FindingContext {
   
   // Pressure & infrastructure
   housePsi: number;
+  // Effective PSI includes thermal expansion spikes (e.g., 120 PSI in closed loop)
+  effectivePsi?: number;
+  // True if pressure cycles between normal and spike (cyclic fatigue is worse than static load)
+  isTransientPressure?: boolean;
   hasPrv: boolean;
   hasExpTank: boolean;
   expTankStatus?: string;
@@ -39,7 +43,7 @@ interface FindingContext {
   
   // Algorithm metrics
   healthScore: number;
-  failProb: number;
+  failProb: number; // Already a percentage (e.g., 39.2 = 39.2%)
   sedimentLbs?: number;
   shieldLife?: number;
   scaleBuildupScore?: number;
@@ -207,14 +211,25 @@ FINDING: Water in drain pan
 Generate finding explaining this needs investigation - could be condensation, minor drip, or early warning sign.`;
 
     case 'pressure-critical':
+      // IMPORTANT: Distinguish between baseline PSI and effective PSI (thermal spikes)
+      const effectivePsiCrit = ctx.effectivePsi || ctx.housePsi;
+      const isTransientCrit = ctx.isTransientPressure ?? false;
       return `${baseInfo}
 FINDING: Critical high pressure
-House PSI: ${ctx.housePsi} (safe limit: 80 PSI)
+Baseline House PSI: ${ctx.housePsi} (measured at meter)
+Effective PSI (what tank experiences): ${effectivePsiCrit} PSI
+${isTransientCrit 
+  ? `IMPORTANT: The ${effectivePsiCrit} PSI is from THERMAL EXPANSION SPIKES, not constant pressure. 
+   The tank cycles between ${ctx.housePsi} PSI and ${effectivePsiCrit} PSI every time it heats. 
+   This cyclic fatigue (like bending a paper clip back and forth) is MORE damaging than constant pressure.` 
+  : `This is constant high pressure, not cyclic.`}
 Has PRV: ${ctx.hasPrv ? 'Yes' : 'No'}
+Has Expansion Tank: ${ctx.hasExpTank ? 'Yes' : 'No'}
+Expansion Tank Status: ${ctx.expTankStatus || 'Unknown'}
 Pressure Stress Factor: ${ctx.stressFactors.pressure?.toFixed(1) || 'Unknown'}x
 
 ${ctx.isReplacementRecommended 
-  ? 'Frame as: Years of high pressure accelerated failure. Advise PRV for next unit.'
+  ? `Frame as: Years of pressure spikes (${effectivePsiCrit} PSI thermal expansion, not the ${ctx.housePsi} PSI baseline) accelerated failure. The ${ctx.stressFactors.pressure?.toFixed(1)}x aging multiplier came from cyclic thermal expansion, not baseline pressure. Advise PRV + expansion tank for next unit.`
   : 'Frame as: Current danger requiring immediate PRV installation/adjustment.'}`;
 
     case 'pressure-high':
@@ -228,22 +243,31 @@ ${ctx.isReplacementRecommended
   : 'Frame as: Above optimal range, adding gradual wear. PRV would help.'}`;
 
     case 'expansion-tank':
+      // IMPORTANT: Expansion tank issues cause THERMAL SPIKES, not constant high pressure
+      const effectivePsiExp = ctx.effectivePsi || ctx.housePsi;
+      const isTransientExp = ctx.isTransientPressure ?? false;
       return `${baseInfo}
 FINDING: Thermal expansion issue
 Has Expansion Tank: ${ctx.hasExpTank ? 'Yes' : 'No'}
 Expansion Tank Status: ${ctx.expTankStatus || 'Unknown'}
 Is Closed Loop: ${ctx.isClosedLoop ? 'Yes' : 'No'}
 Has PRV: ${ctx.hasPrv ? 'Yes' : 'No'}
+Baseline House PSI: ${ctx.housePsi} (measured at meter)
+Effective PSI (spike during heating): ${effectivePsiExp} PSI
+${isTransientExp 
+  ? `CRITICAL: Every time the heater fires, trapped water expands and pressure spikes from ${ctx.housePsi} to ${effectivePsiExp} PSI.
+   This cycling happens multiple times per day. Cyclic fatigue (like bending metal back and forth) is MUCH more damaging than constant load.` 
+  : ''}
 Pressure Stress Factor: ${ctx.stressFactors.pressure?.toFixed(1) || 'Unknown'}x
-${ctx.tankCapacity ? `Tank Capacity: ${ctx.tankCapacity} gallons (expansion ~${(ctx.tankCapacity * 0.02).toFixed(1)} gallons)` : ''}
+${ctx.tankCapacity ? `Tank Capacity: ${ctx.tankCapacity} gallons (thermal expansion ~${(ctx.tankCapacity * 0.02).toFixed(1)} gallons)` : ''}
 
 ${ctx.expTankStatus === 'WATERLOGGED' 
-  ? 'The expansion tank is waterlogged/failed - bladder has ruptured.'
-  : 'Missing expansion tank in closed system.'}
+  ? 'The expansion tank bladder has failed - it is waterlogged and provides zero protection.'
+  : 'Missing expansion tank in closed system causes uncontrolled pressure spikes.'}
 
 ${ctx.isReplacementRecommended
-  ? 'Frame as: Thermal expansion caused premature wear. Recommend for next unit.'
-  : 'Frame as: Current issue causing pressure spikes every heating cycle.'}`;
+  ? `Frame as: The ${ctx.stressFactors.pressure?.toFixed(1)}x aging multiplier is from THERMAL EXPANSION SPIKES to ${effectivePsiExp} PSI (not the baseline ${ctx.housePsi} PSI). This cyclic pressure fatigue caused premature failure. MUST install expansion tank with next unit.`
+  : 'Frame as: Current issue causing dangerous pressure spikes every heating cycle. Install expansion tank ASAP.'}`;
 
     case 'hardness-critical':
       return `${baseInfo}

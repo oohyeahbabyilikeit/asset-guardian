@@ -190,6 +190,7 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
     sedimentLbs: 0,
     shieldLife: 0,
     effectivePsi: data.housePsi,
+    isTransientPressure: false, // Tankless units don't have same thermal expansion concern
     scaleBuildupScore: parseFloat(scaleBuildupScore.toFixed(1)),
     flowDegradation: 0,
     descaleStatus,
