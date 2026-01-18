@@ -20,6 +20,7 @@ import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import type { TierPricing } from '@/hooks/useTieredPricing';
 import type { QualityTier } from '@/lib/opterraAlgorithm';
 import { usePrefetchFindings } from '@/hooks/useGeneratedFindings';
+import { usePrefetchRationale } from '@/hooks/useReplacementRationale';
 type AppScreen = 
   | 'mode-select'
   | 'technician-flow'
@@ -53,6 +54,7 @@ const Index = () => {
   });
   
   const { prefetch: prefetchFindings } = usePrefetchFindings();
+  const { prefetch: prefetchRationale } = usePrefetchRationale();
   const prefetchTriggeredRef = useRef(false);
 
   // Handle mode selection
@@ -316,7 +318,7 @@ const Index = () => {
     return { currentInputs: inputs, currentAsset: asset, opterraResult: result };
   }, [state.mode, state.demoScenario, state.technicianData, state.onboardingData]);
 
-  // Prefetch AI-generated findings when entering command-center
+  // Prefetch AI-generated findings and rationale when entering command-center
   useEffect(() => {
     if (state.screen === 'command-center' && !prefetchTriggeredRef.current) {
       prefetchTriggeredRef.current = true;
@@ -336,8 +338,14 @@ const Index = () => {
       
       console.log('[Index] Prefetching AI findings in background...');
       prefetchFindings(currentInputs, opterraResult, recommendationType);
+      
+      // Also prefetch replacement rationale if replacement is recommended
+      if (recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON') {
+        console.log('[Index] Prefetching replacement rationale in background...');
+        prefetchRationale(currentInputs, opterraResult, recommendationType);
+      }
     }
-  }, [state.screen, currentInputs, opterraResult, prefetchFindings]);
+  }, [state.screen, currentInputs, opterraResult, prefetchFindings, prefetchRationale]);
 
   // Derive status for CommandCenter
   const isHealthy = opterraResult.verdict.action === 'PASS';
