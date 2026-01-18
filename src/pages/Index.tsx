@@ -20,7 +20,7 @@ import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import type { TierPricing } from '@/hooks/useTieredPricing';
 import type { QualityTier } from '@/lib/opterraAlgorithm';
 import { usePrefetchFindings } from '@/hooks/useGeneratedFindings';
-import { usePrefetchRationale } from '@/hooks/useReplacementRationale';
+import { usePrefetchRationale } from '@/hooks/useRecommendationRationale';
 type AppScreen = 
   | 'mode-select'
   | 'technician-flow'

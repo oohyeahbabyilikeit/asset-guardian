@@ -66,8 +66,10 @@ interface MaintainContext extends BaseContext {
 // Cache for generated rationales
 const rationaleCache = new Map<string, RecommendationRationale>();
 
-function getCacheKey(inputs: ForensicInputs, recommendationType: RecommendationType): string {
-  return `rationale-${recommendationType}-${inputs.calendarAge}-${inputs.hardnessGPG}-${inputs.housePsi}-${inputs.location}-${inputs.manufacturer || 'unknown'}`;
+function getCacheKey(inputs: ForensicInputs, result: OpterraResult, recommendationType: RecommendationType): string {
+  // Include key metrics in cache key to prevent stale data when algorithm recalculates
+  const metrics = result.metrics;
+  return `rationale-${recommendationType}-${inputs.calendarAge}-${inputs.hardnessGPG}-${inputs.housePsi}-${inputs.location}-${inputs.manufacturer || 'unknown'}-hs${metrics.healthScore}-fp${Math.round(metrics.failProb)}-ba${Math.round(metrics.bioAge)}`;
 }
 
 function buildReplaceContext(
@@ -325,7 +327,7 @@ export function useRecommendationRationale(
     
     const generate = async () => {
       // Check cache first
-      const cacheKey = getCacheKey(inputs, recommendationType);
+      const cacheKey = getCacheKey(inputs, result, recommendationType);
       const cached = rationaleCache.get(cacheKey);
       if (cached) {
         console.log('[useRecommendationRationale] Using cached rationale');
@@ -347,7 +349,7 @@ export function useRecommendationRationale(
       }
       
       if (generated) {
-        rationaleCache.set(cacheKey, generated);
+        rationaleCache.set(getCacheKey(inputs, result, recommendationType), generated);
         setRationale(generated);
       } else {
         // Use static fallback
@@ -380,7 +382,7 @@ export function usePrefetchRationale() {
     estimatedRepairCost: number = 500,
     estimatedReplacementCost: number = 2500
   ) => {
-    const cacheKey = getCacheKey(inputs, recommendationType);
+    const cacheKey = getCacheKey(inputs, result, recommendationType);
     
     if (prefetchedRef.current.has(cacheKey) || rationaleCache.has(cacheKey)) {
       console.log('[usePrefetchRationale] Already cached');
@@ -401,7 +403,7 @@ export function usePrefetchRationale() {
     }
     
     if (generated) {
-      rationaleCache.set(cacheKey, generated);
+      rationaleCache.set(getCacheKey(inputs, result, recommendationType), generated);
       console.log('[usePrefetchRationale] Cached rationale');
     }
   }, []);
@@ -410,13 +412,13 @@ export function usePrefetchRationale() {
 }
 
 // Get cached rationale
-export function getCachedRationale(inputs: ForensicInputs, recommendationType: RecommendationType): RecommendationRationale | null {
-  const cacheKey = getCacheKey(inputs, recommendationType);
+export function getCachedRationale(inputs: ForensicInputs, result: OpterraResult, recommendationType: RecommendationType): RecommendationRationale | null {
+  const cacheKey = getCacheKey(inputs, result, recommendationType);
   return rationaleCache.get(cacheKey) || null;
 }
 
 // Check if rationale is cached
-export function isRationaleCached(inputs: ForensicInputs, recommendationType: RecommendationType): boolean {
-  const cacheKey = getCacheKey(inputs, recommendationType);
+export function isRationaleCached(inputs: ForensicInputs, result: OpterraResult, recommendationType: RecommendationType): boolean {
+  const cacheKey = getCacheKey(inputs, result, recommendationType);
   return rationaleCache.has(cacheKey);
 }
