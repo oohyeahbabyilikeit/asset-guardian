@@ -13,7 +13,7 @@ import { WaterHeaterChatbot } from './WaterHeaterChatbot';
 import { SaveReportModal, SaveReportContext } from './SaveReportModal';
 import { hasLeadBeenCaptured } from '@/lib/leadService';
 import { getCachedFinding } from '@/hooks/useGeneratedFindings';
-import { useReplacementRationale } from '@/hooks/useReplacementRationale';
+import { useRecommendationRationale } from '@/hooks/useRecommendationRationale';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Helper to apply AI-generated content to a finding if available
@@ -301,12 +301,11 @@ function RecommendationEducationStep({
   opterraResult: OpterraResult;
   onComplete: () => void;
 }) {
-  // Fetch AI-generated rationale for replacement recommendations
-  const shouldFetchRationale = recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON';
-  const { rationale: aiRationale, isLoading: isRationaleLoading } = useReplacementRationale(
-    shouldFetchRationale ? currentInputs : null,
-    shouldFetchRationale ? opterraResult : null,
-    recommendationType as 'REPLACE_NOW' | 'REPLACE_SOON',
+  // Fetch AI-generated rationale for ALL recommendation types
+  const { rationale: aiRationale, isLoading: isRationaleLoading } = useRecommendationRationale(
+    currentInputs,
+    opterraResult,
+    recommendationType,
     500, // estimated repair cost
     financial.estReplacementCost
   );
@@ -332,8 +331,14 @@ function RecommendationEducationStep({
     if (headingLower.includes('peace') || headingLower.includes('safe') || headingLower.includes('protect')) {
       return <Shield className="w-5 h-5" />;
     }
-    if (headingLower.includes('maintain') || headingLower.includes('repair') || headingLower.includes('service')) {
+    if (headingLower.includes('maintain') || headingLower.includes('repair') || headingLower.includes('service') || headingLower.includes('running') || headingLower.includes('strong')) {
       return <Wrench className="w-5 h-5" />;
+    }
+    if (headingLower.includes('healthy') || headingLower.includes('good') || headingLower.includes('working')) {
+      return <CheckCircle2 className="w-5 h-5" />;
+    }
+    if (headingLower.includes('favor') || headingLower.includes('positive')) {
+      return <TrendingUp className="w-5 h-5" />;
     }
     return <Info className="w-5 h-5" />;
   };
@@ -341,26 +346,56 @@ function RecommendationEducationStep({
   // Log for debugging
   console.log('[RecommendationEducationStep] recommendationType:', recommendationType, 'aiRationale:', aiRationale, 'isLoading:', isRationaleLoading);
 
-  // Educational content based on recommendation type (with AI override for replacement)
+  // Educational content based on recommendation type (with AI override when available)
   const getEducationContent = () => {
-    // Use AI-generated content for replacement recommendations if available
-    if (aiRationale && aiRationale.sections && aiRationale.sections.length > 0 && (recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON')) {
+    // Use AI-generated content if available for any recommendation type
+    if (aiRationale && aiRationale.sections && aiRationale.sections.length > 0 && aiRationale.isAIGenerated) {
       const isUrgent = recommendationType === 'REPLACE_NOW';
+      const isReplacement = isUrgent || recommendationType === 'REPLACE_SOON';
+      const isMaintain = recommendationType === 'MAINTAIN';
+      
+      let headline = "Why Regular Check-ups Matter";
+      let subtitle = "Your system is healthy—let's keep it that way";
+      let borderColor = "border-emerald-500/50";
+      let headerBg = "bg-emerald-500/5";
+      
+      if (isUrgent) {
+        headline = "Why Replacement Makes Sense Now";
+        subtitle = "Based on your specific situation";
+        borderColor = "border-primary/50";
+        headerBg = "bg-primary/5";
+      } else if (recommendationType === 'REPLACE_SOON') {
+        headline = "Why We Recommend Planning Ahead";
+        subtitle = "The smart approach for your home";
+        borderColor = "border-amber-500/50";
+        headerBg = "bg-amber-500/5";
+      } else if (isMaintain) {
+        headline = "Your Unit Is in Good Shape";
+        subtitle = "Here's why we recommend maintenance";
+        borderColor = "border-primary/50";
+        headerBg = "bg-primary/5";
+      }
+      
       return {
-        headline: isUrgent ? "Why Replacement Makes Sense Now" : "Why We Recommend Planning Ahead",
-        subtitle: isUrgent ? "Based on your specific situation" : "The smart approach for your home",
-        borderColor: isUrgent ? "border-primary/50" : "border-amber-500/50",
-        headerBg: isUrgent ? "bg-primary/5" : "bg-amber-500/5",
+        headline,
+        subtitle,
+        borderColor,
+        headerBg,
         sections: aiRationale.sections.map(section => ({
           title: section.heading,
           icon: getIconForHeading(section.heading),
           content: section.content,
         })),
-        callout: {
+        callout: isReplacement ? {
           title: isUrgent ? "You're in control" : "Your timeline",
           text: isUrgent 
             ? "This is a good time to explore your options. We'll help you find the right solution for your needs and budget."
             : `Based on our analysis, plan for replacement around ${financial.targetReplacementDate}. This gives you time to research options and budget accordingly.`,
+        } : {
+          title: isMaintain ? "The maintenance mindset" : "What to watch for",
+          text: isMaintain
+            ? "Think of your water heater like a car—regular oil changes (flushes) and part replacements (anodes) keep it running reliably for years."
+            : "Annual professional inspections catch small issues before they become big problems. Schedule your next check-up in 12 months.",
         },
         isAIGenerated: true,
       };
@@ -552,8 +587,8 @@ function RecommendationEducationStep({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
-            {/* Show loading skeleton if AI content is loading for replacement recommendations */}
-            {isRationaleLoading && shouldFetchRationale ? (
+            {/* Show loading skeleton if AI content is loading */}
+            {isRationaleLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="flex gap-3">

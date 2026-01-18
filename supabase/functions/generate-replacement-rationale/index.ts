@@ -213,7 +213,7 @@ function buildUserPrompt(ctx: RationaleContext): string {
 - Warranty: ${ctx.warrantyRemaining > 0 ? `${ctx.warrantyRemaining} years remaining` : 'Expired'}
 
 **Risk Assessment:**
-- Failure Probability: ${Math.round(ctx.failProb * 100)}% chance of failure in the next 12 months
+- Failure Probability: ${Math.round(ctx.failProb)}% chance of failure in the next 12 months
 - Health Score: ${ctx.healthScore}/100`;
 
   if (ctx.shieldLife !== undefined && ctx.unitType === 'tank') {
@@ -270,7 +270,7 @@ ${ctx.recommendationTitle ? `Reason: ${ctx.recommendationTitle}` : ''}
 ---
 
 Generate 4 sections explaining why replacement makes sense:
-1. "The Numbers" - Use their actual age, bio-age, and failure probability. Explain what ${Math.round(ctx.failProb * 100)}% failure risk really means.
+1. "The Numbers" - Use their actual age, bio-age, and failure probability. Explain what ${Math.round(ctx.failProb)}% failure risk really means.
 2. "The Economics" - Why spending $${ctx.estimatedRepairCost} on repairs doesn't make sense for a ${ctx.calendarAge}-year-old unit. Compare to replacement value.
 3. "The Risk" - Focus on their ${formatLocation(ctx.installLocation)} installation. ${locationRisk.level === 'HIGH' ? 'Emphasize potential water damage costs ($10,000-$30,000+ for attic/upstairs leaks).' : 'Discuss the inconvenience and stress of emergency replacement.'}
 4. "The Opportunity" - Benefits of proactive replacement: control timing, compare options, get efficient unit, new warranty.
