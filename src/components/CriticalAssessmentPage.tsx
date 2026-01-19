@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, AlertTriangle, ShieldAlert, Droplets, Gauge, ThermometerSun, Clock, MapPin, Zap, Phone, ChevronRight } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, ShieldAlert, Droplets, Gauge, ThermometerSun, Clock, MapPin, Zap, Phone, ChevronRight, Bell } from 'lucide-react';
 import { HealthRing } from './HealthRing';
 import { ForensicInputs, OpterraResult, isTankless } from '@/lib/opterraAlgorithm';
 import { getInfrastructureIssues, InfrastructureIssue } from '@/lib/infrastructureIssues';
-import { DAMAGE_SCENARIOS, STRESS_FACTOR_EXPLANATIONS, getLocationKey } from '@/data/damageScenarios';
+import { STRESS_FACTOR_EXPLANATIONS, getLocationKey } from '@/data/damageScenarios';
 import { motion } from 'framer-motion';
 import { IssueGuidanceDrawer } from './IssueGuidanceDrawer';
+import { NotifyMeModal } from './NotifyMeModal';
+import { toast } from 'sonner';
 
 interface CriticalAssessmentPageProps {
   inputs: ForensicInputs;
@@ -83,10 +85,11 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
   const { metrics, verdict } = opterraResult;
   const issues = getInfrastructureIssues(inputs, metrics);
   const [selectedIssue, setSelectedIssue] = useState<InfrastructureIssue | null>(null);
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
   
-  // Get location-based damage scenario
+  // Get location-based info
   const locationKey = getLocationKey(inputs.location || 'GARAGE');
-  const damageScenario = DAMAGE_SCENARIOS[locationKey];
+  const isHighRiskLocation = ['ATTIC', 'UTILITY_CLOSET', 'LIVING_AREA'].includes(locationKey);
   
   // Get significant stress factors (above 1.0)
   const { stressFactors } = metrics;
@@ -171,31 +174,21 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
         )}
 
         {/* Location Risk */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="h-4 w-4 text-orange-500" />
-            <h3 className="font-semibold text-sm uppercase tracking-wide">Location Risk: {inputs.location || 'Unknown'}</h3>
-          </div>
-          <Card className="border-orange-500/30 bg-orange-500/5">
-            <CardContent className="p-4">
-              <p className="text-sm">
-                {damageScenario.description}
-              </p>
-              <div className="mt-3 flex items-center gap-4">
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Estimated Damage</p>
-                  <p className="font-bold text-orange-600">
-                    ${damageScenario.waterDamage.min.toLocaleString()} - ${damageScenario.waterDamage.max.toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Timeline</p>
-                  <p className="font-medium text-orange-600 text-sm">{damageScenario.timeline}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+        {isHighRiskLocation && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="h-4 w-4 text-orange-500" />
+              <h3 className="font-semibold text-sm uppercase tracking-wide">High-Risk Location</h3>
+            </div>
+            <Card className="border-orange-500/30 bg-orange-500/5">
+              <CardContent className="p-4">
+                <p className="text-sm">
+                  Your water heater is installed in a {(inputs.location || 'unknown').toLowerCase().replace('_', ' ')}, where a failure could cause significant damage to your home. This makes proactive attention even more important.
+                </p>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {/* Accelerated Wear */}
         {metrics.agingRate > 1.2 && (
@@ -263,18 +256,26 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
         </section>
       </div>
 
-      {/* Fixed CTA - goes directly to ContactFormPage */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border">
+      {/* Fixed CTA - dual options */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border space-y-3">
+        <Button 
+          variant="outline"
+          onClick={() => setShowNotifyModal(true)}
+          className="w-full h-11 gap-2"
+        >
+          <Bell className="h-4 w-4" />
+          Set a Reminder
+        </Button>
         <Button 
           onClick={onScheduleService}
-          className="w-full h-12 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+          className="w-full h-12 bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
           size="lg"
         >
-          <Phone className="h-5 w-5 mr-2" />
-          Get Expert Assessment
+          <Phone className="h-5 w-5" />
+          Have My Plumber Reach Out
         </Button>
-        <p className="text-xs text-center text-muted-foreground mt-2">
-          Speak with a professional about your options
+        <p className="text-xs text-center text-muted-foreground">
+          Your plumber will contact you to discuss your options
         </p>
       </div>
 
@@ -290,6 +291,17 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
         manufacturer={inputs.manufacturer}
         onScheduleService={onScheduleService}
         onGetQuote={onGetQuote}
+      />
+      
+      {/* Notify Me Modal */}
+      <NotifyMeModal
+        open={showNotifyModal}
+        onOpenChange={setShowNotifyModal}
+        tasks={issues.map(issue => ({
+          id: issue.id,
+          label: issue.friendlyName,
+          dueDate: new Date(),
+        }))}
       />
     </div>
   );

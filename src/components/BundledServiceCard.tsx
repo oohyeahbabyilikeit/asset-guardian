@@ -1,6 +1,6 @@
 import { 
-  Droplets, Shield, Calendar, Bell, Clock, CheckCircle, 
-  Flame, Filter, Wrench, Wind, Sparkles
+  Droplets, Shield, Bell, Clock, CheckCircle, 
+  Flame, Filter, Wrench, Wind, Sparkles, Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -115,25 +115,25 @@ export function BundledServiceCard({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="space-y-3">
+        <Button 
+          onClick={onRemind}
+          variant="outline"
+          className="w-full gap-2 h-11"
+        >
+          <Bell className="w-4 h-4" />
+          Remind Me When Due
+        </Button>
         <Button 
           onClick={onSchedule}
           className={cn(
-            "flex-1 gap-2 h-11",
+            "w-full gap-2 h-11",
             isAnyOverdue && "bg-amber-600 hover:bg-amber-500 text-white"
           )}
           variant={isAnyOverdue ? undefined : "default"}
         >
-          <Calendar className="w-4 h-4" />
-          Schedule Service Visit
-        </Button>
-        <Button 
-          onClick={onRemind}
-          variant="outline"
-          className="gap-2 h-11 px-4"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="hidden sm:inline">Remind</span>
+          <Phone className="w-4 h-4" />
+          Have My Plumber Reach Out
         </Button>
       </div>
     </div>

@@ -387,7 +387,7 @@ export function EducationPage({
           </Button>
           
           <p className="text-xs text-center text-muted-foreground mt-3">
-            Get a detailed plan with pricing and next steps
+            Get a personalized plan for your water heater
           </p>
         </motion.div>
       </div>
