@@ -8,7 +8,7 @@ import { ForensicReport } from '@/components/ForensicReport';
 import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
 import { PanicMode } from '@/components/PanicMode';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
-import { FindingsSummaryPage } from '@/components/FindingsSummaryPage';
+
 import { PriceAnalysisLoader } from '@/components/PriceAnalysisLoader';
 import { type ForensicInputs, calculateOpterraRisk, type OpterraResult } from '@/lib/opterraAlgorithm';
 import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
@@ -28,7 +28,6 @@ type AppScreen =
   | 'command-center'
   | 'test-harness'
   | 'forensic-report'
-  | 'findings-summary'
   | 'analyzing-options'
   | 'replacement-options'
   | 'panic-mode'
@@ -156,13 +155,6 @@ const Index = () => {
     });
   }, []);
 
-  // Handle navigation to findings summary (education-first approach)
-  const handleViewFindings = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      screen: 'findings-summary',
-    }));
-  }, []);
 
   // Handle navigation to replacement options with loader overlay
   const handleServiceRequest = useCallback(() => {
@@ -388,9 +380,9 @@ const Index = () => {
       return (
         <CommandCenter
           onPanicMode={handlePanicMode}
-          onServiceRequest={handleViewFindings}
+          onServiceRequest={handleServiceRequest}
           onViewReport={handleViewReport}
-          onMaintenancePlan={handleViewFindings}
+          onMaintenancePlan={handleMaintenancePlan}
           onTestHarness={handleOpenTestHarness}
           currentAsset={currentAsset}
           currentInputs={currentInputs}
@@ -408,18 +400,6 @@ const Index = () => {
     case 'test-harness':
       return <AlgorithmTestHarness onBack={handleBackToCommandCenter} />;
 
-    case 'findings-summary':
-      return (
-        <FindingsSummaryPage
-          currentInputs={currentInputs}
-          opterraResult={opterraResult}
-          infrastructureIssues={getInfrastructureIssues(currentInputs, opterraResult.metrics)}
-          onMaintenance={handleMaintenancePlan}
-          onOptions={handleServiceRequest}
-          onEmergency={handlePanicMode}
-          onBack={handleBackToCommandCenter}
-        />
-      );
 
     case 'forensic-report':
       return (
