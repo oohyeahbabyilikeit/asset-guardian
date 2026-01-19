@@ -1,6 +1,6 @@
 import { 
   Droplets, Shield, Bell, Clock, CheckCircle, 
-  Flame, Filter, Wrench, Wind, Sparkles, Phone
+  Flame, Filter, Wrench, Wind, Sparkles, Phone, AlertTriangle, Gauge
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,7 @@ export function BundledServiceCard({
 }: BundledServiceCardProps) {
   const isAnyOverdue = tasks.some(t => t.urgency === 'overdue' || t.monthsUntilDue <= 0);
   const isAnyDueSoon = tasks.some(t => t.urgency === 'due' || (t.monthsUntilDue <= 2 && t.monthsUntilDue > 0));
+  const hasViolations = tasks.some(t => t.isInfrastructure);
   const earliestDue = Math.min(...tasks.map(t => t.monthsUntilDue));
   
   const combinedLabel = tasks.map(t => t.label).join(' + ');
@@ -96,17 +97,39 @@ export function BundledServiceCard({
         <p className="text-sm font-medium">{bundleReason}</p>
       </div>
       
-      {/* Task Benefits Checklist */}
+      {/* Task Benefits Checklist - violations first */}
       <div className="space-y-3">
-        {tasks.map(task => {
-          const IconComponent = getIcon(task.icon);
+        {[...tasks].sort((a, b) => (b.isInfrastructure ? 1 : 0) - (a.isInfrastructure ? 1 : 0)).map(task => {
+          const IconComponent = task.isInfrastructure 
+            ? (task.type.includes('exp_tank') ? Droplets : task.type.includes('prv') ? Gauge : AlertTriangle)
+            : getIcon(task.icon);
           return (
-            <div key={task.type} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/30">
-              <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                <IconComponent className="w-4 h-4 text-muted-foreground" />
+            <div key={task.type} className={cn(
+              "flex items-start gap-3 p-3 rounded-xl",
+              task.isInfrastructure 
+                ? "bg-destructive/10 border border-destructive/20" 
+                : "bg-secondary/30"
+            )}>
+              <div className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                task.isInfrastructure 
+                  ? "bg-destructive/20 text-destructive" 
+                  : "bg-secondary text-muted-foreground"
+              )}>
+                <IconComponent className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-foreground">{task.label}</p>
+                <div className="flex items-center gap-2">
+                  {task.isInfrastructure && (
+                    <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white">
+                      VIOLATION
+                    </span>
+                  )}
+                  <p className={cn(
+                    "font-medium text-sm",
+                    task.isInfrastructure ? "text-destructive" : "text-foreground"
+                  )}>{task.label}</p>
+                </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{task.benefit}</p>
               </div>
             </div>

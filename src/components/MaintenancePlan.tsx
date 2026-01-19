@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind, Zap, TrendingUp, Award } from 'lucide-react';
+import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind, Zap, TrendingUp, Award, AlertTriangle, Phone, Bell, Gauge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,81 @@ import { ForensicInputs, calculateOpterraRisk, failProbToHealthScore, isTankless
 import { ServiceEvent } from '@/types/serviceHistory';
 import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMaintenanceCard';
 import { BundledServiceCard } from './BundledServiceCard';
-import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
+import { calculateMaintenanceSchedule, getServiceEventTypes, getInfrastructureMaintenanceTasks, MaintenanceTask } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HealthRing } from './HealthRing';
 import { CriticalAssessmentPage } from './CriticalAssessmentPage';
 import { cn } from '@/lib/utils';
+
+// ViolationCard - dedicated card for code violations with red styling
+function ViolationCard({ 
+  task, 
+  onSchedule, 
+  onRemind 
+}: { 
+  task: MaintenanceTask; 
+  onSchedule: () => void; 
+  onRemind: () => void; 
+}) {
+  const getIcon = () => {
+    if (task.type.includes('exp_tank')) return Droplets;
+    if (task.type.includes('prv')) return Gauge;
+    return AlertTriangle;
+  };
+  const IconComponent = getIcon();
+  
+  return (
+    <div className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-5 space-y-4 shadow-sm">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-destructive/15 text-destructive border border-destructive/20">
+            <IconComponent className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-destructive text-white mb-1">
+              CODE VIOLATION
+            </span>
+            <h3 className="text-lg font-semibold text-foreground">
+              {task.label}
+            </h3>
+          </div>
+        </div>
+      </div>
+      
+      {/* Explanation */}
+      <div className="bg-destructive/10 rounded-xl p-4 border border-destructive/20">
+        <p className="text-sm text-foreground/90 leading-relaxed">
+          {task.whyExplanation}
+        </p>
+        {task.agingMultiplier && task.agingMultiplier > 1 && (
+          <p className="text-xs text-destructive font-medium mt-2">
+            ⚠️ Accelerating aging by {task.agingMultiplier}x until fixed
+          </p>
+        )}
+      </div>
+      
+      {/* Actions */}
+      <div className="space-y-3">
+        <Button 
+          onClick={onRemind}
+          variant="outline"
+          className="w-full gap-2 h-11 border-destructive/30 text-destructive hover:bg-destructive/10"
+        >
+          <Bell className="w-4 h-4" />
+          Set Reminder
+        </Button>
+        <Button 
+          onClick={onSchedule}
+          className="w-full gap-2 h-11 bg-destructive hover:bg-destructive/90 text-white"
+        >
+          <Phone className="w-4 h-4" />
+          Have My Plumber Reach Out
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 interface MaintenancePlanProps {
   onBack: () => void;
@@ -71,6 +141,12 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   // Calculate unit-type-aware maintenance schedule
   const maintenanceSchedule = useMemo(
     () => calculateMaintenanceSchedule(currentInputs, opterraResult.metrics),
+    [currentInputs, opterraResult.metrics]
+  );
+  
+  // Get infrastructure violations (code violations) that need to be fixed first
+  const infrastructureTasks = useMemo(
+    () => getInfrastructureMaintenanceTasks(currentInputs, opterraResult.metrics),
     [currentInputs, opterraResult.metrics]
   );
   
@@ -288,12 +364,31 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       {/* Content */}
       <div className="max-w-lg mx-auto p-4 space-y-5 pb-8">
         
+        {/* Code Violations - ALWAYS FIRST when present */}
+        {infrastructureTasks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <h2 className="text-sm font-medium text-destructive uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Code Violations – Fix First
+            </h2>
+            <div className="space-y-3">
+              {infrastructureTasks.map((task) => (
+                <ViolationCard key={task.type} task={task} onSchedule={handleSchedule} onRemind={handleRemind} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+        
         {/* Bundled Service Visit OR Individual Tasks */}
         {maintenanceSchedule.isBundled && maintenanceSchedule.bundledTasks ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: infrastructureTasks.length > 0 ? 0.6 : 0.5 }}
           >
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />

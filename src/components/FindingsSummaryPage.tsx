@@ -1186,18 +1186,18 @@ export function FindingsSummaryPage({
     }
   }
   
-  // Add infrastructure violations as findings
+  // Add infrastructure violations as findings - marked as CRITICAL to appear at top
   violations.forEach(violation => {
     if (violation.id.includes('prv') && findings.some(f => f.id.includes('pressure'))) return;
     if (violation.id.includes('exp_tank') && findings.some(f => f.id === 'expansion-tank')) return;
     
     findings.push({
       id: violation.id,
-      icon: <Shield className="w-6 h-6" />,
-      title: violation.name,
+      icon: <AlertTriangle className="w-6 h-6" />,
+      title: `⚠️ Code Violation: ${violation.name}`,
       explanation: violation.description,
-      severity: 'warning',
-      severityValue: 60,
+      severity: 'critical',
+      severityValue: 95, // High value ensures violations appear at top of sorted list
     });
   });
   

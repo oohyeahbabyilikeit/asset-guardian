@@ -1,6 +1,6 @@
 import { 
   Droplets, Shield, Bell, Clock, Sparkles, 
-  Flame, Filter, Wrench, Wind, Phone
+  Flame, Filter, Wrench, Wind, Phone, AlertTriangle, Gauge
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,12 +17,13 @@ export function UnifiedMaintenanceCard({
   onSchedule,
   onRemind
 }: UnifiedMaintenanceCardProps) {
-  const { type, label, monthsUntilDue, urgency, benefit, whyExplanation, icon } = task;
+  const { type, label, monthsUntilDue, urgency, benefit, whyExplanation, icon, isInfrastructure } = task;
   
   const isOverdue = urgency === 'overdue' || monthsUntilDue <= 0;
   const isDueSoon = urgency === 'due' || (monthsUntilDue <= 2 && monthsUntilDue > 0);
   const isImpossible = urgency === 'impossible';
   const isFarOut = monthsUntilDue > 3 && !isOverdue && !isImpossible;
+  const isViolation = isInfrastructure === true;
   
   // Calculate urgency percentage (inverse - higher when due sooner)
   const maxMonths = 12;
@@ -48,6 +49,11 @@ export function UnifiedMaintenanceCard({
   };
 
   const getIcon = () => {
+    if (isViolation) {
+      if (type.includes('exp_tank')) return Droplets;
+      if (type.includes('prv')) return Gauge;
+      return AlertTriangle;
+    }
     switch (icon) {
       case 'droplets': return Droplets;
       case 'shield': return Shield;
@@ -62,23 +68,28 @@ export function UnifiedMaintenanceCard({
 
   const IconComponent = getIcon();
 
-  const urgencyStyles = isImpossible
-    ? { border: 'border-orange-500/40', bg: 'bg-orange-500/5', accent: 'text-orange-500', progressColor: 'bg-orange-500' }
-    : isOverdue 
-      ? { border: 'border-amber-500/40', bg: 'bg-amber-500/5', accent: 'text-amber-500', progressColor: 'bg-amber-500' }
-      : isDueSoon 
-        ? { border: 'border-amber-500/30', bg: 'bg-amber-500/5', accent: 'text-amber-400', progressColor: 'bg-amber-400' }
-        : { border: 'border-primary/20', bg: 'bg-card', accent: 'text-primary', progressColor: 'bg-primary' };
+  const urgencyStyles = isViolation
+    ? { border: 'border-destructive/40', bg: 'bg-destructive/5', accent: 'text-destructive', progressColor: 'bg-destructive' }
+    : isImpossible
+      ? { border: 'border-orange-500/40', bg: 'bg-orange-500/5', accent: 'text-orange-500', progressColor: 'bg-orange-500' }
+      : isOverdue 
+        ? { border: 'border-amber-500/40', bg: 'bg-amber-500/5', accent: 'text-amber-500', progressColor: 'bg-amber-500' }
+        : isDueSoon 
+          ? { border: 'border-amber-500/30', bg: 'bg-amber-500/5', accent: 'text-amber-400', progressColor: 'bg-amber-400' }
+          : { border: 'border-primary/20', bg: 'bg-card', accent: 'text-primary', progressColor: 'bg-primary' };
 
-  const iconBg = isImpossible
-    ? 'bg-orange-500/15 text-orange-500 border-orange-500/20'
-    : isOverdue
-      ? 'bg-amber-500/15 text-amber-500 border-amber-500/20'
-      : isDueSoon
-        ? 'bg-amber-400/15 text-amber-400 border-amber-400/20'
-        : 'bg-primary/15 text-primary border-primary/20';
+  const iconBg = isViolation
+    ? 'bg-destructive/15 text-destructive border-destructive/20'
+    : isImpossible
+      ? 'bg-orange-500/15 text-orange-500 border-orange-500/20'
+      : isOverdue
+        ? 'bg-amber-500/15 text-amber-500 border-amber-500/20'
+        : isDueSoon
+          ? 'bg-amber-400/15 text-amber-400 border-amber-400/20'
+          : 'bg-primary/15 text-primary border-primary/20';
 
   const getStatusLabel = () => {
+    if (isViolation) return 'Code Violation';
     if (isImpossible) return 'Setup Required';
     if (isOverdue) return 'Action Required';
     if (isDueSoon) return 'Due Soon';
@@ -98,6 +109,11 @@ export function UnifiedMaintenanceCard({
             <IconComponent className="w-5 h-5" />
           </div>
           <div>
+            {isViolation && (
+              <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white mb-1 mr-2">
+                VIOLATION
+              </span>
+            )}
             <p className={cn("text-xs font-medium uppercase tracking-wider mb-0.5", urgencyStyles.accent)}>
               {getStatusLabel()}
             </p>

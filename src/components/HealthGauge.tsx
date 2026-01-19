@@ -372,8 +372,11 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                     e.stopPropagation();
                     onIssueLearnMore?.(issue);
                   }}
-                  className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-destructive/8 border border-destructive/20 active:bg-destructive/15 transition-colors min-h-[44px]"
+                  className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/30 active:bg-destructive/20 transition-colors min-h-[44px]"
                 >
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white shrink-0">
+                    VIOLATION
+                  </span>
                   {issue.id.includes('exp_tank') ? (
                     <Droplets className="w-4 h-4 text-destructive shrink-0" />
                   ) : issue.id.includes('prv') ? (
