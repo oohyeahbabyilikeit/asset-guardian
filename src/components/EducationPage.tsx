@@ -179,15 +179,15 @@ function EducationCard({ topic }: { topic: EducationalTopic }) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-3 rounded-lg bg-muted/50 border border-border"
+      className="p-4 rounded-xl bg-muted/50 border border-border"
     >
-      <div className="flex items-start gap-2">
-        <div className="p-1.5 rounded bg-primary/10 text-primary flex-shrink-0">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
           {content.icon}
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-xs">{content.title}</h4>
-          <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+          <h4 className="font-medium text-sm">{content.title}</h4>
+          <p className="text-xs text-muted-foreground leading-relaxed mt-1">
             {content.description}
           </p>
           
@@ -199,11 +199,11 @@ function EducationCard({ topic }: { topic: EducationalTopic }) {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="mt-2 pt-2 border-t border-border/50 space-y-2">
+                <div className="mt-3 pt-3 border-t border-border/50 space-y-3">
                   {content.sections.slice(0, 2).map((section, idx) => (
                     <div key={idx}>
-                      <h5 className="text-[11px] font-medium">{section.heading}</h5>
-                      <p className="text-[10px] text-muted-foreground">{section.content}</p>
+                      <h5 className="text-xs font-medium">{section.heading}</h5>
+                      <p className="text-xs text-muted-foreground mt-0.5">{section.content}</p>
                     </div>
                   ))}
                 </div>
@@ -213,9 +213,9 @@ function EducationCard({ topic }: { topic: EducationalTopic }) {
           
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 mt-1"
+            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 mt-2 min-h-[44px] -mb-2 touch-manipulation"
           >
-            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             {expanded ? 'Less' : 'More'}
           </button>
         </div>
@@ -251,22 +251,22 @@ export function EducationPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-safe">
         <div className="flex items-center max-w-md mx-auto px-4 py-3">
           <button 
             onClick={onBack} 
-            className="p-2 -ml-2 hover:bg-muted rounded-lg transition-colors"
+            className="p-3 -ml-3 hover:bg-muted rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 text-center">
             <h1 className="font-semibold text-base">Your Assessment</h1>
           </div>
-          <div className="w-9" />
+          <div className="w-11" />
         </div>
       </header>
 
-      <div className="px-4 pt-5 pb-8 max-w-md mx-auto space-y-5">
+      <div className="px-4 pt-6 pb-8 max-w-md mx-auto space-y-6">
         {/* Recommendation Card - The Main Focus */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

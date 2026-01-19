@@ -127,18 +127,18 @@ export function ContactFormPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-safe">
         <div className="flex items-center max-w-md mx-auto px-4 py-3">
           <button 
             onClick={onBack} 
-            className="p-2 -ml-2 hover:bg-muted rounded-lg transition-colors"
+            className="p-3 -ml-3 hover:bg-muted rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 text-center">
-            <h1 className="font-semibold text-lg">Have Your Plumber Reach Out</h1>
+            <h1 className="font-semibold text-base">Have Your Plumber Reach Out</h1>
           </div>
-          <div className="w-9" />
+          <div className="w-11" />
         </div>
       </header>
 
@@ -163,10 +163,10 @@ export function ContactFormPage({
           </div>
 
           {/* Contact Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="p-5 rounded-2xl bg-card border border-border space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="p-5 rounded-2xl bg-card border border-border space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="flex items-center gap-2">
+                <Label htmlFor="name" className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
                   Name
                 </Label>
@@ -175,8 +175,10 @@ export function ContactFormPage({
                   placeholder="Your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={cn("h-12", errors.name && 'border-destructive')}
+                  className={cn(errors.name && 'border-destructive')}
                   disabled={isSubmitting}
+                  autoComplete="name"
+                  autoCapitalize="words"
                 />
                 {errors.name && (
                   <p className="text-sm text-destructive">{errors.name}</p>
@@ -184,38 +186,40 @@ export function ContactFormPage({
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="phone" className="flex items-center gap-2">
+                <Label htmlFor="phone" className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-muted-foreground" />
                   Phone Number
                 </Label>
                 <Input
                   id="phone"
                   type="tel"
+                  inputMode="tel"
                   placeholder="(555) 123-4567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className={cn("h-12", errors.phone && 'border-destructive')}
+                  className={cn(errors.phone && 'border-destructive')}
                   disabled={isSubmitting}
+                  autoComplete="tel"
                 />
                 {errors.phone && (
                   <p className="text-sm text-destructive">{errors.phone}</p>
                 )}
               </div>
               
-              <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-xl">
                 <Checkbox
                   id="alerts"
                   checked={optInAlerts}
                   onCheckedChange={(checked) => setOptInAlerts(checked === true)}
-                  className="mt-0.5"
+                  className="mt-0.5 h-5 w-5"
                   disabled={isSubmitting}
                 />
-                <div className="space-y-1">
-                  <Label htmlFor="alerts" className="flex items-center gap-2 cursor-pointer text-sm">
+                <div className="space-y-1 flex-1">
+                  <Label htmlFor="alerts" className="flex items-center gap-2 cursor-pointer text-sm touch-manipulation">
                     <Bell className="w-4 h-4 text-primary" />
                     Unit Monitoring Alerts
                   </Label>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Get notified about maintenance reminders and potential issues.
                   </p>
                 </div>
