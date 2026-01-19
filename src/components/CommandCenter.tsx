@@ -477,6 +477,7 @@ export function CommandCenter({
               visualRust={currentInputs.visualRust}
               fuelType={currentInputs.fuelType}
               inputs={currentInputs}
+              onLearnMore={handleLearnMore}
             />
           </motion.div>
 
