@@ -93,7 +93,7 @@ export function IssueSelector({ onBack, onSimulate, currentInputs }: IssueSelect
           <CheckCircle2 className="w-16 h-16 text-blue-400 mx-auto mb-6" />
           <h2 className="text-xl font-bold text-foreground mb-3">Assessment Complete</h2>
           <p className="text-muted-foreground mb-8">
-            No urgent repairs identified at this time. Regular professional inspection and routine maintenance are always recommended.
+            No urgent repairs identified at this time. Continue regular maintenance to keep your unit running well.
           </p>
           <Button onClick={onBack} variant="outline" className="w-full max-w-xs">
             Return to Dashboard

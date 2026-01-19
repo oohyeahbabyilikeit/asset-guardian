@@ -247,7 +247,7 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
               <h4 className="font-semibold mb-2">What This Means</h4>
               <p className="text-sm text-muted-foreground">
                 {verdict.action === 'REPLACE' 
-                  ? "Based on our analysis, this unit has reached the end of its safe, reliable service life. Continuing to operate it increases the risk of unexpected failure and potential water damage."
+                  ? "Based on our inspection, this unit should be replaced. Continuing to operate it increases the risk of unexpected failure and water damage."
                   : "These issues are putting unnecessary stress on your water heater. Addressing them now can help prevent premature failure and protect your home from water damage."
                 }
               </p>

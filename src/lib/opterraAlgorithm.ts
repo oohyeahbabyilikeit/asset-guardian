@@ -1510,7 +1510,7 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   return {
     action: 'PASS',
     title: 'No Issues Detected',
-    reason: 'No immediate concerns identified. Professional inspection and routine maintenance recommended.',
+    reason: 'No immediate concerns identified. Continue regular maintenance to keep your unit running well.',
     urgent: false,
     badgeColor: 'green',
     badge: 'MONITOR'
@@ -1573,7 +1573,7 @@ function optimizeEconomicDecision(
     return {
       action: 'PASS',
       title: 'Warranty Expired',
-      reason: `Unit is past its ${data.warrantyYears}-year manufacturer warranty. Professional inspection and replacement budgeting recommended.`,
+      reason: `Unit is past its ${data.warrantyYears}-year manufacturer warranty. Consider budgeting for eventual replacement while maintaining current unit.`,
       urgent: false,
       badgeColor: 'blue',
       badge: 'MONITOR'
