@@ -9,13 +9,15 @@ import { MaintenanceTask } from '@/lib/maintenanceCalculations';
 interface BundledServiceCardProps {
   tasks: MaintenanceTask[];
   bundleReason: string;
-  onSchedule: () => void;
-  onRemind: () => void;
+  showActions?: boolean;
+  onSchedule?: () => void;
+  onRemind?: () => void;
 }
 
 export function BundledServiceCard({
   tasks,
   bundleReason,
+  showActions = true,
   onSchedule,
   onRemind
 }: BundledServiceCardProps) {
@@ -137,28 +139,30 @@ export function BundledServiceCard({
         })}
       </div>
 
-      {/* Actions */}
-      <div className="space-y-3">
-        <Button 
-          onClick={onRemind}
-          variant="outline"
-          className="w-full gap-2 h-11"
-        >
-          <Bell className="w-4 h-4" />
-          Remind Me When Due
-        </Button>
-        <Button 
-          onClick={onSchedule}
-          className={cn(
-            "w-full gap-2 h-11",
-            isAnyOverdue && "bg-amber-600 hover:bg-amber-500 text-white"
-          )}
-          variant={isAnyOverdue ? undefined : "default"}
-        >
-          <Phone className="w-4 h-4" />
-          Have My Plumber Reach Out
-        </Button>
-      </div>
+      {/* Actions - Only show if enabled */}
+      {showActions && onSchedule && onRemind && (
+        <div className="space-y-3">
+          <Button 
+            onClick={onRemind}
+            variant="outline"
+            className="w-full gap-2 h-11"
+          >
+            <Bell className="w-4 h-4" />
+            Remind Me When Due
+          </Button>
+          <Button 
+            onClick={onSchedule}
+            className={cn(
+              "w-full gap-2 h-11",
+              isAnyOverdue && "bg-amber-600 hover:bg-amber-500 text-white"
+            )}
+            variant={isAnyOverdue ? undefined : "default"}
+          >
+            <Phone className="w-4 h-4" />
+            Have My Plumber Reach Out
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

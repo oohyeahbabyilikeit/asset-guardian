@@ -8,12 +8,14 @@ import { MaintenanceTask } from '@/lib/maintenanceCalculations';
 
 interface UnifiedMaintenanceCardProps {
   task: MaintenanceTask;
-  onSchedule: () => void;
-  onRemind: () => void;
+  showActions?: boolean;
+  onSchedule?: () => void;
+  onRemind?: () => void;
 }
 
 export function UnifiedMaintenanceCard({
   task,
+  showActions = true,
   onSchedule,
   onRemind
 }: UnifiedMaintenanceCardProps) {
@@ -166,29 +168,31 @@ export function UnifiedMaintenanceCard({
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="space-y-3">
-        <Button 
-          onClick={onRemind}
-          variant="outline"
-          className="w-full gap-2 h-11"
-        >
-          <Bell className="w-4 h-4" />
-          {isFarOut ? 'Remind Me When Due' : 'Set a Reminder'}
-        </Button>
-        <Button 
-          onClick={onSchedule}
-          className={cn(
-            "w-full gap-2 h-11",
-            isImpossible && "bg-orange-600 hover:bg-orange-500 text-white",
-            isOverdue && !isImpossible && "bg-amber-600 hover:bg-amber-500 text-white"
-          )}
-          variant={(isOverdue || isImpossible) ? undefined : "default"}
-        >
-          <Phone className="w-4 h-4" />
-          {isImpossible ? 'Have My Plumber Reach Out' : 'Have My Plumber Reach Out'}
-        </Button>
-      </div>
+      {/* Actions - Only show if enabled */}
+      {showActions && onSchedule && onRemind && (
+        <div className="space-y-3">
+          <Button 
+            onClick={onRemind}
+            variant="outline"
+            className="w-full gap-2 h-11"
+          >
+            <Bell className="w-4 h-4" />
+            {isFarOut ? 'Remind Me When Due' : 'Set a Reminder'}
+          </Button>
+          <Button 
+            onClick={onSchedule}
+            className={cn(
+              "w-full gap-2 h-11",
+              isImpossible && "bg-orange-600 hover:bg-orange-500 text-white",
+              isOverdue && !isImpossible && "bg-amber-600 hover:bg-amber-500 text-white"
+            )}
+            variant={(isOverdue || isImpossible) ? undefined : "default"}
+          >
+            <Phone className="w-4 h-4" />
+            {isImpossible ? 'Have My Plumber Reach Out' : 'Have My Plumber Reach Out'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

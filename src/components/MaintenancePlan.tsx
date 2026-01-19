@@ -16,6 +16,7 @@ import { calculateMaintenanceSchedule, getServiceEventTypes, getInfrastructureMa
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HealthRing } from './HealthRing';
 import { CriticalAssessmentPage } from './CriticalAssessmentPage';
+import { ServiceSelectionDrawer } from './ServiceSelectionDrawer';
 import { cn } from '@/lib/utils';
 
 // Helper to generate situation summary points for integrated education
@@ -97,6 +98,7 @@ interface MaintenancePlanProps {
 export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serviceHistory = [], onAddServiceEvent }: MaintenancePlanProps) {
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showServiceDrawer, setShowServiceDrawer] = useState(false);
   
   // Get unit-specific service event types
   const serviceEventTypes = useMemo(() => getServiceEventTypes(currentInputs.fuelType), [currentInputs.fuelType]);
@@ -212,7 +214,13 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   };
 
   const handleSchedule = () => {
-    // Education has already been shown before this page, go directly to contact
+    // Open service selection drawer instead of going directly to contact
+    setShowServiceDrawer(true);
+  };
+  
+  const handleServiceSubmit = (selectedTasks: MaintenanceTask[]) => {
+    // For now, just proceed to schedule - could pass selected tasks to the contact form
+    console.log('Selected services:', selectedTasks.map(t => t.label));
     onScheduleService();
   };
 
@@ -335,8 +343,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
               <UnifiedMaintenanceCard 
                 key={task.type} 
                 task={task} 
-                onSchedule={handleSchedule}
-                onRemind={handleRemind}
+                showActions={false}
               />
             ))}
           </motion.div>
@@ -358,8 +365,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
                 maintenanceSchedule.secondaryTask,
               ].filter(Boolean) as MaintenanceTask[]}
               bundleReason="Combine these services in one visit to save time and money"
-              onSchedule={handleSchedule}
-              onRemind={handleRemind}
+              showActions={false}
             />
           </motion.div>
         )}
@@ -503,6 +509,19 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         </DialogContent>
       </Dialog>
       
+      {/* Service Selection Drawer */}
+      <ServiceSelectionDrawer
+        open={showServiceDrawer}
+        onOpenChange={setShowServiceDrawer}
+        violations={infrastructureTasks}
+        maintenanceTasks={[
+          maintenanceSchedule.primaryTask,
+          maintenanceSchedule.secondaryTask,
+          ...maintenanceSchedule.additionalTasks
+        ].filter(Boolean) as MaintenanceTask[]}
+        onSubmit={handleServiceSubmit}
+      />
+      
       {/* Sticky Bottom CTA - Conversion Driver */}
       <motion.div 
         className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-50"
@@ -510,27 +529,19 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
       >
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {infrastructureTasks.length > 0 ? 'Ready to fix violations?' : 'Ready to schedule?'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Get a quote from your plumber
-            </p>
-          </div>
+        <div className="max-w-lg mx-auto">
           <Button 
             onClick={handleSchedule}
             size="lg"
             className={cn(
-              "shrink-0 gap-2",
+              "w-full gap-2 h-12",
               infrastructureTasks.length > 0 
                 ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" 
                 : "bg-primary hover:bg-primary/90"
             )}
           >
             <Phone className="w-4 h-4" />
-            Get Quote
+            Get a Quote
           </Button>
         </div>
       </motion.div>
