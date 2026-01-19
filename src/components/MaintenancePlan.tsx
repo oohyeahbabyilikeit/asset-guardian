@@ -84,99 +84,7 @@ function getRecommendationText(healthScore: number, hasViolations: boolean): { t
   };
 }
 
-// ViolationRow - compact single-row violation display
-function ViolationRow({ 
-  task, 
-  onSchedule 
-}: { 
-  task: MaintenanceTask; 
-  onSchedule: () => void; 
-}) {
-  const getIcon = () => {
-    if (task.type.includes('exp_tank')) return Droplets;
-    if (task.type.includes('prv')) return Gauge;
-    return AlertTriangle;
-  };
-  const IconComponent = getIcon();
-  
-  return (
-    <div 
-      className="flex items-center gap-3 p-3 rounded-xl bg-destructive/5 border border-destructive/20 hover:bg-destructive/10 transition-colors cursor-pointer"
-      onClick={onSchedule}
-    >
-      <div className="p-2 rounded-lg bg-destructive/15 text-destructive shrink-0">
-        <IconComponent className="w-4 h-4" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{task.label}</p>
-        <p className="text-xs text-destructive">Required fix</p>
-      </div>
-      <ChevronRight className="w-4 h-4 text-destructive shrink-0" />
-    </div>
-  );
-}
-
-// TaskRow - simple row for maintenance tasks
-interface TaskRowProps {
-  task: {
-    type: string;
-    label: string;
-    monthsUntilDue: number;
-    urgency: string;
-  };
-  onTap: () => void;
-  isPrimary?: boolean;
-}
-
-function TaskRow({ task, onTap, isPrimary }: TaskRowProps) {
-  const getTaskIcon = () => {
-    if (task.type.includes('flush') || task.type.includes('condensate')) return Droplets;
-    if (task.type.includes('anode')) return Shield;
-    if (task.type.includes('descale')) return Flame;
-    if (task.type.includes('filter')) return Filter;
-    if (task.type.includes('valve') || task.type.includes('repair')) return Wrench;
-    if (task.type.includes('air')) return Wind;
-    return Shield;
-  };
-  const IconComponent = getTaskIcon();
-  
-  const getTimingLabel = () => {
-    if (task.monthsUntilDue <= 0) return 'Due now';
-    if (task.monthsUntilDue < 1) return 'This month';
-    return `${Math.round(task.monthsUntilDue)} mo`;
-  };
-  
-  const isOverdue = task.urgency === 'overdue' || task.urgency === 'due';
-  
-  return (
-    <div 
-      className="flex items-center gap-3 p-3 hover:bg-secondary/30 transition-colors cursor-pointer"
-      onClick={onTap}
-    >
-      <div className={cn(
-        "p-2 rounded-lg shrink-0",
-        isPrimary ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"
-      )}>
-        <IconComponent className="w-4 h-4" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className={cn(
-          "text-sm truncate",
-          isPrimary ? "font-medium text-foreground" : "text-muted-foreground"
-        )}>
-          {task.label}
-        </p>
-      </div>
-      <span className={cn(
-        "text-xs shrink-0",
-        isOverdue ? "text-amber-600 font-medium" : "text-muted-foreground"
-      )}>
-        {getTimingLabel()}
-      </span>
-      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-    </div>
-  );
-}
+// Removed ViolationRow and TaskRow - using proper card components instead
 
 interface MaintenancePlanProps {
   onBack: () => void;
@@ -408,72 +316,77 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         </div>
       </div>
         
-      {/* Content - Clean List Layout */}
-      <div className="max-w-lg mx-auto p-4 space-y-4 pb-24">
+      {/* Content - Restored Cards */}
+      <div className="max-w-lg mx-auto p-4 space-y-5 pb-24">
         
-        {/* Code Violations - Compact rows */}
+        {/* Code Violations - Full Cards with Actions */}
         {infrastructureTasks.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
+            className="space-y-3"
           >
-            <h2 className="text-xs font-medium text-destructive uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <h2 className="text-xs font-medium text-destructive uppercase tracking-wider flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5" />
               Fix First
             </h2>
-            <div className="space-y-2">
-              {infrastructureTasks.map((task) => (
-                <ViolationRow key={task.type} task={task} onSchedule={handleSchedule} />
+            {infrastructureTasks.map((task) => (
+              <UnifiedMaintenanceCard 
+                key={task.type} 
+                task={task} 
+                onSchedule={handleSchedule}
+                onRemind={handleRemind}
+              />
+            ))}
+          </motion.div>
+        )}
+        
+        {/* Primary Service Bundle - Full Card */}
+        {(maintenanceSchedule.primaryTask || maintenanceSchedule.secondaryTask) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+              Recommended
+            </h2>
+            <BundledServiceCard
+              tasks={[
+                maintenanceSchedule.primaryTask,
+                maintenanceSchedule.secondaryTask,
+              ].filter(Boolean) as MaintenanceTask[]}
+              bundleReason="Combine these services in one visit to save time and money"
+              onSchedule={handleSchedule}
+              onRemind={handleRemind}
+            />
+          </motion.div>
+        )}
+        
+        {/* Additional Tasks - Compact List */}
+        {maintenanceSchedule.additionalTasks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              Also Scheduled
+            </h2>
+            <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
+              {maintenanceSchedule.additionalTasks.map((task) => (
+                <UpcomingMaintenanceTask key={task.type} task={task} />
               ))}
             </div>
           </motion.div>
         )}
         
-        {/* Recommended Section - All maintenance in one card */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Recommended
-          </h2>
-          
-          <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-            {/* Primary Task Row */}
-            {maintenanceSchedule.primaryTask && (
-              <TaskRow 
-                task={maintenanceSchedule.primaryTask} 
-                onTap={handleSchedule}
-                isPrimary
-              />
-            )}
-            
-            {/* Secondary Task Row */}
-            {maintenanceSchedule.secondaryTask && (
-              <TaskRow 
-                task={maintenanceSchedule.secondaryTask} 
-                onTap={handleSchedule}
-              />
-            )}
-            
-            {/* Additional Tasks */}
-            {maintenanceSchedule.additionalTasks.map((task) => (
-              <TaskRow 
-                key={task.type}
-                task={task} 
-                onTap={handleSchedule}
-              />
-            ))}
-          </div>
-        </motion.div>
-        
-        {/* Service History - Simple link */}
+        {/* Service History - Collapsible */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.4 }}
         >
           <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
             <CollapsibleTrigger className="w-full">
