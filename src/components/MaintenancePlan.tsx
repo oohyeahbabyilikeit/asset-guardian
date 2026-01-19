@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind } from 'lucide-react';
+import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind, Zap, TrendingUp, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { ForensicInputs, calculateOpterraRisk, failProbToHealthScore, isTankless } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
 import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMaintenanceCard';
 import { BundledServiceCard } from './BundledServiceCard';
 import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { HealthRing } from './HealthRing';
 import { cn } from '@/lib/utils';
 
 interface MaintenancePlanProps {
@@ -46,6 +48,9 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   const isTanklessUnit = isTankless(currentInputs.fuelType);
   const isHybridUnit = currentInputs.fuelType === 'HYBRID';
   const unitTypeLabel = isTanklessUnit ? 'Tankless' : isHybridUnit ? 'Hybrid Heat Pump' : 'Tank';
+  const brandLabel = currentInputs.manufacturer || 'Your';
+  const ageLabel = currentInputs.calendarAge ? `${currentInputs.calendarAge}-Year-Old` : '';
+  const capacityLabel = currentInputs.tankCapacity ? `${currentInputs.tankCapacity} Gal` : '';
   
   // Handle critical states - block maintenance plan for units that need replacement
   const isScaleLockout = isTanklessUnit && descaleStatus === 'lockout';
@@ -192,60 +197,117 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       year: 'numeric' 
     });
   };
+  
+  // Get gradient colors based on health score
+  const getGradientColors = () => {
+    if (currentScore < 30) return 'from-destructive/20 via-destructive/10 to-transparent';
+    if (currentScore < 60) return 'from-amber-500/20 via-amber-500/10 to-transparent';
+    return 'from-emerald-500/20 via-emerald-500/10 to-transparent';
+  };
+
+  // Stats for the hero section
+  const servicesCompleted = serviceHistory.length;
+  const nextServiceMonths = maintenanceSchedule.primaryTask?.monthsUntilDue || 0;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <button 
+      {/* Hero Section with Gradient */}
+      <div className={cn("relative overflow-hidden", `bg-gradient-to-b ${getGradientColors()}`)}>
+        {/* Back button */}
+        <div className="max-w-lg mx-auto px-4 pt-4">
+          <motion.button 
             onClick={onBack} 
-            className="p-2 -ml-2 hover:bg-secondary rounded-xl transition-colors"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
           >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-lg font-semibold">Keeping Things Running</h1>
-            <p className="text-xs text-muted-foreground">Your personalized care plan</p>
-          </div>
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm">Back</span>
+          </motion.button>
+        </div>
+        
+        {/* Hero Content */}
+        <div className="max-w-lg mx-auto px-4 py-6 pb-10">
+          <motion.div 
+            className="text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            {/* Unit Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border mb-4">
+              <Zap className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">
+                {ageLabel} {brandLabel} {unitTypeLabel} {capacityLabel && `· ${capacityLabel}`}
+              </span>
+            </div>
+            
+            <h1 className="text-xl font-bold text-foreground mb-2">
+              Your Maintenance Plan
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Personalized care to extend your unit's life
+            </p>
+          </motion.div>
+          
+          {/* Health Ring */}
+          <motion.div 
+            className="flex justify-center py-6"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <HealthRing score={currentScore} size="lg" />
+          </motion.div>
+          
+          {/* Quick Stats Row */}
+          <motion.div 
+            className="grid grid-cols-3 gap-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-3 text-center">
+              <div className="flex justify-center mb-1">
+                <Award className="w-4 h-4 text-primary" />
+              </div>
+              <p className="text-lg font-bold text-foreground">{servicesCompleted}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Services Done</p>
+            </div>
+            
+            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-3 text-center">
+              <div className="flex justify-center mb-1">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+              </div>
+              <p className="text-lg font-bold text-foreground">${totalSaved > 0 ? totalSaved.toLocaleString() : '0'}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saved</p>
+            </div>
+            
+            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-3 text-center">
+              <div className="flex justify-center mb-1">
+                <History className="w-4 h-4 text-accent" />
+              </div>
+              <p className="text-lg font-bold text-foreground">
+                {nextServiceMonths <= 0 ? 'Now' : `${Math.round(nextServiceMonths)}mo`}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Next Service</p>
+            </div>
+          </motion.div>
         </div>
       </div>
-
+        
       {/* Content */}
       <div className="max-w-lg mx-auto p-4 space-y-5 pb-8">
         
-        {/* Compact Health Summary with Score Badge */}
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/30 border border-border">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "w-14 h-14 rounded-xl flex items-center justify-center font-bold text-xl",
-              currentScore < 30 ? 'bg-destructive/10 text-destructive' : 
-              currentScore < 60 ? 'bg-amber-500/10 text-amber-500' : 
-              'bg-emerald-500/10 text-emerald-500'
-            )}>
-              {currentScore}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">Health Score</p>
-              <p className="text-xs text-muted-foreground">
-                {currentScore < 30 ? 'Needs attention' : 
-                 currentScore < 60 ? 'Fair condition' : 
-                 'Good condition'}
-              </p>
-            </div>
-          </div>
-          {serviceHistory.length > 0 && (
-            <div className="text-right">
-              <p className="text-sm font-medium text-primary">${totalSaved.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Saved</p>
-            </div>
-          )}
-        </div>
-        
         {/* Bundled Service Visit OR Individual Tasks */}
         {maintenanceSchedule.isBundled && maintenanceSchedule.bundledTasks ? (
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
               Recommended Service Visit
             </h2>
             <BundledServiceCard
@@ -254,12 +316,17 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
               onSchedule={handleSchedule}
               onRemind={handleRemind}
             />
-          </div>
+          </motion.div>
         ) : (
           <>
             {/* Primary Action Card */}
-            <div>
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                 Priority Maintenance
               </h2>
               <UnifiedMaintenanceCard
@@ -267,112 +334,130 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
                 onSchedule={handleSchedule}
                 onRemind={handleRemind}
               />
-            </div>
+            </motion.div>
 
             {/* Secondary Task */}
             {maintenanceSchedule.secondaryTask && (
-              <div>
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                   Also Scheduled
                 </h2>
-                <div className="rounded-2xl border border-border bg-card p-4">
+                <div className="rounded-2xl border border-border bg-card p-4 hover:border-border/80 transition-colors">
                   <UpcomingMaintenanceTask task={maintenanceSchedule.secondaryTask} />
                 </div>
-              </div>
+              </motion.div>
             )}
           </>
         )}
         
         {/* Additional Tasks (for complex units like tankless needing valve install) */}
         {maintenanceSchedule.additionalTasks.length > 0 && (
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
               Other Maintenance
             </h2>
-            <div className="rounded-2xl border border-border bg-card divide-y divide-border">
+            <div className="rounded-2xl border border-border bg-card divide-y divide-border hover:border-border/80 transition-colors">
               {maintenanceSchedule.additionalTasks.map((task) => (
                 <div key={task.type} className="px-4">
                   <UpcomingMaintenanceTask task={task} />
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
         )}
-
+        
         {/* Service History */}
-        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-          <CollapsibleTrigger className="w-full">
-            <div className="flex items-center justify-between py-3 px-1 group">
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                  Service History
-                </span>
-                {serviceHistory.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-secondary text-xs text-muted-foreground">
-                    {serviceHistory.length}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+        >
+          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+            <CollapsibleTrigger className="w-full">
+              <div className="flex items-center justify-between py-3 px-1 group">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-secondary/50 flex items-center justify-center">
+                    <History className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    Service History
                   </span>
-                )}
+                  {serviceHistory.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xs text-primary font-medium">
+                      {serviceHistory.length}
+                    </span>
+                  )}
+                </div>
+                <ChevronDown className={cn(
+                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                  historyOpen && "rotate-180"
+                )} />
               </div>
-              <ChevronDown className={cn(
-                "w-4 h-4 text-muted-foreground transition-transform duration-200",
-                historyOpen && "rotate-180"
-              )} />
-            </div>
-          </CollapsibleTrigger>
-          
-          <CollapsibleContent className="space-y-3 pt-2">
-            {serviceHistory.length > 0 ? (
-              <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                {serviceHistory
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .slice(0, 5)
-                  .map((event, index) => {
-                    const EventIcon = getEventIcon(event.type);
-                    return (
-                      <div 
-                        key={event.id} 
-                        className={cn(
-                          "flex items-center gap-4 p-4",
-                          index !== 0 && "border-t border-border"
-                        )}
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center">
-                          <EventIcon className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{formatEventType(event.type)}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(event.date)}</p>
-                        </div>
-                        {event.cost !== undefined && event.cost > 0 && (
-                          <span className="text-sm font-medium text-muted-foreground">${event.cost}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-border bg-secondary/20 p-6 text-center">
-                <History className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No service history yet</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">Log past services to track your maintenance</p>
-              </div>
-            )}
+            </CollapsibleTrigger>
             
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full gap-2"
-              onClick={() => setShowAddEventModal(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Log Past Service
-            </Button>
-          </CollapsibleContent>
-        </Collapsible>
+            <CollapsibleContent className="space-y-3 pt-2">
+              {serviceHistory.length > 0 ? (
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  {serviceHistory
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .slice(0, 5)
+                    .map((event, index) => {
+                      const EventIcon = getEventIcon(event.type);
+                      return (
+                        <div 
+                          key={event.id} 
+                          className={cn(
+                            "flex items-center gap-4 p-4 hover:bg-secondary/30 transition-colors",
+                            index !== 0 && "border-t border-border"
+                          )}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center">
+                            <EventIcon className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{formatEventType(event.type)}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(event.date)}</p>
+                          </div>
+                          {event.cost !== undefined && event.cost > 0 && (
+                            <span className="text-sm font-medium text-muted-foreground">${event.cost}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border bg-gradient-to-br from-secondary/20 to-transparent p-8 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-3">
+                    <History className="w-6 h-6 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground mb-1">Start Your Journey</p>
+                  <p className="text-xs text-muted-foreground">Log past services to track maintenance and unlock savings insights</p>
+                </div>
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full gap-2 border-dashed hover:border-solid hover:bg-secondary/30"
+                onClick={() => setShowAddEventModal(true)}
+              >
+                <Plus className="w-4 h-4" />
+                Log Past Service
+              </Button>
+            </CollapsibleContent>
+          </Collapsible>
+        </motion.div>
       </div>
-
-
       {/* Add Event Modal */}
       <Dialog open={showAddEventModal} onOpenChange={setShowAddEventModal}>
         <DialogContent className="max-w-sm rounded-2xl">
