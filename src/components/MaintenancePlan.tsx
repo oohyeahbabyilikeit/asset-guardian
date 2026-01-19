@@ -84,15 +84,13 @@ function getRecommendationText(healthScore: number, hasViolations: boolean): { t
   };
 }
 
-// ViolationCard - dedicated card for code violations with red styling
-function ViolationCard({ 
+// ViolationRow - compact single-row violation display
+function ViolationRow({ 
   task, 
-  onSchedule, 
-  onRemind 
+  onSchedule 
 }: { 
   task: MaintenanceTask; 
   onSchedule: () => void; 
-  onRemind: () => void; 
 }) {
   const getIcon = () => {
     if (task.type.includes('exp_tank')) return Droplets;
@@ -102,54 +100,80 @@ function ViolationCard({
   const IconComponent = getIcon();
   
   return (
-    <div className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-5 space-y-4 shadow-sm">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-destructive/15 text-destructive border border-destructive/20">
-            <IconComponent className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-destructive text-white mb-1">
-              CODE VIOLATION
-            </span>
-            <h3 className="text-lg font-semibold text-foreground">
-              {task.label}
-            </h3>
-          </div>
-        </div>
+    <div 
+      className="flex items-center gap-3 p-3 rounded-xl bg-destructive/5 border border-destructive/20 hover:bg-destructive/10 transition-colors cursor-pointer"
+      onClick={onSchedule}
+    >
+      <div className="p-2 rounded-lg bg-destructive/15 text-destructive shrink-0">
+        <IconComponent className="w-4 h-4" />
       </div>
-      
-      {/* Explanation */}
-      <div className="bg-destructive/10 rounded-xl p-4 border border-destructive/20">
-        <p className="text-sm text-foreground/90 leading-relaxed">
-          {task.whyExplanation}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{task.label}</p>
+        <p className="text-xs text-destructive">Required fix</p>
+      </div>
+      <ChevronRight className="w-4 h-4 text-destructive shrink-0" />
+    </div>
+  );
+}
+
+// TaskRow - simple row for maintenance tasks
+interface TaskRowProps {
+  task: {
+    type: string;
+    label: string;
+    monthsUntilDue: number;
+    urgency: string;
+  };
+  onTap: () => void;
+  isPrimary?: boolean;
+}
+
+function TaskRow({ task, onTap, isPrimary }: TaskRowProps) {
+  const getTaskIcon = () => {
+    if (task.type.includes('flush') || task.type.includes('condensate')) return Droplets;
+    if (task.type.includes('anode')) return Shield;
+    if (task.type.includes('descale')) return Flame;
+    if (task.type.includes('filter')) return Filter;
+    if (task.type.includes('valve') || task.type.includes('repair')) return Wrench;
+    if (task.type.includes('air')) return Wind;
+    return Shield;
+  };
+  const IconComponent = getTaskIcon();
+  
+  const getTimingLabel = () => {
+    if (task.monthsUntilDue <= 0) return 'Due now';
+    if (task.monthsUntilDue < 1) return 'This month';
+    return `${Math.round(task.monthsUntilDue)} mo`;
+  };
+  
+  const isOverdue = task.urgency === 'overdue' || task.urgency === 'due';
+  
+  return (
+    <div 
+      className="flex items-center gap-3 p-3 hover:bg-secondary/30 transition-colors cursor-pointer"
+      onClick={onTap}
+    >
+      <div className={cn(
+        "p-2 rounded-lg shrink-0",
+        isPrimary ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"
+      )}>
+        <IconComponent className="w-4 h-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cn(
+          "text-sm truncate",
+          isPrimary ? "font-medium text-foreground" : "text-muted-foreground"
+        )}>
+          {task.label}
         </p>
-        {task.agingMultiplier && task.agingMultiplier > 1 && (
-          <p className="text-xs text-destructive font-medium mt-2">
-            ⚠️ Accelerating aging by {task.agingMultiplier}x until fixed
-          </p>
-        )}
       </div>
-      
-      {/* Actions */}
-      <div className="space-y-3">
-        <Button 
-          onClick={onRemind}
-          variant="outline"
-          className="w-full gap-2 h-11 border-destructive/30 text-destructive hover:bg-destructive/10"
-        >
-          <Bell className="w-4 h-4" />
-          Set Reminder
-        </Button>
-        <Button 
-          onClick={onSchedule}
-          className="w-full gap-2 h-11 bg-destructive hover:bg-destructive/90 text-white"
-        >
-          <Phone className="w-4 h-4" />
-          Have My Plumber Reach Out
-        </Button>
-      </div>
+      <span className={cn(
+        "text-xs shrink-0",
+        isOverdue ? "text-amber-600 font-medium" : "text-muted-foreground"
+      )}>
+        {getTimingLabel()}
+      </span>
+      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
     </div>
   );
 }
@@ -354,279 +378,154 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section - Simplified for Conversion */}
-      <div className={cn("relative overflow-hidden", `bg-gradient-to-b ${getGradientColors()}`)}>
-        {/* Back button */}
-        <div className="max-w-lg mx-auto px-4 pt-4">
-          <motion.button 
-            onClick={onBack} 
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Back</span>
-          </motion.button>
-        </div>
-        
-        {/* Hero Content - Compact with Integrated Summary */}
-        <div className="max-w-lg mx-auto px-4 py-4 pb-6">
+      {/* Hero Section - Ultra Compact */}
+      <div className={cn("relative", `bg-gradient-to-b ${getGradientColors()}`)}>
+        <div className="max-w-lg mx-auto px-4 py-4">
+          {/* Back + Hero in single row */}
           <motion.div 
-            className="flex items-start gap-4"
-            initial={{ opacity: 0, y: 20 }}
+            className="flex items-center gap-4"
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
           >
-            {/* Health Ring - Smaller for compact layout */}
-            <HealthRing score={currentScore} size="md" />
+            <button 
+              onClick={onBack} 
+              className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
             
-            {/* Title and Recommendation */}
+            <HealthRing score={currentScore} size="sm" />
+            
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold text-foreground mb-0.5">
-                Your Personalized Plan
+              <h1 className="text-base font-semibold text-foreground">
+                Your Plan
               </h1>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm text-muted-foreground truncate">
                 {recommendationText.title}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {recommendationText.subtitle}
-              </p>
-            </div>
-          </motion.div>
-          
-          {/* Your Situation - Collapsible Education */}
-          {situationSummary.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="mt-4"
-            >
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center justify-between w-full p-3 rounded-xl bg-card/60 backdrop-blur-sm border border-border hover:bg-card/80 transition-colors group text-left">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Situation</span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="mt-2 p-3 rounded-xl bg-card/40 border border-border space-y-2">
-                    {situationSummary.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2.5 text-sm">
-                        <span className="text-primary shrink-0">{item.icon}</span>
-                        <span className="text-muted-foreground">{item.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </motion.div>
-          )}
-          
-          {/* Quick Stats Row - Simplified */}
-          <motion.div 
-            className="grid grid-cols-3 gap-2 mt-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-2.5 text-center">
-              <p className="text-base font-bold text-foreground">{currentScore}%</p>
-              <p className="text-[10px] text-muted-foreground">Health</p>
-            </div>
-            
-            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-2.5 text-center">
-              <p className="text-base font-bold text-foreground">
-                {nextServiceMonths <= 0 ? 'Now' : `${Math.round(nextServiceMonths)}mo`}
-              </p>
-              <p className="text-[10px] text-muted-foreground">Next Service</p>
-            </div>
-            
-            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-2.5 text-center">
-              <p className="text-base font-bold text-foreground">{servicesCompleted}</p>
-              <p className="text-[10px] text-muted-foreground">Completed</p>
             </div>
           </motion.div>
         </div>
       </div>
         
-      {/* Content */}
-      <div className="max-w-lg mx-auto p-4 space-y-5 pb-24">
+      {/* Content - Clean List Layout */}
+      <div className="max-w-lg mx-auto p-4 space-y-4 pb-24">
         
-        {/* Code Violations - ALWAYS FIRST when present */}
+        {/* Code Violations - Compact rows */}
         {infrastructureTasks.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.1 }}
           >
-            <h2 className="text-sm font-medium text-destructive uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Code Violations – Fix First
+            <h2 className="text-xs font-medium text-destructive uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Fix First
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {infrastructureTasks.map((task) => (
-                <ViolationCard key={task.type} task={task} onSchedule={handleSchedule} onRemind={handleRemind} />
+                <ViolationRow key={task.type} task={task} onSchedule={handleSchedule} />
               ))}
             </div>
           </motion.div>
         )}
         
-        {/* Bundled Service Visit OR Individual Tasks */}
-        {maintenanceSchedule.isBundled && maintenanceSchedule.bundledTasks ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: infrastructureTasks.length > 0 ? 0.6 : 0.5 }}
-          >
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              Recommended Service Visit
-            </h2>
-            <BundledServiceCard
-              tasks={maintenanceSchedule.bundledTasks}
-              bundleReason={maintenanceSchedule.bundleReason || 'Save time with one service call'}
-              onSchedule={handleSchedule}
-              onRemind={handleRemind}
-            />
-          </motion.div>
-        ) : (
-          <>
-            {/* Primary Action Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                Priority Maintenance
-              </h2>
-              <UnifiedMaintenanceCard
-                task={maintenanceSchedule.primaryTask}
-                onSchedule={handleSchedule}
-                onRemind={handleRemind}
-              />
-            </motion.div>
-
-            {/* Secondary Task */}
-            {maintenanceSchedule.secondaryTask && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-              >
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                  Also Scheduled
-                </h2>
-                <div className="rounded-2xl border border-border bg-card p-4 hover:border-border/80 transition-colors">
-                  <UpcomingMaintenanceTask task={maintenanceSchedule.secondaryTask} />
-                </div>
-              </motion.div>
-            )}
-          </>
-        )}
-        
-        {/* Additional Tasks (for complex units like tankless needing valve install) */}
-        {maintenanceSchedule.additionalTasks.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
-              Other Maintenance
-            </h2>
-            <div className="rounded-2xl border border-border bg-card divide-y divide-border hover:border-border/80 transition-colors">
-              {maintenanceSchedule.additionalTasks.map((task) => (
-                <div key={task.type} className="px-4">
-                  <UpcomingMaintenanceTask task={task} />
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-        
-        {/* Service History */}
+        {/* Recommended Section - All maintenance in one card */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.2 }}
+        >
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            Recommended
+          </h2>
+          
+          <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
+            {/* Primary Task Row */}
+            {maintenanceSchedule.primaryTask && (
+              <TaskRow 
+                task={maintenanceSchedule.primaryTask} 
+                onTap={handleSchedule}
+                isPrimary
+              />
+            )}
+            
+            {/* Secondary Task Row */}
+            {maintenanceSchedule.secondaryTask && (
+              <TaskRow 
+                task={maintenanceSchedule.secondaryTask} 
+                onTap={handleSchedule}
+              />
+            )}
+            
+            {/* Additional Tasks */}
+            {maintenanceSchedule.additionalTasks.map((task) => (
+              <TaskRow 
+                key={task.type}
+                task={task} 
+                onTap={handleSchedule}
+              />
+            ))}
+          </div>
+        </motion.div>
+        
+        {/* Service History - Simple link */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
         >
           <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
             <CollapsibleTrigger className="w-full">
-              <div className="flex items-center justify-between py-3 px-1 group">
+              <div className="flex items-center justify-between py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-secondary/50 flex items-center justify-center">
-                    <History className="w-3.5 h-3.5 text-muted-foreground" />
-                  </div>
-                  <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                    Service History
-                  </span>
+                  <History className="w-4 h-4" />
+                  <span>Service history</span>
                   {serviceHistory.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xs text-primary font-medium">
-                      {serviceHistory.length}
-                    </span>
+                    <span className="text-xs text-primary">({serviceHistory.length})</span>
                   )}
                 </div>
                 <ChevronDown className={cn(
-                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                  "w-4 h-4 transition-transform duration-200",
                   historyOpen && "rotate-180"
                 )} />
               </div>
             </CollapsibleTrigger>
             
-            <CollapsibleContent className="space-y-3 pt-2">
+            <CollapsibleContent className="pt-2 space-y-2">
               {serviceHistory.length > 0 ? (
-                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
                   {serviceHistory
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .slice(0, 5)
+                    .slice(0, 3)
                     .map((event, index) => {
                       const EventIcon = getEventIcon(event.type);
                       return (
                         <div 
                           key={event.id} 
                           className={cn(
-                            "flex items-center gap-4 p-4 hover:bg-secondary/30 transition-colors",
+                            "flex items-center gap-3 p-3",
                             index !== 0 && "border-t border-border"
                           )}
                         >
-                          <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center">
-                            <EventIcon className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">{formatEventType(event.type)}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(event.date)}</p>
-                          </div>
-                          {event.cost !== undefined && event.cost > 0 && (
-                            <span className="text-sm font-medium text-muted-foreground">${event.cost}</span>
-                          )}
+                          <EventIcon className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm flex-1">{formatEventType(event.type)}</span>
+                          <span className="text-xs text-muted-foreground">{formatDate(event.date)}</span>
                         </div>
                       );
                     })}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-border bg-gradient-to-br from-secondary/20 to-transparent p-8 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-3">
-                    <History className="w-6 h-6 text-muted-foreground/50" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground mb-1">Start Your Journey</p>
-                  <p className="text-xs text-muted-foreground">Log past services to track maintenance and unlock savings insights</p>
-                </div>
+                <p className="text-sm text-muted-foreground py-2">No service history yet</p>
               )}
               
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full gap-2 border-dashed hover:border-solid hover:bg-secondary/30"
+              <button 
                 onClick={() => setShowAddEventModal(true)}
+                className="text-sm text-primary hover:underline flex items-center gap-1"
               >
-                <Plus className="w-4 h-4" />
-                Log Past Service
-              </Button>
+                <Plus className="w-3.5 h-3.5" />
+                Log past service
+              </button>
             </CollapsibleContent>
           </Collapsible>
         </motion.div>
