@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowLeft, Phone, User, Bell, CheckCircle2, Shield, Clock, DollarSign, Wrench, AlertTriangle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ArrowLeft, Phone, User, Bell, CheckCircle2, Shield, Clock, DollarSign, Wrench, AlertTriangle, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,9 @@ import { z } from 'zod';
 import { submitLead, type CaptureSource } from '@/lib/leadService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { topicContent, type EducationalTopic } from './EducationalDrawer';
+import type { ForensicInputs } from '@/lib/opterraAlgorithm';
+import type { OpterraMetrics } from '@/lib/opterraAlgorithm';
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -22,10 +25,12 @@ interface LeadCaptureFlowProps {
   captureSource: CaptureSource;
   captureContext?: Record<string, unknown>;
   
-  // Education content
+  // Urgency level for styling
   urgencyLevel: UrgencyLevel;
-  headline?: string;
-  bulletPoints?: string[];
+  
+  // NEW: For topic selection based on algorithm findings
+  inputs?: ForensicInputs;
+  metrics?: OpterraMetrics;
   
   // Optional entity IDs
   propertyId?: string;
@@ -37,60 +42,186 @@ interface LeadCaptureFlowProps {
   onBack: () => void;
 }
 
-// Default education content by urgency tier
-const DEFAULT_EDUCATION: Record<UrgencyLevel, { headline: string; bullets: string[] }> = {
-  green: {
-    headline: "Keep Your Water Heater Running Strong",
-    bullets: [
-      "Regular maintenance prevents 73% of water heater failures",
-      "A quick call sets up your annual service schedule",
-      "Average homeowner saves $1,200 by staying ahead of repairs",
-    ],
-  },
-  yellow: {
-    headline: "Your Water Heater Needs Attention",
-    bullets: [
-      "Your unit shows signs of wear that accelerate failure risk",
-      "Acting now can extend your water heater's life by 3-5 years",
-      "A local expert can explain your best options",
-    ],
-  },
-  red: {
-    headline: "Expert Assessment Recommended",
-    bullets: [
-      "Your unit has elevated risk factors that need attention",
-      "A licensed plumber can assess the situation and explain next steps",
-      "Water damage from failure averages $4,000–$10,000 to repair",
-    ],
-  },
-};
+// Select relevant educational topics based on inputs and metrics
+function selectTopics(
+  inputs?: ForensicInputs,
+  metrics?: OpterraMetrics,
+  urgencyLevel?: UrgencyLevel
+): EducationalTopic[] {
+  if (!inputs) {
+    // Fallback topics if no inputs provided
+    if (urgencyLevel === 'red') return ['tank-failure', 'failure-rate'];
+    if (urgencyLevel === 'yellow') return ['aging', 'sediment'];
+    return ['aging', 'anode-rod'];
+  }
 
-// CTA button text by urgency
-const CTA_TEXT: Record<UrgencyLevel, string> = {
-  green: "Get Maintenance Tips",
-  yellow: "Speak with a Plumber",
-  red: "Get Expert Advice Now",
-};
+  const topics: { topic: EducationalTopic; priority: number }[] = [];
+  const isTanklessUnit = inputs.fuelType === 'TANKLESS_GAS' || inputs.fuelType === 'TANKLESS_ELECTRIC';
+  
+  // Safety topics (highest priority)
+  if (metrics?.failProb && metrics.failProb >= 50) {
+    topics.push({ topic: 'tank-failure', priority: 100 });
+  }
+  
+  // High failure probability
+  if (metrics?.failProb && metrics.failProb >= 40) {
+    topics.push({ topic: 'failure-rate', priority: 90 });
+  }
+  
+  // Age-related
+  if (inputs.calendarAge >= 8) {
+    topics.push({ topic: isTanklessUnit ? 'aging-tankless' : 'aging', priority: 80 });
+  }
+  
+  // Water quality
+  if (inputs.hardnessGPG && inputs.hardnessGPG >= 7) {
+    topics.push({ topic: isTanklessUnit ? 'hardness-tankless' : 'hardness', priority: 75 });
+  }
+  
+  // Pressure issues
+  if (inputs.housePsi && inputs.housePsi >= 80) {
+    topics.push({ topic: 'pressure', priority: 70 });
+    if (!inputs.hasPrv) {
+      topics.push({ topic: 'prv', priority: 68 });
+    }
+  }
+  
+  // Thermal expansion
+  if (inputs.isClosedLoop && !inputs.hasExpTank) {
+    topics.push({ topic: 'thermal-expansion', priority: 65 });
+  }
+  
+  // Maintenance-related (tank units)
+  if (!isTanklessUnit) {
+    if (inputs.lastFlushYearsAgo && inputs.lastFlushYearsAgo >= 3) {
+      topics.push({ topic: 'sediment', priority: 60 });
+    }
+    if (inputs.lastAnodeReplaceYearsAgo && inputs.lastAnodeReplaceYearsAgo >= 4) {
+      topics.push({ topic: 'anode-rod', priority: 55 });
+    }
+  }
+  
+  // Tankless-specific
+  if (isTanklessUnit) {
+    if (inputs.lastDescaleYearsAgo && inputs.lastDescaleYearsAgo >= 2) {
+      topics.push({ topic: 'scale-tankless', priority: 60 });
+    }
+    topics.push({ topic: 'heat-exchanger', priority: 50 });
+  }
+  
+  // Sort by priority and take top 3
+  const sorted = topics.sort((a, b) => b.priority - a.priority);
+  const selected = sorted.slice(0, 3).map(t => t.topic);
+  
+  // Ensure at least 2 topics
+  if (selected.length < 2) {
+    if (isTanklessUnit) {
+      if (!selected.includes('aging-tankless')) selected.push('aging-tankless');
+      if (!selected.includes('scale-tankless') && selected.length < 2) selected.push('scale-tankless');
+    } else {
+      if (!selected.includes('aging')) selected.push('aging');
+      if (!selected.includes('anode-rod') && selected.length < 2) selected.push('anode-rod');
+    }
+  }
+  
+  return selected.slice(0, 3);
+}
 
-// Icons for bullet points by urgency
-const BULLET_ICONS: Record<UrgencyLevel, typeof Shield[]> = {
-  green: [Clock, DollarSign, Shield],
-  yellow: [AlertTriangle, Clock, Wrench],
-  red: [AlertTriangle, Wrench, DollarSign],
-};
+// Education card component
+function EducationCard({ 
+  topic, 
+  isLast,
+}: { 
+  topic: EducationalTopic; 
+  isLast: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const content = topicContent[topic];
+  
+  if (!content) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "p-4 rounded-xl bg-card border border-border",
+        !isLast && "mb-3"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
+          {content.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-sm mb-1">{content.title}</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {content.description}
+          </p>
+          
+          <AnimatePresence>
+            {expanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 pt-3 border-t border-border space-y-3">
+                  {content.sections.map((section, idx) => (
+                    <div key={idx}>
+                      <h4 className="text-xs font-medium text-foreground mb-1">{section.heading}</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{section.content}</p>
+                    </div>
+                  ))}
+                  {content.source && (
+                    <p className="text-[10px] text-muted-foreground/70 italic pt-2 border-t border-border/50">
+                      {content.source}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 mt-2 transition-colors"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="w-3 h-3" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3 h-3" />
+                Learn more
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export function LeadCaptureFlow({
   captureSource,
   captureContext,
   urgencyLevel,
-  headline,
-  bulletPoints,
+  inputs,
+  metrics,
   propertyId,
   waterHeaterId,
   contractorId,
   onComplete,
   onBack,
 }: LeadCaptureFlowProps) {
+  // Step state: 'education' or 'form'
+  const [step, setStep] = useState<'education' | 'form'>('education');
+  
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [optInAlerts, setOptInAlerts] = useState(true);
@@ -98,12 +229,11 @@ export function LeadCaptureFlow({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const content = {
-    headline: headline || DEFAULT_EDUCATION[urgencyLevel].headline,
-    bullets: bulletPoints || DEFAULT_EDUCATION[urgencyLevel].bullets,
-  };
-  
-  const icons = BULLET_ICONS[urgencyLevel];
+  // Select topics based on inputs/metrics
+  const selectedTopics = useMemo(
+    () => selectTopics(inputs, metrics, urgencyLevel),
+    [inputs, metrics, urgencyLevel]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +261,7 @@ export function LeadCaptureFlow({
       captureContext: {
         ...captureContext,
         urgencyLevel,
+        educationTopicsShown: selectedTopics,
       },
       propertyId,
       waterHeaterId,
@@ -140,13 +271,11 @@ export function LeadCaptureFlow({
 
     if (!leadResult.success) {
       console.warn('[LeadCaptureFlow] Failed to save lead:', leadResult.error);
-      // Don't block user flow
     }
 
     setIsSubmitting(false);
     setIsSubmitted(true);
     
-    // Show success briefly then complete
     toast.success("Request submitted!", {
       description: "A licensed plumber will contact you within 24 hours."
     });
@@ -155,6 +284,11 @@ export function LeadCaptureFlow({
       onComplete();
     }, 1800);
   };
+
+  // Step header titles
+  const stepTitle = step === 'education' 
+    ? 'Understanding Your Water Heater' 
+    : 'Speak with a Plumber';
 
   // Success state
   if (isSubmitted) {
@@ -185,153 +319,196 @@ export function LeadCaptureFlow({
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center max-w-md mx-auto px-4 py-3">
           <button 
-            onClick={onBack} 
+            onClick={step === 'form' ? () => setStep('education') : onBack} 
             className="p-2 -ml-2 hover:bg-muted rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 text-center">
-            <h1 className="font-semibold text-lg">Speak with a Plumber</h1>
+            <h1 className="font-semibold text-lg">{stepTitle}</h1>
+            {/* Step indicator */}
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <div className={cn(
+                "w-2 h-2 rounded-full transition-colors",
+                step === 'education' ? 'bg-primary' : 'bg-muted-foreground/30'
+              )} />
+              <div className={cn(
+                "w-2 h-2 rounded-full transition-colors",
+                step === 'form' ? 'bg-primary' : 'bg-muted-foreground/30'
+              )} />
+            </div>
           </div>
-          <div className="w-9" /> {/* Spacer for centering */}
+          <div className="w-9" />
         </div>
       </header>
 
       <div className="px-4 pt-6 pb-8 max-w-md mx-auto">
-        {/* Education Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h2 className={cn(
-            "text-xl font-bold mb-4",
-            urgencyLevel === 'red' && "text-red-500",
-            urgencyLevel === 'yellow' && "text-amber-500",
-            urgencyLevel === 'green' && "text-emerald-500",
-          )}>
-            {content.headline}
-          </h2>
-          
-          <ul className="space-y-3">
-            <AnimatePresence>
-              {content.bullets.map((bullet, idx) => {
-                const Icon = icons[idx] || Shield;
-                return (
-                  <motion.li
-                    key={idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="flex items-start gap-3"
-                  >
-                    <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                      urgencyLevel === 'red' && "bg-red-500/10",
-                      urgencyLevel === 'yellow' && "bg-amber-500/10",
-                      urgencyLevel === 'green' && "bg-emerald-500/10",
-                    )}>
-                      <Icon className={cn(
-                        "w-4 h-4",
-                        urgencyLevel === 'red' && "text-red-500",
-                        urgencyLevel === 'yellow' && "text-amber-500",
-                        urgencyLevel === 'green' && "text-emerald-500",
-                      )} />
-                    </div>
-                    <span className="text-sm text-muted-foreground leading-relaxed pt-1">
-                      {bullet}
-                    </span>
-                  </motion.li>
-                );
-              })}
-            </AnimatePresence>
-          </ul>
-        </motion.div>
-
-        {/* Contact Form */}
-        <motion.form
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
-          <div className="p-5 rounded-2xl bg-card border border-border space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="flex items-center gap-2">
-                <User className="w-4 h-4 text-muted-foreground" />
-                Name
-              </Label>
-              <Input
-                id="name"
-                placeholder="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={cn("h-12", errors.name && 'border-destructive')}
-                disabled={isSubmitting}
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name}</p>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                Phone Number
-              </Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="(555) 123-4567"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={cn("h-12", errors.phone && 'border-destructive')}
-                disabled={isSubmitting}
-              />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone}</p>
-              )}
-            </div>
-            
-            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-              <Checkbox
-                id="alerts"
-                checked={optInAlerts}
-                onCheckedChange={(checked) => setOptInAlerts(checked === true)}
-                className="mt-0.5"
-                disabled={isSubmitting}
-              />
-              <div className="space-y-1">
-                <Label htmlFor="alerts" className="flex items-center gap-2 cursor-pointer text-sm">
-                  <Bell className="w-4 h-4 text-primary" />
-                  Unit Monitoring Alerts
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Get notified about maintenance reminders and potential issues.
+        <AnimatePresence mode="wait">
+          {step === 'education' ? (
+            <motion.div
+              key="education"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Education intro */}
+              <div className="mb-6">
+                <h2 className={cn(
+                  "text-xl font-bold mb-2",
+                  urgencyLevel === 'red' && "text-red-500",
+                  urgencyLevel === 'yellow' && "text-amber-500",
+                  urgencyLevel === 'green' && "text-emerald-500",
+                )}>
+                  {urgencyLevel === 'red' 
+                    ? 'Important Information About Your Unit' 
+                    : urgencyLevel === 'yellow'
+                    ? 'What You Should Know'
+                    : 'Tips for a Healthy Water Heater'}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Based on your water heater's profile, here's what matters most:
                 </p>
               </div>
-            </div>
-          </div>
-          
-          <Button 
-            type="submit" 
-            size="lg"
-            className={cn(
-              "w-full h-14 text-base font-semibold rounded-xl",
-              urgencyLevel === 'red' && "bg-red-600 hover:bg-red-500",
-              urgencyLevel === 'yellow' && "bg-amber-600 hover:bg-amber-500",
-              urgencyLevel === 'green' && "bg-emerald-600 hover:bg-emerald-500",
-            )}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Submitting...' : CTA_TEXT[urgencyLevel]}
-          </Button>
-          
-          <p className="text-xs text-center text-muted-foreground">
-            A licensed local plumber will call to discuss your options. No obligation.
-          </p>
-        </motion.form>
+
+              {/* Education cards */}
+              <div className="mb-6">
+                {selectedTopics.map((topic, idx) => (
+                  <EducationCard 
+                    key={topic} 
+                    topic={topic} 
+                    isLast={idx === selectedTopics.length - 1}
+                  />
+                ))}
+              </div>
+
+              {/* Continue button */}
+              <Button
+                size="lg"
+                className={cn(
+                  "w-full h-14 text-base font-semibold rounded-xl gap-2",
+                  urgencyLevel === 'red' && "bg-red-600 hover:bg-red-500",
+                  urgencyLevel === 'yellow' && "bg-amber-600 hover:bg-amber-500",
+                  urgencyLevel === 'green' && "bg-emerald-600 hover:bg-emerald-500",
+                )}
+                onClick={() => setStep('form')}
+              >
+                Continue
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+              
+              <p className="text-xs text-center text-muted-foreground mt-3">
+                Next: Connect with a licensed plumber
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Form intro */}
+              <div className="mb-6">
+                <h2 className={cn(
+                  "text-xl font-bold mb-2",
+                  urgencyLevel === 'red' && "text-red-500",
+                  urgencyLevel === 'yellow' && "text-amber-500",
+                  urgencyLevel === 'green' && "text-emerald-500",
+                )}>
+                  {urgencyLevel === 'red' 
+                    ? 'Get Expert Advice Now' 
+                    : urgencyLevel === 'yellow'
+                    ? 'Speak with a Plumber'
+                    : 'Schedule a Consultation'}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  A local licensed plumber will call to discuss your options. No obligation.
+                </p>
+              </div>
+
+              {/* Contact Form */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="p-5 rounded-2xl bg-card border border-border space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      Name
+                    </Label>
+                    <Input
+                      id="name"
+                      placeholder="Your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className={cn("h-12", errors.name && 'border-destructive')}
+                      disabled={isSubmitting}
+                    />
+                    {errors.name && (
+                      <p className="text-sm text-destructive">{errors.name}</p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className={cn("h-12", errors.phone && 'border-destructive')}
+                      disabled={isSubmitting}
+                    />
+                    {errors.phone && (
+                      <p className="text-sm text-destructive">{errors.phone}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                    <Checkbox
+                      id="alerts"
+                      checked={optInAlerts}
+                      onCheckedChange={(checked) => setOptInAlerts(checked === true)}
+                      className="mt-0.5"
+                      disabled={isSubmitting}
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="alerts" className="flex items-center gap-2 cursor-pointer text-sm">
+                        <Bell className="w-4 h-4 text-primary" />
+                        Unit Monitoring Alerts
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Get notified about maintenance reminders and potential issues.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  size="lg"
+                  className={cn(
+                    "w-full h-14 text-base font-semibold rounded-xl",
+                    urgencyLevel === 'red' && "bg-red-600 hover:bg-red-500",
+                    urgencyLevel === 'yellow' && "bg-amber-600 hover:bg-amber-500",
+                    urgencyLevel === 'green' && "bg-emerald-600 hover:bg-emerald-500",
+                  )}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Submitting...' : 'Request Callback'}
+                </Button>
+                
+                <p className="text-xs text-center text-muted-foreground">
+                  A licensed local plumber will call to discuss your options. No obligation.
+                </p>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

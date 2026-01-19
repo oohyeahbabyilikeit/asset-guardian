@@ -389,12 +389,8 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
               primaryTask: maintenanceSchedule.primaryTask?.type,
             }}
             urgencyLevel="green"
-            headline="Keep Your Water Heater Running Strong"
-            bulletPoints={[
-              "Regular maintenance prevents 73% of water heater failures",
-              "A quick call sets up your annual service schedule",
-              "Average homeowner saves $1,200 by staying ahead of repairs",
-            ]}
+            inputs={currentInputs}
+            metrics={opterraResult.metrics}
             onComplete={handleLeadCaptureComplete}
             onBack={() => setShowLeadCapture(false)}
           />

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Check, Flame, Zap } from 'lucide-react';
 import { LeadCaptureFlow, type UrgencyLevel } from './LeadCaptureFlow';
-import type { ForensicInputs } from '@/lib/opterraAlgorithm';
+import type { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTypewriter } from '@/hooks/useTypewriter';
@@ -16,6 +16,7 @@ interface ReplacementOptionsPageProps {
   monthlyBudget?: number;
   showFakeLoader?: boolean;
   onFakeLoaderDone?: () => void;
+  metrics?: OpterraMetrics;
 }
 
 const LOADER_DURATION_MS = 2500;
@@ -27,38 +28,6 @@ function getUrgencyLevel(isSafetyReplacement: boolean, agingRate: number): Urgen
   return 'yellow'; // Default to yellow for replacement flow
 }
 
-// Generate education bullets based on inputs
-function getEducationBullets(
-  inputs: ForensicInputs,
-  isSafetyReplacement: boolean,
-  infrastructureIssues: InfrastructureIssue[],
-): string[] {
-  const bullets: string[] = [];
-  
-  if (isSafetyReplacement) {
-    bullets.push("Your unit has been flagged for immediate attention");
-    bullets.push("A licensed plumber can assess the situation and explain next steps");
-    bullets.push("Water damage from failure averages $4,000–$10,000 to repair");
-  } else {
-    // Yellow tier - value focus
-    if (inputs.calendarAge >= 10) {
-      bullets.push(`At ${inputs.calendarAge} years old, your water heater is approaching the end of its typical lifespan`);
-    } else {
-      bullets.push("Your unit shows signs of wear that accelerate failure risk");
-    }
-    
-    if (infrastructureIssues.length > 0) {
-      bullets.push(`There are ${infrastructureIssues.length} infrastructure upgrade${infrastructureIssues.length > 1 ? 's' : ''} that could extend equipment life`);
-    } else {
-      bullets.push("Acting now can extend your water heater's life by 3-5 years");
-    }
-    
-    bullets.push("A local expert can review your options at no obligation");
-  }
-  
-  return bullets;
-}
-
 export function ReplacementOptionsPage({
   onBack,
   onSchedule,
@@ -68,19 +37,15 @@ export function ReplacementOptionsPage({
   agingRate,
   showFakeLoader = false,
   onFakeLoaderDone,
+  metrics,
 }: ReplacementOptionsPageProps) {
   const [isOverlayVisible, setIsOverlayVisible] = useState(showFakeLoader);
   const [loaderProgress, setLoaderProgress] = useState(0);
 
-  // Calculate urgency and education content
+  // Calculate urgency level
   const urgencyLevel = useMemo(
     () => getUrgencyLevel(isSafetyReplacement, agingRate),
     [isSafetyReplacement, agingRate]
-  );
-  
-  const educationBullets = useMemo(
-    () => getEducationBullets(currentInputs, isSafetyReplacement, infrastructureIssues),
-    [currentInputs, isSafetyReplacement, infrastructureIssues]
   );
 
   // Loader overlay timer
@@ -208,8 +173,8 @@ export function ReplacementOptionsPage({
         infrastructureIssuesCount: infrastructureIssues.length,
       }}
       urgencyLevel={urgencyLevel}
-      headline={isSafetyReplacement ? "Expert Assessment Recommended" : "Your Water Heater Needs Attention"}
-      bulletPoints={educationBullets}
+      inputs={currentInputs}
+      metrics={metrics}
       onComplete={onSchedule}
       onBack={onBack}
     />

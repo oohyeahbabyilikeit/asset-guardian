@@ -39,7 +39,8 @@ interface EducationalDrawerProps {
   context?: EducationalContext;
 }
 
-const topicContent: Record<EducationalTopic, {
+// Exported so other components can use static content directly
+export const topicContent: Record<EducationalTopic, {
   icon: React.ReactNode;
   title: string;
   description: string;
