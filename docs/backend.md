@@ -293,6 +293,351 @@ erDiagram
     }
 ```
 
+---
+
+### Table Schema Details
+
+Complete column-level schema for all database tables.
+
+#### `profiles`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | - | Primary key, matches auth.users.id |
+| `email` | `text` | Yes | - | User email address |
+| `full_name` | `text` | Yes | - | Display name |
+| `phone` | `text` | Yes | - | Contact phone |
+| `avatar_url` | `text` | Yes | - | Profile image URL |
+| `company_name` | `text` | Yes | - | Contractor company name |
+| `license_number` | `text` | Yes | - | Contractor license |
+| `service_area` | `jsonb` | Yes | - | Geographic service area |
+| `preferred_contractor_id` | `uuid` | Yes | - | FK to preferred contractor profile |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `user_roles`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `user_id` | `uuid` | No | - | FK to auth.users |
+| `role` | `app_role` | No | - | Enum: `admin`, `contractor`, `homeowner` |
+| `created_at` | `timestamptz` | No | `now()` | Role assignment time |
+
+#### `properties`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `owner_id` | `uuid` | No | - | FK to profiles.id |
+| `address_line1` | `text` | No | - | Street address |
+| `address_line2` | `text` | Yes | - | Unit/apt number |
+| `city` | `text` | No | - | City name |
+| `state` | `text` | No | - | State code |
+| `zip_code` | `text` | No | - | ZIP code |
+| `property_type` | `text` | Yes | `'single_family'` | Property category |
+| `year_built` | `integer` | Yes | - | Construction year |
+| `square_footage` | `integer` | Yes | - | Property size |
+| `is_primary` | `boolean` | Yes | `true` | Primary residence flag |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `water_heaters`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `property_id` | `uuid` | No | - | FK to properties |
+| `created_by` | `uuid` | Yes | - | FK to profiles (installer) |
+| `manufacturer` | `text` | Yes | - | Brand name |
+| `model_number` | `text` | Yes | - | Model identifier |
+| `serial_number` | `text` | Yes | - | Serial number |
+| `fuel_type` | `text` | No | `'GAS'` | `GAS`, `ELECTRIC`, `PROPANE` |
+| `tank_capacity_gallons` | `integer` | No | `50` | Tank size |
+| `vent_type` | `text` | Yes | `'ATMOSPHERIC'` | `ATMOSPHERIC`, `POWER_VENT`, `DIRECT_VENT` |
+| `quality_tier` | `text` | Yes | `'STANDARD'` | `STANDARD`, `PREMIUM`, `LUXURY` |
+| `warranty_years` | `integer` | Yes | `6` | Warranty duration |
+| `install_date` | `date` | Yes | - | Installation date |
+| `calendar_age_years` | `numeric` | Yes | - | Calculated age |
+| `location` | `text` | Yes | `'GARAGE'` | Installation location |
+| `temp_setting` | `text` | Yes | `'NORMAL'` | Temperature setting |
+| `building_type` | `text` | Yes | `'residential'` | Building category |
+| `house_psi` | `numeric` | Yes | - | Water pressure |
+| `street_hardness_gpg` | `numeric` | Yes | - | Water hardness |
+| `has_softener` | `boolean` | Yes | `false` | Softener present |
+| `has_prv` | `boolean` | Yes | `false` | Pressure reducing valve |
+| `has_exp_tank` | `boolean` | Yes | `false` | Expansion tank present |
+| `exp_tank_status` | `text` | Yes | - | Expansion tank condition |
+| `has_circ_pump` | `boolean` | Yes | `false` | Recirculation pump |
+| `is_closed_loop` | `boolean` | Yes | `false` | Closed loop system |
+| `has_drain_pan` | `boolean` | Yes | `false` | Drain pan present |
+| `is_finished_area` | `boolean` | Yes | `false` | Finished basement/area |
+| `is_leaking` | `boolean` | Yes | `false` | Active leak detected |
+| `leak_source` | `text` | Yes | - | Leak origin point |
+| `visual_rust` | `boolean` | Yes | `false` | Visible rust/corrosion |
+| `anode_count` | `integer` | Yes | `1` | Number of anode rods |
+| `connection_type` | `text` | Yes | - | Pipe connection type |
+| `gas_line_size` | `text` | Yes | - | Gas line diameter |
+| `room_volume_type` | `text` | Yes | - | Installation space size |
+| `venting_scenario` | `text` | Yes | - | Venting configuration |
+| `rated_flow_gpm` | `numeric` | Yes | - | Tankless flow rate |
+| `air_filter_status` | `text` | Yes | - | Tankless air filter |
+| `inlet_filter_status` | `text` | Yes | - | Tankless inlet filter |
+| `flame_rod_status` | `text` | Yes | - | Tankless flame sensor |
+| `is_condensate_clear` | `boolean` | Yes | - | Condensate drain status |
+| `last_descale_years_ago` | `numeric` | Yes | - | Years since descaling |
+| `error_code_count` | `integer` | Yes | `0` | Active error codes |
+| `notes` | `text` | Yes | - | Additional notes |
+| `photo_urls` | `jsonb` | Yes | `'[]'` | Array of photo URLs |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `water_softeners`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `property_id` | `uuid` | No | - | FK to properties |
+| `created_by` | `uuid` | Yes | - | FK to profiles |
+| `manufacturer` | `text` | Yes | - | Brand name |
+| `model_number` | `text` | Yes | - | Model identifier |
+| `serial_number` | `text` | Yes | - | Serial number |
+| `install_date` | `date` | Yes | - | Installation date |
+| `capacity_grains` | `integer` | Yes | `32000` | Softener capacity |
+| `quality_tier` | `text` | Yes | `'STANDARD'` | Quality level |
+| `salt_status` | `text` | Yes | `'UNKNOWN'` | Salt level status |
+| `sanitizer_type` | `text` | Yes | `'UNKNOWN'` | Chlorine vs chloramine |
+| `control_head` | `text` | Yes | `'DIGITAL'` | Control type |
+| `resin_type` | `text` | Yes | - | Resin material |
+| `visual_height` | `text` | Yes | `'WAIST'` | Tank height |
+| `visual_condition` | `text` | Yes | `'WEATHERED'` | Overall condition |
+| `visual_iron` | `boolean` | Yes | `false` | Iron staining visible |
+| `has_carbon_filter` | `boolean` | Yes | `false` | Carbon filter present |
+| `notes` | `text` | Yes | - | Additional notes |
+| `photo_urls` | `jsonb` | Yes | `'[]'` | Array of photo URLs |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `assessments`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `water_heater_id` | `uuid` | No | - | FK to water_heaters |
+| `assessor_id` | `uuid` | No | - | FK to profiles (who assessed) |
+| `source` | `assessment_source` | No | - | Enum: `homeowner`, `technician`, `ai` |
+| `forensic_inputs` | `jsonb` | No | - | Algorithm input data |
+| `opterra_result` | `jsonb` | Yes | - | Algorithm output data |
+| `health_score` | `integer` | Yes | - | 0-100 health score |
+| `bio_age` | `numeric` | Yes | - | Biological age estimate |
+| `fail_probability` | `numeric` | Yes | - | 12-month failure probability |
+| `risk_level` | `integer` | Yes | - | Risk tier (1-5) |
+| `recommendation_action` | `text` | Yes | - | `replace`, `maintain`, `monitor` |
+| `recommendation_title` | `text` | Yes | - | Human-readable recommendation |
+| `symptoms` | `jsonb` | Yes | `'{}'` | Reported symptoms |
+| `usage_type` | `text` | Yes | - | Usage category |
+| `status` | `text` | Yes | `'completed'` | Assessment status |
+| `inspection_notes` | `text` | Yes | - | Technician notes |
+| `photos` | `jsonb` | Yes | `'[]'` | Assessment photos |
+| `years_at_address` | `numeric` | Yes | - | Homeowner tenure |
+| `people_count` | `integer` | Yes | - | Household size |
+| `last_flush_years_ago` | `numeric` | Yes | - | Years since flush |
+| `last_anode_replace_years_ago` | `numeric` | Yes | - | Years since anode |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `service_events`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `water_heater_id` | `uuid` | No | - | FK to water_heaters |
+| `performed_by` | `uuid` | Yes | - | FK to profiles (technician) |
+| `event_type` | `service_event_type` | No | - | Enum: `flush`, `anode_replace`, `repair`, `install`, `inspection` |
+| `event_date` | `date` | No | `CURRENT_DATE` | When service occurred |
+| `cost_usd` | `numeric` | Yes | - | Service cost |
+| `health_score_before` | `integer` | Yes | - | Pre-service score |
+| `health_score_after` | `integer` | Yes | - | Post-service score |
+| `notes` | `text` | Yes | - | Service notes |
+| `photos` | `jsonb` | Yes | `'[]'` | Service photos |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+
+#### `quotes`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `water_heater_id` | `uuid` | No | - | FK to water_heaters |
+| `contractor_id` | `uuid` | No | - | FK to profiles |
+| `assessment_id` | `uuid` | Yes | - | FK to assessments |
+| `quote_type` | `text` | No | - | `replacement`, `repair`, `maintenance` |
+| `status` | `text` | Yes | `'draft'` | Quote status |
+| `unit_manufacturer` | `text` | Yes | - | Proposed unit brand |
+| `unit_model` | `text` | Yes | - | Proposed unit model |
+| `unit_price_usd` | `numeric` | Yes | - | Equipment cost |
+| `labor_cost_usd` | `numeric` | No | - | Labor cost |
+| `materials_cost_usd` | `numeric` | Yes | `0` | Materials cost |
+| `permit_cost_usd` | `numeric` | Yes | `0` | Permit fees |
+| `discount_usd` | `numeric` | Yes | `0` | Applied discount |
+| `total_usd` | `numeric` | Yes | - | Total quote amount |
+| `estimated_hours` | `numeric` | Yes | - | Estimated labor hours |
+| `warranty_terms` | `text` | Yes | - | Warranty description |
+| `proposed_date` | `date` | Yes | - | Proposed service date |
+| `valid_until` | `date` | Yes | - | Quote expiration |
+| `notes` | `text` | Yes | - | Quote notes |
+| `sent_at` | `timestamptz` | Yes | - | When sent to customer |
+| `accepted_at` | `timestamptz` | Yes | - | When accepted |
+| `declined_at` | `timestamptz` | Yes | - | When declined |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `leads`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `customer_name` | `text` | No | - | Contact name |
+| `customer_phone` | `text` | No | - | Contact phone |
+| `customer_email` | `text` | Yes | - | Contact email |
+| `preferred_contact_method` | `text` | Yes | `'phone'` | Contact preference |
+| `capture_source` | `text` | No | - | Where lead originated |
+| `capture_context` | `jsonb` | Yes | `'{}'` | Inspection/assessment data |
+| `property_id` | `uuid` | Yes | - | FK to properties |
+| `water_heater_id` | `uuid` | Yes | - | FK to water_heaters |
+| `contractor_id` | `uuid` | Yes | - | FK to assigned contractor |
+| `opt_in_alerts` | `boolean` | Yes | `true` | Marketing consent |
+| `status` | `text` | Yes | `'new'` | Lead status |
+| `notes` | `text` | Yes | - | Additional notes |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `maintenance_notification_requests`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `customer_name` | `text` | No | - | Contact name |
+| `customer_phone` | `text` | No | - | Contact phone |
+| `customer_email` | `text` | Yes | - | Contact email |
+| `maintenance_type` | `text` | No | - | Type of maintenance |
+| `due_date` | `date` | No | - | When maintenance due |
+| `notification_lead_days` | `integer` | Yes | `14` | Days before to notify |
+| `property_id` | `uuid` | Yes | - | FK to properties |
+| `water_heater_id` | `uuid` | Yes | - | FK to water_heaters |
+| `contractor_id` | `uuid` | Yes | - | FK to contractor |
+| `status` | `text` | Yes | `'pending'` | Request status |
+| `notes` | `text` | Yes | - | Additional notes |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `contractor_property_relationships`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `contractor_id` | `uuid` | No | - | FK to profiles |
+| `property_id` | `uuid` | No | - | FK to properties |
+| `relationship_type` | `text` | No | - | `service`, `quote`, `inspection` |
+| `expires_at` | `timestamptz` | Yes | `now() + '1 year'` | Access expiration |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+
+#### `contractor_install_presets`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `contractor_id` | `uuid` | No | - | FK to profiles |
+| `vent_type` | `text` | No | - | Vent configuration |
+| `complexity` | `text` | No | - | Install complexity level |
+| `labor_cost_usd` | `numeric` | No | - | Labor cost |
+| `materials_cost_usd` | `numeric` | No | `0` | Materials cost |
+| `permit_cost_usd` | `numeric` | No | `0` | Permit cost |
+| `total_install_cost_usd` | `numeric` | Yes | - | Calculated total |
+| `estimated_hours` | `numeric` | Yes | - | Labor hours |
+| `description` | `text` | Yes | - | Preset description |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `contractor_service_prices`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `contractor_id` | `uuid` | No | - | FK to profiles |
+| `service_type` | `text` | No | - | Type of service |
+| `unit_type` | `text` | No | `'tank'` | Tank vs tankless |
+| `price_usd` | `numeric` | No | - | Service price |
+| `estimated_minutes` | `integer` | Yes | - | Time estimate |
+| `description` | `text` | Yes | - | Service description |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `unit_prices`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `fuel_type` | `text` | No | `'GAS'` | Fuel type |
+| `capacity_gallons` | `integer` | No | `50` | Tank capacity |
+| `vent_type` | `text` | No | `'ATMOSPHERIC'` | Vent type |
+| `warranty_years` | `integer` | No | `6` | Warranty duration |
+| `quality_tier` | `text` | No | `'STANDARD'` | Quality level |
+| `manufacturer` | `text` | Yes | - | Brand name |
+| `model_number` | `text` | Yes | - | Model identifier |
+| `retail_price_usd` | `numeric` | No | - | Consumer price |
+| `wholesale_price_usd` | `numeric` | Yes | - | Contractor price |
+| `price_source` | `text` | Yes | - | Data source |
+| `source_url` | `text` | Yes | - | Source URL |
+| `confidence_score` | `numeric` | Yes | - | Data confidence |
+| `lookup_date` | `timestamptz` | No | `now()` | When looked up |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `price_lookup_cache`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `lookup_type` | `text` | No | - | Cache category |
+| `lookup_key` | `text` | No | - | Cache key |
+| `result_json` | `jsonb` | No | - | Cached data |
+| `cached_at` | `timestamptz` | No | `now()` | Cache time |
+| `expires_at` | `timestamptz` | No | `now() + '30 days'` | Expiration time |
+
+#### `water_districts`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `zip_code` | `text` | No | - | Primary key (ZIP) |
+| `utility_name` | `text` | Yes | - | Water utility name |
+| `hardness_gpg` | `numeric` | Yes | - | Water hardness (grains) |
+| `sanitizer_type` | `text` | Yes | - | Chlorine vs chloramine |
+| `confidence` | `numeric` | Yes | `0` | Data confidence |
+| `source_url` | `text` | Yes | - | Data source |
+| `last_verified` | `timestamptz` | Yes | `now()` | Last verification |
+| `created_at` | `timestamptz` | Yes | `now()` | Record creation time |
+
+---
+
+### Enum Types
+
+#### `app_role`
+```sql
+CREATE TYPE app_role AS ENUM ('admin', 'contractor', 'homeowner');
+```
+
+#### `assessment_source`
+```sql
+CREATE TYPE assessment_source AS ENUM ('homeowner', 'technician', 'ai');
+```
+
+#### `service_event_type`
+```sql
+CREATE TYPE service_event_type AS ENUM ('flush', 'anode_replace', 'repair', 'install', 'inspection');
+```
+
+---
+
 ### Relationship Chains
 
 #### 1. Identity Chain
