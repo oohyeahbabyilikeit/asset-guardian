@@ -254,7 +254,7 @@ export function EducationPage({
           )}
           onClick={onContinue}
         >
-          Get a Follow-Up Call
+          See Personalized Plan
           <ArrowRight className="w-4 h-4" />
         </Button>
         
