@@ -476,6 +476,7 @@ export function CommandCenter({
               isLeaking={currentInputs.isLeaking}
               visualRust={currentInputs.visualRust}
               fuelType={currentInputs.fuelType}
+              inputs={currentInputs}
             />
           </motion.div>
 
