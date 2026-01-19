@@ -15,6 +15,7 @@ import { BundledServiceCard } from './BundledServiceCard';
 import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HealthRing } from './HealthRing';
+import { CriticalAssessmentPage } from './CriticalAssessmentPage';
 import { cn } from '@/lib/utils';
 
 interface MaintenancePlanProps {
@@ -58,24 +59,12 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   
   if (isCriticalOrReplace) {
     return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-md mx-auto space-y-6 pt-4">
-          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Back</span>
-          </button>
-          
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
-            <h2 className="text-lg font-semibold text-destructive mb-2">Maintenance Plan Unavailable</h2>
-            <p className="text-muted-foreground text-sm mb-4">
-              Your {unitTypeLabel.toLowerCase()} unit requires {recommendation.badge === 'CRITICAL' ? 'immediate attention' : 'replacement'} before a maintenance plan can be established.
-            </p>
-            <Button onClick={onScheduleService} variant="destructive" className="w-full">
-              View Required Action
-            </Button>
-          </div>
-        </div>
-      </div>
+      <CriticalAssessmentPage
+        inputs={currentInputs}
+        opterraResult={opterraResult}
+        onBack={onBack}
+        onScheduleService={onScheduleService}
+      />
     );
   }
 
