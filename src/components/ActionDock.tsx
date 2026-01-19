@@ -88,17 +88,18 @@ export function ActionDock({
   
   const escalationTier = getEscalationTier();
   
+  // Consultative CTA labels by tier
   const getButtonLabel = () => {
-    if (!recommendation) return 'Understand My Options';
+    if (!recommendation) return 'Speak with a Plumber';
     
     switch (escalationTier) {
       case 'red':
-        return 'Review My Assessment';  // Education-first: review before action
+        return 'Get Expert Advice Now';
       case 'green':
-        return getCTALabel(fuelType, 'optimal');  // "See Maintenance Plan"
+        return 'Get Maintenance Tips';
       case 'yellow':
       default:
-        return 'Understand My Options';  // Education-first: understand before buying
+        return 'Speak with a Plumber';
     }
   };
   

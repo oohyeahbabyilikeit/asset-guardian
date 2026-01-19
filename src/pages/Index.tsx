@@ -9,18 +9,16 @@ import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
 import { PanicMode } from '@/components/PanicMode';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
 
-import { PriceAnalysisLoader } from '@/components/PriceAnalysisLoader';
-import { type ForensicInputs, calculateOpterraRisk, type OpterraResult } from '@/lib/opterraAlgorithm';
+import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
-import { type TechnicianInspectionData, DEFAULT_TECHNICIAN_DATA } from '@/types/technicianInspection';
+import { type TechnicianInspectionData } from '@/types/technicianInspection';
 import { mapTechnicianToForensicInputs, mapTechnicianToAssetDisplay } from '@/types/technicianMapper';
 import { type OnboardingData, DEFAULT_ONBOARDING_DATA, mapOnboardingToForensicInputs } from '@/types/onboarding';
 import type { AssetData } from '@/data/mockAsset';
 import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
-import type { TierPricing } from '@/hooks/useTieredPricing';
-import type { QualityTier } from '@/lib/opterraAlgorithm';
 import { usePrefetchFindings } from '@/hooks/useGeneratedFindings';
 import { usePrefetchRationale } from '@/hooks/useRecommendationRationale';
+
 type AppScreen = 
   | 'mode-select'
   | 'technician-flow'
@@ -28,7 +26,6 @@ type AppScreen =
   | 'command-center'
   | 'test-harness'
   | 'forensic-report'
-  | 'analyzing-options'
   | 'replacement-options'
   | 'panic-mode'
   | 'maintenance-plan';
@@ -39,7 +36,6 @@ interface AppState {
   technicianData: TechnicianInspectionData | null;
   onboardingData: OnboardingData | null;
   demoScenario: GeneratedScenario | null;
-  prefetchedTiers?: Record<QualityTier, TierPricing>;
   showQuoteLoader?: boolean;
 }
 
@@ -156,13 +152,12 @@ const Index = () => {
   }, []);
 
 
-  // Handle navigation to replacement options with loader overlay
+  // Handle navigation to replacement options (lead capture flow)
   const handleServiceRequest = useCallback(() => {
-    console.log('[nav] handleServiceRequest -> replacement-options with loader');
+    console.log('[nav] handleServiceRequest -> replacement-options');
     setState(prev => ({
       ...prev,
       screen: 'replacement-options',
-      prefetchedTiers: undefined,
       showQuoteLoader: true,
     }));
   }, []);
@@ -409,11 +404,6 @@ const Index = () => {
           onBack={handleReportBack}
         />
       );
-
-    case 'analyzing-options':
-      // Redirect old path to replacement-options with loader
-      setState(prev => ({ ...prev, screen: 'replacement-options', showQuoteLoader: true }));
-      return null;
 
     case 'replacement-options':
       return (

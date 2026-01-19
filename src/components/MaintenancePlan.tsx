@@ -9,11 +9,11 @@ import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
 import { ForensicInputs, calculateOpterraRisk, failProbToHealthScore, isTankless } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
-import { HealthSummary } from './SmartMaintenanceCard';
 import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMaintenanceCard';
 import { BundledServiceCard } from './BundledServiceCard';
 import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { LeadCaptureFlow } from './LeadCaptureFlow';
 import { cn } from '@/lib/utils';
 
 interface MaintenancePlanProps {
@@ -25,13 +25,9 @@ interface MaintenancePlanProps {
 }
 
 export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serviceHistory = [], onAddServiceEvent }: MaintenancePlanProps) {
-  const [showContactModal, setShowContactModal] = useState(false);
+  const [showLeadCapture, setShowLeadCapture] = useState(false);
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  
-  // Contact form state
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
   
   // Get unit-specific service event types
   const serviceEventTypes = useMemo(() => getServiceEventTypes(currentInputs.fuelType), [currentInputs.fuelType]);
@@ -138,7 +134,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   };
 
   const handleSchedule = () => {
-    setShowContactModal(true);
+    setShowLeadCapture(true);
   };
 
   const handleRemind = () => {
@@ -147,17 +143,8 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     });
   };
 
-  const handleContactSubmit = () => {
-    if (!contactName || !contactPhone) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-    toast.success('Service request submitted!', {
-      description: "A technician will contact you within 24 hours"
-    });
-    setShowContactModal(false);
-    setContactName('');
-    setContactPhone('');
+  const handleLeadCaptureComplete = () => {
+    setShowLeadCapture(false);
   };
 
   // Format a simple history list - unit-type aware
@@ -209,17 +196,6 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       day: 'numeric', 
       year: 'numeric' 
     });
-  };
-  
-  // Get intro message based on unit type
-  const getIntroMessage = () => {
-    if (isTanklessUnit) {
-      return 'Keep your tankless unit running efficiently with these maintenance tasks.';
-    }
-    if (isHybridUnit) {
-      return 'Your heat pump water heater needs regular care for optimal efficiency.';
-    }
-    return 'A little preventive care goes a long way. Here\'s how to keep it that way.';
   };
 
   return (
@@ -401,39 +377,29 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         </Collapsible>
       </div>
 
-      {/* Contact Modal */}
-      <Dialog open={showContactModal} onOpenChange={setShowContactModal}>
-        <DialogContent className="max-w-sm rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Schedule Service</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input 
-                id="name" 
-                value={contactName} 
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Your name"
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input 
-                id="phone" 
-                value={contactPhone} 
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="(555) 123-4567"
-                className="h-11"
-              />
-            </div>
-            <Button onClick={handleContactSubmit} className="w-full h-11">
-              Request Service
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Lead Capture Flow - Full Screen */}
+      {showLeadCapture && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <LeadCaptureFlow
+            captureSource="maintenance_notify"
+            captureContext={{
+              fuelType: currentInputs.fuelType,
+              calendarAge: currentInputs.calendarAge,
+              healthScore: currentScore,
+              primaryTask: maintenanceSchedule.primaryTask?.type,
+            }}
+            urgencyLevel="green"
+            headline="Keep Your Water Heater Running Strong"
+            bulletPoints={[
+              "Regular maintenance prevents 73% of water heater failures",
+              "A quick call sets up your annual service schedule",
+              "Average homeowner saves $1,200 by staying ahead of repairs",
+            ]}
+            onComplete={handleLeadCaptureComplete}
+            onBack={() => setShowLeadCapture(false)}
+          />
+        </div>
+      )}
 
       {/* Add Event Modal */}
       <Dialog open={showAddEventModal} onOpenChange={setShowAddEventModal}>
