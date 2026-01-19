@@ -99,7 +99,7 @@ export function IssueGuidanceDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[92vh]">
-        <div className="overflow-y-auto">
+        <div className="overflow-y-auto scroll-touch">
           {/* Header with gradient */}
           <DrawerHeader className={cn(
             "relative pb-4 border-b",
@@ -109,7 +109,7 @@ export function IssueGuidanceDrawer({
           )}>
             <div className="flex items-start gap-3">
               <div className={cn(
-                "p-2.5 rounded-xl shrink-0",
+                "p-3 rounded-xl shrink-0",
                 shouldFix ? "bg-emerald-500/20" : "bg-amber-500/20"
               )}>
                 <IssueIcon className={cn(
@@ -119,7 +119,7 @@ export function IssueGuidanceDrawer({
               </div>
               <div className="flex-1 min-w-0">
                 <span className={cn(
-                  "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                  "text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full inline-block",
                   issue.category === 'VIOLATION' 
                     ? "bg-destructive/20 text-destructive" 
                     : issue.category === 'INFRASTRUCTURE'
@@ -128,7 +128,7 @@ export function IssueGuidanceDrawer({
                 )}>
                   {issue.category === 'VIOLATION' ? 'Code Violation' : issue.category}
                 </span>
-                <DrawerTitle className="text-lg mt-1.5">{issue.friendlyName}</DrawerTitle>
+                <DrawerTitle className="text-lg mt-2">{issue.friendlyName}</DrawerTitle>
               </div>
             </div>
           </DrawerHeader>
@@ -136,20 +136,20 @@ export function IssueGuidanceDrawer({
           <div className="px-4 pb-6 space-y-5">
             {/* Unit Context Card */}
             <div className="bg-secondary/30 rounded-xl p-4 mt-4">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                 Your Unit
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                  <div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">Age</div>
                     <div className="text-sm font-semibold">{inputs.calendarAge}yr</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Activity className="w-3.5 h-3.5 text-muted-foreground" />
-                  <div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Activity className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">Health</div>
                     <div className={cn(
                       "text-sm font-semibold",
@@ -161,9 +161,9 @@ export function IssueGuidanceDrawer({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-                  <div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">Location</div>
                     <div className="text-sm font-semibold truncate">{formatLocation(inputs.location)}</div>
                   </div>
@@ -294,10 +294,10 @@ export function IssueGuidanceDrawer({
                 </div>
 
                 {/* CTA Buttons */}
-                <div className="pt-2 space-y-3">
+                <div className="pt-3 space-y-3 pb-safe">
                   <Button 
                     variant="outline"
-                    className="w-full h-11 gap-2"
+                    className="w-full h-12 gap-2"
                     onClick={() => setShowNotifyModal(true)}
                   >
                     <Bell className="w-4 h-4" />
@@ -306,7 +306,7 @@ export function IssueGuidanceDrawer({
                   
                   <Button 
                     className={cn(
-                      "w-full h-12 text-base font-semibold gap-2",
+                      "w-full h-14 text-base font-semibold gap-2",
                       shouldFix 
                         ? "bg-emerald-600 hover:bg-emerald-700"
                         : "bg-amber-600 hover:bg-amber-700"

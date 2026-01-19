@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -108,124 +108,132 @@ export function NotifyMeModal({
 
   if (isSubmitted) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-md">
-          <div className="flex flex-col items-center text-center py-6">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-8 h-8 text-primary" />
+      <Drawer open={open} onOpenChange={handleClose}>
+        <DrawerContent className="max-h-[90vh]">
+          <div className="flex flex-col items-center text-center py-8 px-4 pb-safe">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-10 h-10 text-primary" />
             </div>
-            <DialogTitle className="text-xl mb-2">You're All Set!</DialogTitle>
-            <DialogDescription className="text-muted-foreground mb-6">
+            <DrawerTitle className="text-xl mb-2">You're All Set!</DrawerTitle>
+            <DrawerDescription className="text-muted-foreground mb-6">
               Your plumber will reach out about 2 weeks before each service is due to schedule an
               appointment.
-            </DialogDescription>
-            <Button onClick={handleClose} className="w-full">
+            </DrawerDescription>
+            <Button onClick={handleClose} className="w-full h-12">
               Done
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2 mb-1">
-            <Bell className="w-5 h-5 text-primary" />
-            <DialogTitle>Notify Me When Due</DialogTitle>
-          </div>
-          <DialogDescription>
-            We'll have your plumber reach out 2 weeks before each service is needed.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          {/* Name field */}
-          <div className="space-y-2">
-            <Label htmlFor="name" className="flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" />
-              Your Name
-            </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="John Smith"
-              className={errors.name ? 'border-destructive' : ''}
-            />
-            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-          </div>
-
-          {/* Phone field */}
-          <div className="space-y-2">
-            <Label htmlFor="phone" className="flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5" />
-              Phone Number
-            </Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(555) 123-4567"
-              className={errors.phone ? 'border-destructive' : ''}
-            />
-            {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-          </div>
-
-          {/* Email field (optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="email" className="flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5" />
-              Email <span className="text-muted-foreground text-xs">(optional)</span>
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="john@example.com"
-            />
-          </div>
-
-          {/* Task selection */}
-          {tasks.length > 1 && (
-            <div className="space-y-3">
-              <Label>Notify me about:</Label>
-              <div className="space-y-2">
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center space-x-3 p-2 rounded-lg bg-muted/50"
-                  >
-                    <Checkbox
-                      id={task.id}
-                      checked={selectedTasks.includes(task.id)}
-                      onCheckedChange={() => toggleTask(task.id)}
-                    />
-                    <label
-                      htmlFor={task.id}
-                      className="text-sm font-medium leading-none cursor-pointer flex-1"
-                    >
-                      {task.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
+    <Drawer open={open} onOpenChange={handleClose}>
+      <DrawerContent className="max-h-[90vh]">
+        <div className="overflow-y-auto scroll-touch px-4 pb-safe">
+          <DrawerHeader className="px-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Bell className="w-5 h-5 text-primary" />
+              <DrawerTitle>Notify Me When Due</DrawerTitle>
             </div>
-          )}
+            <DrawerDescription>
+              We'll have your plumber reach out 2 weeks before each service is needed.
+            </DrawerDescription>
+          </DrawerHeader>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isSubmitting || selectedTasks.length === 0}
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit'}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <form onSubmit={handleSubmit} className="space-y-5 pb-6">
+            {/* Name field */}
+            <div className="space-y-2">
+              <Label htmlFor="name" className="flex items-center gap-2 text-sm">
+                <User className="w-4 h-4" />
+                Your Name
+              </Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="John Smith"
+                className={errors.name ? 'border-destructive' : ''}
+                autoComplete="name"
+                autoCapitalize="words"
+              />
+              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+            </div>
+
+            {/* Phone field */}
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="flex items-center gap-2 text-sm">
+                <Phone className="w-4 h-4" />
+                Phone Number
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 123-4567"
+                className={errors.phone ? 'border-destructive' : ''}
+                autoComplete="tel"
+              />
+              {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+            </div>
+
+            {/* Email field (optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="flex items-center gap-2 text-sm">
+                <Mail className="w-4 h-4" />
+                Email <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                inputMode="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="john@example.com"
+                autoComplete="email"
+              />
+            </div>
+
+            {/* Task selection */}
+            {tasks.length > 1 && (
+              <div className="space-y-3">
+                <Label className="text-sm">Notify me about:</Label>
+                <div className="space-y-2">
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center space-x-3 p-3 rounded-xl bg-muted/50 min-h-[48px] touch-manipulation"
+                    >
+                      <Checkbox
+                        id={task.id}
+                        checked={selectedTasks.includes(task.id)}
+                        onCheckedChange={() => toggleTask(task.id)}
+                      />
+                      <label
+                        htmlFor={task.id}
+                        className="text-sm font-medium leading-none cursor-pointer flex-1"
+                      >
+                        {task.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full h-12"
+              disabled={isSubmitting || selectedTasks.length === 0}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit'}
+            </Button>
+          </form>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

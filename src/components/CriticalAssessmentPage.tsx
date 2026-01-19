@@ -123,15 +123,15 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50">
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
         <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={onBack}>
+          <Button variant="ghost" size="icon" onClick={onBack} className="min-h-[44px] min-w-[44px]">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="font-semibold">Critical Assessment</h1>
+            <h1 className="font-semibold text-base">Critical Assessment</h1>
             <p className="text-xs text-muted-foreground">Issues requiring attention</p>
           </div>
         </div>
@@ -257,18 +257,18 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
       </div>
 
       {/* Fixed CTA - dual options */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border space-y-3">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border space-y-3 pb-safe">
         <Button 
           variant="outline"
           onClick={() => setShowNotifyModal(true)}
-          className="w-full h-11 gap-2"
+          className="w-full h-12 gap-2"
         >
           <Bell className="h-4 w-4" />
           Set a Reminder
         </Button>
         <Button 
           onClick={onScheduleService}
-          className="w-full h-12 bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
+          className="w-full h-14 bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2 text-base"
           size="lg"
         >
           <Phone className="h-5 w-5" />

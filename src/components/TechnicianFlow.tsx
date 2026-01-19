@@ -468,14 +468,14 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     <TooltipProvider delayDuration={300}>
       <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-safe">
           <div className="max-w-lg mx-auto px-4 py-3">
             <div className="flex items-center gap-3 mb-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={goBack}
-                className="shrink-0 -ml-2 hover:bg-muted"
+                className="shrink-0 -ml-2 hover:bg-muted min-h-[44px] min-w-[44px]"
               >
                 <ChevronLeft className="h-5 w-5" />
               </Button>
