@@ -93,7 +93,7 @@ export function ContactFormPage({
     setIsSubmitted(true);
     
     toast.success("Request submitted!", {
-      description: "Your technician will follow up within 24 hours."
+      description: "Your plumber will reach out within 24 hours."
     });
     
     setTimeout(() => {
@@ -116,7 +116,7 @@ export function ContactFormPage({
           <div>
             <h2 className="text-2xl font-bold mb-2">You're All Set!</h2>
             <p className="text-muted-foreground">
-              Your technician will follow up within 24 hours to discuss your water heater.
+              Your plumber will reach out within 24 hours to discuss your water heater.
             </p>
           </div>
         </motion.div>
@@ -136,7 +136,7 @@ export function ContactFormPage({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 text-center">
-            <h1 className="font-semibold text-lg">Get a Follow-Up Call</h1>
+            <h1 className="font-semibold text-lg">Have Your Plumber Reach Out</h1>
           </div>
           <div className="w-9" />
         </div>
@@ -158,7 +158,7 @@ export function ContactFormPage({
               Almost There!
             </h2>
             <p className="text-sm text-muted-foreground">
-              Your technician will call to discuss your options and answer any questions.
+              Your plumber will reach out to discuss your options and answer any questions.
             </p>
           </div>
 
@@ -233,11 +233,11 @@ export function ContactFormPage({
                 urgencyLevel === 'green' && "bg-emerald-600 hover:bg-emerald-500",
               )}
             >
-              {isSubmitting ? 'Submitting...' : 'Request Follow-Up Call'}
+              {isSubmitting ? 'Submitting...' : 'Have My Plumber Reach Out'}
             </Button>
             
             <p className="text-xs text-center text-muted-foreground">
-              Your technician will call to go over your options. No obligation.
+              Your plumber will reach out to discuss your options. No obligation.
             </p>
           </form>
         </motion.div>

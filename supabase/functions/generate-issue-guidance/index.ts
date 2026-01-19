@@ -60,21 +60,23 @@ serve(async (req) => {
     const systemPrompt = `You are an expert plumbing advisor explaining infrastructure issues to homeowners. Your job is to provide clear, honest guidance that factors in:
 1. The unit's current condition and age
 2. Whether fixing the issue makes economic sense
-3. The location-based damage potential
+3. The location-based risk
 4. The algorithm's overall recommendation
 
 Be direct and honest. If the unit should be replaced, don't recommend spending money on repairs. If the unit is new and healthy, explain why the fix protects their investment.
+
+IMPORTANT: Do NOT mention any specific prices, costs, or dollar amounts. Focus on the value and importance of addressing the issue, not the cost.
 
 Always respond with a JSON object with these fields:
 - headline: A 3-5 word summary of what they should do (e.g., "Protect Your Investment" or "Plan for Replacement")
 - explanation: 2-3 sentences explaining what this issue is in plain language
 - yourSituation: 2-3 sentences personalizing the guidance to their specific unit, age, and condition
 - recommendation: 2-3 sentences with a clear recommendation on what to do NOW
-- economicContext: 1-2 sentences about the cost/benefit or damage potential
-- actionItems: Array of 2-3 specific next steps
+- economicContext: 1-2 sentences about WHY this matters (not specific costs) - focus on protection, prevention, peace of mind
+- actionItems: Array of 2-3 specific next steps (use "Have your plumber reach out" not "schedule")
 - shouldFix: Boolean - true if they should fix this issue now, false if they should replace the unit instead
 
-Keep language warm but professional. Avoid jargon. Focus on actionable guidance.`;
+Keep language warm but professional. Avoid jargon. Focus on actionable guidance. Never mention specific dollar amounts or prices.`;
 
     const userPrompt = buildUserPrompt(context);
 
@@ -161,8 +163,8 @@ function buildUserPrompt(ctx: IssueGuidanceContext): string {
   }
 
   const locationRisk = isHighRiskLocation
-    ? `HIGH RISK LOCATION: ${formatLocation(ctx.location)}. A failure here could cause $${ctx.damageScenario.min.toLocaleString()}-$${ctx.damageScenario.max.toLocaleString()} in water damage. ${ctx.damageScenario.description}`
-    : `LOWER RISK LOCATION: ${formatLocation(ctx.location)}. Damage potential if failure occurs: $${ctx.damageScenario.min.toLocaleString()}-$${ctx.damageScenario.max.toLocaleString()}.`;
+    ? `HIGH RISK LOCATION: ${formatLocation(ctx.location)}. A failure here could cause significant water damage. ${ctx.damageScenario.description}`
+    : `LOWER RISK LOCATION: ${formatLocation(ctx.location)}. A failure could still cause damage, but the risk is more manageable.`;
 
   return `
 INFRASTRUCTURE ISSUE: ${ctx.issueName}
@@ -180,12 +182,12 @@ Reason: ${ctx.recommendation.reason}
 SITUATION ASSESSMENT:
 ${situationSummary}
 
-LOCATION & DAMAGE POTENTIAL:
+LOCATION & RISK:
 ${locationRisk}
 
-IS THIS SERVICEABLE?: ${ctx.isServiceable ? 'Yes - fixing this issue makes economic sense' : 'No - the unit should be replaced instead'}
+IS THIS SERVICEABLE?: ${ctx.isServiceable ? 'Yes - fixing this issue makes sense' : 'No - the unit should be replaced instead'}
 
-Generate personalized guidance for this customer about what "${ctx.issueName}" means for THEIR specific situation. Be honest about whether they should fix this or plan for replacement.`;
+Generate personalized guidance for this customer about what "${ctx.issueName}" means for THEIR specific situation. Be honest about whether they should fix this or plan for replacement. Do NOT include any specific dollar amounts or prices in your response.`;
 }
 
 function formatLocation(location: string): string {

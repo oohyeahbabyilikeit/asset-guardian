@@ -1,6 +1,6 @@
 import { 
-  Droplets, Shield, Calendar, Bell, Clock, Sparkles, 
-  Flame, Filter, Wrench, Wind 
+  Droplets, Shield, Bell, Clock, Sparkles, 
+  Flame, Filter, Wrench, Wind, Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -151,54 +151,27 @@ export function UnifiedMaintenanceCard({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
-        {isFarOut ? (
-          // Far out (>3 months): Remind is primary
-          <>
-            <Button 
-              onClick={onRemind}
-              className="flex-1 gap-2 h-11"
-              variant="default"
-            >
-              <Bell className="w-4 h-4" />
-              Remind Me
-            </Button>
-            <Button 
-              onClick={onSchedule}
-              variant="outline"
-              className="gap-2 h-11 px-4"
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Schedule</span>
-            </Button>
-          </>
-        ) : (
-          // Due soon, overdue, or impossible: Schedule is primary
-          <>
-            <Button 
-              onClick={onSchedule}
-              className={cn(
-                "flex-1 gap-2 h-11",
-                isImpossible && "bg-orange-600 hover:bg-orange-500 text-white",
-                isOverdue && !isImpossible && "bg-amber-600 hover:bg-amber-500 text-white"
-              )}
-              variant={(isOverdue || isImpossible) ? undefined : "default"}
-            >
-              <Calendar className="w-4 h-4" />
-              {isImpossible ? 'Schedule Install' : 'Schedule Service'}
-            </Button>
-            {!isImpossible && (
-              <Button 
-                onClick={onRemind}
-                variant="outline"
-                className="gap-2 h-11 px-4"
-              >
-                <Bell className="w-4 h-4" />
-                <span className="hidden sm:inline">Remind</span>
-              </Button>
-            )}
-          </>
-        )}
+      <div className="space-y-3">
+        <Button 
+          onClick={onRemind}
+          variant="outline"
+          className="w-full gap-2 h-11"
+        >
+          <Bell className="w-4 h-4" />
+          {isFarOut ? 'Remind Me When Due' : 'Set a Reminder'}
+        </Button>
+        <Button 
+          onClick={onSchedule}
+          className={cn(
+            "w-full gap-2 h-11",
+            isImpossible && "bg-orange-600 hover:bg-orange-500 text-white",
+            isOverdue && !isImpossible && "bg-amber-600 hover:bg-amber-500 text-white"
+          )}
+          variant={(isOverdue || isImpossible) ? undefined : "default"}
+        >
+          <Phone className="w-4 h-4" />
+          {isImpossible ? 'Have My Plumber Reach Out' : 'Have My Plumber Reach Out'}
+        </Button>
       </div>
     </div>
   );

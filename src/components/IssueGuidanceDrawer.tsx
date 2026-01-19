@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, CheckCircle, XCircle, MapPin, Calendar, Activity, Droplets, Gauge, Shield, ArrowRight, Wrench, RefreshCw, DollarSign, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, MapPin, Calendar, Activity, Droplets, Gauge, Shield, ArrowRight, Wrench, RefreshCw, Loader2, Bell, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIssueGuidance, type IssueGuidance } from '@/hooks/useIssueGuidance';
 import { getIssueGuidanceContext, type IssueGuidanceContext } from '@/lib/issueGuidanceContext';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import type { ForensicInputs, OpterraMetrics, Recommendation } from '@/lib/opterraAlgorithm';
-import { DAMAGE_SCENARIOS, getLocationKey } from '@/data/damageScenarios';
+import { NotifyMeModal } from './NotifyMeModal';
+import { getLocationKey } from '@/data/damageScenarios';
 
 interface IssueGuidanceDrawerProps {
   open: boolean;
@@ -57,6 +58,7 @@ export function IssueGuidanceDrawer({
 }: IssueGuidanceDrawerProps) {
   const { guidance, isLoading, error, fetchGuidance, getStaticFallback } = useIssueGuidance();
   const [displayGuidance, setDisplayGuidance] = useState<IssueGuidance | null>(null);
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
 
   // Fetch guidance when drawer opens with a new issue
   useEffect(() => {
@@ -87,7 +89,6 @@ export function IssueGuidanceDrawer({
   if (!issue) return null;
 
   const locationKey = getLocationKey(inputs.location);
-  const damageScenario = DAMAGE_SCENARIOS[locationKey];
   const isHighRiskLocation = ['ATTIC', 'UTILITY_CLOSET', 'LIVING_AREA'].includes(locationKey);
   const IssueIcon = getIssueIcon(issue.id);
   
@@ -229,29 +230,15 @@ export function IssueGuidanceDrawer({
                   </p>
                 </div>
 
-                {/* Damage Potential */}
+                {/* High Risk Location Warning */}
                 {isHighRiskLocation && (
                   <div className="bg-destructive/5 rounded-xl p-4 border border-destructive/20">
                     <h3 className="text-[11px] font-bold uppercase tracking-wider text-destructive mb-2 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      Damage Potential
+                      High-Risk Location
                     </h3>
-                    <div className="flex items-center gap-3 mb-2">
-                      <DollarSign className="w-4 h-4 text-destructive" />
-                      <div className="flex-1">
-                        <div className="h-2 bg-destructive/20 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-amber-500 to-destructive rounded-full"
-                            style={{ width: '100%' }}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-sm font-mono font-bold text-destructive">
-                        ${damageScenario.waterDamage.min.toLocaleString()}-${damageScenario.waterDamage.max.toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {damageScenario.description}
+                    <p className="text-sm text-foreground/80">
+                      Your water heater is in a {formatLocation(inputs.location).toLowerCase()}, where a leak could cause significant damage to your home.
                     </p>
                   </div>
                 )}
@@ -306,8 +293,17 @@ export function IssueGuidanceDrawer({
                   </div>
                 </div>
 
-                {/* CTA Button */}
-                <div className="pt-2">
+                {/* CTA Buttons */}
+                <div className="pt-2 space-y-3">
+                  <Button 
+                    variant="outline"
+                    className="w-full h-11 gap-2"
+                    onClick={() => setShowNotifyModal(true)}
+                  >
+                    <Bell className="w-4 h-4" />
+                    Set a Reminder
+                  </Button>
+                  
                   <Button 
                     className={cn(
                       "w-full h-12 text-base font-semibold gap-2",
@@ -317,9 +313,6 @@ export function IssueGuidanceDrawer({
                     )}
                     onClick={() => {
                       onOpenChange(false);
-                      // Both paths now go to their respective handlers
-                      // shouldFix=true → onScheduleService (goes to ContactForm)
-                      // shouldFix=false → onGetQuote (goes to ReplacementOptions)
                       if (shouldFix) {
                         onScheduleService?.();
                       } else {
@@ -327,31 +320,30 @@ export function IssueGuidanceDrawer({
                       }
                     }}
                   >
-                    {shouldFix ? (
-                      <>
-                        Get Expert Help
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    ) : (
-                      <>
-                        See Replacement Options
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
+                    <Phone className="w-4 h-4" />
+                    Have My Plumber Reach Out
                   </Button>
-                </div>
-
-                {/* Cost Info */}
-                {shouldFix && (
+                  
                   <p className="text-center text-xs text-muted-foreground">
-                    Typical cost: ${issue.costMin}-${issue.costMax} installed
+                    Your plumber will contact you to discuss your options
                   </p>
-                )}
+                </div>
               </>
             )}
           </div>
         </div>
       </DrawerContent>
+      
+      {/* Notify Me Modal */}
+      <NotifyMeModal
+        open={showNotifyModal}
+        onOpenChange={setShowNotifyModal}
+        tasks={issue ? [{
+          id: issue.id,
+          label: issue.friendlyName,
+          dueDate: new Date(),
+        }] : []}
+      />
     </Drawer>
   );
 }
