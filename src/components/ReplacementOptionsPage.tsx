@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Check, Flame, Zap } from 'lucide-react';
-import { LeadCaptureFlow, type UrgencyLevel } from './LeadCaptureFlow';
+import { EducationPage, type UrgencyLevel } from './EducationPage';
+import { ContactFormPage } from './ContactFormPage';
 import type { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -41,6 +42,7 @@ export function ReplacementOptionsPage({
 }: ReplacementOptionsPageProps) {
   const [isOverlayVisible, setIsOverlayVisible] = useState(showFakeLoader);
   const [loaderProgress, setLoaderProgress] = useState(0);
+  const [flowStep, setFlowStep] = useState<'education' | 'contact'>('education');
 
   // Calculate urgency level
   const urgencyLevel = useMemo(
@@ -159,9 +161,22 @@ export function ReplacementOptionsPage({
     );
   }
 
-  // Main content - Lead Capture Flow (education → form)
+  // Education step
+  if (flowStep === 'education') {
+    return (
+      <EducationPage
+        urgencyLevel={urgencyLevel}
+        inputs={currentInputs}
+        metrics={metrics}
+        onContinue={() => setFlowStep('contact')}
+        onBack={onBack}
+      />
+    );
+  }
+
+  // Contact form step
   return (
-    <LeadCaptureFlow
+    <ContactFormPage
       captureSource="replacement_quote"
       captureContext={{
         isSafetyReplacement,
@@ -173,10 +188,8 @@ export function ReplacementOptionsPage({
         infrastructureIssuesCount: infrastructureIssues.length,
       }}
       urgencyLevel={urgencyLevel}
-      inputs={currentInputs}
-      metrics={metrics}
       onComplete={onSchedule}
-      onBack={onBack}
+      onBack={() => setFlowStep('education')}
     />
   );
 }

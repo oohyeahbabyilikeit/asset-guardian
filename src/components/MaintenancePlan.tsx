@@ -13,7 +13,8 @@ import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMainte
 import { BundledServiceCard } from './BundledServiceCard';
 import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { LeadCaptureFlow } from './LeadCaptureFlow';
+import { EducationPage } from './EducationPage';
+import { ContactFormPage } from './ContactFormPage';
 import { cn } from '@/lib/utils';
 
 interface MaintenancePlanProps {
@@ -25,7 +26,7 @@ interface MaintenancePlanProps {
 }
 
 export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serviceHistory = [], onAddServiceEvent }: MaintenancePlanProps) {
-  const [showLeadCapture, setShowLeadCapture] = useState(false);
+  const [flowStep, setFlowStep] = useState<'none' | 'education' | 'contact'>('none');
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   
@@ -134,7 +135,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   };
 
   const handleSchedule = () => {
-    setShowLeadCapture(true);
+    setFlowStep('education');
   };
 
   const handleRemind = () => {
@@ -143,8 +144,12 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     });
   };
 
+  const handleEducationContinue = () => {
+    setFlowStep('contact');
+  };
+
   const handleLeadCaptureComplete = () => {
-    setShowLeadCapture(false);
+    setFlowStep('none');
   };
 
   // Format a simple history list - unit-type aware
@@ -377,10 +382,23 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         </Collapsible>
       </div>
 
-      {/* Lead Capture Flow - Full Screen */}
-      {showLeadCapture && (
+      {/* Education Page - Full Screen */}
+      {flowStep === 'education' && (
         <div className="fixed inset-0 z-50 bg-background">
-          <LeadCaptureFlow
+          <EducationPage
+            urgencyLevel="green"
+            inputs={currentInputs}
+            metrics={opterraResult.metrics}
+            onContinue={handleEducationContinue}
+            onBack={() => setFlowStep('none')}
+          />
+        </div>
+      )}
+
+      {/* Contact Form - Full Screen */}
+      {flowStep === 'contact' && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <ContactFormPage
             captureSource="maintenance_notify"
             captureContext={{
               fuelType: currentInputs.fuelType,
@@ -389,10 +407,8 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
               primaryTask: maintenanceSchedule.primaryTask?.type,
             }}
             urgencyLevel="green"
-            inputs={currentInputs}
-            metrics={opterraResult.metrics}
             onComplete={handleLeadCaptureComplete}
-            onBack={() => setShowLeadCapture(false)}
+            onBack={() => setFlowStep('education')}
           />
         </div>
       )}
