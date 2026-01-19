@@ -20,22 +20,9 @@ interface HealthGaugeProps {
   visualRust?: boolean;
   fuelType?: FuelType;
   inputs?: ForensicInputs; // For infrastructure issue detection
-  onLearnMore?: (topic: string) => void; // For educational drawer
+  onLearnMore?: (topic: string) => void; // For educational drawer (general topics)
+  onIssueLearnMore?: (issue: InfrastructureIssue) => void; // For infrastructure issue guidance drawer
 }
-
-// Map infrastructure issue IDs to educational topics
-const ISSUE_TO_TOPIC: Record<string, string> = {
-  'exp_tank_required': 'thermal-expansion',
-  'exp_tank_replace': 'thermal-expansion',
-  'prv_critical': 'prv',
-  'prv_failed': 'prv',
-  'prv_missing': 'prv',
-  'prv_recommended': 'prv',
-  'prv_longevity': 'prv',
-  'softener_service': 'hardness',
-  'softener_replace': 'hardness',
-  'softener_new': 'hardness',
-};
 
 interface StressFactorItemProps {
   icon: React.ElementType;
@@ -89,7 +76,7 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
   );
 }
 
-export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust, fuelType = 'GAS', inputs, onLearnMore }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust, fuelType = 'GAS', inputs, onLearnMore, onIssueLearnMore }: HealthGaugeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { score, status, failureProbability } = healthScore;
   const riskInfo = getRiskLevelInfo(riskLevel);
@@ -379,14 +366,13 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
           {hasViolations && (
             <div className="mt-3 space-y-2">
               {criticalIssues.map((issue) => {
-                const topic = ISSUE_TO_TOPIC[issue.id];
                 return (
                   <button
                     key={issue.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (topic && onLearnMore) {
-                        onLearnMore(topic);
+                      if (onIssueLearnMore) {
+                        onIssueLearnMore(issue);
                       }
                     }}
                     className="w-full text-left flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30 hover:bg-destructive/15 transition-colors group"
@@ -411,9 +397,9 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                         {issue.description}
                       </p>
                     </div>
-                    {topic && onLearnMore && (
+                    {onIssueLearnMore && (
                       <div className="shrink-0 text-xs text-destructive/70 group-hover:text-destructive transition-colors">
-                        Learn more →
+                        What does this mean? →
                       </div>
                     )}
                   </button>

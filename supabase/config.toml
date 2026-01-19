@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.generate-maintain-rationale]
 verify_jwt = false
+
+[functions.generate-issue-guidance]
+verify_jwt = false
