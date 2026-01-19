@@ -74,46 +74,46 @@ export function getServiceTypes(fuelType: FuelType) {
  */
 export const CTA_LABELS = {
   TANK: {
-    // Yellow tier - maintenance attention
-    serviceOverdue: "See My Options",
-    serviceDueSoon: "See My Options",
-    // Red tier - safety critical
-    critical: "View Safety Recommendations",
+    // Yellow tier - maintenance attention (consultative)
+    serviceOverdue: "Speak with a Plumber",
+    serviceDueSoon: "Speak with a Plumber",
+    // Red tier - safety critical (urgent consultative)
+    critical: "Get Expert Advice Now",
     // Yellow tier - near end-of-life, not critical
-    replace: "See My Options",
+    replace: "Speak with a Plumber",
     // Yellow tier - service/upgrades needed
-    service: "See My Options",
-    // Green tier - healthy
-    optimal: "See Maintenance Plan",
-    default: "See My Options",
+    service: "Speak with a Plumber",
+    // Green tier - healthy (maintenance focus)
+    optimal: "Get Maintenance Tips",
+    default: "Speak with a Plumber",
   },
   TANKLESS: {
-    // Yellow tier - maintenance attention
-    serviceOverdue: "See My Options",
-    serviceDueSoon: "See My Options",
-    // Red tier - safety critical
-    critical: "View Safety Recommendations",
+    // Yellow tier - maintenance attention (consultative)
+    serviceOverdue: "Speak with a Plumber",
+    serviceDueSoon: "Speak with a Plumber",
+    // Red tier - safety critical (urgent consultative)
+    critical: "Get Expert Advice Now",
     // Yellow tier - near end-of-life, not critical
-    replace: "See My Options",
+    replace: "Speak with a Plumber",
     // Yellow tier - service/upgrades needed
-    service: "See My Options",
-    // Green tier - healthy
-    optimal: "See Maintenance Plan",
-    default: "See My Options",
+    service: "Speak with a Plumber",
+    // Green tier - healthy (maintenance focus)
+    optimal: "Get Maintenance Tips",
+    default: "Speak with a Plumber",
   },
   HYBRID: {
-    // Yellow tier - maintenance attention
-    serviceOverdue: "See My Options",
-    serviceDueSoon: "See My Options",
-    // Red tier - safety critical
-    critical: "View Safety Recommendations",
+    // Yellow tier - maintenance attention (consultative)
+    serviceOverdue: "Speak with a Plumber",
+    serviceDueSoon: "Speak with a Plumber",
+    // Red tier - safety critical (urgent consultative)
+    critical: "Get Expert Advice Now",
     // Yellow tier - near end-of-life, not critical
-    replace: "See My Options",
+    replace: "Speak with a Plumber",
     // Yellow tier - service/upgrades needed
-    service: "See My Options",
-    // Green tier - healthy
-    optimal: "See Maintenance Plan",
-    default: "See My Options",
+    service: "Speak with a Plumber",
+    // Green tier - healthy (maintenance focus)
+    optimal: "Get Maintenance Tips",
+    default: "Speak with a Plumber",
   },
 } as const;
 
