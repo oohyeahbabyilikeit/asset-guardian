@@ -20,6 +20,7 @@ import type { AssetData } from '@/data/mockAsset';
 import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import { usePrefetchFindings } from '@/hooks/useGeneratedFindings';
 import { usePrefetchRationale } from '@/hooks/useRecommendationRationale';
+import { CriticalAssessmentPage } from '@/components/CriticalAssessmentPage';
 
 type AppScreen = 
   | 'mode-select'
@@ -32,7 +33,8 @@ type AppScreen =
   | 'contact-form'
   | 'replacement-options'
   | 'panic-mode'
-  | 'maintenance-plan';
+  | 'maintenance-plan'
+  | 'critical-assessment';
 
 interface AppState {
   screen: AppScreen;
@@ -156,15 +158,7 @@ const Index = () => {
     });
   }, []);
 
-
-  // Handle navigation to education page (primary CTA from ActionDock)
-  const handleServiceRequest = useCallback(() => {
-    console.log('[nav] handleServiceRequest -> education-page');
-    setState(prev => ({
-      ...prev,
-      screen: 'education-page',
-    }));
-  }, []);
+  // handleServiceRequest is defined after opterraResult useMemo (see below)
 
   // Handle navigation from education to next destination
   const handleEducationContinue = useCallback(() => {
@@ -335,6 +329,27 @@ const Index = () => {
     return { currentInputs: inputs, currentAsset: asset, opterraResult: result };
   }, [state.mode, state.demoScenario, state.technicianData, state.onboardingData]);
 
+  // Handle navigation to education page (primary CTA from ActionDock)
+  // For RED tier (critical), go directly to CriticalAssessmentPage
+  // For YELLOW/GREEN, go through education flow
+  const handleServiceRequest = useCallback(() => {
+    const isCriticalTier = opterraResult.verdict.badge === 'CRITICAL' || opterraResult.verdict.action === 'REPLACE';
+    
+    if (isCriticalTier) {
+      console.log('[nav] handleServiceRequest -> critical-assessment (red tier)');
+      setState(prev => ({
+        ...prev,
+        screen: 'critical-assessment',
+      }));
+    } else {
+      console.log('[nav] handleServiceRequest -> education-page');
+      setState(prev => ({
+        ...prev,
+        screen: 'education-page',
+      }));
+    }
+  }, [opterraResult]);
+
   // Prefetch AI-generated findings and rationale when entering command-center
   useEffect(() => {
     if (state.screen === 'command-center' && !prefetchTriggeredRef.current) {
@@ -490,6 +505,21 @@ const Index = () => {
             serviceHistory={[]}
           />
         </div>
+      );
+
+    case 'critical-assessment':
+      return (
+        <CriticalAssessmentPage
+          inputs={currentInputs}
+          opterraResult={opterraResult}
+          onBack={handleBackToCommandCenter}
+          onScheduleService={() => {
+            // From critical assessment, go directly to contact form
+            console.log('[nav] CriticalAssessment -> contact-form');
+            setState(prev => ({ ...prev, screen: 'contact-form' }));
+          }}
+          onGetQuote={handleReplacementOptions}
+        />
       );
 
     default:
