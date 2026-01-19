@@ -556,9 +556,9 @@ export function getContextualRecommendation(
   
   // Fallback generic recommendations
   const fallbacks: Record<UnitCategory, string> = {
-    TANK: "Schedule a professional inspection and annual maintenance",
-    TANKLESS: "Schedule descaling service and filter inspection",
-    HYBRID: "Schedule air filter cleaning and system checkup",
+    TANK: "Continue annual maintenance to extend your unit's life",
+    TANKLESS: "Continue regular descaling and filter maintenance",
+    HYBRID: "Continue regular air filter and system maintenance",
   };
   
   return fallbacks[category];

@@ -23,15 +23,15 @@ function getRecommendation(urgencyLevel: UrgencyLevel, inputs?: ForensicInputs, 
   
   if (urgencyLevel === 'red') {
     return {
-      headline: 'Immediate Attention Recommended',
-      subheadline: 'Your water heater shows signs that need professional evaluation',
-      action: 'Schedule a professional inspection to assess current condition and discuss your options.',
+      headline: 'Replacement Recommended',
+      subheadline: 'Based on our assessment, your water heater should be replaced',
+      action: 'Your unit has been inspected and shows issues that make replacement the best path forward.',
       icon: AlertTriangle,
       iconColor: 'text-red-500',
       benefits: [
-        'Prevent unexpected failure and water damage',
-        'Get accurate repair vs. replace cost analysis',
-        'Understand your timeline for replacement'
+        'Avoid unexpected failure and water damage',
+        'Stop spending money on a failing unit',
+        'Get a reliable, efficient replacement'
       ]
     };
   }
