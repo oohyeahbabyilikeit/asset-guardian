@@ -295,8 +295,11 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section - Ultra Compact */}
-      <div className={cn("relative w-full", gradientClass)}>
-        <div className="max-w-lg mx-auto px-4 py-4">
+      <div className="relative">
+        {/* Full-bleed gradient background */}
+        <div className={cn("absolute inset-0 -left-4 -right-4 w-[calc(100%+2rem)]", gradientClass)} />
+        
+        <div className="relative max-w-lg mx-auto px-4 py-4">
           {/* Back + Hero in single row */}
           <motion.div 
             className="flex items-center gap-4"
