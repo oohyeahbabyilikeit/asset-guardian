@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Check, Flame, Zap } from 'lucide-react';
-import { EducationPage, type UrgencyLevel } from './EducationPage';
 import { ContactFormPage } from './ContactFormPage';
+import type { UrgencyLevel } from './EducationPage';
 import type { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,7 +42,6 @@ export function ReplacementOptionsPage({
 }: ReplacementOptionsPageProps) {
   const [isOverlayVisible, setIsOverlayVisible] = useState(showFakeLoader);
   const [loaderProgress, setLoaderProgress] = useState(0);
-  const [flowStep, setFlowStep] = useState<'education' | 'contact'>('education');
 
   // Calculate urgency level
   const urgencyLevel = useMemo(
@@ -161,20 +160,7 @@ export function ReplacementOptionsPage({
     );
   }
 
-  // Education step
-  if (flowStep === 'education') {
-    return (
-      <EducationPage
-        urgencyLevel={urgencyLevel}
-        inputs={currentInputs}
-        metrics={metrics}
-        onContinue={() => setFlowStep('contact')}
-        onBack={onBack}
-      />
-    );
-  }
-
-  // Contact form step
+  // Contact form (directly after loader - education happens before this page)
   return (
     <ContactFormPage
       captureSource="replacement_quote"
@@ -189,7 +175,7 @@ export function ReplacementOptionsPage({
       }}
       urgencyLevel={urgencyLevel}
       onComplete={onSchedule}
-      onBack={() => setFlowStep('education')}
+      onBack={onBack}
     />
   );
 }
