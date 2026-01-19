@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind, Zap, TrendingUp, Award, AlertTriangle, Phone, Bell, Gauge } from 'lucide-react';
+import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind, Zap, TrendingUp, Award, AlertTriangle, Phone, Bell, Gauge, Clock, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ForensicInputs, calculateOpterraRisk, failProbToHealthScore, isTankless } from '@/lib/opterraAlgorithm';
+import { ForensicInputs, OpterraMetrics, calculateOpterraRisk, failProbToHealthScore, isTankless } from '@/lib/opterraAlgorithm';
 import { ServiceEvent } from '@/types/serviceHistory';
 import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMaintenanceCard';
 import { BundledServiceCard } from './BundledServiceCard';
@@ -17,6 +17,72 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { HealthRing } from './HealthRing';
 import { CriticalAssessmentPage } from './CriticalAssessmentPage';
 import { cn } from '@/lib/utils';
+
+// Helper to generate situation summary points for integrated education
+function getSituationSummary(inputs: ForensicInputs, metrics: OpterraMetrics): { icon: React.ReactNode; text: string }[] {
+  const summary: { icon: React.ReactNode; text: string }[] = [];
+  
+  // Age context
+  const age = inputs.calendarAge;
+  const bioAge = metrics.bioAge;
+  if (age > 0) {
+    if (bioAge > age * 1.5) {
+      summary.push({ icon: <Clock className="w-4 h-4" />, text: `${age}-year-old unit aging faster than normal` });
+    } else if (bioAge < age * 0.8) {
+      summary.push({ icon: <Clock className="w-4 h-4" />, text: `${age}-year-old unit in excellent condition` });
+    } else {
+      summary.push({ icon: <Clock className="w-4 h-4" />, text: `${age}-year-old ${isTankless(inputs.fuelType) ? 'tankless' : 'tank'} water heater` });
+    }
+  }
+  
+  // Water quality impact
+  if (inputs.hardnessGPG > 15) {
+    summary.push({ icon: <Droplets className="w-4 h-4" />, text: `Very hard water (${inputs.hardnessGPG} GPG) accelerating wear` });
+  } else if (inputs.hardnessGPG > 10) {
+    summary.push({ icon: <Droplets className="w-4 h-4" />, text: `Hard water (${inputs.hardnessGPG} GPG) increasing maintenance needs` });
+  }
+  
+  // Usage context
+  if (inputs.usageType === 'heavy') {
+    summary.push({ icon: <Zap className="w-4 h-4" />, text: 'High hot water demand household' });
+  }
+  
+  // Health trajectory
+  const healthScore = failProbToHealthScore(metrics.failProb);
+  if (healthScore >= 75) {
+    summary.push({ icon: <TrendingUp className="w-4 h-4" />, text: 'Good candidate for preventive care' });
+  } else if (healthScore >= 50) {
+    summary.push({ icon: <TrendingUp className="w-4 h-4" />, text: 'Proactive maintenance recommended' });
+  }
+  
+  return summary.slice(0, 3); // Max 3 points for simplicity
+}
+
+// Get simple recommendation text based on health and violations
+function getRecommendationText(healthScore: number, hasViolations: boolean): { title: string; subtitle: string } {
+  if (hasViolations) {
+    return {
+      title: 'Fix code violations first',
+      subtitle: 'Then follow your maintenance schedule'
+    };
+  }
+  if (healthScore >= 75) {
+    return {
+      title: 'Stay on schedule',
+      subtitle: 'Your unit is in good shape'
+    };
+  }
+  if (healthScore >= 50) {
+    return {
+      title: 'Catch up on maintenance',
+      subtitle: 'A few tasks will improve longevity'
+    };
+  }
+  return {
+    title: 'Prioritize service soon',
+    subtitle: 'Multiple items need attention'
+  };
+}
 
 // ViolationCard - dedicated card for code violations with red styling
 function ViolationCard({ 
@@ -110,7 +176,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   const [newEventNotes, setNewEventNotes] = useState('');
   
   // Calculate metrics from algorithm
-  const opterraResult = calculateOpterraRisk(currentInputs);
+  const opterraResult = useMemo(() => calculateOpterraRisk(currentInputs), [currentInputs]);
   const recommendation = opterraResult.verdict;
   const { failProb, descaleStatus } = opterraResult.metrics;
   const currentScore = failProbToHealthScore(failProb);
@@ -122,6 +188,30 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   const brandLabel = currentInputs.manufacturer || 'Your';
   const ageLabel = currentInputs.calendarAge ? `${currentInputs.calendarAge}-Year-Old` : '';
   const capacityLabel = currentInputs.tankCapacity ? `${currentInputs.tankCapacity} Gal` : '';
+  
+  // Calculate unit-type-aware maintenance schedule - moved before early return
+  const maintenanceSchedule = useMemo(
+    () => calculateMaintenanceSchedule(currentInputs, opterraResult.metrics),
+    [currentInputs, opterraResult.metrics]
+  );
+  
+  // Get infrastructure violations (code violations) that need to be fixed first - moved before early return
+  const infrastructureTasks = useMemo(
+    () => getInfrastructureMaintenanceTasks(currentInputs, opterraResult.metrics),
+    [currentInputs, opterraResult.metrics]
+  );
+  
+  // Situation summary for integrated education - replaces separate EducationPage
+  const situationSummary = useMemo(
+    () => getSituationSummary(currentInputs, opterraResult.metrics),
+    [currentInputs, opterraResult.metrics]
+  );
+  
+  // Simple recommendation text based on health score and violations
+  const recommendationText = useMemo(
+    () => getRecommendationText(currentScore, infrastructureTasks.length > 0),
+    [currentScore, infrastructureTasks.length]
+  );
   
   // Handle critical states - block maintenance plan for units that need replacement
   const isScaleLockout = isTanklessUnit && descaleStatus === 'lockout';
@@ -137,18 +227,6 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       />
     );
   }
-
-  // Calculate unit-type-aware maintenance schedule
-  const maintenanceSchedule = useMemo(
-    () => calculateMaintenanceSchedule(currentInputs, opterraResult.metrics),
-    [currentInputs, opterraResult.metrics]
-  );
-  
-  // Get infrastructure violations (code violations) that need to be fixed first
-  const infrastructureTasks = useMemo(
-    () => getInfrastructureMaintenanceTasks(currentInputs, opterraResult.metrics),
-    [currentInputs, opterraResult.metrics]
-  );
   
   // Calculate total saved from service history
   const totalSaved = serviceHistory.reduce((sum, e) => {
@@ -276,7 +354,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section with Gradient */}
+      {/* Hero Section - Simplified for Conversion */}
       <div className={cn("relative overflow-hidden", `bg-gradient-to-b ${getGradientColors()}`)}>
         {/* Back button */}
         <div className="max-w-lg mx-auto px-4 pt-4">
@@ -291,78 +369,89 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
           </motion.button>
         </div>
         
-        {/* Hero Content */}
-        <div className="max-w-lg mx-auto px-4 py-6 pb-10">
+        {/* Hero Content - Compact with Integrated Summary */}
+        <div className="max-w-lg mx-auto px-4 py-4 pb-6">
           <motion.div 
-            className="text-center"
+            className="flex items-start gap-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            {/* Unit Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border mb-4">
-              <Zap className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-medium text-muted-foreground">
-                {ageLabel} {brandLabel} {unitTypeLabel} {capacityLabel && `· ${capacityLabel}`}
-              </span>
-            </div>
+            {/* Health Ring - Smaller for compact layout */}
+            <HealthRing score={currentScore} size="md" />
             
-            <h1 className="text-xl font-bold text-foreground mb-2">
-              Your Maintenance Plan
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Personalized care to extend your unit's life
-            </p>
+            {/* Title and Recommendation */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold text-foreground mb-0.5">
+                Your Personalized Plan
+              </h1>
+              <p className="text-sm font-medium text-foreground">
+                {recommendationText.title}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {recommendationText.subtitle}
+              </p>
+            </div>
           </motion.div>
           
-          {/* Health Ring */}
-          <motion.div 
-            className="flex justify-center py-6"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <HealthRing score={currentScore} size="lg" />
-          </motion.div>
+          {/* Your Situation - Collapsible Education */}
+          {situationSummary.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mt-4"
+            >
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full p-3 rounded-xl bg-card/60 backdrop-blur-sm border border-border hover:bg-card/80 transition-colors group text-left">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Situation</span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 p-3 rounded-xl bg-card/40 border border-border space-y-2">
+                    {situationSummary.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2.5 text-sm">
+                        <span className="text-primary shrink-0">{item.icon}</span>
+                        <span className="text-muted-foreground">{item.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </motion.div>
+          )}
           
-          {/* Quick Stats Row */}
+          {/* Quick Stats Row - Simplified */}
           <motion.div 
-            className="grid grid-cols-3 gap-3"
+            className="grid grid-cols-3 gap-2 mt-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.3 }}
           >
-            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-3 text-center">
-              <div className="flex justify-center mb-1">
-                <Award className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-lg font-bold text-foreground">{servicesCompleted}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Services Done</p>
+            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-2.5 text-center">
+              <p className="text-base font-bold text-foreground">{currentScore}%</p>
+              <p className="text-[10px] text-muted-foreground">Health</p>
             </div>
             
-            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-3 text-center">
-              <div className="flex justify-center mb-1">
-                <TrendingUp className="w-4 h-4 text-emerald-500" />
-              </div>
-              <p className="text-lg font-bold text-foreground">${totalSaved > 0 ? totalSaved.toLocaleString() : '0'}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saved</p>
-            </div>
-            
-            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-3 text-center">
-              <div className="flex justify-center mb-1">
-                <History className="w-4 h-4 text-accent" />
-              </div>
-              <p className="text-lg font-bold text-foreground">
+            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-2.5 text-center">
+              <p className="text-base font-bold text-foreground">
                 {nextServiceMonths <= 0 ? 'Now' : `${Math.round(nextServiceMonths)}mo`}
               </p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Next Service</p>
+              <p className="text-[10px] text-muted-foreground">Next Service</p>
+            </div>
+            
+            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-2.5 text-center">
+              <p className="text-base font-bold text-foreground">{servicesCompleted}</p>
+              <p className="text-[10px] text-muted-foreground">Completed</p>
             </div>
           </motion.div>
         </div>
       </div>
         
       {/* Content */}
-      <div className="max-w-lg mx-auto p-4 space-y-5 pb-8">
+      <div className="max-w-lg mx-auto p-4 space-y-5 pb-24">
         
         {/* Code Violations - ALWAYS FIRST when present */}
         {infrastructureTasks.length > 0 && (
@@ -601,6 +690,38 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Sticky Bottom CTA - Conversion Driver */}
+      <motion.div 
+        className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-50"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">
+              {infrastructureTasks.length > 0 ? 'Ready to fix violations?' : 'Ready to schedule?'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Get a quote from your plumber
+            </p>
+          </div>
+          <Button 
+            onClick={handleSchedule}
+            size="lg"
+            className={cn(
+              "shrink-0 gap-2",
+              infrastructureTasks.length > 0 
+                ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" 
+                : "bg-primary hover:bg-primary/90"
+            )}
+          >
+            <Phone className="w-4 h-4" />
+            Get Quote
+          </Button>
+        </div>
+      </motion.div>
     </div>
   );
 }
