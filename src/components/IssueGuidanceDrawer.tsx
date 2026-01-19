@@ -317,21 +317,24 @@ export function IssueGuidanceDrawer({
                     )}
                     onClick={() => {
                       onOpenChange(false);
-                      if (shouldFix && onScheduleService) {
-                        onScheduleService();
-                      } else if (!shouldFix && onGetQuote) {
-                        onGetQuote();
+                      // Both paths now go to their respective handlers
+                      // shouldFix=true → onScheduleService (goes to ContactForm)
+                      // shouldFix=false → onGetQuote (goes to ReplacementOptions)
+                      if (shouldFix) {
+                        onScheduleService?.();
+                      } else {
+                        onGetQuote?.();
                       }
                     }}
                   >
                     {shouldFix ? (
                       <>
-                        Schedule Service
+                        Get Expert Help
                         <ArrowRight className="w-4 h-4" />
                       </>
                     ) : (
                       <>
-                        Get Replacement Quote
+                        See Replacement Options
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}

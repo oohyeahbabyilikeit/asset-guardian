@@ -597,7 +597,7 @@ export function CommandCenter({
         healthScore={dynamicHealthScore.score}
         manufacturer={currentInputs.manufacturer}
         onScheduleService={onServiceRequest}
-        onGetQuote={onViewReport}
+        onGetQuote={onMaintenancePlan} // Goes to replacement flow for non-serviceable units
       />
     </div>
   );
