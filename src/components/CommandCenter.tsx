@@ -6,6 +6,7 @@ import { ServiceHistory } from '@/components/ServiceHistory';
 import { ActionDock } from '@/components/ActionDock';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
+import { IssueGuidanceDrawer } from '@/components/IssueGuidanceDrawer';
 import { EducationalContext } from '@/hooks/useEducationalContent';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
 import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
@@ -15,6 +16,7 @@ import { AssetNavigation } from '@/components/AssetNavigation';
 import { TanklessDiagram } from '@/components/TanklessDiagram';
 import { HealthScore, AssetData } from '@/data/mockAsset';
 import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
+import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 
 // Elegant easing curve for sophisticated feel - must be tuple for framer-motion
 const elegantEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -161,6 +163,7 @@ export function CommandCenter({
   softenerStatus,
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<InfrastructureIssue | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
   
   // Single container ref for smooth scrolling
@@ -424,6 +427,10 @@ export function CommandCenter({
     setEducationalTopic(mapToEducationalTopic(topic));
   };
 
+  const handleIssueLearnMore = (issue: InfrastructureIssue) => {
+    setSelectedIssue(issue);
+  };
+
   return (
     <div 
       ref={scrollContainerRef}
@@ -478,6 +485,7 @@ export function CommandCenter({
               fuelType={currentInputs.fuelType}
               inputs={currentInputs}
               onLearnMore={handleLearnMore}
+              onIssueLearnMore={handleIssueLearnMore}
             />
           </motion.div>
 
@@ -576,6 +584,20 @@ export function CommandCenter({
           inputs: currentInputs,
           metrics: opterraResult.metrics,
         }}
+      />
+
+      {/* Issue Guidance Drawer - context-aware infrastructure issue education */}
+      <IssueGuidanceDrawer
+        open={!!selectedIssue}
+        onOpenChange={(open) => !open && setSelectedIssue(null)}
+        issue={selectedIssue}
+        inputs={currentInputs}
+        metrics={metrics}
+        recommendation={recommendation}
+        healthScore={dynamicHealthScore.score}
+        manufacturer={currentInputs.manufacturer}
+        onScheduleService={onServiceRequest}
+        onGetQuote={onViewReport}
       />
     </div>
   );
