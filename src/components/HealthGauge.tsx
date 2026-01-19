@@ -19,8 +19,23 @@ interface HealthGaugeProps {
   isLeaking?: boolean;
   visualRust?: boolean;
   fuelType?: FuelType;
-  inputs?: ForensicInputs; // NEW: For infrastructure issue detection
+  inputs?: ForensicInputs; // For infrastructure issue detection
+  onLearnMore?: (topic: string) => void; // For educational drawer
 }
+
+// Map infrastructure issue IDs to educational topics
+const ISSUE_TO_TOPIC: Record<string, string> = {
+  'exp_tank_required': 'thermal-expansion',
+  'exp_tank_replace': 'thermal-expansion',
+  'prv_critical': 'prv',
+  'prv_failed': 'prv',
+  'prv_missing': 'prv',
+  'prv_recommended': 'prv',
+  'prv_longevity': 'prv',
+  'softener_service': 'hardness',
+  'softener_replace': 'hardness',
+  'softener_new': 'hardness',
+};
 
 interface StressFactorItemProps {
   icon: React.ElementType;
@@ -74,7 +89,7 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
   );
 }
 
-export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust, fuelType = 'GAS', inputs }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust, fuelType = 'GAS', inputs, onLearnMore }: HealthGaugeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { score, status, failureProbability } = healthScore;
   const riskInfo = getRiskLevelInfo(riskLevel);
@@ -359,52 +374,59 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
               </div>
             </div>
           )}
+          
+          {/* Critical Infrastructure Issues - ALWAYS VISIBLE when detected */}
+          {hasViolations && (
+            <div className="mt-3 space-y-2">
+              {criticalIssues.map((issue) => {
+                const topic = ISSUE_TO_TOPIC[issue.id];
+                return (
+                  <button
+                    key={issue.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (topic && onLearnMore) {
+                        onLearnMore(topic);
+                      }
+                    }}
+                    className="w-full text-left flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30 hover:bg-destructive/15 transition-colors group"
+                  >
+                    <div className="p-1.5 rounded-full bg-destructive/20 shrink-0">
+                      {issue.id.includes('exp_tank') ? (
+                        <Droplets className="w-4 h-4 text-destructive" />
+                      ) : issue.id.includes('prv') ? (
+                        <Gauge className="w-4 h-4 text-destructive" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-destructive" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
+                          Code Violation
+                        </span>
+                      </div>
+                      <h4 className="font-semibold text-sm mt-1">{issue.friendlyName}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        {issue.description}
+                      </p>
+                    </div>
+                    {topic && onLearnMore && (
+                      <div className="shrink-0 text-xs text-destructive/70 group-hover:text-destructive transition-colors">
+                        Learn more →
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </CollapsibleTrigger>
 
         <CollapsibleContent>
           <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/30">
             
-            {/* Critical Infrastructure Issues - Show prominently when detected */}
-            {hasViolations && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
-                  <span className="text-[9px] font-semibold text-destructive uppercase tracking-wide">
-                    Issues Requiring Attention
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {criticalIssues.map((issue) => (
-                    <div 
-                      key={issue.id}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30"
-                    >
-                      <div className="p-1.5 rounded-full bg-destructive/20">
-                        {issue.id.includes('exp_tank') ? (
-                          <Droplets className="w-4 h-4 text-destructive" />
-                        ) : issue.id.includes('prv') ? (
-                          <Gauge className="w-4 h-4 text-destructive" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-destructive" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
-                            Code Violation
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-sm mt-1">{issue.friendlyName}</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {issue.description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
+            {/* Note: Critical issues are now shown OUTSIDE collapsible (always visible) */}
             {/* Stress Factors Breakdown */}
             {metrics && (
               <div className="space-y-1">
