@@ -281,12 +281,12 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
     });
   };
   
-  // Get gradient colors based on health score
-  const getGradientColors = () => {
-    if (currentScore < 30) return 'from-destructive/20 via-destructive/10 to-transparent';
-    if (currentScore < 60) return 'from-amber-500/20 via-amber-500/10 to-transparent';
-    return 'from-emerald-500/20 via-emerald-500/10 to-transparent';
-  };
+  // Get gradient class based on health score
+  const gradientClass = currentScore < 30 
+    ? 'bg-gradient-to-b from-destructive/20 via-destructive/10 to-transparent'
+    : currentScore < 60 
+      ? 'bg-gradient-to-b from-amber-500/20 via-amber-500/10 to-transparent'
+      : 'bg-gradient-to-b from-emerald-500/20 via-emerald-500/10 to-transparent';
 
   // Stats for the hero section
   const servicesCompleted = serviceHistory.length;
@@ -295,7 +295,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section - Ultra Compact */}
-      <div className={cn("relative", `bg-gradient-to-b ${getGradientColors()}`)}>
+      <div className={cn("relative", gradientClass)}>
         <div className="max-w-lg mx-auto px-4 py-4">
           {/* Back + Hero in single row */}
           <motion.div 
