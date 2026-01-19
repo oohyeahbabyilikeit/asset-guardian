@@ -8,6 +8,8 @@ import { ForensicReport } from '@/components/ForensicReport';
 import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
 import { PanicMode } from '@/components/PanicMode';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
+import { EducationPage } from '@/components/EducationPage';
+import { ContactFormPage } from '@/components/ContactFormPage';
 
 import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
@@ -26,6 +28,8 @@ type AppScreen =
   | 'command-center'
   | 'test-harness'
   | 'forensic-report'
+  | 'education-page'
+  | 'contact-form'
   | 'replacement-options'
   | 'panic-mode'
   | 'maintenance-plan';
@@ -152,9 +156,27 @@ const Index = () => {
   }, []);
 
 
-  // Handle navigation to replacement options (lead capture flow)
+  // Handle navigation to education page (primary CTA from ActionDock)
   const handleServiceRequest = useCallback(() => {
-    console.log('[nav] handleServiceRequest -> replacement-options');
+    console.log('[nav] handleServiceRequest -> education-page');
+    setState(prev => ({
+      ...prev,
+      screen: 'education-page',
+    }));
+  }, []);
+
+  // Handle navigation from education to contact form
+  const handleEducationContinue = useCallback(() => {
+    console.log('[nav] handleEducationContinue -> contact-form');
+    setState(prev => ({
+      ...prev,
+      screen: 'contact-form',
+    }));
+  }, []);
+
+  // Handle navigation to replacement options (from maintenance plan critical state)
+  const handleReplacementOptions = useCallback(() => {
+    console.log('[nav] handleReplacementOptions -> replacement-options');
     setState(prev => ({
       ...prev,
       screen: 'replacement-options',
@@ -402,6 +424,32 @@ const Index = () => {
           asset={currentAsset}
           inputs={currentInputs}
           onBack={handleReportBack}
+        />
+      );
+
+    case 'education-page':
+      return (
+        <EducationPage
+          urgencyLevel={isCritical ? 'red' : isHealthy ? 'green' : 'yellow'}
+          inputs={currentInputs}
+          metrics={opterraResult.metrics}
+          onContinue={handleEducationContinue}
+          onBack={handleBackToCommandCenter}
+        />
+      );
+
+    case 'contact-form':
+      return (
+        <ContactFormPage
+          captureSource="findings_cta"
+          captureContext={{
+            recommendation: opterraResult.verdict,
+            healthScore: opterraResult.metrics.healthScore,
+            bioAge: opterraResult.metrics.bioAge,
+          }}
+          urgencyLevel={isCritical ? 'red' : isHealthy ? 'green' : 'yellow'}
+          onComplete={handleBackToCommandCenter}
+          onBack={() => setState(prev => ({ ...prev, screen: 'education-page' }))}
         />
       );
 
