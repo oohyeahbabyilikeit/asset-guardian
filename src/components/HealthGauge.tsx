@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2, CheckCircle, XCircle, Flame } from 'lucide-react';
+import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2, CheckCircle, XCircle, Flame, AlertTriangle } from 'lucide-react';
 import containmentBreachImg from '@/assets/containment-breach.png';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
-import { getRiskLevelInfo, type RiskLevel, type OpterraMetrics, type Recommendation, failProbToHealthScore, bioAgeToFailProb, type FuelType, isTankless } from '@/lib/opterraAlgorithm';
+import { getRiskLevelInfo, type RiskLevel, type OpterraMetrics, type Recommendation, failProbToHealthScore, bioAgeToFailProb, type FuelType, isTankless, type ForensicInputs } from '@/lib/opterraAlgorithm';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from 'recharts';
+import { getInfrastructureIssues, type InfrastructureIssue } from '@/lib/infrastructureIssues';
 
 interface HealthGaugeProps {
   healthScore: HealthScoreType;
@@ -18,6 +19,7 @@ interface HealthGaugeProps {
   isLeaking?: boolean;
   visualRust?: boolean;
   fuelType?: FuelType;
+  inputs?: ForensicInputs; // NEW: For infrastructure issue detection
 }
 
 interface StressFactorItemProps {
@@ -72,11 +74,16 @@ function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorI
   );
 }
 
-export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust, fuelType = 'GAS' }: HealthGaugeProps) {
+export function HealthGauge({ healthScore, location, riskLevel, primaryStressor, estDamageCost, metrics, recommendation, isLeaking, visualRust, fuelType = 'GAS', inputs }: HealthGaugeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { score, status, failureProbability } = healthScore;
   const riskInfo = getRiskLevelInfo(riskLevel);
   const isTanklessUnit = isTankless(fuelType);
+  
+  // Detect infrastructure issues if inputs are provided
+  const infrastructureIssues = inputs && metrics ? getInfrastructureIssues(inputs, metrics) : [];
+  const criticalIssues = infrastructureIssues.filter(i => i.category === 'VIOLATION');
+  const hasViolations = criticalIssues.length > 0;
   
   // Unit is economically unsound to maintain if algorithm recommends replacement
   const isReplacementRequired = recommendation?.action === 'REPLACE';
@@ -356,6 +363,48 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
 
         <CollapsibleContent>
           <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/30">
+            
+            {/* Critical Infrastructure Issues - Show prominently when detected */}
+            {hasViolations && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+                  <span className="text-[9px] font-semibold text-destructive uppercase tracking-wide">
+                    Issues Requiring Attention
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {criticalIssues.map((issue) => (
+                    <div 
+                      key={issue.id}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30"
+                    >
+                      <div className="p-1.5 rounded-full bg-destructive/20">
+                        {issue.id.includes('exp_tank') ? (
+                          <Droplets className="w-4 h-4 text-destructive" />
+                        ) : issue.id.includes('prv') ? (
+                          <Gauge className="w-4 h-4 text-destructive" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-destructive" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
+                            Code Violation
+                          </span>
+                        </div>
+                        <h4 className="font-semibold text-sm mt-1">{issue.friendlyName}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {issue.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Stress Factors Breakdown */}
             {metrics && (
               <div className="space-y-1">
