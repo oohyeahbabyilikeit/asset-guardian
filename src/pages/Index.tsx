@@ -41,6 +41,7 @@ interface AppState {
   onboardingData: OnboardingData | null;
   demoScenario: GeneratedScenario | null;
   showQuoteLoader?: boolean;
+  pendingDestination?: 'maintenance-plan' | 'contact-form';
 }
 
 const Index = () => {
@@ -165,13 +166,17 @@ const Index = () => {
     }));
   }, []);
 
-  // Handle navigation from education to contact form
+  // Handle navigation from education to next destination
   const handleEducationContinue = useCallback(() => {
-    console.log('[nav] handleEducationContinue -> contact-form');
-    setState(prev => ({
-      ...prev,
-      screen: 'contact-form',
-    }));
+    setState(prev => {
+      const destination = prev.pendingDestination || 'contact-form';
+      console.log('[nav] handleEducationContinue ->', destination);
+      return {
+        ...prev,
+        screen: destination,
+        pendingDestination: undefined,
+      };
+    });
   }, []);
 
   // Handle navigation to replacement options (from maintenance plan critical state)
@@ -201,10 +206,13 @@ const Index = () => {
   }, []);
 
   // Handle navigation to maintenance plan ("See Maintenance Plan" CTA)
+  // Routes through education first, then to maintenance-plan
   const handleMaintenancePlan = useCallback(() => {
+    console.log('[nav] handleMaintenancePlan -> education-page (pending: maintenance-plan)');
     setState(prev => ({
       ...prev,
-      screen: 'maintenance-plan',
+      screen: 'education-page',
+      pendingDestination: 'maintenance-plan',
     }));
   }, []);
 

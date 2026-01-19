@@ -13,8 +13,6 @@ import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMainte
 import { BundledServiceCard } from './BundledServiceCard';
 import { calculateMaintenanceSchedule, getServiceEventTypes } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { EducationPage } from './EducationPage';
-import { ContactFormPage } from './ContactFormPage';
 import { cn } from '@/lib/utils';
 
 interface MaintenancePlanProps {
@@ -26,7 +24,6 @@ interface MaintenancePlanProps {
 }
 
 export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serviceHistory = [], onAddServiceEvent }: MaintenancePlanProps) {
-  const [flowStep, setFlowStep] = useState<'none' | 'education' | 'contact'>('none');
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   
@@ -135,21 +132,14 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   };
 
   const handleSchedule = () => {
-    setFlowStep('education');
+    // Education has already been shown before this page, go directly to contact
+    onScheduleService();
   };
 
   const handleRemind = () => {
     toast.success("Reminder set!", {
       description: "We'll notify you when maintenance is due"
     });
-  };
-
-  const handleEducationContinue = () => {
-    setFlowStep('contact');
-  };
-
-  const handleLeadCaptureComplete = () => {
-    setFlowStep('none');
   };
 
   // Format a simple history list - unit-type aware
@@ -382,36 +372,6 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         </Collapsible>
       </div>
 
-      {/* Education Page - Full Screen */}
-      {flowStep === 'education' && (
-        <div className="fixed inset-0 z-50 bg-background">
-          <EducationPage
-            urgencyLevel="green"
-            inputs={currentInputs}
-            metrics={opterraResult.metrics}
-            onContinue={handleEducationContinue}
-            onBack={() => setFlowStep('none')}
-          />
-        </div>
-      )}
-
-      {/* Contact Form - Full Screen */}
-      {flowStep === 'contact' && (
-        <div className="fixed inset-0 z-50 bg-background">
-          <ContactFormPage
-            captureSource="maintenance_notify"
-            captureContext={{
-              fuelType: currentInputs.fuelType,
-              calendarAge: currentInputs.calendarAge,
-              healthScore: currentScore,
-              primaryTask: maintenanceSchedule.primaryTask?.type,
-            }}
-            urgencyLevel="green"
-            onComplete={handleLeadCaptureComplete}
-            onBack={() => setFlowStep('education')}
-          />
-        </div>
-      )}
 
       {/* Add Event Modal */}
       <Dialog open={showAddEventModal} onOpenChange={setShowAddEventModal}>
