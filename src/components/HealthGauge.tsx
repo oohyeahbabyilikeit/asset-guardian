@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, MapPin, Activity, ChevronDown, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2, CheckCircle, XCircle, Flame, AlertTriangle } from 'lucide-react';
+import { AlertCircle, MapPin, Activity, ChevronDown, ChevronRight, TrendingDown, TrendingUp, Gauge, Thermometer, Droplets, Zap, Shield, Clock, Camera, Users, Maximize2, CheckCircle, XCircle, Flame, AlertTriangle } from 'lucide-react';
 import containmentBreachImg from '@/assets/containment-breach.png';
 import { cn } from '@/lib/utils';
 import { type HealthScore as HealthScoreType } from '@/data/mockAsset';
@@ -364,47 +364,27 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
           
           {/* Critical Infrastructure Issues - ALWAYS VISIBLE when detected */}
           {hasViolations && (
-            <div className="mt-3 space-y-2">
-              {criticalIssues.map((issue) => {
-                return (
-                  <button
-                    key={issue.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onIssueLearnMore) {
-                        onIssueLearnMore(issue);
-                      }
-                    }}
-                    className="w-full text-left flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30 hover:bg-destructive/15 transition-colors group"
-                  >
-                    <div className="p-1.5 rounded-full bg-destructive/20 shrink-0">
-                      {issue.id.includes('exp_tank') ? (
-                        <Droplets className="w-4 h-4 text-destructive" />
-                      ) : issue.id.includes('prv') ? (
-                        <Gauge className="w-4 h-4 text-destructive" />
-                      ) : (
-                        <AlertTriangle className="w-4 h-4 text-destructive" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
-                          Code Violation
-                        </span>
-                      </div>
-                      <h4 className="font-semibold text-sm mt-1">{issue.friendlyName}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                        {issue.description}
-                      </p>
-                    </div>
-                    {onIssueLearnMore && (
-                      <div className="shrink-0 text-xs text-destructive/70 group-hover:text-destructive transition-colors">
-                        What does this mean? →
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="mt-3 space-y-1.5">
+              {criticalIssues.map((issue) => (
+                <button
+                  key={issue.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onIssueLearnMore?.(issue);
+                  }}
+                  className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-destructive/8 border border-destructive/20 active:bg-destructive/15 transition-colors min-h-[44px]"
+                >
+                  {issue.id.includes('exp_tank') ? (
+                    <Droplets className="w-4 h-4 text-destructive shrink-0" />
+                  ) : issue.id.includes('prv') ? (
+                    <Gauge className="w-4 h-4 text-destructive shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                  )}
+                  <span className="flex-1 text-sm font-medium truncate">{issue.friendlyName}</span>
+                  <ChevronRight className="w-4 h-4 text-destructive/50 shrink-0" />
+                </button>
+              ))}
             </div>
           )}
         </CollapsibleTrigger>
