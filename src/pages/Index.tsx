@@ -200,13 +200,12 @@ const Index = () => {
   }, []);
 
   // Handle navigation to maintenance plan ("See Maintenance Plan" CTA)
-  // Routes through education first, then to maintenance-plan
+  // Go directly to plan - education is now integrated into the plan itself
   const handleMaintenancePlan = useCallback(() => {
-    console.log('[nav] handleMaintenancePlan -> education-page (pending: maintenance-plan)');
+    console.log('[nav] handleMaintenancePlan -> maintenance-plan (direct)');
     setState(prev => ({
       ...prev,
-      screen: 'education-page',
-      pendingDestination: 'maintenance-plan',
+      screen: 'maintenance-plan',
     }));
   }, []);
 
