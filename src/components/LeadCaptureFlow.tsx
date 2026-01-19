@@ -277,7 +277,7 @@ export function LeadCaptureFlow({
     setIsSubmitted(true);
     
     toast.success("Request submitted!", {
-      description: "A licensed plumber will contact you within 24 hours."
+      description: "Your technician will follow up within 24 hours."
     });
     
     setTimeout(() => {
@@ -288,7 +288,7 @@ export function LeadCaptureFlow({
   // Step header titles
   const stepTitle = step === 'education' 
     ? 'Understanding Your Water Heater' 
-    : 'Speak with a Plumber';
+    : 'Get a Follow-Up Call';
 
   // Success state
   if (isSubmitted) {
@@ -305,7 +305,7 @@ export function LeadCaptureFlow({
           <div>
             <h2 className="text-2xl font-bold mb-2">You're All Set!</h2>
             <p className="text-muted-foreground">
-              A licensed plumber will contact you within 24 hours to discuss your water heater.
+              Your technician will follow up within 24 hours to discuss your water heater.
             </p>
           </div>
         </motion.div>
@@ -398,7 +398,7 @@ export function LeadCaptureFlow({
               </Button>
               
               <p className="text-xs text-center text-muted-foreground mt-3">
-                Next: Connect with a licensed plumber
+                Next: Your technician will follow up
               </p>
             </motion.div>
           ) : (
@@ -418,13 +418,13 @@ export function LeadCaptureFlow({
                   urgencyLevel === 'green' && "text-emerald-500",
                 )}>
                   {urgencyLevel === 'red' 
-                    ? 'Get Expert Advice Now' 
+                    ? 'Get a Follow-Up Call' 
                     : urgencyLevel === 'yellow'
-                    ? 'Speak with a Plumber'
-                    : 'Schedule a Consultation'}
+                    ? 'Get a Follow-Up Call'
+                    : 'Schedule Your Follow-Up'}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  A local licensed plumber will call to discuss your options. No obligation.
+                  Your technician will call to discuss your options and answer any questions.
                 </p>
               </div>
 
@@ -503,7 +503,7 @@ export function LeadCaptureFlow({
                 </Button>
                 
                 <p className="text-xs text-center text-muted-foreground">
-                  A licensed local plumber will call to discuss your options. No obligation.
+                  Your technician will call to go over your options. No obligation.
                 </p>
               </form>
             </motion.div>
