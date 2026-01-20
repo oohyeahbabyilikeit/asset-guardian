@@ -476,7 +476,12 @@ export function CommandCenter({
     return 'optimal';
   };
 
-  const maintenanceTasks: MaintenanceTask[] = isTanklessUnit 
+  // Only show maintenance tasks if NOT recommending replacement
+  const shouldShowMaintenance = recommendationType === 'MAINTAIN' || recommendationType === 'MONITOR';
+  const shouldShowReplacementOption = recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON';
+
+  // Base maintenance tasks (only shown when maintenance is appropriate)
+  const baseMaintenanceTasks: MaintenanceTask[] = isTanklessUnit 
     ? [
         { type: 'descale', label: 'Descale', description: 'Remove scale buildup', monthsUntilDue: 0, urgency: 'schedule' as const, benefit: 'Restore flow rate', whyExplanation: '', icon: 'droplets' as const },
         { type: 'filter_clean' as MaintenanceTask['type'], label: 'Filter Clean', description: 'Clean inlet filter', monthsUntilDue: 0, urgency: 'schedule' as const, benefit: 'Maintain flow', whyExplanation: '', icon: 'filter' as const },
@@ -485,6 +490,25 @@ export function CommandCenter({
         { type: 'flush', label: 'Tank Flush', description: 'Drain sediment', monthsUntilDue: monthsToFlush ?? 6, urgency: mapFlushStatus(flushStatus), benefit: 'Restore efficiency', whyExplanation: '', icon: 'droplets' as const },
         { type: 'anode', label: 'Anode Inspection', description: 'Check corrosion protection', monthsUntilDue: 12, urgency: 'schedule' as const, benefit: 'Extend tank life', whyExplanation: '', icon: 'shield' as const },
       ];
+
+  // Replacement consultation task for units needing replacement
+  const replacementTask: MaintenanceTask = {
+    type: 'replacement_consult',
+    label: 'Replacement Consultation',
+    description: 'Discuss replacement options with a professional',
+    monthsUntilDue: 0,
+    urgency: recommendationType === 'REPLACE_NOW' ? 'overdue' : 'due',
+    benefit: 'Get expert guidance on your best options',
+    whyExplanation: 'Your unit shows signs that indicate replacement should be considered.',
+    icon: 'wrench' as const,
+  };
+
+  // Build final maintenance tasks based on recommendation
+  const maintenanceTasks: MaintenanceTask[] = shouldShowReplacementOption
+    ? [replacementTask] // Only show replacement option when replacement is recommended
+    : shouldShowMaintenance
+      ? baseMaintenanceTasks
+      : [];
 
   return (
     <div 

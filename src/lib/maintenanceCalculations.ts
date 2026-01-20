@@ -15,8 +15,9 @@ export type TankTaskType = 'flush' | 'anode';
 export type TanklessTaskType = 'descale' | 'filter_clean' | 'isolation_valves';
 export type HybridTaskType = 'air_filter' | 'condensate' | 'flush';
 export type InfrastructureTaskType = 'exp_tank_install' | 'exp_tank_replace' | 'prv_install' | 'prv_replace';
+export type ReplacementTaskType = 'replacement_consult';
 
-export type MaintenanceTaskType = TankTaskType | TanklessTaskType | HybridTaskType | InfrastructureTaskType | 'inspection';
+export type MaintenanceTaskType = TankTaskType | TanklessTaskType | HybridTaskType | InfrastructureTaskType | ReplacementTaskType | 'inspection';
 
 export interface MaintenanceTask {
   type: MaintenanceTaskType;
