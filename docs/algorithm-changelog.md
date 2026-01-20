@@ -4,6 +4,12 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v8.3 (Anode Life Calibration)
+- **FIX "Compound Extremes"**: Capped total `anodeDecayRate` at 8.0x to prevent unrealistic compound effects from stacking all penalties.
+- **FIX "Galvanic Overreach"**: Reduced direct copper galvanic penalty from 3.0x to 2.5x per NACE corrosion data.
+- **FIX "Softener Sledgehammer"**: Softener penalty now scales with softening efficiency (0.7-1.4x) instead of flat 1.4x. Partial softening gets proportionally reduced penalty.
+- **FIX "Phantom Protection"**: Added 0.5-year floor on `shieldLife` for non-depleted anodes. New anodes always show at least 6 months of protection.
+
 ## v8.2 (Scientific Defensibility)
 - **FIX "Arrhenius Violation"**: Replaced `sqrt()` temperature dampening with proper exponential `2^((temp-120)/18)`. 140°F now correctly shows 2.15x corrosion rate (was 1.22x). 110°F shows 0.68x (was 0.89x).
 - **FIX "Naked Gap" Conductivity**: Added 2.5x conductivity penalty for soft water in naked phase. Once anode depletes, bare steel corrodes faster in high-conductivity (soft) water than resistive (hard) water.

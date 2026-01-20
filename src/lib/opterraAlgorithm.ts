@@ -790,11 +790,19 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   
   // Decay rate multiplier (higher = faster anode consumption)
   let anodeDecayRate = 1.0;
-  if (data.hasSoftener) anodeDecayRate += 1.4;  // Conductivity accelerates consumption
-  if (data.hasCircPump) anodeDecayRate += 0.5;  // Erosion/amperage
   
   // v7.6: Resolve effective hardness early (needed for anode decay AND sediment)
   const { effectiveHardness, streetHardness } = resolveHardness(data);
+  
+  // FIX v8.3: Scale softener penalty by softening efficiency
+  // Full softening (0 GPG from 15+ GPG street) = full 1.4 penalty
+  // Partial softening = proportionally reduced penalty (min 0.5x)
+  // No softener = no penalty here (handled by hardness below)
+  if (data.hasSoftener) {
+    const softenerEfficiency = 1 - (effectiveHardness / (streetHardness || 15));
+    anodeDecayRate += 1.4 * Math.max(0.5, softenerEfficiency);
+  }
+  if (data.hasCircPump) anodeDecayRate += 0.5;  // Erosion/amperage
   
   // NEW v7.1: Hard water accelerates electrochemical reaction on anode
   // Scale: 0-5 GPG = negligible, 5-15 GPG = moderate, 15+ GPG = significant
@@ -816,16 +824,17 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // NEW v7.10 "Smart Galvanic Detection": Only penalize actual steel-to-copper contact
   // Modern units (Bradford White, Rheem, A.O. Smith) have factory dielectric nipples
   // that eliminate galvanic risk even with direct copper connections
+  // FIX v8.3: Reduced galvanic penalty from 3.0x to 2.5x per NACE corrosion data
   if (data.connectionType === 'DIRECT_COPPER') {
     if (data.nippleMaterial === 'STEEL') {
-      // Confirmed galvanic cell - apply full 3x penalty
-      anodeDecayRate *= 3.0;  // Galvanic cell effect - rapid electrochemical attack
+      // Confirmed galvanic cell - apply penalty aligned with NACE data
+      anodeDecayRate *= 2.5;  // Galvanic cell effect - rapid electrochemical attack
     } else if (data.nippleMaterial === 'STAINLESS_BRASS' || data.nippleMaterial === 'FACTORY_PROTECTED') {
       // Protected connection - no corrosion penalty
       // (Serviceability warning handled separately in scoring/recommendations)
     } else {
       // Unknown nipple material - apply conservative penalty (assume worst case)
-      anodeDecayRate *= 3.0;
+      anodeDecayRate *= 2.5;
     }
   } else if (data.connectionType === 'BRASS') {
     anodeDecayRate *= 1.3;  // Brass is better but not ideal
@@ -837,14 +846,20 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // FIX v7.0: Cap usage penalty at 2.0x to prevent high-usage homes from showing <1 year anode life
   anodeDecayRate *= Math.min(2.0, Math.pow(usageIntensity, 0.5));
   
+  // FIX v8.3: Cap total decay rate at 8x to prevent unrealistic compound effects
+  // This ensures minimum ~0.75 year anode life for single-anode tanks
+  anodeDecayRate = Math.min(8.0, anodeDecayRate);
+  
   // Effective shield duration (how long the anode protects the steel)
   const effectiveShieldDuration = baseAnodeLife / anodeDecayRate;
   
   // SERVICE HISTORY: If anode was replaced, use time since replacement; otherwise use tank age
   const anodeAge = data.lastAnodeReplaceYearsAgo ?? data.calendarAge;
   
-  // Remaining shield life (can't go below 0)
-  const shieldLife = Math.max(0, effectiveShieldDuration - anodeAge);
+  // FIX v8.3: Add minimum shield life floor for non-depleted anodes
+  // Even under extreme conditions, a new anode provides some protection
+  const rawShieldLife = effectiveShieldDuration - anodeAge;
+  const shieldLife = rawShieldLife > 0 ? Math.max(0.5, rawShieldLife) : 0;
 
   // 2. SEDIMENT CALCULATION (Needed for stress factor)
   // NEW v7.3: Added HYBRID fuel type with lower sediment rate
