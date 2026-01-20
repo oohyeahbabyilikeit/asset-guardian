@@ -1,6 +1,6 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, AlertTriangle, CheckCircle, Clock, Wrench, ShieldCheck, Zap } from 'lucide-react';
+import { ChevronRight, AlertTriangle, CheckCircle, Clock, Wrench, ShieldCheck, Zap, Eye, CalendarClock } from 'lucide-react';
 import { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 
 // Local type for verdict action - matches Recommendation interface
@@ -14,11 +14,18 @@ interface OptionsAssessmentDrawerProps {
   metrics: OpterraMetrics;
   verdictAction: VerdictAction;
   healthScore: number;
+  // PASS verdict props
+  isPassVerdict?: boolean;
+  verdictReason?: string;
+  verdictTitle?: string;
+  yearsRemaining?: number;
 }
 
-type UrgencyTier = 'critical' | 'attention' | 'healthy';
+type UrgencyTier = 'critical' | 'attention' | 'healthy' | 'monitor';
 
-function getUrgencyTier(healthScore: number, verdictAction: VerdictAction): UrgencyTier {
+function getUrgencyTier(healthScore: number, verdictAction: VerdictAction, isPassVerdict: boolean): UrgencyTier {
+  // PASS verdicts get their own tier
+  if (isPassVerdict) return 'monitor';
   if (healthScore < 40 || verdictAction === 'REPLACE') return 'critical';
   if (healthScore < 70 || verdictAction === 'REPAIR') return 'attention';
   return 'healthy';
@@ -40,9 +47,18 @@ function getRecommendation(tier: UrgencyTier) {
         headline: 'Proactive Maintenance Recommended',
         subheadline: 'Your unit is showing signs that warrant attention to prevent future issues.',
         icon: Clock,
-        iconColor: 'text-amber-500',
-        bgColor: 'bg-amber-500/10',
-        borderColor: 'border-amber-500/30',
+        iconColor: 'text-warning',
+        bgColor: 'bg-warning/10',
+        borderColor: 'border-warning/30',
+      };
+    case 'monitor':
+      return {
+        headline: 'Your Unit Is Stable',
+        subheadline: 'No service is recommended at this time. Continue monitoring.',
+        icon: Eye,
+        iconColor: 'text-emerald-500',
+        bgColor: 'bg-emerald-500/10',
+        borderColor: 'border-emerald-500/30',
       };
     case 'healthy':
       return {
@@ -56,36 +72,43 @@ function getRecommendation(tier: UrgencyTier) {
   }
 }
 
-function getSituationSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tier: UrgencyTier): string[] {
+function getSituationSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tier: UrgencyTier, verdictReason?: string): string[] {
   const points: string[] = [];
+  
+  // For monitor tier, show the algorithm's reason first
+  if (tier === 'monitor' && verdictReason) {
+    points.push(verdictReason);
+  }
   
   // Age context
   if (metrics.bioAge >= 12) {
     points.push(`Your unit is ${Math.round(metrics.bioAge)} years old biologically – well past the typical 8-12 year lifespan.`);
   } else if (metrics.bioAge >= 8) {
     points.push(`At ${Math.round(metrics.bioAge)} biological years, your unit is entering its later years.`);
-  } else {
+  } else if (tier !== 'monitor') {
     points.push(`Your unit is ${Math.round(metrics.bioAge)} biological years old – still within its prime lifespan.`);
   }
   
-  // Condition factors
-  if (inputs.isLeaking) {
-    points.push('Active leaking detected – this requires immediate attention to prevent water damage.');
-  } else if (inputs.visualRust) {
-    points.push('Visible corrosion indicates the tank may be compromised internally.');
-  }
-  
-  // Infrastructure issues
-  if (!inputs.hasExpTank && inputs.isClosedLoop) {
-    points.push('Missing expansion tank on a closed-loop system creates excess pressure stress.');
-  }
-  if (!inputs.hasPrv && inputs.housePsi > 80) {
-    points.push('High water pressure without a PRV accelerates wear on all plumbing components.');
-  }
-  
-  // Maintenance status
-  if (metrics.flushStatus === 'lockout' || metrics.flushStatus === 'due') {
-    points.push('Tank flush is overdue – sediment buildup reduces efficiency and lifespan.');
+  // Condition factors (skip for monitor - we don't want to alarm them)
+  if (tier !== 'monitor') {
+    if (inputs.isLeaking) {
+      points.push('Active leaking detected – this requires immediate attention to prevent water damage.');
+    } else if (inputs.visualRust) {
+      points.push('Visible corrosion indicates the tank may be compromised internally.');
+    }
+    
+    // Infrastructure issues
+    if (!inputs.hasExpTank && inputs.isClosedLoop) {
+      points.push('Missing expansion tank on a closed-loop system creates excess pressure stress.');
+    }
+    if (!inputs.hasPrv && inputs.housePsi > 80) {
+      points.push('High water pressure without a PRV accelerates wear on all plumbing components.');
+    }
+    
+    // Maintenance status
+    if (metrics.flushStatus === 'lockout' || metrics.flushStatus === 'due') {
+      points.push('Tank flush is overdue – sediment buildup reduces efficiency and lifespan.');
+    }
   }
   
   // For healthy units, add positive context
@@ -96,8 +119,25 @@ function getSituationSummary(inputs: ForensicInputs, metrics: OpterraMetrics, ti
   return points.slice(0, 3); // Max 3 points for readability
 }
 
-function getWhyMatters(tier: UrgencyTier, inputs: ForensicInputs): { title: string; description: string; icon: typeof Wrench }[] {
+function getWhyMatters(tier: UrgencyTier, inputs: ForensicInputs, yearsRemaining: number): { title: string; description: string; icon: typeof Wrench }[] {
   const topics: { title: string; description: string; icon: typeof Wrench }[] = [];
+  
+  // Monitor tier gets planning-focused topics
+  if (tier === 'monitor') {
+    if (yearsRemaining > 0 && yearsRemaining <= 3) {
+      topics.push({
+        title: 'Plan for Replacement',
+        description: `With approximately ${yearsRemaining} year${yearsRemaining === 1 ? '' : 's'} of typical life remaining, now is a good time to start budgeting.`,
+        icon: CalendarClock,
+      });
+    }
+    topics.push({
+      title: 'We\'re Here When You Need Us',
+      description: 'When it\'s time to replace or if issues arise, we\'ll be ready to help.',
+      icon: ShieldCheck,
+    });
+    return topics.slice(0, 2);
+  }
   
   if (tier === 'critical') {
     if (inputs.isLeaking || inputs.location === 'ATTIC') {
@@ -139,18 +179,34 @@ export function OptionsAssessmentDrawer({
   metrics,
   verdictAction,
   healthScore,
+  isPassVerdict = false,
+  verdictReason,
+  verdictTitle,
+  yearsRemaining = 0,
 }: OptionsAssessmentDrawerProps) {
-  const tier = getUrgencyTier(healthScore, verdictAction);
+  const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict);
   const recommendation = getRecommendation(tier);
-  const situationPoints = getSituationSummary(inputs, metrics, tier);
-  const whyTopics = getWhyMatters(tier, inputs);
+  const situationPoints = getSituationSummary(inputs, metrics, tier, verdictReason);
+  const whyTopics = getWhyMatters(tier, inputs, yearsRemaining);
   const Icon = recommendation.icon;
   
-  const ctaText = tier === 'critical' 
-    ? 'See My Options' 
-    : tier === 'attention' 
-      ? 'Explore Services' 
-      : 'View Maintenance Options';
+  // Different CTAs based on tier
+  const ctaText = tier === 'monitor'
+    ? 'Got It'
+    : tier === 'critical' 
+      ? 'See My Options' 
+      : tier === 'attention' 
+        ? 'Explore Services' 
+        : 'View Maintenance Options';
+  
+  const handleCTA = () => {
+    if (tier === 'monitor') {
+      // Just close the drawer for monitor state
+      onOpenChange(false);
+    } else {
+      onContinue();
+    }
+  };
   
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -193,7 +249,7 @@ export function OptionsAssessmentDrawer({
             {/* Why This Matters */}
             {whyTopics.length > 0 && (
               <div className="space-y-3">
-                <h4 className="font-medium text-foreground">Why This Matters</h4>
+                <h4 className="font-medium text-foreground">{tier === 'monitor' ? 'What\'s Next' : 'Why This Matters'}</h4>
                 <div className="space-y-2">
                   {whyTopics.map((topic, i) => (
                     <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
@@ -210,12 +266,13 @@ export function OptionsAssessmentDrawer({
             
             {/* CTA */}
             <Button 
-              onClick={onContinue}
+              onClick={handleCTA}
               size="lg"
               className="w-full font-semibold"
+              variant={tier === 'monitor' ? 'outline' : 'default'}
             >
               {ctaText}
-              <ChevronRight className="w-5 h-5 ml-1" />
+              {tier !== 'monitor' && <ChevronRight className="w-5 h-5 ml-1" />}
             </Button>
           </div>
         </div>
