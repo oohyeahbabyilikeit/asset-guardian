@@ -157,13 +157,54 @@ Return ONLY valid JSON with this structure:
       throw new Error("No content in response");
     }
 
-    // Parse the JSON from the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Could not parse JSON from response");
-    }
+    // Parse the JSON from the response - handle various AI output formats
+    let finding: GeneratedFinding;
     
-    const finding: GeneratedFinding = JSON.parse(jsonMatch[0]);
+    try {
+      // First, try to extract JSON from markdown code blocks
+      let jsonString = content;
+      
+      // Remove markdown code blocks if present
+      const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        jsonString = codeBlockMatch[1].trim();
+      }
+      
+      // Find the JSON object
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON object found in response");
+      }
+      
+      // Clean the JSON string - remove any trailing commas before closing braces
+      let cleanJson = jsonMatch[0]
+        .replace(/,\s*}/g, '}')  // Remove trailing commas
+        .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+        .replace(/[\x00-\x1F\x7F]/g, ' '); // Remove control characters
+      
+      finding = JSON.parse(cleanJson);
+      
+      // Validate required fields
+      if (!finding.title || !finding.measurement || !finding.explanation) {
+        throw new Error("Missing required fields in response");
+      }
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError, "Content:", content);
+      // Fallback: try to extract fields manually using regex
+      const titleMatch = content.match(/"title"\s*:\s*"([^"]+)"/);
+      const measurementMatch = content.match(/"measurement"\s*:\s*"([^"]+)"/i);
+      const explanationMatch = content.match(/"explanation"\s*:\s*"([^"]+)"/);
+      
+      if (titleMatch && measurementMatch && explanationMatch) {
+        finding = {
+          title: titleMatch[1],
+          measurement: measurementMatch[1],
+          explanation: explanationMatch[1]
+        };
+      } else {
+        throw new Error(`Could not parse JSON from response: ${parseError instanceof Error ? parseError.message : 'Unknown'}`);
+      }
+    }
 
     return new Response(JSON.stringify(finding), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
