@@ -522,6 +522,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
           maintenanceSchedule.secondaryTask,
           ...maintenanceSchedule.additionalTasks
         ].filter(Boolean) as MaintenanceTask[]}
+        recommendations={[]}
         onSubmit={handleServiceSubmit}
       />
       

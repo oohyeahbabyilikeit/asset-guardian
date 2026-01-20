@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
   Droplets, Shield, Flame, Filter, Wrench, Wind, 
-  AlertTriangle, Gauge, Check, Phone 
+  AlertTriangle, Gauge, Check, Phone, Lightbulb 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
@@ -13,6 +13,7 @@ interface ServiceSelectionDrawerProps {
   onOpenChange: (open: boolean) => void;
   violations: MaintenanceTask[];
   maintenanceTasks: MaintenanceTask[];
+  recommendations: MaintenanceTask[];
   onSubmit: (selectedTasks: MaintenanceTask[]) => void;
 }
 
@@ -21,11 +22,12 @@ export function ServiceSelectionDrawer({
   onOpenChange,
   violations,
   maintenanceTasks,
+  recommendations,
   onSubmit
 }: ServiceSelectionDrawerProps) {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   
-  const allTasks = [...violations, ...maintenanceTasks];
+  const allTasks = [...violations, ...maintenanceTasks, ...recommendations];
   
   const toggleTask = (type: string) => {
     const newSet = new Set(selectedTypes);
@@ -62,6 +64,7 @@ export function ServiceSelectionDrawer({
       case 'valve': return Wrench;
       case 'wind': return Wind;
       case 'wrench': return Wrench;
+      case 'lightbulb': return Lightbulb;
       default: return Droplets;
     }
   };
@@ -73,7 +76,8 @@ export function ServiceSelectionDrawer({
   // If replacement is the only option, auto-select it and show simplified UI
   const isReplacementOnly = replacementTasks.length > 0 && 
                             violations.length === 0 && 
-                            regularMaintenanceTasks.length === 0;
+                            regularMaintenanceTasks.length === 0 &&
+                            recommendations.length === 0;
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -160,6 +164,45 @@ export function ServiceSelectionDrawer({
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-foreground">{task.label}</p>
                         <p className="text-xs text-muted-foreground">{task.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendations Section - separate from maintenance and violations */}
+          {recommendations.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-medium text-sky-600 uppercase tracking-wider flex items-center gap-1.5">
+                <Lightbulb className="w-3.5 h-3.5" />
+                Recommendations
+              </h3>
+              <div className="space-y-2">
+                {recommendations.map(task => {
+                  const IconComponent = getIcon(task);
+                  const isSelected = selectedTypes.has(task.type);
+                  return (
+                    <button
+                      key={task.type}
+                      onClick={() => toggleTask(task.type)}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                        isSelected 
+                          ? "border-sky-500 bg-sky-500/10" 
+                          : "border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                        isSelected ? "bg-sky-500 text-white" : "bg-sky-500/15 text-sky-600"
+                      )}>
+                        {isSelected ? <Check className="w-5 h-5" /> : <IconComponent className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground">{task.label}</p>
+                        <p className="text-xs text-muted-foreground truncate">{task.benefit}</p>
                       </div>
                     </button>
                   );
