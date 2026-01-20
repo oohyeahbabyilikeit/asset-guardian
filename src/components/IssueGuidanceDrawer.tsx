@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, CheckCircle, MapPin, Calendar, Activity, Droplets, Gauge, Shield, ArrowRight, Wrench, RefreshCw, Loader2, Bell, Phone } from 'lucide-react';
+import { AlertTriangle, CheckCircle, MapPin, Calendar, Activity, Droplets, Gauge, Shield, ArrowRight, Wrench, RefreshCw, Loader2, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIssueGuidance, type IssueGuidance } from '@/hooks/useIssueGuidance';
 import { getIssueGuidanceContext, type IssueGuidanceContext } from '@/lib/issueGuidanceContext';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import type { ForensicInputs, OpterraMetrics, Recommendation } from '@/lib/opterraAlgorithm';
-import { NotifyMeModal } from './NotifyMeModal';
 import { getLocationKey } from '@/data/damageScenarios';
 
 interface IssueGuidanceDrawerProps {
@@ -58,7 +57,6 @@ export function IssueGuidanceDrawer({
 }: IssueGuidanceDrawerProps) {
   const { guidance, isLoading, error, fetchGuidance, getStaticFallback } = useIssueGuidance();
   const [displayGuidance, setDisplayGuidance] = useState<IssueGuidance | null>(null);
-  const [showNotifyModal, setShowNotifyModal] = useState(false);
 
   // Fetch guidance when drawer opens with a new issue
   useEffect(() => {
@@ -293,17 +291,8 @@ export function IssueGuidanceDrawer({
                   </div>
                 </div>
 
-                {/* CTA Buttons */}
+                {/* CTA Button */}
                 <div className="pt-3 space-y-3 pb-safe">
-                  <Button 
-                    variant="outline"
-                    className="w-full h-12 gap-2"
-                    onClick={() => setShowNotifyModal(true)}
-                  >
-                    <Bell className="w-4 h-4" />
-                    Set a Reminder
-                  </Button>
-                  
                   <Button 
                     className={cn(
                       "w-full h-14 text-base font-semibold gap-2",
@@ -333,17 +322,6 @@ export function IssueGuidanceDrawer({
           </div>
         </div>
       </DrawerContent>
-      
-      {/* Notify Me Modal */}
-      <NotifyMeModal
-        open={showNotifyModal}
-        onOpenChange={setShowNotifyModal}
-        tasks={issue ? [{
-          id: issue.id,
-          label: issue.friendlyName,
-          dueDate: new Date(),
-        }] : []}
-      />
     </Drawer>
   );
 }
