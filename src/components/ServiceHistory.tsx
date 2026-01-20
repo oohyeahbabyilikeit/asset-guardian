@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Wrench, Droplets, Shield, Plus, Calendar, AlertTriangle, Wind, Cpu, Flame, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Wrench, Droplets, Shield, Plus, Calendar, AlertTriangle, Wind, Cpu, Flame, Zap, Info } from 'lucide-react';
+import { EducationalDrawer, type EducationalTopic } from '@/components/EducationalDrawer';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -915,6 +916,7 @@ export function ServiceHistory({
     recommendation?.action === 'REPLACE';
   // Default to closed - user can expand to see details
   const [isOpen, setIsOpen] = useState(false);
+  const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
 
   // Calculate anode depletion percentage (0-100, where 100 = fully depleted)
   const maxAnodeLife = hasSoftener ? 2.5 : 6; // Years
@@ -1068,9 +1070,12 @@ export function ServiceHistory({
                 </div>
               </>
             ) : (
-              // TANK/HYBRID: Show Anode Life and Sediment
+              // TANK/HYBRID: Show Anode Life and Sediment (clickable for education)
               <>
-                <div className="text-center data-display px-4 py-2 flex-1">
+                <button 
+                  onClick={() => setEducationalTopic('anode-rod')}
+                  className="text-center data-display px-4 py-2 flex-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                >
                   <div className={cn(
                     "text-lg font-bold font-data",
                     anodeStatus === 'critical' ? "text-red-400" : 
@@ -1078,9 +1083,14 @@ export function ServiceHistory({
                   )}>
                     {shieldLife > 0 ? `${shieldLife.toFixed(1)} yr` : 'DEPLETED'}
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Anode Life</div>
-                </div>
-                <div className="text-center data-display px-4 py-2 flex-1">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center justify-center gap-1">
+                    Anode Life <Info className="w-3 h-3" />
+                  </div>
+                </button>
+                <button 
+                  onClick={() => setEducationalTopic('sediment')}
+                  className="text-center data-display px-4 py-2 flex-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                >
                   <div className={cn(
                     "text-lg font-bold font-data",
                     sedimentStatus === 'critical' ? "text-red-400" : 
@@ -1088,8 +1098,10 @@ export function ServiceHistory({
                   )}>
                     {sedimentLbs.toFixed(1)} lbs
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Sediment</div>
-                </div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center justify-center gap-1">
+                    Sediment <Info className="w-3 h-3" />
+                  </div>
+                </button>
               </>
             )}
           </div>
@@ -1342,6 +1354,13 @@ export function ServiceHistory({
           </div>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Educational Drawer for Anode/Sediment */}
+      <EducationalDrawer 
+        topic={educationalTopic || 'anode-rod'}
+        isOpen={!!educationalTopic}
+        onClose={() => setEducationalTopic(null)}
+      />
     </div>
   );
 }
