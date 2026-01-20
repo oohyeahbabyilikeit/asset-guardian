@@ -12,6 +12,7 @@ import { PlumberContactForm } from '@/components/PlumberContactForm';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
 import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
+import { BreachAlert } from '@/components/BreachAlert';
 import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
 import { HealthScore, AssetData } from '@/data/mockAsset';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
@@ -576,6 +577,24 @@ export function CommandCenter({
           <motion.div ref={profileRef} variants={popIn} className="px-4 pt-4">
             <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
           </motion.div>
+
+          {/* CRITICAL: Breach Alert - Shown IMMEDIATELY if rust or leak detected */}
+          {(currentInputs.isLeaking || currentInputs.visualRust) && (
+            <motion.div 
+              variants={popIn} 
+              className="px-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              <BreachAlert
+                isLeaking={currentInputs.isLeaking}
+                visualRust={currentInputs.visualRust}
+                leakSource={currentInputs.leakSource}
+                onLearnMore={() => setShowAssessment(true)}
+              />
+            </motion.div>
+          )}
 
           {/* DISCOVERY PHASE 1b: Health Gauge slides in from left */}
           <motion.div ref={healthRef} variants={slideInLeft} className="px-4">
