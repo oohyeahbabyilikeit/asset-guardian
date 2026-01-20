@@ -224,6 +224,9 @@ export function ServiceSelectionDrawer({
         </div>
         
         <DrawerFooter className="border-t border-border">
+          <p className="text-xs text-center text-muted-foreground mb-2">
+            No obligation—just a quick conversation
+          </p>
           <Button 
             onClick={handleSubmit}
             disabled={selectedTypes.size === 0}
@@ -232,7 +235,7 @@ export function ServiceSelectionDrawer({
           >
             <Phone className="w-4 h-4" />
             {selectedTypes.size === 0 
-              ? 'Select services above' 
+              ? 'Pick what you\'d like to discuss' 
               : 'Have My Plumber Reach Out'
             }
           </Button>
