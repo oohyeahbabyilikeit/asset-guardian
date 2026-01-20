@@ -4,6 +4,13 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v8.0 (Critical Bug Fixes)
+- **FIX "Perfect Tank Inversion"**: Protected phase now uses multiplicative formula `mech * (1 + (chem - 1) * 0.1)` instead of additive `mech + (chem * 0.1)`. Fixes bug where protected tank aged FASTER than naked tank under ideal conditions.
+- **FIX "Lazarus Effect"**: Added `yearsWithoutAnode` and `yearsWithoutSoftener` inputs to track ACTUAL exposure history. Prevents new anode/softener from retroactively "healing" past damage.
+- **FIX "Softener Double Dip"**: Hardness penalty on anode decay now uses `effectiveHardness` (what anode experiences) instead of `hardnessGPG` (street water). Users with softeners no longer get penalized for both treatment AND problem.
+- **FIX "Hybrid Suffocation Category Error"**: Removed `hybridSuffocationPenalty` and `compressorPenalty` from `chemicalStress`. These affect operating EFFICIENCY (cost), not TANK CORROSION (leak risk). Added separate `hybridEfficiency` metric for UI display.
+- **FIX "Sediment Cliff"**: Replaced discrete flush efficiency jumps (50%→25%→5%) with linear interpolation from 50% at age 0 to 5% at age 8+. Eliminates erratic scoring at boundary ages.
+
 ## v7.2
 - **TIER MATCHING**: Added quality tier detection (BUILDER/STANDARD/PROFESSIONAL/PREMIUM)
 - **LIKE-FOR-LIKE**: Replacement quotes now match original unit quality tier

@@ -1,7 +1,14 @@
 /**
- * OPTERRA v7.2 Risk Calculation Engine
+ * OPTERRA v8.0 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
+ * 
+ * v8.0 Bug Fixes:
+ * - FIX "Perfect Tank Inversion": Protected phase now uses multiplicative formula
+ * - FIX "Lazarus Effect": Added history tracking for anode/softener installation
+ * - FIX "Softener Double Dip": Hardness penalty now uses effectiveHardness
+ * - FIX "Hybrid Suffocation Category Error": Removed from chemicalStress (efficiency only)
+ * - FIX "Sediment Cliff": Linear interpolation replaces discrete jumps
  * 
  * @see docs/algorithm-changelog.md for version history
  */
@@ -123,6 +130,11 @@ export interface ForensicInputs {
   // NEW v7.7: Sediment History ("Sediment Amnesia" Fix)
   isAnnuallyMaintained?: boolean;     // Has tank been flushed yearly throughout its life?
   
+  // NEW v8.0: History Tracking ("Lazarus Effect" Fix)
+  // These fields track ACTUAL exposure history to prevent retroactive healing
+  yearsWithoutAnode?: number;         // Years tank ran with depleted anode before replacement
+  yearsWithoutSoftener?: number;      // Years before softener was installed
+  
   // NEW v7.3: Hybrid (Heat Pump) specific fields
   airFilterStatus?: AirFilterStatus;  // HYBRID only: air filter condition
   isCondensateClear?: boolean;        // HYBRID only: condensate drain clear?
@@ -225,6 +237,9 @@ export interface OpterraMetrics {
   
   // NEW v7.8: Safety Warnings ("Legionella Liability" Fix)
   bacterialGrowthWarning?: boolean;  // True if temp setting creates Legionella risk
+  
+  // NEW v8.0: Hybrid Efficiency (separated from leak risk)
+  hybridEfficiency?: number;  // 0-100% operating efficiency (null for non-hybrid)
 }
 
 export type ActionType = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
@@ -763,10 +778,15 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   if (data.hasSoftener) anodeDecayRate += 1.4;  // Conductivity accelerates consumption
   if (data.hasCircPump) anodeDecayRate += 0.5;  // Erosion/amperage
   
+  // v7.6: Resolve effective hardness early (needed for anode decay AND sediment)
+  const { effectiveHardness, streetHardness } = resolveHardness(data);
+  
   // NEW v7.1: Hard water accelerates electrochemical reaction on anode
   // Scale: 0-5 GPG = negligible, 5-15 GPG = moderate, 15+ GPG = significant
   // Formula: 0.02 per GPG above 5 (max ~0.4 for very hard water at 25+ GPG)
-  const hardnessAboveBaseline = Math.max(0, data.hardnessGPG - 5);
+  // FIX v8.0 "Softener Double Dip": Use EFFECTIVE hardness (what anode experiences), not street hardness
+  // If softener is working, anode only sees ~0.5 GPG, not the original 20 GPG
+  const hardnessAboveBaseline = Math.max(0, effectiveHardness - 5);
   anodeDecayRate += hardnessAboveBaseline * 0.02;
   
   // NEW v7.10 "Chloramine Corrosion": Chloramine is more stable but more aggressive
@@ -822,9 +842,8 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     sedFactor = CONSTANTS.SEDIMENT_FACTOR_GAS;
   }
   
-  // v7.6: Use the Digital-First hardness resolver for all physics calculations
-  // This uses measuredHardnessGPG (test strip) if available, or infers from softener status
-  const { effectiveHardness } = resolveHardness(data);
+  // v7.6: effectiveHardness already resolved above for anode decay calculation
+  // (Moved earlier to fix "Softener Double Dip" bug)
   
   // Volume factor now uses the pre-calculated usageIntensity
   const volumeFactor = usageIntensity;
@@ -850,25 +869,36 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     const ageAtFlush = Math.max(0, data.calendarAge - effectiveYearsSinceFlush);
     const sedimentAtFlush = ageAtFlush * effectiveHardness * sedFactor * volumeFactor;
     
-    // FIX v7.9 "Concrete Flush Fallacy": Dynamic flush efficiency based on sediment age
-    // Fresh sediment (< 3 years): Loose sand, ~50% removable
-    // Old sediment (3-5 years): Calcifying calcium carbonate, ~25% removable
-    // Ancient sediment (> 5 years): Hardite concrete, ~5% removable
-    let flushEfficiency: number;
-    if (ageAtFlush <= 3) {
-      flushEfficiency = CONSTANTS.FLUSH_EFFICIENCY;  // 50%
-    } else if (ageAtFlush <= 5) {
-      flushEfficiency = 0.25;  // 25% - hardening
-    } else {
-      flushEfficiency = CONSTANTS.FLUSH_EFFICIENCY_HARDITE;  // 5% - too late
-    }
+    // FIX v8.0 "Sediment Cliff": Linear interpolation replaces discrete jumps
+    // Fresh sediment (age 0): 50% removable (loose calcium carbite sand)
+    // Ancient sediment (age 8+): 5% removable (hardened calcium carbonate "hardite")
+    // Linear decay between these points prevents scoring cliffs
+    const maxEfficiency = CONSTANTS.FLUSH_EFFICIENCY;  // 0.50
+    const minEfficiency = CONSTANTS.FLUSH_EFFICIENCY_HARDITE;  // 0.05
+    const decayEndAge = 8;  // Years after which efficiency bottoms out
+    
+    const flushEfficiency = Math.max(
+      minEfficiency,
+      maxEfficiency - (ageAtFlush / decayEndAge) * (maxEfficiency - minEfficiency)
+    );
     
     const residualLbs = sedimentAtFlush * (1 - flushEfficiency);
     const newAccumulationLbs = effectiveYearsSinceFlush * effectiveHardness * sedFactor * volumeFactor;
     sedimentLbs = residualLbs + newAccumulationLbs;
   } else {
-    // Never flushed - full lifetime accumulation
-    sedimentLbs = data.calendarAge * effectiveHardness * sedFactor * volumeFactor;
+    // Never flushed - calculate lifetime accumulation
+    // FIX v8.0 "Lazarus Effect": Account for pre-softener hard water years
+    if (data.hasSoftener && data.yearsWithoutSoftener !== undefined && data.yearsWithoutSoftener > 0) {
+      // Split calculation: hard water years + soft water years
+      const hardWaterYears = Math.min(data.yearsWithoutSoftener, data.calendarAge);
+      const softWaterYears = Math.max(0, data.calendarAge - hardWaterYears);
+      const preSoftenerSediment = hardWaterYears * streetHardness * sedFactor * volumeFactor;
+      const postSoftenerSediment = softWaterYears * effectiveHardness * sedFactor * volumeFactor;
+      sedimentLbs = preSoftenerSediment + postSoftenerSediment;
+    } else {
+      // No history tracking - use current effective hardness for full lifetime
+      sedimentLbs = data.calendarAge * effectiveHardness * sedFactor * volumeFactor;
+    }
   }
   
   // Sediment rate (lbs per year based on EFFECTIVE water hardness AND volume factor)
@@ -970,9 +1000,11 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // correctly in 'pressureStress' via the getEffectivePressure() function.
   const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;
   
-  // FIX v7.9 "Hybrid Suffocation": Heat pump efficiency penalty for poor air volume
-  // Hybrids need ~700 cu ft of air to harvest heat. Sealed closets cause suffocation.
+  // FIX v8.0 "Hybrid Suffocation Category Error": Heat pump efficiency penalty
+  // REMOVED from chemicalStress - suffocation affects EFFICIENCY, not TANK CORROSION
+  // A sealed closet suffocates the compressor (performance), not the steel tank (leaks)
   let hybridSuffocationPenalty = 1.0;
+  let hybridEfficiencyPercent: number | null = null;
   if (data.fuelType === 'HYBRID') {
     if (data.roomVolumeType === 'CLOSET_SEALED') {
       hybridSuffocationPenalty = 2.0;  // Unit runs on expensive resistance heat
@@ -993,9 +1025,16 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
       compressorPenalty = 1.2;  // Minor efficiency loss
     }
   }
+  
+  // Calculate hybrid efficiency as a percentage (for UI display, not tank health)
+  if (data.fuelType === 'HYBRID') {
+    hybridEfficiencyPercent = Math.round((1.0 / (hybridSuffocationPenalty * compressorPenalty)) * 100);
+  }
 
-  // Combine chemical stresses (includes Hybrid-specific penalties)
-  const chemicalStress = tempChemical * circStress * loopPenalty * hybridSuffocationPenalty * compressorPenalty;
+  // Combine chemical stresses
+  // FIX v8.0: REMOVED hybridSuffocationPenalty and compressorPenalty from chemicalStress
+  // These affect operating EFFICIENCY/COST, not tank CORROSION/LEAKAGE risk
+  const chemicalStress = tempChemical * circStress * loopPenalty;
 
   // Legacy: corrosionStress for backward compatibility (includes all old factors)
   const corrosionStress = tempStressRaw * circStress * loopPenalty * sedimentStress;
@@ -1008,17 +1047,49 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // 4. BIOLOGICAL AGE (Mechanical vs. Chemical Split)
   const age = data.calendarAge;
   
-  // SERVICE HISTORY: anodeAge already defined above for shield life calculation
-  // Time with anode protection vs exposed steel
-  // New anode provides fresh protection for effectiveShieldDuration years
-  const timeProtected = Math.min(age, effectiveShieldDuration + (age - anodeAge));
-  const timeNaked = Math.max(0, age - timeProtected);
+  // FIX v8.0 "Lazarus Effect": Track ACTUAL naked exposure history
+  // If yearsWithoutAnode is provided, use it; otherwise infer from anode replacement timing
+  // The old formula assumed a new anode retroactively protected the past - WRONG
+  let timeProtected: number;
+  let timeNaked: number;
+  
+  if (data.yearsWithoutAnode !== undefined && data.yearsWithoutAnode > 0) {
+    // Explicit history: we know how long the tank ran without protection
+    const historicalNakedYears = Math.min(data.yearsWithoutAnode, age);
+    // Current anode protection = min(time since replacement, effective shield duration)
+    const currentAnodeAge = data.lastAnodeReplaceYearsAgo ?? 0;
+    const currentProtectionYears = Math.min(currentAnodeAge, effectiveShieldDuration);
+    // Remaining years under original anode (before it depleted)
+    const originalProtectionYears = Math.max(0, age - historicalNakedYears - currentAnodeAge);
+    
+    timeProtected = originalProtectionYears + currentProtectionYears;
+    timeNaked = Math.max(0, age - timeProtected);
+  } else {
+    // Fallback: Assume worst case if anode was replaced (old one was depleted)
+    // If never replaced (lastAnodeReplaceYearsAgo === undefined), use original shield duration
+    if (data.lastAnodeReplaceYearsAgo !== undefined && data.lastAnodeReplaceYearsAgo < age) {
+      // Anode was replaced - assume old one depleted, new one provides fresh protection
+      const timeSinceReplacement = data.lastAnodeReplaceYearsAgo;
+      const newAnodeProtection = Math.min(timeSinceReplacement, effectiveShieldDuration);
+      // Assume original anode provided effectiveShieldDuration years, then depleted
+      const originalProtection = Math.min(effectiveShieldDuration, age - timeSinceReplacement);
+      timeProtected = originalProtection + newAnodeProtection;
+      timeNaked = Math.max(0, age - timeProtected);
+    } else {
+      // Never replaced - single anode lifetime calculation
+      timeProtected = Math.min(age, effectiveShieldDuration);
+      timeNaked = Math.max(0, age - timeProtected);
+    }
+  }
 
   // === PHASE 1: PROTECTED (Anode Active) ===
-  // Mechanical stress (Pressure + Sediment + Temp expansion) applies 100%
-  const protectedMechanical = timeProtected * mechanicalWithTempExpansion;
-  // Chemical stress (Rust/Circ/Temp corrosion) is suppressed by 90%
-  const protectedChemical = timeProtected * chemicalStress * 0.1;
+  // FIX v8.0 "Perfect Tank Inversion": Use MULTIPLICATIVE formula, not additive
+  // OLD (WRONG): mech + (chem * 0.1) = 1.1 when both are 1.0 (protected ages FASTER!)
+  // NEW (CORRECT): mech * (1 + (chem - 1) * 0.1) = 1.0 when both are 1.0
+  // The anode suppresses 90% of the EXCESS chemical stress above baseline (1.0)
+  const chemicalSuppression = 1.0 + (chemicalStress - 1.0) * 0.1;
+  const protectedStress = mechanicalWithTempExpansion * chemicalSuppression;
+  const protectedAging = timeProtected * protectedStress;
 
   // === PHASE 2: NAKED (Anode Depleted) ===
   // Everything applies 100%
@@ -1026,7 +1097,7 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   const nakedAging = timeNaked * nakedStress;
 
   // Final biological age (capped for extreme cases)
-  const rawBioAge = protectedMechanical + protectedChemical + nakedAging;
+  const rawBioAge = protectedAging + nakedAging;
   const bioAge = Math.min(rawBioAge, CONSTANTS.MAX_BIO_AGE);
 
   // 5. WEIBULL FAILURE PROBABILITY
@@ -1140,7 +1211,9 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     lifeExtension: parseFloat(lifeExtension.toFixed(1)),
     primaryStressor,
     // NEW v7.8: Safety Warnings
-    bacterialGrowthWarning
+    bacterialGrowthWarning,
+    // NEW v8.0: Hybrid Efficiency (separated from leak risk)
+    hybridEfficiency: hybridEfficiencyPercent
   };
 }
 
