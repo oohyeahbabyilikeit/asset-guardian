@@ -4,6 +4,12 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v8.2 (Scientific Defensibility)
+- **FIX "Arrhenius Violation"**: Replaced `sqrt()` temperature dampening with proper exponential `2^((temp-120)/18)`. 140°F now correctly shows 2.15x corrosion rate (was 1.22x). 110°F shows 0.68x (was 0.89x).
+- **FIX "Naked Gap" Conductivity**: Added 2.5x conductivity penalty for soft water in naked phase. Once anode depletes, bare steel corrodes faster in high-conductivity (soft) water than resistive (hard) water.
+- **FIX "Sediment Fuel-Type Differentiation"**: Gas/propane heaters get full sediment stress (burst risk). Electric heaters get 20% (element burial, not burst). Hybrid gets 40% (lower operating temps).
+- **FIX "Weibull Recalibration"**: Changed from (η=11.5, β=2.2) to (η=13.0, β=3.2) for cliff-edge corrosion fatigue modeling. Young tanks show lower risk; bio age 40+ can now reach 80%+ failure probability.
+
 ## v8.1 (Critical Fixes)
 - **FIX "Statistical Ceiling"**: Raised `MAX_BIO_AGE` from 25 to 50. Old cap limited `failProb` to ~40%, making the 85% STATISTICAL_CAP unreachable. Now catastrophically stressed tanks correctly show 60-85% failure probability.
 - **FIX "Silent Killer"**: Transient pressure penalty now applies INDEPENDENTLY of static PSI. A tank cycling 60→120→60 PSI (closed loop, no expansion tank) now correctly shows ~1.4x pressure stress instead of 1.0.
