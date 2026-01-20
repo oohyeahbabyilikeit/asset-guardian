@@ -15,7 +15,7 @@ import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
 import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
 import { HealthScore, AssetData } from '@/data/mockAsset';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
-import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
+import { getInfrastructureIssues, getIssuesByCategory } from '@/lib/infrastructureIssues';
 import { type MaintenanceTask } from '@/lib/maintenanceCalculations';
 
 // Elegant easing curve for sophisticated feel - must be tuple for framer-motion
@@ -452,7 +452,10 @@ export function CommandCenter({
 
   // Get maintenance tasks for service selection
   const infrastructureIssues = getInfrastructureIssues(currentInputs, metrics);
-  const violationTasks: MaintenanceTask[] = infrastructureIssues.map(issue => ({
+  
+  // Only actual code violations get the violation treatment
+  const violationIssues = getIssuesByCategory(infrastructureIssues, 'VIOLATION');
+  const violationTasks: MaintenanceTask[] = violationIssues.map(issue => ({
     type: issue.id.includes('exp_tank') ? 'exp_tank_install' : issue.id.includes('prv') ? 'prv_install' : 'inspection',
     label: issue.name,
     description: issue.description,
@@ -461,6 +464,23 @@ export function CommandCenter({
     benefit: issue.friendlyName,
     whyExplanation: issue.description,
     icon: 'alert' as const,
+    isInfrastructure: true,
+  }));
+
+  // Infrastructure & optimization items (like softeners for hard water) become regular recommendations
+  const recommendationIssues = [
+    ...getIssuesByCategory(infrastructureIssues, 'INFRASTRUCTURE'),
+    ...getIssuesByCategory(infrastructureIssues, 'OPTIMIZATION'),
+  ];
+  const recommendationTasks: MaintenanceTask[] = recommendationIssues.map(issue => ({
+    type: 'inspection' as MaintenanceTask['type'],
+    label: issue.name,
+    description: issue.description,
+    monthsUntilDue: 0,
+    urgency: 'schedule' as const,
+    benefit: issue.friendlyName,
+    whyExplanation: issue.description,
+    icon: 'wrench' as const,
     isInfrastructure: true,
   }));
 
@@ -478,7 +498,7 @@ export function CommandCenter({
 
   // When replacement is recommended, violations are bundled into the replacement job
   const shouldBundleViolations = shouldShowReplacementOption;
-  const hasCodeIssues = infrastructureIssues.length > 0;
+  const hasCodeIssues = violationIssues.length > 0;
 
   // Base maintenance tasks (only shown when maintenance is appropriate)
   const baseMaintenanceTasks: MaintenanceTask[] = isTanklessUnit 
@@ -497,7 +517,7 @@ export function CommandCenter({
     type: 'replacement_consult',
     label: 'Replacement Consultation',
     description: hasCodeIssues 
-      ? `Discuss replacement options – includes addressing ${infrastructureIssues.length} code compliance ${infrastructureIssues.length === 1 ? 'issue' : 'issues'}`
+      ? `Discuss replacement options – includes addressing ${violationIssues.length} code compliance ${violationIssues.length === 1 ? 'issue' : 'issues'}`
       : 'Discuss replacement options with a professional',
     monthsUntilDue: 0,
     urgency: recommendationType === 'REPLACE_NOW' ? 'overdue' : 'due',
@@ -512,11 +532,12 @@ export function CommandCenter({
   const displayViolations = shouldBundleViolations ? [] : violationTasks;
 
   // Build final maintenance tasks based on recommendation
+  // Include recommendation tasks (infrastructure/optimization) with regular maintenance
   const maintenanceTasks: MaintenanceTask[] = shouldShowReplacementOption
-    ? [replacementTask] // Only show replacement option when replacement is recommended
+    ? [replacementTask, ...recommendationTasks] // Show replacement plus any optimization recommendations
     : shouldShowMaintenance
-      ? baseMaintenanceTasks
-      : [];
+      ? [...baseMaintenanceTasks, ...recommendationTasks]
+      : recommendationTasks;
 
   return (
     <div 
