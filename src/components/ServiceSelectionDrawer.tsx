@@ -233,7 +233,7 @@ export function ServiceSelectionDrawer({
             <Phone className="w-4 h-4" />
             {selectedTypes.size === 0 
               ? 'Select services above' 
-              : `Get Quote for ${selectedTypes.size} ${selectedTypes.size === 1 ? 'Service' : 'Services'}`
+              : 'Have My Plumber Reach Out'
             }
           </Button>
         </DrawerFooter>
