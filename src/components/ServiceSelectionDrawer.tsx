@@ -67,17 +67,25 @@ export function ServiceSelectionDrawer({
   };
   
   // Check if we're showing replacement option (different styling)
-  const hasReplacementTask = maintenanceTasks.some(t => t.type === 'replacement_consult');
   const regularMaintenanceTasks = maintenanceTasks.filter(t => t.type !== 'replacement_consult');
   const replacementTasks = maintenanceTasks.filter(t => t.type === 'replacement_consult');
   
+  // If replacement is the only option, auto-select it and show simplified UI
+  const isReplacementOnly = replacementTasks.length > 0 && 
+                            violations.length === 0 && 
+                            regularMaintenanceTasks.length === 0;
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="text-left">
-          <DrawerTitle>What would you like help with?</DrawerTitle>
+          <DrawerTitle>
+            {isReplacementOnly ? 'Replacement Recommended' : 'What would you like help with?'}
+          </DrawerTitle>
           <p className="text-sm text-muted-foreground">
-            Select the services you're interested in
+            {isReplacementOnly 
+              ? 'Based on our assessment, replacement is the best path forward'
+              : 'Select the services you\'re interested in'}
           </p>
         </DrawerHeader>
         
