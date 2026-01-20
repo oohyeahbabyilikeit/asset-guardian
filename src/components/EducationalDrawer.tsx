@@ -149,40 +149,40 @@ export const topicContent: Record<EducationalTopic, {
   },
   'anode-rod': {
     icon: <Shield className="w-5 h-5" />,
-    title: 'Anode Rod Protection',
-    description: 'How your water heater protects itself from corrosion',
+    title: 'What is Anode Life?',
+    description: 'A metal rod inside your tank that rusts so your tank doesn\'t.',
     sections: [
       {
-        heading: 'Cathodic Protection',
-        content: 'The anode rod is a "sacrificial" metal rod that corrodes instead of your tank. It attracts corrosive elements in the water, protecting the steel tank lining. This is the same principle used to protect ships and bridges.'
+        heading: 'The Simple Explanation',
+        content: 'Your water heater has a metal rod inside that "takes the hit" for your tank. It attracts rust and corrosion to itself, sacrificing itself to protect the tank walls.'
       },
       {
-        heading: 'Depletion Timeline',
-        content: 'Anode rods typically last 3-5 years in average water conditions. Hard water or water softeners can accelerate depletion to 2-3 years. Once depleted, the tank itself begins corroding.'
+        heading: 'Why It Matters',
+        content: 'Once this rod is used up, your tank starts rusting from the inside. You can\'t see it happening, but eventually it causes leaks that can flood your home.'
       },
       {
-        heading: 'Inspection & Replacement',
-        content: 'Checking the anode rod every 2-3 years is recommended. Replacement cost is typically $20-50 for the part, making it one of the most cost-effective maintenance items. Many homeowners are unaware this component exists.'
+        heading: 'What You Can Do',
+        content: 'Replacing the rod costs $20-50 and takes about an hour. It\'s one of the cheapest ways to extend your water heater\'s life by years.'
       }
     ],
     source: 'Water heater manufacturer maintenance guidelines'
   },
   'sediment': {
     icon: <Droplets className="w-5 h-5" />,
-    title: 'Sediment Buildup',
-    description: 'How minerals accumulate and affect performance',
+    title: 'What is Sediment?',
+    description: 'Minerals in your water that settle and pile up at the bottom of your tank.',
     sections: [
       {
-        heading: 'What Is Sediment?',
-        content: 'Minerals dissolved in water (calcium, magnesium, iron) settle to the bottom of the tank as water heats. This is especially common in areas with hard water. Over time, this creates a layer of sediment on the tank floor.'
+        heading: 'The Simple Explanation',
+        content: 'Your water has tiny minerals dissolved in it. When water heats up, these minerals fall out and sink to the bottom—like sand settling in a glass of water.'
       },
       {
-        heading: 'Effects on Performance',
-        content: 'Sediment insulates the heating element from the water, reducing efficiency and increasing energy costs. In gas heaters, it can cause "rumbling" or "popping" sounds as water trapped under the sediment turns to steam.'
+        heading: 'Why It Matters',
+        content: 'This layer of gunk makes your heater work harder (higher bills) and can clog the drain. Too much sediment can overheat the tank bottom, cracking the glass lining and causing leaks.'
       },
       {
-        heading: 'Prevention & Removal',
-        content: 'Annual flushing (draining a few gallons from the drain valve) can remove loose sediment. Heavy buildup may require professional cleaning. Water softeners can reduce mineral content but may accelerate anode depletion.'
+        heading: 'What You Can Do',
+        content: 'Flushing the tank drains out loose sediment. But if it\'s been years, the buildup may be too hardite to safely remove—disturbing it can cause more problems than it solves.'
       }
     ],
     source: 'DOE water heater maintenance recommendations'
