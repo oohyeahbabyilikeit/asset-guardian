@@ -1,8 +1,14 @@
 /**
- * OPTERRA v8.1 Risk Calculation Engine
+ * OPTERRA v8.2 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
  * 
+ * v8.2 Scientific Defensibility Fixes:
+ * - FIX "Arrhenius Violation": Replaced sqrt() with proper exponential 2^((temp-120)/18)
+ * - FIX "Naked Gap": Added 2.5x conductivity penalty for soft water in naked phase
+ * - FIX "Sediment Fuel-Type": Gas=100%, Electric=20%, Hybrid=40% burst risk factor
+ * - FIX "Weibull Recalibration": ETA=13.0, BETA=3.2 for cliff-edge failure modeling
+ *
  * v8.1 Bug Fixes:
  * - FIX "Statistical Ceiling": Raised MAX_BIO_AGE from 25 to 50 (allows 85% failProb)
  * - FIX "Silent Killer": Transient pressure penalty now independent of static PSI
@@ -393,8 +399,11 @@ const CODE_UPGRADE_COSTS = {
 
 const CONSTANTS = {
   // Weibull Reliability Parameters
-  ETA: 11.5,               
-  BETA: 2.2,               
+  // FIX v8.2: Recalibrated for corrosion fatigue failure mode
+  // Beta 3.2 = "Cliff edge" failure (tanks don't slowly degrade - they suddenly fail)
+  // Eta 13.0 = Slightly longer characteristic life (compensates for stricter input factors)
+  ETA: 13.0,               
+  BETA: 3.2,
   
   // Physics Baselines
   PSI_SAFE_LIMIT: 80,      
@@ -968,7 +977,22 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // - OLD Linear: 1.0 + (lbs * 0.05) = 1.2x at 4 lbs (Too harsh for healthy tanks)
   // - NEW Quadratic: Keeps 0-5 lbs near 1.0x, but spikes at 15+ lbs
   // Calibrated: 4 lbs = 1.05x, 10 lbs = 1.33x, 15 lbs = 1.75x (Lockout Threshold)
-  const sedimentStress = 1.0 + ((sedimentLbs * sedimentLbs) / 300);
+  
+  // FIX v8.2 "Sediment Fuel-Type Differentiation":
+  // Sediment risk varies dramatically by fuel type:
+  // - Gas: Sediment insulates bottom from flames → thermal runaway → BURST risk (100%)
+  // - Electric: Sediment buries lower element → component failure, NOT burst (20%)
+  // - Hybrid: Lower operating temps reduce thermal stress (40%)
+  const SEDIMENT_RISK_FACTOR: Record<string, number> = {
+    GAS: 1.0,           // Full burst risk
+    PROPANE: 1.0,       // Same as gas (propane burner)
+    ELECTRIC: 0.2,      // Element failure, not burst
+    HYBRID: 0.4,        // Heat pump = lower temps
+    TANKLESS_GAS: 0.1,  // Minimal tank risk (no storage)
+    TANKLESS_ELECTRIC: 0.1
+  };
+  const sedimentRiskFactor = SEDIMENT_RISK_FACTOR[data.fuelType] ?? 1.0;
+  const sedimentStress = 1.0 + (((sedimentLbs * sedimentLbs) / 300) * sedimentRiskFactor);
 
   // E. Closed Loop (Thermal Expansion Fatigue)
   // FIX v8.1 "Suppressible Fatigue": This is MECHANICAL (metal flexing), not chemical
@@ -984,32 +1008,42 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // === CHEMICAL STRESS (Corrosion - Anode CAN Prevent) ===
   // These accelerate electrochemical rust, which the anode fights
 
-  // C. Temperature - Split 50/50 (expansion = mechanical, rust = chemical)
-  // --- ARRHENIUS CALIBRATION v6.5 ---
-  // Adjusted 'HOT' factor from 2.0 -> 1.5.
-  // This represents a 50% acceleration in aging, rather than 100%.
-  // Physics Logic: While chemical corrosion might double, the mechanical structure
-  // (steel thickness, welds) does not degrade at that same exponential speed.
-  // The Anode Rod acts as a chemical buffer, absorbing much of that accelerated corrosion.
-  let tempStressRaw = 1.0;  // NORMAL baseline (120°F)
+  // C. Temperature - Split between mechanical (expansion) and chemical (rust)
+  // --- FIX v8.2 "Arrhenius Violation" ---
+  // The Arrhenius Equation dictates that reaction rates double every 10°C (18°F).
+  // OLD (WRONG): sqrt(1.5) = 1.22x at 140°F - dramatically underestimates heat damage
+  // NEW (CORRECT): 2^((140-120)/18) = 2.15x at 140°F - proper thermodynamic scaling
+  
+  // Temperature mapping
+  const TEMP_MAP: Record<string, number> = {
+    LOW: 110,      // Eco mode
+    NORMAL: 120,   // Factory default
+    MEDIUM: 130,   // Slightly elevated (for future use)
+    HOT: 140,      // Bacteria-free / high demand
+    VERY_HIGH: 150 // Commercial / extreme (for future use)
+  };
+  const tankTemp = TEMP_MAP[data.tempSetting] ?? 120;
+  
+  // Store raw temp stress for backward compatibility and stressor identification
+  let tempStressRaw = 1.0;
+  if (data.tempSetting === 'HOT') tempStressRaw = 2.15;   // Arrhenius-calculated
+  if (data.tempSetting === 'LOW') tempStressRaw = 0.68;   // 2^(-0.56)
   
   // FIX v7.8 "Legionella Liability": Track bacterial growth risk for LOW temp
   // The 95°F-115°F range is ideal for Legionella Pneumophila growth
-  // We still give the 0.8 physical stress benefit, but flag the biological hazard
-  let bacterialGrowthWarning = false;
-  if (data.tempSetting === 'HOT') tempStressRaw = 1.5;   // 140°F+ (was 2.0, now calibrated to 1.5)
-  if (data.tempSetting === 'LOW') {
-    tempStressRaw = 0.8;   // 110°F eco mode life extension
-    bacterialGrowthWarning = true;  // FIX v7.8: Flag Legionella risk
-  }
+  // We still give the physical stress benefit, but flag the biological hazard
+  const bacterialGrowthWarning = tankTemp < 120;
   
-  // Split the factor between mechanical (expansion) and chemical (rust)
-  // sqrt(1.5) = 1.22x multiplier for each component.
+  // ARRHENIUS LAW: Chemical corrosion rate doubles every 10°C (18°F)
+  // At 140°F: 2^((140-120)/18) = 2^1.11 = 2.15x corrosion rate
+  // At 110°F: 2^((110-120)/18) = 2^(-0.56) = 0.68x corrosion rate
+  const tempChemical = Math.pow(2.0, (tankTemp - 120) / 18.0);
+  
+  // Mechanical thermal expansion scales linearly with Delta-T, not exponentially
+  // Higher temp = more expansion per cycle, but not exponentially
   // NEW v6.9: Thermal cycling scales with usage - more hot water draws = more expansion cycles
-  // A heavy-use 6-person family might cycle 8-10x/day vs 2-3x for light use
   const thermalCycleMultiplier = 1 + (usageIntensity - 1) * 0.12;
-  const tempMechanical = Math.sqrt(tempStressRaw) * thermalCycleMultiplier;  // 50% mechanical (expansion cycles)
-  const tempChemical = Math.sqrt(tempStressRaw);    // 50% chemical (rust acceleration)
+  const tempMechanical = (1.0 + ((tankTemp - 120) / 100)) * thermalCycleMultiplier;
 
   // D. Circulation (Erosion-Corrosion & Duty Cycle) - 100% chemical
   const circStress = data.hasCircPump ? 1.4 : 1.0;
@@ -1108,7 +1142,12 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
 
   // === PHASE 2: NAKED (Anode Depleted) ===
   // Everything applies 100%
-  const nakedStress = Math.min(mechanicalWithTempExpansion * chemicalStress, CONSTANTS.MAX_STRESS_CAP);
+  // FIX v8.2 "Naked Gap": Soft water is BENEFICIAL for anode phase (less scale) but
+  // DANGEROUS for naked phase (high conductivity accelerates bare steel corrosion).
+  // Physics: Hard water forms protective mineral film; soft water corrodes 2-3x faster.
+  // Nernst's Principle: High conductivity = higher corrosion current (I_corr)
+  const waterConductivity = data.hasSoftener ? 2.5 : 1.0;
+  const nakedStress = Math.min(mechanicalWithTempExpansion * chemicalStress * waterConductivity, CONSTANTS.MAX_STRESS_CAP);
   const nakedAging = timeNaked * nakedStress;
 
   // Final biological age (capped for extreme cases)
