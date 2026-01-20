@@ -531,13 +531,12 @@ export function CommandCenter({
   // Only pass violations as separate tasks when NOT replacing
   const displayViolations = shouldBundleViolations ? [] : violationTasks;
 
-  // Build final maintenance tasks based on recommendation
-  // Include recommendation tasks (infrastructure/optimization) with regular maintenance
+  // Build final maintenance tasks based on recommendation (no longer includes recommendations)
   const maintenanceTasks: MaintenanceTask[] = shouldShowReplacementOption
-    ? [replacementTask, ...recommendationTasks] // Show replacement plus any optimization recommendations
+    ? [replacementTask]
     : shouldShowMaintenance
-      ? [...baseMaintenanceTasks, ...recommendationTasks]
-      : recommendationTasks;
+      ? baseMaintenanceTasks
+      : [];
 
   return (
     <div 
@@ -714,6 +713,7 @@ export function CommandCenter({
         onOpenChange={setShowServiceSelection}
         violations={displayViolations}
         maintenanceTasks={maintenanceTasks}
+        recommendations={recommendationTasks}
         onSubmit={handleServiceSelectionSubmit}
       />
 

@@ -27,7 +27,7 @@ export interface MaintenanceTask {
   urgency: 'optimal' | 'schedule' | 'due' | 'overdue' | 'impossible';
   benefit: string;
   whyExplanation: string;
-  icon: 'droplets' | 'shield' | 'flame' | 'filter' | 'valve' | 'wind' | 'wrench' | 'gauge' | 'alert';
+  icon: 'droplets' | 'shield' | 'flame' | 'filter' | 'valve' | 'wind' | 'wrench' | 'gauge' | 'alert' | 'lightbulb';
   /** For infrastructure issues, the aging multiplier this fixes */
   agingMultiplier?: number;
   /** Whether this is a critical infrastructure issue */
