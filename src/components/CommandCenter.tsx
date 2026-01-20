@@ -495,9 +495,18 @@ export function CommandCenter({
     return 'optimal';
   };
 
-  // Only show maintenance tasks if NOT recommending replacement
-  const shouldShowMaintenance = recommendationType === 'MAINTAIN' || recommendationType === 'MONITOR';
+  // Determine if algorithm returned a PASS verdict (monitor only, no maintenance recommended)
+  const isPassVerdict = verdict.action === 'PASS';
+  const isHealthyPass = isPassVerdict && verdict.title === 'No Issues Detected';
+  
+  // Only show active maintenance tasks when algorithm explicitly said MAINTAIN or REPAIR
+  // PASS verdicts mean "don't touch" - maintenance could cause damage
+  const shouldShowMaintenance = verdict.action === 'MAINTAIN' || verdict.action === 'REPAIR';
   const shouldShowReplacementOption = recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON';
+  
+  // Calculate estimated remaining life for PASS verdicts
+  const estimatedTotalLife = 13; // Average tank life based on Weibull analysis
+  const yearsRemaining = Math.max(0, Math.round(estimatedTotalLife - metrics.bioAge));
 
   // When replacement is recommended, violations are bundled into the replacement job
   const shouldBundleViolations = shouldShowReplacementOption;
@@ -726,6 +735,10 @@ export function CommandCenter({
         metrics={metrics}
         verdictAction={recommendation.action}
         healthScore={dynamicHealthScore.score}
+        isPassVerdict={isPassVerdict}
+        verdictReason={verdict.reason}
+        verdictTitle={verdict.title}
+        yearsRemaining={yearsRemaining}
       />
 
       {/* Service Selection Drawer - pick what you need help with */}
@@ -736,6 +749,10 @@ export function CommandCenter({
         maintenanceTasks={maintenanceTasks}
         recommendations={recommendationTasks}
         onSubmit={handleServiceSelectionSubmit}
+        isPassVerdict={isPassVerdict}
+        verdictReason={verdict.reason}
+        verdictTitle={verdict.title}
+        yearsRemaining={yearsRemaining}
       />
 
       {/* Contact Form Modal - lead capture */}
