@@ -6,6 +6,7 @@ import { ServiceHistory } from '@/components/ServiceHistory';
 import { ActionDock } from '@/components/ActionDock';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
 import { IssueGuidanceDrawer } from '@/components/IssueGuidanceDrawer';
+import { OptionsAssessmentDrawer } from '@/components/OptionsAssessmentDrawer';
 import { ServiceSelectionDrawer } from '@/components/ServiceSelectionDrawer';
 import { PlumberContactForm } from '@/components/PlumberContactForm';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
@@ -162,6 +163,7 @@ export function CommandCenter({
   const [isAnimating, setIsAnimating] = useState(true);
   
   // Lead capture flow state
+  const [showAssessment, setShowAssessment] = useState(false);
   const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<MaintenanceTask[]>([]);
@@ -433,6 +435,11 @@ export function CommandCenter({
 
   // Lead capture handlers
   const handleGetExpertHelp = () => {
+    setShowAssessment(true);
+  };
+
+  const handleAssessmentContinue = () => {
+    setShowAssessment(false);
     setShowServiceSelection(true);
   };
 
@@ -635,6 +642,17 @@ export function CommandCenter({
         manufacturer={currentInputs.manufacturer}
         onScheduleService={handleGetExpertHelp}
         onGetQuote={handleGetExpertHelp}
+      />
+
+      {/* Options Assessment Drawer - education before service selection */}
+      <OptionsAssessmentDrawer
+        open={showAssessment}
+        onOpenChange={setShowAssessment}
+        onContinue={handleAssessmentContinue}
+        inputs={currentInputs}
+        metrics={metrics}
+        verdictAction={recommendation.action}
+        healthScore={dynamicHealthScore.score}
       />
 
       {/* Service Selection Drawer - pick what you need help with */}
