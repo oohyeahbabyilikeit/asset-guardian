@@ -92,8 +92,8 @@ export function ContactFormPage({
     setIsSubmitting(false);
     setIsSubmitted(true);
     
-    toast.success("Request submitted!", {
-      description: "Your plumber will reach out within 24 hours."
+    toast.success("You're all set!", {
+      description: "Your plumber will give you a quick call soon."
     });
     
     setTimeout(() => {
@@ -116,7 +116,7 @@ export function ContactFormPage({
           <div>
             <h2 className="text-2xl font-bold mb-2">You're All Set!</h2>
             <p className="text-muted-foreground">
-              Your plumber will reach out within 24 hours to discuss your water heater.
+              Your plumber will give you a quick call to chat about what we found. No pressure, just here to help.
             </p>
           </div>
         </motion.div>
@@ -136,7 +136,7 @@ export function ContactFormPage({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 text-center">
-            <h1 className="font-semibold text-base">Have Your Plumber Reach Out</h1>
+            <h1 className="font-semibold text-base">Just a Quick Chat</h1>
           </div>
           <div className="w-11" />
         </div>
@@ -155,10 +155,10 @@ export function ContactFormPage({
               urgencyLevel === 'yellow' && "text-amber-500",
               urgencyLevel === 'green' && "text-emerald-500",
             )}>
-              Almost There!
+              Let's Get You Connected
             </h2>
             <p className="text-sm text-muted-foreground">
-              Your plumber will reach out to discuss your options and answer any questions.
+              Your plumber will give you a quick call to walk through what we found—no pressure, just a conversation about your water heater.
             </p>
           </div>
 
@@ -237,11 +237,11 @@ export function ContactFormPage({
                 urgencyLevel === 'green' && "bg-emerald-600 hover:bg-emerald-500",
               )}
             >
-              {isSubmitting ? 'Submitting...' : 'Have My Plumber Reach Out'}
+              {isSubmitting ? 'Submitting...' : 'Request a Quick Call'}
             </Button>
             
             <p className="text-xs text-center text-muted-foreground">
-              Your plumber will reach out to discuss your options. No obligation.
+              Just a friendly call to discuss what we found. No obligation, no pressure—you decide what's next.
             </p>
           </form>
         </motion.div>
