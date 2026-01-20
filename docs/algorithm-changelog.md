@@ -4,6 +4,30 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v8.4 (Actuarial Restructure - Gemini Review)
+
+**Critical Bug Fix:**
+- **"Valve Trap"**: Moved fitting leak detection from Tier 1 to Tier 3
+  - Fitting leaks now only recommend REPAIR after passing Safety & Economic checks
+  - Added "Fragility Filter": Tanks >12yr or >50% failProb get REPLACE ("Too Fragile to Service") instead of REPAIR
+  - Reason: Applying torque to corroded fittings on a zombie tank can rupture the vessel
+
+**Threshold Adjustments:**
+- **Attic Liability**: Tightened from 25% → 15% failProb
+  - High-consequence locations require lower risk tolerance (Risk = Probability × Consequence)
+- **Sediment Safe Band**: Narrowed from 5-15 lbs to 5-10 lbs
+  - Added "Do Not Disturb" MONITOR warning for 10-15 lb range (clog risk)
+
+**Economic Independence:**
+- **Removed budgetUrgency Override**: Financial urgency no longer changes the technical verdict
+  - Budget now only affects messaging tone and financing options shown
+  - A customer's bank balance does not change the laws of physics
+
+**New Verdict:**
+- **"Too Fragile to Service"**: Explicit REPLACE recommendation for zombie tanks with repairable component failures
+
+---
+
 ## v8.3 (Anode Life Calibration)
 - **FIX "Compound Extremes"**: Capped total `anodeDecayRate` at 8.0x to prevent unrealistic compound effects from stacking all penalties.
 - **FIX "Galvanic Overreach"**: Reduced direct copper galvanic penalty from 3.0x to 2.5x per NACE corrosion data.

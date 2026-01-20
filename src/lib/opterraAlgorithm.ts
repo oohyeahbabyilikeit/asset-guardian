@@ -1393,17 +1393,8 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     };
   }
   
-  // FIX v7.8: Fitting leaks are REPAIRABLE, not replacements
-  if (isFittingLeak) {
-    return {
-      action: 'REPAIR',
-      title: 'Fitting Leak Detected',
-      reason: `Water detected at ${data.leakSource === 'DRAIN_PAN' ? 'drain pan' : 'fitting/valve'}. This is a repairable condition, not tank failure.`,
-      urgent: true,
-      badgeColor: 'orange',
-      badge: 'SERVICE'
-    };
-  }
+  // FIX v8.4: Fitting leaks moved to Tier 3 (after economic checks)
+  // See "The Valve Trap" bug: Don't recommend REPAIR on zombie tanks
 
   // 1B. Sediment Lockout: Hardite buildup (>15 lbs)
   if (metrics.sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_LOCKOUT) {
@@ -1461,12 +1452,13 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   const isAtticOrUpper = data.location === 'ATTIC' || data.location === 'UPPER_FLOOR';
   const hasNoDrainPan = !data.hasDrainPan;
   
-  // Attic without drain pan: CRITICAL at just 25% probability (consequence severity)
-  if (isAtticOrUpper && hasNoDrainPan && metrics.failProb > 25) {
+  // v8.4: Tightened to 15% (consequence severity - High Consequence Location)
+  // Risk = Probability × Consequence. Attic burst = $15k+ damage.
+  if (isAtticOrUpper && hasNoDrainPan && metrics.failProb > 15) {
     return {
       action: 'REPLACE',
       title: 'Attic Liability',
-      reason: `Attic unit without drain pan protection. Even at ${metrics.failProb.toFixed(0)}% risk, a leak here causes $50,000+ in ceiling/mold damage.`,
+      reason: `Attic unit without drain pan protection. At ${metrics.failProb.toFixed(0)}% risk, potential for $15,000+ water damage is unacceptable.`,
       urgent: true,
       badgeColor: 'red',
       badge: 'CRITICAL'
@@ -1576,6 +1568,38 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     };
   }
 
+  // ============================================
+  // TIER 3A: FITTING REPAIRS (with Fragility Filter)
+  // v8.4: Moved here from Tier 1 to ensure economic checks run first
+  // Only recommend repair if tank is robust enough to handle torque
+  // ============================================
+  if (isFittingLeak) {
+    // FRAGILITY FILTER: If tank is too old/risky, don't apply torque to fittings
+    // Torque on rusted nipples can shear tank body or crack glass lining
+    const isTooFragileToService = data.calendarAge > 12 || metrics.failProb > 50;
+    
+    if (isTooFragileToService) {
+      return {
+        action: 'REPLACE',
+        title: 'Too Fragile to Service',
+        reason: `Fitting leak detected, but tank age (${data.calendarAge} yrs) and condition (${metrics.failProb.toFixed(0)}% risk) make repairs dangerous. Torque on corroded fittings may cause tank rupture.`,
+        urgent: true,
+        badgeColor: 'red',
+        badge: 'REPLACE'
+      };
+    }
+    
+    // Tank is young/healthy enough to safely repair
+    return {
+      action: 'REPAIR',
+      title: 'Fitting Leak Detected',
+      reason: `Water detected at ${data.leakSource === 'DRAIN_PAN' ? 'drain pan' : 'fitting/valve'}. Tank is serviceable - repair is safe.`,
+      urgent: true,
+      badgeColor: 'orange',
+      badge: 'SERVICE'
+    };
+  }
+
   // 3C. Pressure Optimization (Young tanks with elevated pressure)
   if (!data.hasPrv && data.housePsi >= 65 && data.housePsi <= 80 && data.calendarAge < 8) {
     // If no expansion tank, MUST recommend both as a package - PRV alone creates dangerous closed-loop thermal spikes
@@ -1607,8 +1631,10 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   
   const isFragile = metrics.failProb > CONSTANTS.LIMIT_FAILPROB_FRAGILE 
                  || data.calendarAge >= CONSTANTS.LIMIT_AGE_FRAGILE;
+  // v8.4: Narrowed safe band from 5-15 lbs to 5-10 lbs (>10 lbs risks clogging valve open)
+  const LIMIT_SEDIMENT_SAFE_FLUSH = 10;
   const isServiceable = metrics.sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH 
-                     && metrics.sedimentLbs <= CONSTANTS.LIMIT_SEDIMENT_LOCKOUT;
+                     && metrics.sedimentLbs <= LIMIT_SEDIMENT_SAFE_FLUSH;
   
   // Fragile tank with sediment - don't touch
   if (isFragile && isServiceable) {
@@ -1622,7 +1648,19 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     };
   }
 
-  // Safe to flush
+  // v8.4: Heavy sediment (10-15 lbs) - too risky to flush, may clog valve open
+  if (!isFragile && metrics.sedimentLbs > LIMIT_SEDIMENT_SAFE_FLUSH && metrics.sedimentLbs <= CONSTANTS.LIMIT_SEDIMENT_LOCKOUT) {
+    return {
+      action: 'PASS',
+      title: 'Sediment Present - Do Not Disturb',
+      reason: `Sediment load (${metrics.sedimentLbs.toFixed(1)} lbs) is too heavy for safe flushing. Disturbance may clog drain valve open. Monitor for leaks.`,
+      urgent: false,
+      badgeColor: 'yellow',
+      badge: 'MONITOR'
+    };
+  }
+
+  // Safe to flush (5-10 lbs)
   if (!isFragile && isServiceable) {
     return {
       action: 'MAINTAIN',

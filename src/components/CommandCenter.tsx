@@ -390,16 +390,18 @@ export function CommandCenter({
   // Check if this is a tankless unit
   const isTanklessUnit = currentInputs.fuelType === 'TANKLESS_GAS' || currentInputs.fuelType === 'TANKLESS_ELECTRIC';
 
-  // Derive economics-aware recommendation type (same logic as Index.tsx)
-  const budgetUrgency = financial?.budgetUrgency;
+  // v8.4: Physics determines verdict, budget affects messaging only
+  // Removed budgetUrgency override - a customer's bank balance does not change the laws of physics
   let recommendationType: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR' = 'MONITOR';
-  if (verdict.action === 'REPLACE' || budgetUrgency === 'IMMEDIATE') {
-    recommendationType = 'REPLACE_NOW';
-  } else if (budgetUrgency === 'HIGH' || bioAge >= 10) {
-    recommendationType = 'REPLACE_SOON';
+  if (verdict.action === 'REPLACE') {
+    // Urgency (from algorithm) determines adjective, not verb
+    recommendationType = verdict.urgent ? 'REPLACE_NOW' : 'REPLACE_SOON';
   } else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
     recommendationType = 'MAINTAIN';
+  } else if (verdict.action === 'UPGRADE') {
+    recommendationType = 'MONITOR';  // Upgrades are optional optimizations
   }
+  // PASS and MONITOR actions stay as MONITOR
 
   // Derive dynamic health score from algorithm output
   const isBreach = currentInputs.isLeaking || currentInputs.visualRust;
