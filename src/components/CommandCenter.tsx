@@ -476,6 +476,10 @@ export function CommandCenter({
   const shouldShowMaintenance = recommendationType === 'MAINTAIN' || recommendationType === 'MONITOR';
   const shouldShowReplacementOption = recommendationType === 'REPLACE_NOW' || recommendationType === 'REPLACE_SOON';
 
+  // When replacement is recommended, violations are bundled into the replacement job
+  const shouldBundleViolations = shouldShowReplacementOption;
+  const hasCodeIssues = infrastructureIssues.length > 0;
+
   // Base maintenance tasks (only shown when maintenance is appropriate)
   const baseMaintenanceTasks: MaintenanceTask[] = isTanklessUnit 
     ? [
@@ -488,16 +492,24 @@ export function CommandCenter({
       ];
 
   // Replacement consultation task for units needing replacement
+  // When there are code issues, mention they'll be addressed during replacement
   const replacementTask: MaintenanceTask = {
     type: 'replacement_consult',
     label: 'Replacement Consultation',
-    description: 'Discuss replacement options with a professional',
+    description: hasCodeIssues 
+      ? `Discuss replacement options – includes addressing ${infrastructureIssues.length} code compliance ${infrastructureIssues.length === 1 ? 'issue' : 'issues'}`
+      : 'Discuss replacement options with a professional',
     monthsUntilDue: 0,
     urgency: recommendationType === 'REPLACE_NOW' ? 'overdue' : 'due',
-    benefit: 'Get expert guidance on your best options',
+    benefit: hasCodeIssues 
+      ? 'Get expert guidance and resolve code issues in one visit'
+      : 'Get expert guidance on your best options',
     whyExplanation: 'Your unit shows signs that indicate replacement should be considered.',
     icon: 'wrench' as const,
   };
+
+  // Only pass violations as separate tasks when NOT replacing
+  const displayViolations = shouldBundleViolations ? [] : violationTasks;
 
   // Build final maintenance tasks based on recommendation
   const maintenanceTasks: MaintenanceTask[] = shouldShowReplacementOption
@@ -679,7 +691,7 @@ export function CommandCenter({
       <ServiceSelectionDrawer
         open={showServiceSelection}
         onOpenChange={setShowServiceSelection}
-        violations={violationTasks}
+        violations={displayViolations}
         maintenanceTasks={maintenanceTasks}
         onSubmit={handleServiceSelectionSubmit}
       />
