@@ -80,12 +80,12 @@ export function ServiceSelectionDrawer({
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="text-left">
           <DrawerTitle>
-            {isReplacementOnly ? 'Replacement Recommended' : 'What would you like help with?'}
+            {isReplacementOnly ? "Let's Talk Options" : 'What would you like help with?'}
           </DrawerTitle>
           <p className="text-sm text-muted-foreground">
             {isReplacementOnly 
-              ? 'Based on our assessment, replacement is the best path forward'
-              : 'Select the services you\'re interested in'}
+              ? 'Your plumber can walk you through what makes sense for your situation'
+              : 'Select what you\'d like to discuss'}
           </p>
         </DrawerHeader>
         
@@ -134,7 +134,7 @@ export function ServiceSelectionDrawer({
             <div className="space-y-2">
               <h3 className="text-xs font-medium text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
                 <Wrench className="w-3.5 h-3.5" />
-                Recommended Action
+                Worth Discussing
               </h3>
               <div className="space-y-2">
                 {replacementTasks.map(task => {
