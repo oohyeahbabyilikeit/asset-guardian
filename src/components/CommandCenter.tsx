@@ -113,11 +113,7 @@ function mapToEducationalTopic(topic: string): EducationalTopic {
   return topicMap[topic] || 'pressure';
 }
 
-// Convert fail probability to health score (inverse relationship)
-function failProbToHealthScore(failProb: number): number {
-  const raw = Math.max(0, Math.min(100, 100 - failProb));
-  return Math.round(raw);
-}
+// Note: Use metrics.healthScore directly from the algorithm instead of recalculating
 
 function getStatusFromValue(value: number, thresholdModerate: number, thresholdCritical: number): 'optimal' | 'warning' | 'critical' {
   if (value >= thresholdCritical) return 'critical';
@@ -407,7 +403,7 @@ export function CommandCenter({
   // Derive dynamic health score from algorithm output
   const isBreach = currentInputs.isLeaking || currentInputs.visualRust;
   const dynamicHealthScore: HealthScore = {
-    score: failProbToHealthScore(failProb),
+    score: metrics.healthScore,
     status: getStatusFromValue(failProb, 10, 20),
     failureProbability: isBreach ? 'FAIL' : Math.min(85, Math.round(failProb * 10) / 10),
     recommendation: recommendation.action,
