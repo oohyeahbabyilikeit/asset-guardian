@@ -149,40 +149,40 @@ export const topicContent: Record<EducationalTopic, {
   },
   'anode-rod': {
     icon: <Shield className="w-5 h-5" />,
-    title: 'What is Anode Life?',
-    description: 'A metal rod inside your tank that rusts so your tank doesn\'t.',
+    title: 'Anode Life',
+    description: 'A special rod inside your tank that protects it from rusting.',
     sections: [
       {
-        heading: 'The Simple Explanation',
-        content: 'Your water heater has a metal rod inside that "takes the hit" for your tank. It attracts rust and corrosion to itself, sacrificing itself to protect the tank walls.'
+        heading: '🛡️ What is it?',
+        content: 'Think of it like a bodyguard for your tank. This metal rod attracts rust to itself, so your tank stays healthy.'
       },
       {
-        heading: 'Why It Matters',
-        content: 'Once this rod is used up, your tank starts rusting from the inside. You can\'t see it happening, but eventually it causes leaks that can flood your home.'
+        heading: '⚠️ What happens when it runs out?',
+        content: 'Once the rod is used up, rust starts eating your tank from the inside. You won\'t see it until water starts leaking onto your floor.'
       },
       {
-        heading: 'What You Can Do',
-        content: 'Replacing the rod costs $20-50 and takes about an hour. It\'s one of the cheapest ways to extend your water heater\'s life by years.'
+        heading: '✅ Good news',
+        content: 'Replacing it is cheap ($20-50) and can add years to your water heater\'s life. It\'s like changing the oil in your car.'
       }
     ],
     source: 'Water heater manufacturer maintenance guidelines'
   },
   'sediment': {
     icon: <Droplets className="w-5 h-5" />,
-    title: 'What is Sediment?',
-    description: 'Minerals in your water that settle and pile up at the bottom of your tank.',
+    title: 'Sediment',
+    description: 'Gunk that builds up at the bottom of your tank over time.',
     sections: [
       {
-        heading: 'The Simple Explanation',
-        content: 'Your water has tiny minerals dissolved in it. When water heats up, these minerals fall out and sink to the bottom—like sand settling in a glass of water.'
+        heading: '🪨 What is it?',
+        content: 'Your water has tiny bits of minerals in it. When the water heats up, these bits sink to the bottom. Year after year, they pile up like sand.'
       },
       {
-        heading: 'Why It Matters',
-        content: 'This layer of gunk makes your heater work harder (higher bills) and can clog the drain. Too much sediment can overheat the tank bottom, cracking the glass lining and causing leaks.'
+        heading: '⚠️ Why is it a problem?',
+        content: 'Too much gunk makes your heater work harder (higher bills!). It can also overheat the bottom of your tank and cause cracks and leaks.'
       },
       {
-        heading: 'What You Can Do',
-        content: 'Flushing the tank drains out loose sediment. But if it\'s been years, the buildup may be too hardite to safely remove—disturbing it can cause more problems than it solves.'
+        heading: '✅ What can be done?',
+        content: 'Flushing the tank washes out the loose stuff. But if it\'s been building up for years, it may be too late—sometimes it\'s safer to leave it alone.'
       }
     ],
     source: 'DOE water heater maintenance recommendations'
