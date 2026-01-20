@@ -419,9 +419,7 @@ const Index = () => {
       return (
         <CommandCenter
           onPanicMode={handlePanicMode}
-          onServiceRequest={handleServiceRequest}
           onViewReport={handleViewReport}
-          onMaintenancePlan={handleMaintenancePlan}
           onTestHarness={handleOpenTestHarness}
           currentAsset={currentAsset}
           currentInputs={currentInputs}
