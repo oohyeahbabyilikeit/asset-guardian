@@ -11,8 +11,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaintenanceEducationCard } from './MaintenanceEducationCard';
 import { WaterHeaterChatbot } from './WaterHeaterChatbot';
-import { SaveReportModal, SaveReportContext } from './SaveReportModal';
-import { hasLeadBeenCaptured } from '@/lib/leadService';
 import { getCachedFinding } from '@/hooks/useGeneratedFindings';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -771,8 +769,6 @@ export function FindingsSummaryPage({
   const [showSummary, setShowSummary] = useState(false);
   const [openTopic, setOpenTopic] = useState<EducationalTopic | null>(null);
   const [showChatbot, setShowChatbot] = useState(false);
-  const [showSaveReportModal, setShowSaveReportModal] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<'options' | 'maintenance' | null>(null);
   
   const { metrics, verdict } = opterraResult;
   const violations = getIssuesByCategory(infrastructureIssues, 'VIOLATION');
@@ -1305,50 +1301,17 @@ export function FindingsSummaryPage({
     if (currentStep < findings.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Check if we should show the lead capture modal
-      const shouldCapture = !hasLeadBeenCaptured('findings_summary');
+      // Navigate directly based on recommendation
       const targetNav = (economicGuidance.recommendation === 'REPLACE_NOW' || economicGuidance.recommendation === 'REPLACE_SOON') 
         ? 'options' 
         : 'maintenance';
       
-      if (shouldCapture) {
-        setPendingNavigation(targetNav);
-        setShowSaveReportModal(true);
+      if (targetNav === 'options') {
+        onOptions();
       } else {
-        // Already captured, go directly
-        if (targetNav === 'options') {
-          onOptions();
-        } else {
-          onMaintenance();
-        }
+        onMaintenance();
       }
     }
-  };
-
-  const handleSaveReportComplete = () => {
-    setShowSaveReportModal(false);
-    if (pendingNavigation === 'options') {
-      onOptions();
-    } else {
-      onMaintenance();
-    }
-  };
-
-  const handleSaveReportSkip = () => {
-    setShowSaveReportModal(false);
-    if (pendingNavigation === 'options') {
-      onOptions();
-    } else {
-      onMaintenance();
-    }
-  };
-
-  // Build context for SaveReportModal
-  const saveReportContext: SaveReportContext = {
-    recommendationType: economicGuidance.recommendation,
-    healthScore: metrics.healthScore,
-    bioAge: metrics.bioAge,
-    topFindings: findings.filter(f => f.id !== 'economic-guidance').map(f => f.title),
   };
 
   const currentFinding = findings[currentStep];
@@ -1708,15 +1671,6 @@ export function FindingsSummaryPage({
           />
         )}
       </AnimatePresence>
-
-      {/* Save Report Modal */}
-      <SaveReportModal
-        open={showSaveReportModal}
-        onOpenChange={setShowSaveReportModal}
-        onComplete={handleSaveReportComplete}
-        onSkip={handleSaveReportSkip}
-        context={saveReportContext}
-      />
     </div>
   );
 }

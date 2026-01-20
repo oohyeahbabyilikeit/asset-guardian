@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, AlertTriangle, ShieldAlert, Droplets, Gauge, ThermometerSun, Clock, MapPin, Zap, Phone, ChevronRight, Bell } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, ShieldAlert, Droplets, Gauge, ThermometerSun, Clock, MapPin, Zap, Phone, ChevronRight } from 'lucide-react';
 import { HealthRing } from './HealthRing';
 import { ForensicInputs, OpterraResult, isTankless } from '@/lib/opterraAlgorithm';
 import { getInfrastructureIssues, InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { STRESS_FACTOR_EXPLANATIONS, getLocationKey } from '@/data/damageScenarios';
 import { motion } from 'framer-motion';
 import { IssueGuidanceDrawer } from './IssueGuidanceDrawer';
-import { NotifyMeModal } from './NotifyMeModal';
-import { toast } from 'sonner';
 
 interface CriticalAssessmentPageProps {
   inputs: ForensicInputs;
@@ -85,7 +83,6 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
   const { metrics, verdict } = opterraResult;
   const issues = getInfrastructureIssues(inputs, metrics);
   const [selectedIssue, setSelectedIssue] = useState<InfrastructureIssue | null>(null);
-  const [showNotifyModal, setShowNotifyModal] = useState(false);
   
   // Get location-based info
   const locationKey = getLocationKey(inputs.location || 'GARAGE');
@@ -256,16 +253,8 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
         </section>
       </div>
 
-      {/* Fixed CTA - dual options */}
+      {/* Fixed CTA - single option now */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border space-y-3 pb-safe">
-        <Button 
-          variant="outline"
-          onClick={() => setShowNotifyModal(true)}
-          className="w-full h-12 gap-2"
-        >
-          <Bell className="h-4 w-4" />
-          Set a Reminder
-        </Button>
         <Button 
           onClick={onScheduleService}
           className="w-full h-14 bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2 text-base"
@@ -291,17 +280,6 @@ export const CriticalAssessmentPage: React.FC<CriticalAssessmentPageProps> = ({
         manufacturer={inputs.manufacturer}
         onScheduleService={onScheduleService}
         onGetQuote={onGetQuote}
-      />
-      
-      {/* Notify Me Modal */}
-      <NotifyMeModal
-        open={showNotifyModal}
-        onOpenChange={setShowNotifyModal}
-        tasks={issues.map(issue => ({
-          id: issue.id,
-          label: issue.friendlyName,
-          dueDate: new Date(),
-        }))}
       />
     </div>
   );

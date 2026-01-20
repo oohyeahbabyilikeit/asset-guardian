@@ -9,7 +9,6 @@ import { ReplacementOptionsPage } from '@/components/ReplacementOptionsPage';
 import { PanicMode } from '@/components/PanicMode';
 import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { EducationPage } from '@/components/EducationPage';
-import { ContactFormPage } from '@/components/ContactFormPage';
 
 import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
@@ -30,7 +29,6 @@ type AppScreen =
   | 'test-harness'
   | 'forensic-report'
   | 'education-page'
-  | 'contact-form'
   | 'replacement-options'
   | 'panic-mode'
   | 'maintenance-plan'
@@ -43,7 +41,6 @@ interface AppState {
   onboardingData: OnboardingData | null;
   demoScenario: GeneratedScenario | null;
   showQuoteLoader?: boolean;
-  pendingDestination?: 'maintenance-plan' | 'contact-form';
 }
 
 const Index = () => {
@@ -160,17 +157,13 @@ const Index = () => {
 
   // handleServiceRequest is defined after opterraResult useMemo (see below)
 
-  // Handle navigation from education to next destination
+  // Handle navigation from education back to command center
   const handleEducationContinue = useCallback(() => {
-    setState(prev => {
-      const destination = prev.pendingDestination || 'contact-form';
-      console.log('[nav] handleEducationContinue ->', destination);
-      return {
-        ...prev,
-        screen: destination,
-        pendingDestination: undefined,
-      };
-    });
+    console.log('[nav] handleEducationContinue -> command-center');
+    setState(prev => ({
+      ...prev,
+      screen: 'command-center',
+    }));
   }, []);
 
   // Handle navigation to replacement options (from maintenance plan critical state)
@@ -458,20 +451,6 @@ const Index = () => {
         />
       );
 
-    case 'contact-form':
-      return (
-        <ContactFormPage
-          captureSource="findings_cta"
-          captureContext={{
-            recommendation: opterraResult.verdict,
-            healthScore: opterraResult.metrics.healthScore,
-            bioAge: opterraResult.metrics.bioAge,
-          }}
-          urgencyLevel={isCritical ? 'red' : isHealthy ? 'green' : 'yellow'}
-          onComplete={handleBackToCommandCenter}
-          onBack={() => setState(prev => ({ ...prev, screen: 'education-page' }))}
-        />
-      );
 
     case 'replacement-options':
       return (
@@ -510,11 +489,7 @@ const Index = () => {
           inputs={currentInputs}
           opterraResult={opterraResult}
           onBack={handleBackToCommandCenter}
-          onScheduleService={() => {
-            // From critical assessment, go directly to contact form
-            console.log('[nav] CriticalAssessment -> contact-form');
-            setState(prev => ({ ...prev, screen: 'contact-form' }));
-          }}
+          onScheduleService={handleServiceRequest}
           onGetQuote={handleReplacementOptions}
         />
       );
