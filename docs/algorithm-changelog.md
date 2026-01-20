@@ -4,6 +4,12 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v8.1 (Critical Fixes)
+- **FIX "Statistical Ceiling"**: Raised `MAX_BIO_AGE` from 25 to 50. Old cap limited `failProb` to ~40%, making the 85% STATISTICAL_CAP unreachable. Now catastrophically stressed tanks correctly show 60-85% failure probability.
+- **FIX "Silent Killer"**: Transient pressure penalty now applies INDEPENDENTLY of static PSI. A tank cycling 60→120→60 PSI (closed loop, no expansion tank) now correctly shows ~1.4x pressure stress instead of 1.0.
+- **FIX "Suppressible Fatigue"**: Moved `loopPenalty` (thermal expansion) from `chemicalStress` to `mechanicalStress`. Metal fatigue from tank flexing cannot be prevented by an anode rod - it's physics, not electrochemistry.
+- **FIX "Doomsday Projection"**: Years remaining calculation now uses phase-aware aging. A 2-year tank with active anode projects using `protectedStress` rate, only switching to `nakedStress` after projected anode depletion.
+
 ## v8.0 (Critical Bug Fixes)
 - **FIX "Perfect Tank Inversion"**: Protected phase now uses multiplicative formula `mech * (1 + (chem - 1) * 0.1)` instead of additive `mech + (chem * 0.1)`. Fixes bug where protected tank aged FASTER than naked tank under ideal conditions.
 - **FIX "Lazarus Effect"**: Added `yearsWithoutAnode` and `yearsWithoutSoftener` inputs to track ACTUAL exposure history. Prevents new anode/softener from retroactively "healing" past damage.

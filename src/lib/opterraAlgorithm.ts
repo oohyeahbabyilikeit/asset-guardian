@@ -1,7 +1,13 @@
 /**
- * OPTERRA v8.0 Risk Calculation Engine
+ * OPTERRA v8.1 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
+ * 
+ * v8.1 Bug Fixes:
+ * - FIX "Statistical Ceiling": Raised MAX_BIO_AGE from 25 to 50 (allows 85% failProb)
+ * - FIX "Silent Killer": Transient pressure penalty now independent of static PSI
+ * - FIX "Suppressible Fatigue": loopPenalty moved to mechanical stress (not anode-suppressible)
+ * - FIX "Doomsday Projection": Phase-aware aging projection for new tanks
  * 
  * v8.0 Bug Fixes:
  * - FIX "Perfect Tank Inversion": Protected phase now uses multiplicative formula
@@ -409,8 +415,8 @@ const CONSTANTS = {
   
   // Limits
   MAX_STRESS_CAP: 12.0,    
-  MAX_BIO_AGE: 25,         
-  STATISTICAL_CAP: 85.0,   
+  MAX_BIO_AGE: 50,         // FIX v8.1: Raised from 25 to allow Weibull to reach STATISTICAL_CAP (85%)
+  STATISTICAL_CAP: 85.0,
   VISUAL_CAP: 99.9,        
   
   LIMIT_PSI_SAFE: 80,      
@@ -934,20 +940,27 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
 
   let pressureStress = 1.0;
+  
+  // FIX v8.1 "Silent Killer": Transient pressure penalty applies INDEPENDENTLY
+  // A tank cycling 60→120→60 PSI suffers cyclic fatigue EVEN IF static pressure is safe
+  // The Thermal Expansion spike (PSI_THERMAL_SPIKE = 120) is the damage source
+  if (isTransient && !data.hasExpTank) {
+    // Calculate penalty based on thermal spike magnitude, not static PSI
+    const spikePsi = CONSTANTS.PSI_THERMAL_SPIKE; // 120 PSI
+    const spikeExcess = spikePsi - CONSTANTS.PSI_SAFE_LIMIT; // 120 - 80 = 40
+    const cyclicFatiguePenalty = Math.pow(spikeExcess / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
+    // Apply duty cycle dampener (v6.6) - not every spike is max amplitude
+    pressureStress = 1.0 + (cyclicFatiguePenalty * 0.25);
+  }
+
+  // THEN check static high pressure (additive if both present)
   if (effectivePsi > CONSTANTS.PSI_SAFE_LIMIT) {
     const excessPsi = effectivePsi - CONSTANTS.PSI_SAFE_LIMIT;
-    let rawPenalty = Math.pow(excessPsi / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
-    
+    const staticPenalty = Math.pow(excessPsi / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
     // FIX v7.7 "Transient Pressure Inversion": CYCLIC stress is WORSE than static
-    // In pressure vessel mechanics, cyclic fatigue (fluctuation) is exponentially 
-    // more damaging to welds than static load. A tank cycling 60→120→60 PSI daily 
-    // experiences far more metal fatigue than one holding steady at 100 PSI.
-    // INVERTED from v6.6: Transient spikes now MULTIPLY penalty, not reduce it.
-    if (isTransient) {
-      rawPenalty = rawPenalty * 1.5; // Cyclic fatigue is 50% MORE damaging than static
-    }
-    
-    pressureStress = 1.0 + rawPenalty;
+    // If also transient (high static + cycling), compound the damage
+    const transientMultiplier = isTransient ? 1.5 : 1.0;
+    pressureStress += staticPenalty * transientMultiplier;
   }
 
   // B. Sediment (Thermal Stress / Overheating) - 100% mechanical
@@ -957,9 +970,15 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // Calibrated: 4 lbs = 1.05x, 10 lbs = 1.33x, 15 lbs = 1.75x (Lockout Threshold)
   const sedimentStress = 1.0 + ((sedimentLbs * sedimentLbs) / 300);
 
+  // E. Closed Loop (Thermal Expansion Fatigue)
+  // FIX v8.1 "Suppressible Fatigue": This is MECHANICAL (metal flexing), not chemical
+  // The anode CANNOT prevent thermal expansion stress - it's pure physics, not corrosion
+  const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;
+  
   // Combine mechanical stresses - these hurt the tank from Day 1
   // NEW v6.9: Include undersizing penalty (more cycling = more fatigue)
-  const mechanicalStress = pressureStress * sedimentStress * undersizingPenalty;
+  // FIX v8.1: Include loopPenalty (thermal expansion is mechanical fatigue)
+  const mechanicalStress = pressureStress * sedimentStress * undersizingPenalty * loopPenalty;
 
 
   // === CHEMICAL STRESS (Corrosion - Anode CAN Prevent) ===
@@ -994,11 +1013,6 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
 
   // D. Circulation (Erosion-Corrosion & Duty Cycle) - 100% chemical
   const circStress = data.hasCircPump ? 1.4 : 1.0;
-
-  // E. Closed Loop (Oxygen Cycling)
-  // We reduced the penalty here because the pressure penalty is now handled 
-  // correctly in 'pressureStress' via the getEffectivePressure() function.
-  const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;
   
   // FIX v8.0 "Hybrid Suffocation Category Error": Heat pump efficiency penalty
   // REMOVED from chemicalStress - suffocation affects EFFICIENCY, not TANK CORROSION
@@ -1033,11 +1047,12 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
 
   // Combine chemical stresses
   // FIX v8.0: REMOVED hybridSuffocationPenalty and compressorPenalty from chemicalStress
-  // These affect operating EFFICIENCY/COST, not tank CORROSION/LEAKAGE risk
-  const chemicalStress = tempChemical * circStress * loopPenalty;
+  // FIX v8.1: REMOVED loopPenalty (moved to mechanicalStress - it's metal fatigue, not corrosion)
+  const chemicalStress = tempChemical * circStress;
 
   // Legacy: corrosionStress for backward compatibility (includes all old factors)
-  const corrosionStress = tempStressRaw * circStress * loopPenalty * sedimentStress;
+  // Note: loopPenalty is now in mechanical, but kept here for API compatibility
+  const corrosionStress = tempStressRaw * circStress * sedimentStress;
   
   // Combined stress for UI display (Aging Speedometer)
   const mechanicalWithTempExpansion = mechanicalStress * tempMechanical;
@@ -1130,29 +1145,64 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   }
 
   // AGING SPEEDOMETER CALCULATIONS
-  const currentAgingRate = totalStress;
+  // FIX v8.1 "Doomsday Projection": Use PHASE-AWARE aging rate
+  // If anode is still active, project using protected rate
+  // Only switch to naked rate when anode is projected to deplete
+  
+  const anodeRemainingYears = Math.max(0, effectiveShieldDuration - (data.lastAnodeReplaceYearsAgo ?? age));
+  const isAnodeActive = anodeRemainingYears > 0 && timeNaked === 0;
+  
+  // Calculate current aging rate based on anode status
+  const currentAgingRate = isAnodeActive ? protectedStress : nakedStress;
 
   // Calculate OPTIMIZED stress (what if we fix pressure + expansion tank?)
   const optimizedPressureStress = 1.0;  // Fixed to 60 PSI
   const optimizedLoopPenalty = 1.0;     // Expansion tank installed
-  const optimizedMechanical = optimizedPressureStress * sedimentStress * tempMechanical;
-  const optimizedChemical = tempChemical * circStress * optimizedLoopPenalty;
-  const optimizedStress = Math.min(
-    optimizedMechanical * optimizedChemical,
-    CONSTANTS.MAX_STRESS_CAP
-  );
+  const optimizedMechanical = optimizedPressureStress * sedimentStress * tempMechanical * optimizedLoopPenalty;
+  const optimizedChemical = tempChemical * circStress;
+  const optimizedStressRaw = optimizedMechanical * optimizedChemical;
+  const optimizedProtectedStress = optimizedMechanical * (1.0 + (optimizedChemical - 1.0) * 0.1);
+  const optimizedNakedStress = Math.min(optimizedStressRaw, CONSTANTS.MAX_STRESS_CAP);
+  const optimizedAgingRate = isAnodeActive ? optimizedProtectedStress : optimizedNakedStress;
 
   // Calculate remaining capacity and life projection
   const remainingCapacity = Math.max(0, CONSTANTS.MAX_BIO_AGE - bioAge);
   
   // CRITICAL: If tank is breached (leaking or rust), remaining life is ZERO
   const isBreach = data.visualRust || data.isLeaking;
-  const yearsLeftCurrent = isBreach 
-    ? 0 
-    : (remainingCapacity > 0 ? remainingCapacity / currentAgingRate : 0);
-  const yearsLeftOptimized = isBreach 
-    ? 0 
-    : (remainingCapacity > 0 ? remainingCapacity / optimizedStress : 0);
+
+  // Project years remaining using phase-aware rates
+  let yearsLeftCurrent: number;
+  let yearsLeftOptimized: number;
+
+  if (isBreach) {
+    yearsLeftCurrent = 0;
+    yearsLeftOptimized = 0;
+  } else if (remainingCapacity <= 0) {
+    yearsLeftCurrent = 0;
+    yearsLeftOptimized = 0;
+  } else {
+    // Two-phase projection: protected years + naked years
+    if (isAnodeActive) {
+      // Project how far we get on protected rate before anode depletes
+      const protectedCapacityUsed = anodeRemainingYears * currentAgingRate;
+      const capacityAfterProtection = Math.max(0, remainingCapacity - protectedCapacityUsed);
+      // Then continue on naked rate
+      const nakedYearsAfter = capacityAfterProtection > 0 ? capacityAfterProtection / nakedStress : 0;
+      yearsLeftCurrent = anodeRemainingYears + nakedYearsAfter;
+      
+      // Same for optimized
+      const optProtectedUsed = anodeRemainingYears * optimizedAgingRate;
+      const optCapacityAfter = Math.max(0, remainingCapacity - optProtectedUsed);
+      const optNakedAfter = optCapacityAfter > 0 ? optCapacityAfter / optimizedNakedStress : 0;
+      yearsLeftOptimized = anodeRemainingYears + optNakedAfter;
+    } else {
+      // Anode depleted, simple projection
+      yearsLeftCurrent = remainingCapacity / currentAgingRate;
+      yearsLeftOptimized = remainingCapacity / optimizedAgingRate;
+    }
+  }
+  
   const lifeExtension = isBreach ? 0 : Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
 
   // Identify primary stressor for UX messaging
@@ -1205,7 +1255,7 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     monthsToLockout,
     flushStatus,
     agingRate: parseFloat(currentAgingRate.toFixed(2)),
-    optimizedRate: parseFloat(optimizedStress.toFixed(2)),
+    optimizedRate: parseFloat(optimizedAgingRate.toFixed(2)),
     yearsLeftCurrent: parseFloat(yearsLeftCurrent.toFixed(1)),
     yearsLeftOptimized: parseFloat(yearsLeftOptimized.toFixed(1)),
     lifeExtension: parseFloat(lifeExtension.toFixed(1)),
