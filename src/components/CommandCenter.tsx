@@ -1,22 +1,21 @@
-import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { motion, useMotionValue, animate } from 'framer-motion';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { HealthGauge } from '@/components/HealthGauge';
 import { ServiceHistory } from '@/components/ServiceHistory';
 import { ActionDock } from '@/components/ActionDock';
-import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
 import { IssueGuidanceDrawer } from '@/components/IssueGuidanceDrawer';
-import { EducationalContext } from '@/hooks/useEducationalContent';
+import { ServiceSelectionDrawer } from '@/components/ServiceSelectionDrawer';
+import { PlumberContactForm } from '@/components/PlumberContactForm';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
 import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
 import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
-import { AssetNavigation } from '@/components/AssetNavigation';
-import { TanklessDiagram } from '@/components/TanklessDiagram';
 import { HealthScore, AssetData } from '@/data/mockAsset';
-import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
 import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
+import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
+import { type MaintenanceTask } from '@/lib/maintenanceCalculations';
 
 // Elegant easing curve for sophisticated feel - must be tuple for framer-motion
 const elegantEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -128,12 +127,10 @@ function getStatusFromValue(value: number, thresholdModerate: number, thresholdC
 interface CommandCenterProps {
   currentAsset: AssetData;
   currentInputs: ForensicInputs;
-  opterraResult?: OpterraResult; // NEW: Accept pre-calculated result for continuity
+  opterraResult?: OpterraResult; // Accept pre-calculated result for continuity
   onTestHarness?: () => void;
   onRandomize?: () => void;
   onPanicMode?: () => void;
-  onServiceRequest?: () => void;
-  onMaintenancePlan?: () => void;
   onViewReport?: () => void;
   onInputsChange?: (inputs: ForensicInputs) => void;
   onSwitchAsset?: (asset: 'water-heater' | 'softener') => void;
@@ -151,8 +148,6 @@ export function CommandCenter({
   onTestHarness,
   onRandomize,
   onPanicMode,
-  onServiceRequest,
-  onMaintenancePlan,
   onViewReport,
   onInputsChange,
   onSwitchAsset,
@@ -165,6 +160,11 @@ export function CommandCenter({
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<InfrastructureIssue | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
+  
+  // Lead capture flow state
+  const [showServiceSelection, setShowServiceSelection] = useState(false);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<MaintenanceTask[]>([]);
   
   // Single container ref for smooth scrolling
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -431,6 +431,54 @@ export function CommandCenter({
     setSelectedIssue(issue);
   };
 
+  // Lead capture handlers
+  const handleGetExpertHelp = () => {
+    setShowServiceSelection(true);
+  };
+
+  const handleServiceSelectionSubmit = (tasks: MaintenanceTask[]) => {
+    setSelectedTasks(tasks);
+    setShowServiceSelection(false);
+    setShowContactForm(true);
+  };
+
+  const handleContactFormSubmit = () => {
+    setShowContactForm(false);
+    setSelectedTasks([]);
+  };
+
+  // Get maintenance tasks for service selection
+  const infrastructureIssues = getInfrastructureIssues(currentInputs, metrics);
+  const violationTasks: MaintenanceTask[] = infrastructureIssues.map(issue => ({
+    type: issue.id.includes('exp_tank') ? 'exp_tank_install' : issue.id.includes('prv') ? 'prv_install' : 'inspection',
+    label: issue.name,
+    description: issue.description,
+    monthsUntilDue: 0,
+    urgency: 'overdue' as const,
+    benefit: issue.friendlyName,
+    whyExplanation: issue.description,
+    icon: 'alert' as const,
+    isInfrastructure: true,
+  }));
+
+  // Simple maintenance tasks based on unit type
+  const mapFlushStatus = (status: typeof flushStatus): MaintenanceTask['urgency'] => {
+    if (status === 'lockout') return 'overdue';
+    if (status === 'due') return 'due';
+    if (status === 'schedule') return 'schedule';
+    return 'optimal';
+  };
+
+  const maintenanceTasks: MaintenanceTask[] = isTanklessUnit 
+    ? [
+        { type: 'descale', label: 'Descale', description: 'Remove scale buildup', monthsUntilDue: 0, urgency: 'schedule' as const, benefit: 'Restore flow rate', whyExplanation: '', icon: 'droplets' as const },
+        { type: 'filter_clean' as MaintenanceTask['type'], label: 'Filter Clean', description: 'Clean inlet filter', monthsUntilDue: 0, urgency: 'schedule' as const, benefit: 'Maintain flow', whyExplanation: '', icon: 'filter' as const },
+      ]
+    : [
+        { type: 'flush', label: 'Tank Flush', description: 'Drain sediment', monthsUntilDue: monthsToFlush ?? 6, urgency: mapFlushStatus(flushStatus), benefit: 'Restore efficiency', whyExplanation: '', icon: 'droplets' as const },
+        { type: 'anode', label: 'Anode Inspection', description: 'Check corrosion protection', monthsUntilDue: 12, urgency: 'schedule' as const, benefit: 'Extend tank life', whyExplanation: '', icon: 'shield' as const },
+      ];
+
   return (
     <div 
       ref={scrollContainerRef}
@@ -559,19 +607,8 @@ export function CommandCenter({
       >
         <ActionDock
           onPanicMode={onPanicMode}
-          onServiceRequest={onServiceRequest}
-          onMaintenancePlan={onMaintenancePlan}
-          recommendation={recommendation}
-          fuelType={currentInputs.fuelType}
+          onServiceRequest={handleGetExpertHelp}
           position="static"
-          // Tank-specific
-          monthsToFlush={monthsToFlush}
-          flushStatus={flushStatus}
-          // Tankless-specific
-          monthsToDescale={isTanklessUnit ? (descaleStatus === 'due' || descaleStatus === 'critical' ? 0 : 12) : undefined}
-          descaleStatus={descaleStatus === 'impossible' ? 'lockout' : descaleStatus === 'lockout' ? 'lockout' : (descaleStatus as 'optimal' | 'schedule' | 'due' | 'lockout' | undefined)}
-          // Hybrid-specific
-          airFilterStatus={currentInputs.airFilterStatus}
         />
       </motion.div>
 
@@ -596,8 +633,24 @@ export function CommandCenter({
         recommendation={recommendation}
         healthScore={dynamicHealthScore.score}
         manufacturer={currentInputs.manufacturer}
-        onScheduleService={onServiceRequest}
-        onGetQuote={onMaintenancePlan} // Goes to replacement flow for non-serviceable units
+        onScheduleService={handleGetExpertHelp}
+        onGetQuote={handleGetExpertHelp}
+      />
+
+      {/* Service Selection Drawer - pick what you need help with */}
+      <ServiceSelectionDrawer
+        open={showServiceSelection}
+        onOpenChange={setShowServiceSelection}
+        violations={violationTasks}
+        maintenanceTasks={maintenanceTasks}
+        onSubmit={handleServiceSelectionSubmit}
+      />
+
+      {/* Contact Form Modal - lead capture */}
+      <PlumberContactForm
+        open={showContactForm}
+        onOpenChange={setShowContactForm}
+        onSubmit={handleContactFormSubmit}
       />
     </div>
   );
