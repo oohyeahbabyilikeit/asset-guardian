@@ -18,7 +18,9 @@ export type EducationalTopic =
   | 'pressure' 
   | 'thermal-expansion' 
   | 'anode-rod' 
+  | 'anode-rod-fused'
   | 'sediment' 
+  | 'sediment-risky'
   | 'scale-tankless'
   | 'prv'
   | 'failure-rate'
@@ -183,6 +185,46 @@ export const topicContent: Record<EducationalTopic, {
       {
         heading: '✅ What can be done?',
         content: 'Flushing the tank washes out the loose stuff. But if it\'s been building up for years, it may be too late—sometimes it\'s safer to leave it alone.'
+      }
+    ],
+    source: 'DOE water heater maintenance recommendations'
+  },
+  'anode-rod-fused': {
+    icon: <Shield className="w-5 h-5" />,
+    title: 'Anode Life',
+    description: 'The protective rod inside your tank may be stuck.',
+    sections: [
+      {
+        heading: '🛡️ What is it?',
+        content: 'Your tank has a metal rod inside that protects it from rust. It\'s like a bodyguard—it takes the damage so your tank doesn\'t.'
+      },
+      {
+        heading: '⚠️ Why we can\'t replace it now',
+        content: 'After many years, this rod often gets "stuck" in place from rust and mineral buildup. Trying to remove it can crack the tank or break the plumbing connections.'
+      },
+      {
+        heading: '📋 What this means',
+        content: 'The protection is gone, but attempting a fix could cause bigger problems. At this point, it\'s best to monitor the tank and plan for replacement when the time is right.'
+      }
+    ],
+    source: 'Water heater manufacturer maintenance guidelines'
+  },
+  'sediment-risky': {
+    icon: <Droplets className="w-5 h-5" />,
+    title: 'Sediment',
+    description: 'There\'s buildup in your tank, but flushing may not be safe.',
+    sections: [
+      {
+        heading: '🪨 What is it?',
+        content: 'Over the years, minerals from your water have settled at the bottom of your tank. Think of it like sand piling up.'
+      },
+      {
+        heading: '⚠️ Why we can\'t just flush it',
+        content: 'When there\'s too much buildup, flushing can stir it up and clog the drain valve open—causing a flood. Or it can crack loose chunks that damage the tank.'
+      },
+      {
+        heading: '📋 What this means',
+        content: 'It\'s safer to leave it alone and monitor for signs of trouble. Your plumber can explain what to watch for and when replacement makes sense.'
       }
     ],
     source: 'DOE water heater maintenance recommendations'

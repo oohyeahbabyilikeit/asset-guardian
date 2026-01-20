@@ -42,6 +42,9 @@ interface ServiceHistoryProps {
   hasIsolationValves?: boolean;
   descaleStatus?: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible' | 'run_to_failure';
   healthScore?: number;  // From algorithm for tankless display
+  // Service history tracking for context-aware education
+  lastAnodeReplaceYearsAgo?: number | null;
+  lastFlushYearsAgo?: number | null;
 }
 
 // Integrated Water Heater SVG Diagram Component
@@ -903,6 +906,9 @@ export function ServiceHistory({
   descaleStatus = 'optimal',
   healthScore = 75,
   recommendationType,
+  // Service history for context-aware education
+  lastAnodeReplaceYearsAgo,
+  lastFlushYearsAgo,
 }: ServiceHistoryProps) {
   // Breach detection
   const isBreach = isLeaking || visualRust;
@@ -917,6 +923,16 @@ export function ServiceHistory({
   // Default to closed - user can expand to see details
   const [isOpen, setIsOpen] = useState(false);
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
+
+  // Context-aware educational topic selection
+  // Anode: If tank is >6 years old and never serviced, rod is likely fused
+  const neverServicedAnode = lastAnodeReplaceYearsAgo === undefined || lastAnodeReplaceYearsAgo === null;
+  const isAnodeFusedRisk = neverServicedAnode && calendarAge > 6;
+  const anodeEducationTopic: EducationalTopic = isAnodeFusedRisk ? 'anode-rod-fused' : 'anode-rod';
+  
+  // Sediment: If >10 lbs, flushing is risky
+  const isSedimentRisky = sedimentLbs > 10;
+  const sedimentEducationTopic: EducationalTopic = isSedimentRisky ? 'sediment-risky' : 'sediment';
 
   // Calculate anode depletion percentage (0-100, where 100 = fully depleted)
   const maxAnodeLife = hasSoftener ? 2.5 : 6; // Years
@@ -1073,7 +1089,7 @@ export function ServiceHistory({
               // TANK/HYBRID: Show Anode Life and Sediment (clickable for education)
               <>
                 <button 
-                  onClick={() => setEducationalTopic('anode-rod')}
+                  onClick={() => setEducationalTopic(anodeEducationTopic)}
                   className="text-center data-display px-4 py-2 flex-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
                 >
                   <div className={cn(
@@ -1088,7 +1104,7 @@ export function ServiceHistory({
                   </div>
                 </button>
                 <button 
-                  onClick={() => setEducationalTopic('sediment')}
+                  onClick={() => setEducationalTopic(sedimentEducationTopic)}
                   className="text-center data-display px-4 py-2 flex-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
                 >
                   <div className={cn(
