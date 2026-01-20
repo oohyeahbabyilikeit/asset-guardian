@@ -162,7 +162,7 @@ export const topicContent: Record<EducationalTopic, {
       },
       {
         heading: '✅ Good news',
-        content: 'Replacing it is cheap ($20-50) and can add years to your water heater\'s life. It\'s like changing the oil in your car.'
+        content: 'Replacing it is a quick job and can add years to your water heater\'s life. It\'s one of the easiest ways to protect your investment.'
       }
     ],
     source: 'Water heater manufacturer maintenance guidelines'
