@@ -53,6 +53,7 @@ export function ServiceSelectionDrawer({
       if (task.type.includes('prv')) return Gauge;
       return AlertTriangle;
     }
+    if (task.type === 'replacement_consult') return Wrench;
     switch (task.icon) {
       case 'droplets': return Droplets;
       case 'shield': return Shield;
@@ -64,6 +65,11 @@ export function ServiceSelectionDrawer({
       default: return Droplets;
     }
   };
+  
+  // Check if we're showing replacement option (different styling)
+  const hasReplacementTask = maintenanceTasks.some(t => t.type === 'replacement_consult');
+  const regularMaintenanceTasks = maintenanceTasks.filter(t => t.type !== 'replacement_consult');
+  const replacementTasks = maintenanceTasks.filter(t => t.type === 'replacement_consult');
   
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -115,8 +121,47 @@ export function ServiceSelectionDrawer({
             </div>
           )}
           
+          {/* Replacement Consultation Section - shown prominently when replacement is recommended */}
+          {replacementTasks.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-medium text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5" />
+                Recommended Action
+              </h3>
+              <div className="space-y-2">
+                {replacementTasks.map(task => {
+                  const IconComponent = getIcon(task);
+                  const isSelected = selectedTypes.has(task.type);
+                  return (
+                    <button
+                      key={task.type}
+                      onClick={() => toggleTask(task.type)}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                        isSelected 
+                          ? "border-amber-500 bg-amber-500/10" 
+                          : "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                        isSelected ? "bg-amber-500 text-white" : "bg-amber-500/15 text-amber-600"
+                      )}>
+                        {isSelected ? <Check className="w-5 h-5" /> : <IconComponent className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground">{task.label}</p>
+                        <p className="text-xs text-muted-foreground">{task.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Maintenance Tasks Section */}
-          {maintenanceTasks.length > 0 && (
+          {regularMaintenanceTasks.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -130,7 +175,7 @@ export function ServiceSelectionDrawer({
                 </button>
               </div>
               <div className="space-y-2">
-                {maintenanceTasks.map(task => {
+                {regularMaintenanceTasks.map(task => {
                   const IconComponent = getIcon(task);
                   const isSelected = selectedTypes.has(task.type);
                   const isOverdue = task.urgency === 'overdue' || task.monthsUntilDue <= 0;
