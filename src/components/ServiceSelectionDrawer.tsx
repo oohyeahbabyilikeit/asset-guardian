@@ -233,15 +233,15 @@ export function ServiceSelectionDrawer({
             </div>
           )}
           
-          {/* Replacement Consultation Section - shown prominently when replacement is recommended */}
-          {replacementTasks.length > 0 && (
+          {/* Recommendations Section - Urgent Actions */}
+          {recommendations.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-medium text-warning uppercase tracking-wider flex items-center gap-1.5">
-                <Wrench className="w-3.5 h-3.5" />
-                Worth Discussing
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Urgent Actions
               </h3>
               <div className="space-y-2">
-                {replacementTasks.map(task => {
+                {recommendations.map(task => {
                   const IconComponent = getIcon(task);
                   const isSelected = selectedTypes.has(task.type);
                   return (
@@ -263,7 +263,7 @@ export function ServiceSelectionDrawer({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-foreground">{task.label}</p>
-                        <p className="text-xs text-muted-foreground">{task.description}</p>
+                        <p className="text-xs text-muted-foreground truncate">{task.benefit}</p>
                       </div>
                     </button>
                   );
@@ -272,15 +272,15 @@ export function ServiceSelectionDrawer({
             </div>
           )}
 
-          {/* Recommendations Section - separate from maintenance and violations */}
-          {recommendations.length > 0 && (
+          {/* Replacement Consultation Section - Add-ons */}
+          {replacementTasks.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-medium text-accent-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Lightbulb className="w-3.5 h-3.5" />
-                Recommendations
+                Add-Ons
               </h3>
               <div className="space-y-2">
-                {recommendations.map(task => {
+                {replacementTasks.map(task => {
                   const IconComponent = getIcon(task);
                   const isSelected = selectedTypes.has(task.type);
                   return (
@@ -302,7 +302,7 @@ export function ServiceSelectionDrawer({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-foreground">{task.label}</p>
-                        <p className="text-xs text-muted-foreground truncate">{task.benefit}</p>
+                        <p className="text-xs text-muted-foreground">{task.description}</p>
                       </div>
                     </button>
                   );
