@@ -88,17 +88,14 @@ export function generateRandomScenario(): GeneratedScenario {
   const archetype = weightedPick(ARCHETYPES);
   const config = archetype.config;
   
-  // Pick fuel type with realistic distribution
+  // Pick fuel type - tank water heaters only for demo scenarios
   const fuelTypeWeights = [
-    { type: 'GAS' as FuelType, weight: 0.45 },
-    { type: 'ELECTRIC' as FuelType, weight: 0.35 },
-    { type: 'HYBRID' as FuelType, weight: 0.08 },
-    { type: 'TANKLESS_GAS' as FuelType, weight: 0.08 },
-    { type: 'TANKLESS_ELECTRIC' as FuelType, weight: 0.04 },
+    { type: 'GAS' as FuelType, weight: 0.55 },
+    { type: 'ELECTRIC' as FuelType, weight: 0.45 },
   ];
   const fuelType = weightedPick(fuelTypeWeights).type;
-  const isTankless = fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
-  const isHybrid = fuelType === 'HYBRID';
+  const isTankless = false;
+  const isHybrid = false;
   
   // Pick brand/model
   const brandData = pick(BRANDS[fuelType]);
