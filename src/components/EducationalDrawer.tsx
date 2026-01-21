@@ -29,7 +29,8 @@ export type EducationalTopic =
   | 'thermal'
   | 'temperature'
   | 'tank-failure'
-  | 'heat-exchanger';
+  | 'heat-exchanger'
+  | 'replacement-consultation';
 
 interface EducationalDrawerProps {
   topic: EducationalTopic;
@@ -392,6 +393,30 @@ export const topicContent: Record<EducationalTopic, {
       }
     ],
     source: 'Water heater manufacturer safety guidelines'
+  },
+  'replacement-consultation': {
+    icon: <Info className="w-5 h-5" />,
+    title: 'Why We Recommend a Consultation',
+    description: 'Understanding when professional review makes sense',
+    sections: [
+      {
+        heading: '🔍 What This Means',
+        content: 'Based on your unit\'s age, condition, and risk factors, we believe a professional conversation about your options is worthwhile. This isn\'t a sales pitch—it\'s about understanding what\'s realistic for your situation.'
+      },
+      {
+        heading: '⚠️ Why Repairs May Not Be Recommended',
+        content: 'Older units or those with multiple risk factors often can\'t safely receive certain repairs. Disturbing fittings on an aged tank can cause leaks. Investing in repairs on a unit near end-of-life may not be cost-effective or physically responsible.'
+      },
+      {
+        heading: '📋 What We\'ll Discuss',
+        content: 'A consultation covers your timeline flexibility, budget considerations, and whether immediate action is needed. We\'ll explain your unit\'s specific situation and help you make an informed decision—no pressure, no obligation.'
+      },
+      {
+        heading: '✅ Your Options',
+        content: 'Some units can safely continue operating with monitoring. Others benefit from proactive replacement before an emergency. A professional can assess your specific situation and help you plan accordingly.'
+      }
+    ],
+    source: 'Based on industry best practices for equipment lifecycle management'
   }
 };
 
