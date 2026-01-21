@@ -424,6 +424,8 @@ const Index = () => {
           hasSoftener={hasSoftener}
           waterHeaterStatus={whStatus}
           softenerStatus="optimal"
+          homeownerName={state.technicianData?.homeownerContext?.name}
+          contractorName={state.technicianData?.contractorContext?.companyName}
         />
       );
 

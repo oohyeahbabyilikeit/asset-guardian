@@ -276,10 +276,17 @@ export function TechnicianFlow({ onComplete, onBack, initialStreetHardness = 10 
     setData(prev => ({ ...prev, buildingType }));
   }, []);
 
-  const handleComplete = useCallback(async () => {
+  const handleComplete = useCallback(async (context: { handoffMode: 'tablet' | 'remote'; homeownerName?: string }) => {
     const finalData: TechnicianInspectionData = {
       ...data,
       inspectedAt: new Date().toISOString(),
+      handoffMode: context.handoffMode,
+      homeownerContext: context.homeownerName ? { name: context.homeownerName } : undefined,
+      // TODO: contractorContext should come from authenticated user profile
+      contractorContext: {
+        companyName: 'Your Plumbing Co.', // Placeholder until auth
+        companyPhone: '555-0199',          // Placeholder until auth
+      },
     };
     
     const photos: { url: string; type: 'pressure' | 'condition' | 'dataplate' | 'other' }[] = [];

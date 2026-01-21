@@ -136,6 +136,9 @@ interface CommandCenterProps {
   hasSoftener?: boolean;
   waterHeaterStatus?: 'optimal' | 'warning' | 'critical';
   softenerStatus?: 'optimal' | 'warning' | 'critical';
+  // Chain of custody branding
+  homeownerName?: string;
+  contractorName?: string;
 }
 
 export function CommandCenter({
@@ -153,6 +156,8 @@ export function CommandCenter({
   hasSoftener = false,
   waterHeaterStatus = 'optimal',
   softenerStatus,
+  homeownerName,
+  contractorName,
 }: CommandCenterProps) {
   const [educationalTopic, setEducationalTopic] = useState<EducationalTopic | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<InfrastructureIssue | null>(null);
@@ -576,6 +581,8 @@ export function CommandCenter({
           waterHeaterStatus={waterHeaterStatus}
           softenerStatus={softenerStatus}
           hasSoftener={hasSoftener}
+          homeownerName={homeownerName}
+          contractorName={contractorName}
         />
 
         {/* Animated Dashboard Content */}
