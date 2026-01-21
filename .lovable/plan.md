@@ -1,142 +1,137 @@
 
+# Algorithm Tuning: "Infrastructure First" Gate for Young Tanks
 
-# Hard Water Tax Card - Copy Refinements
+## Problem Statement
+A 3-year-old basement unit without an expansion tank is being shown "replacement" language in the UI, even though the algorithm correctly returns a `REPAIR` verdict. This feels too aggressive.
 
-## Overview
-This plan implements your feedback to make the Hard Water Tax card more "grandma-friendly" by removing accountant-speak and using terminology that resonates with homeowners' daily concerns.
+**Root Cause**: The financial forecast and "years remaining" calculations use the **current accelerated aging rate** instead of the **optimized rate** that assumes infrastructure fixes are applied. This makes young tanks with correctable issues look like they're nearing end-of-life.
 
 ---
 
-## Task 1: Simplify the ROI Math (Green "With a Softener" Box)
+## Current Behavior
 
-### Problem
-- "amortized" is jargon homeowners won't understand
-- "Pays for itself in ~8 yrs" feels like a long wait
+For a 3-year-old tank in a closed loop without expansion tank:
 
-### Solution
-Replace payback period with a compelling **10-year total savings** figure that emphasizes the cumulative benefit.
+| Metric | Current Value | Issue |
+|--------|---------------|-------|
+| Verdict | `REPAIR` ✓ | Correct |
+| Aging Rate | ~2.5x | High due to thermal expansion stress |
+| Years Remaining | (13 - 3) / 2.5 = **4 years** | Uses stressed rate |
+| UI Display | "Schedule Maintenance" + "Plan for replacement in 4 years" | Conflicting signals |
 
-### Changes to `src/components/HardWaterTaxCard.tsx`
+The verdict says "fix it" but the financial forecast says "it's almost dead."
 
-**Lines 179-184** - Replace current ROI text:
+---
 
-```text
-Current:
-  "Softener cost: ~$250/yr amortized"
-  "Pays for itself in ~8 yrs"
+## Proposed Fix
 
-New:
-  "Annual operating cost: ~$250"
-  "10-Year Savings: $3,120" (calculated as netAnnualSavings × 10)
+### Task 1: Implement "Infrastructure First" Financial Gate
+
+**File: `src/lib/opterraAlgorithm.ts`**
+
+In `calculateFinancialForecast()` (lines ~1970-1978), when the verdict is `REPAIR` and the unit is young (under 8 years), use the `optimizedRate` instead of `agingRate` for the years-remaining calculation.
+
+```typescript
+// Current (lines 1976-1978):
+if (rawYearsRemaining > 0) {
+  adjustedYearsRemaining = rawYearsRemaining / metrics.agingRate;
+}
+
+// Proposed:
+if (rawYearsRemaining > 0) {
+  // Use optimized rate for young tanks with correctable issues
+  // This assumes the recommended infrastructure fix IS applied
+  const isYoungWithCorrectableIssues = data.calendarAge < 8 && metrics.optimizedRate < metrics.agingRate;
+  const effectiveRate = isYoungWithCorrectableIssues ? metrics.optimizedRate : metrics.agingRate;
+  adjustedYearsRemaining = rawYearsRemaining / effectiveRate;
+}
 ```
 
-The 10-year framing is psychologically powerful because:
-- It matches appliance lifespan expectations
-- Larger numbers feel more tangible than abstract "payback periods"
-- Homeowners think in decades when planning home improvements
+This change means a 3-year-old tank will show:
+- **Before**: (13 - 3) / 2.5 = 4 years remaining
+- **After**: (13 - 3) / 1.5 = 6.7 years remaining (assuming fixes applied)
 
----
+### Task 2: Cap Minimum Years Remaining for Young REPAIR Verdicts
 
-## Task 2: Clarify "Asset Loss" → "Appliances"
+**File: `src/components/CommandCenter.tsx`**
 
-### Problem
-"Asset Loss" sounds like stock market terminology. Homeowners worry about their dishwasher, washing machine, and coffee maker—not "assets."
+Add a floor for `yearsRemaining` when the verdict is `REPAIR` and the unit is young, to prevent misleading "replacement soon" messaging.
 
-### Solution
-Rename to **"Appliances"** (short, fits the grid) with a more relatable icon.
+```typescript
+// Current (line 503):
+const yearsRemaining = Math.max(0, Math.round(estimatedTotalLife - metrics.bioAge));
 
-### Changes to `src/components/HardWaterTaxCard.tsx`
+// Proposed:
+let yearsRemaining = Math.max(0, Math.round(estimatedTotalLife - metrics.bioAge));
 
-**Line 1** - Update imports:
-- Replace `TrendingDown` with `WashingMachine` (lucide-react has this icon)
+// Infrastructure First Gate: If algorithm says REPAIR on a young tank,
+// give them credit for the fix by using optimized remaining life
+const isYoungRepairCandidate = inputs.calendarAge < 8 && (verdict.action === 'REPAIR' || verdict.action === 'UPGRADE');
+if (isYoungRepairCandidate && metrics.yearsLeftOptimized > yearsRemaining) {
+  yearsRemaining = Math.round(metrics.yearsLeftOptimized);
+}
+```
 
-**Lines 151-155** - Update the Asset Loss cell:
-```text
-Current:
-  Icon: TrendingDown (red, downward arrow)
-  Label: "Asset Loss"
+### Task 3: Update OptionsAssessmentDrawer "Plan for Replacement" Threshold
 
-New:
-  Icon: WashingMachine (red, recognizable appliance)
-  Label: "Appliances"
+**File: `src/components/OptionsAssessmentDrawer.tsx`**
+
+Change the "Plan for Replacement" topic to only show for tanks 6+ years old OR when the verdict is actually `REPLACE`.
+
+```typescript
+// Current (lines 126-133):
+if (tier === 'monitor') {
+  if (yearsRemaining > 0 && yearsRemaining <= 3) {
+    topics.push({
+      title: 'Plan for Replacement',
+      ...
+    });
+  }
+}
+
+// Proposed:
+if (tier === 'monitor') {
+  // Only show replacement planning for older tanks or truly declining units
+  const isOldEnoughForReplacementPlanning = calendarAge >= 6;
+  if (yearsRemaining > 0 && yearsRemaining <= 3 && isOldEnoughForReplacementPlanning) {
+    topics.push({
+      title: 'Plan for Replacement',
+      ...
+    });
+  }
+}
 ```
 
 ---
 
-## Task 3: Clarify "Fixture Wear" → "Pipes"
+## Summary of Changes
 
-### Problem
-"Fixture Wear" is vague. Homeowners hate leaky faucets and corroded pipes—but they don't think of them as "fixtures."
-
-### Solution
-Rename to **"Pipes"** (short, fits the grid). The Wrench icon can stay—it implies plumbing work needed.
-
-### Changes to `src/components/HardWaterTaxCard.tsx`
-
-**Lines 161-165** - Update the Fixture Wear cell:
-```text
-Current:
-  Label: "Fixture Wear"
-
-New:
-  Label: "Pipes"
-```
+| File | Change |
+|------|--------|
+| `src/lib/opterraAlgorithm.ts` | Use `optimizedRate` for young tanks in financial forecast |
+| `src/components/CommandCenter.tsx` | Floor `yearsRemaining` using optimized metrics for REPAIR verdicts |
+| `src/components/OptionsAssessmentDrawer.tsx` | Gate "Plan for Replacement" topic behind age check |
 
 ---
 
-## Task 4: Improve "Extra Soap" Credibility (Documentation Only)
+## Expected Outcome
 
-### Observation
-$225/year for "Extra Soap" is a high number that may trigger skepticism.
+**Before (3-year-old basement, no expansion tank):**
+- Verdict: "Schedule Maintenance" (correct)
+- Years Remaining: 4 years (stressed rate)
+- Messaging: Confusing - shows replacement planning topics
 
-### No Code Change Required
-This is a training/talking point for technicians. The algorithm's calculation is defensible:
-- Soft water lathers 50-70% more effectively
-- A family of 4 uses ~$300-400/year in soap products
-- Hard water can double usage in severe cases
-
-**Technician Script**: "Soft water lathers better, so you use about half the shampoo and detergent. Think about how quickly you go through those Costco soap packs."
-
----
-
-## Summary of File Changes
-
-| File | Line(s) | Change |
-|------|---------|--------|
-| `HardWaterTaxCard.tsx` | 1 | Import `WashingMachine` instead of `TrendingDown` |
-| `HardWaterTaxCard.tsx` | 152-154 | Change icon to `WashingMachine`, label to "Appliances" |
-| `HardWaterTaxCard.tsx` | 164 | Change label from "Fixture Wear" to "Pipes" |
-| `HardWaterTaxCard.tsx` | 179-184 | Replace "amortized" with "Annual operating cost", replace payback with 10-year savings |
+**After:**
+- Verdict: "Schedule Maintenance" (correct)
+- Years Remaining: 7 years (optimized rate, assumes fix)
+- Messaging: Consistent - focuses on the infrastructure fix, not replacement
 
 ---
 
-## Visual Outcome
+## Edge Cases Handled
 
-### Before (Current State)
-```text
-┌─────────────────────────────────────────────┐
-│  With a Softener                   +$312/yr │
-├─────────────────────────────────────────────┤
-│  Softener cost: ~$250/yr amortized          │
-│                         Pays for itself ~8yr│
-└─────────────────────────────────────────────┘
+1. **Old tank with infrastructure issues** (age 10+): Still uses current aging rate (infrastructure fix won't save a dying tank)
+2. **Young tank with containment breach**: Override bypasses this logic - still shows REPLACE NOW
+3. **Young tank in attic without drain pan**: Safety override still applies - urgent REPAIR with attic warning
 
-│ 🔥 Energy │ 📉 Asset  │ 💧 Extra  │ 🔧 Fixture│
-│   Loss    │   Loss    │   Soap    │   Wear   │
-```
-
-### After (Proposed)
-```text
-┌─────────────────────────────────────────────┐
-│  With a Softener                   +$312/yr │
-├─────────────────────────────────────────────┤
-│  Annual operating cost: ~$250               │
-│                    10-Year Savings: $3,120  │
-└─────────────────────────────────────────────┘
-
-│ 🔥 Energy │ 🧺 Appli- │ 💧 Extra  │ 🔧 Pipes │
-│   Loss    │   ances   │   Soap    │          │
-```
-
-The changes make the card more scannable, relatable, and persuasive without changing the underlying math.
-
+This preserves the algorithm's safety-first hierarchy while making the financial messaging more appropriate for correctable infrastructure issues on young tanks.
