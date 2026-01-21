@@ -119,7 +119,7 @@ export function VerdictCard({
 
   return (
     <div className={cn(
-      "command-card p-4 space-y-4",
+      "command-card p-4 space-y-4 overflow-hidden w-full max-w-full",
       config.borderColor
     )}>
       {/* Header */}
