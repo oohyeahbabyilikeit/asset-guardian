@@ -1249,7 +1249,20 @@ export function FindingsSummaryPage({
       };
     }
     
-    if (urgency === 'HIGH' || bioAge >= 10) {
+    // Respect algorithm verdict for REPAIR/MAINTAIN - don't override with bioAge checks
+    // Young tanks with correctable stress (e.g., missing expansion tank) should get repairs, not replacement
+    if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
+      return {
+        recommendation: 'MAINTAIN' as const,
+        title: 'Repairs Make Sense Right Now',
+        timeframe: financial.targetReplacementDate,
+        reasoning: `Your unit is ${age} years old with room to run. The recommended repairs (${repairCosts > 0 ? `$${repairCosts.toLocaleString()}` : 'minimal cost'}) are a smart investment—they'll protect your equipment for years to come.`,
+        comparison: undefined,
+      };
+    }
+    
+    // Only show REPLACE_SOON for high urgency when algorithm hasn't already made a decision
+    if (urgency === 'HIGH') {
       return {
         recommendation: 'REPLACE_SOON' as const,
         title: 'Start Planning Your Replacement',
@@ -1260,16 +1273,6 @@ export function FindingsSummaryPage({
           replacePath: replacementCost,
           yearsUntilReplaceAnyway: Math.round(monthsUntilTarget / 12),
         } : undefined,
-      };
-    }
-    
-    if (repairCosts > 0 && repairVsReplaceRatio < 0.35) {
-      return {
-        recommendation: 'MAINTAIN' as const,
-        title: 'Repairs Make Sense Right Now',
-        timeframe: financial.targetReplacementDate,
-        reasoning: `Your unit is ${age} years old with room to run. The recommended repairs (${repairCosts > 0 ? `$${repairCosts.toLocaleString()}` : 'minimal cost'}) are a smart investment—they'll protect your equipment for years to come.`,
-        comparison: undefined,
       };
     }
     
