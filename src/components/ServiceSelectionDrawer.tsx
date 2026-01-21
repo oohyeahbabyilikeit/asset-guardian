@@ -209,6 +209,18 @@ export function ServiceSelectionDrawer({
         </DrawerHeader>
         
         <div className="px-4 pb-4 space-y-4 overflow-y-auto">
+          {/* Select All - at the top */}
+          {allTasks.length > 1 && (
+            <div className="flex justify-end">
+              <button 
+                onClick={selectAll}
+                className="text-xs text-primary hover:underline"
+              >
+                Select all
+              </button>
+            </div>
+          )}
+          
           {/* Violations Section */}
           {violations.length > 0 && (
             <div className="space-y-2">
@@ -329,17 +341,9 @@ export function ServiceSelectionDrawer({
           {/* Maintenance Tasks Section */}
           {regularMaintenanceTasks.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Maintenance
-                </h3>
-                <button 
-                  onClick={selectAll}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Select all
-                </button>
-              </div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Maintenance
+              </h3>
               <div className="space-y-2">
                 {regularMaintenanceTasks.map(task => {
                   const IconComponent = getIcon(task);
