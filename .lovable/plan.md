@@ -1,139 +1,142 @@
 
 
-# UX Refinement: CTA Consolidation & Violation Alert Cleanup
+# Hard Water Tax Card - Copy Refinements
 
 ## Overview
-This plan addresses two UX friction points: redundant CTAs creating decision fatigue, and a truncated/aggressive violation alert that looks broken to users.
+This plan implements your feedback to make the Hard Water Tax card more "grandma-friendly" by removing accountant-speak and using terminology that resonates with homeowners' daily concerns.
 
 ---
 
-## Task 1: Consolidate Redundant CTAs
+## Task 1: Simplify the ROI Math (Green "With a Softener" Box)
 
 ### Problem
-Two primary CTAs visible simultaneously:
-- VerdictCard: "Discuss Your Options" (context-aware)
-- ActionDock (sticky footer): "What are my options?"
-
-Both trigger the same action but compete for attention.
+- "amortized" is jargon homeowners won't understand
+- "Pays for itself in ~8 yrs" feels like a long wait
 
 ### Solution
-Remove the CTA button from VerdictCard and let the sticky ActionDock handle all primary conversion. VerdictCard becomes purely informational.
+Replace payback period with a compelling **10-year total savings** figure that emphasizes the cumulative benefit.
 
-### Changes
+### Changes to `src/components/HardWaterTaxCard.tsx`
 
-**File: `src/components/VerdictCard.tsx`**
-- Remove the `<Button>` component entirely (lines 147-154)
-- Remove the trust indicator below it (lines 156-162)
-- Remove the `onGetHelp` prop since it's no longer needed
-- Simplify the component to show only: icon, title, and description
+**Lines 179-184** - Replace current ROI text:
 
-**File: `src/components/CommandCenter.tsx`**
-- Remove the `onGetHelp` prop from VerdictCard usage (line 633)
+```text
+Current:
+  "Softener cost: ~$250/yr amortized"
+  "Pays for itself in ~8 yrs"
 
-### Result
-VerdictCard becomes a clear, non-competing summary card. The always-visible sticky footer ("What are my options?") becomes the single conversion point.
+New:
+  "Annual operating cost: ~$250"
+  "10-Year Savings: $3,120" (calculated as netAnnualSavings × 10)
+```
+
+The 10-year framing is psychologically powerful because:
+- It matches appliance lifespan expectations
+- Larger numbers feel more tangible than abstract "payback periods"
+- Homeowners think in decades when planning home improvements
 
 ---
 
-## Task 2: Fix Truncated Text & Soften "VIOLATION" Label
+## Task 2: Clarify "Asset Loss" → "Appliances"
 
 ### Problem
-1. "Thermal expansion pr..." is truncating — looks broken
-2. "VIOLATION" label is aggressive for homeowners
+"Asset Loss" sounds like stock market terminology. Homeowners worry about their dishwasher, washing machine, and coffee maker—not "assets."
 
 ### Solution
-1. Allow text to wrap properly by adjusting flex layout
-2. Rename "VIOLATION" to "CODE ISSUE" (maintains urgency but feels less punitive)
+Rename to **"Appliances"** (short, fits the grid) with a more relatable icon.
 
-### Changes
+### Changes to `src/components/HardWaterTaxCard.tsx`
 
-**File: `src/components/UnifiedMaintenanceCard.tsx`**
+**Line 1** - Update imports:
+- Replace `TrendingDown` with `WashingMachine` (lucide-react has this icon)
 
-Lines 114-124: Update violation badge and fix layout
-```jsx
-// Change from:
-<span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white mb-1 mr-2">
-  VIOLATION
-</span>
+**Lines 151-155** - Update the Asset Loss cell:
+```text
+Current:
+  Icon: TrendingDown (red, downward arrow)
+  Label: "Asset Loss"
 
-// Change to:
-<span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white mb-1 mr-2">
-  CODE ISSUE
-</span>
-```
-
-Line 122: Ensure label wraps properly
-```jsx
-// Change from:
-<h3 className="text-lg font-semibold text-foreground">
-  {label}
-</h3>
-
-// Change to:
-<h3 className="text-lg font-semibold text-foreground break-words">
-  {label}
-</h3>
-```
-
-**File: `src/components/BundledServiceCard.tsx`**
-
-Line 126-128: Same label change
-```jsx
-// Change from:
-<span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white">
-  VIOLATION
-</span>
-
-// Change to:
-<span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white whitespace-nowrap">
-  CODE ISSUE
-</span>
-```
-
-Lines 130-133: Fix label wrapping in the task display
-```jsx
-// Change from:
-<p className={cn(
-  "font-medium text-sm",
-  task.isInfrastructure ? "text-destructive" : "text-foreground"
-)}>{task.label}</p>
-
-// Change to:
-<p className={cn(
-  "font-medium text-sm break-words",
-  task.isInfrastructure ? "text-destructive" : "text-foreground"
-)}>{task.label}</p>
-```
-
-Also update `getStatusLabel()` in UnifiedMaintenanceCard.tsx (line 94):
-```jsx
-// Change from:
-if (isViolation) return 'Code Violation';
-
-// Change to:
-if (isViolation) return 'Code Issue';
+New:
+  Icon: WashingMachine (red, recognizable appliance)
+  Label: "Appliances"
 ```
 
 ---
 
-## Summary of Files to Modify
+## Task 3: Clarify "Fixture Wear" → "Pipes"
 
-| File | Changes |
-|------|---------|
-| `src/components/VerdictCard.tsx` | Remove CTA button and trust indicator; remove `onGetHelp` prop |
-| `src/components/CommandCenter.tsx` | Remove `onGetHelp` prop from VerdictCard |
-| `src/components/UnifiedMaintenanceCard.tsx` | Change "VIOLATION" to "CODE ISSUE"; add `break-words` to label |
-| `src/components/BundledServiceCard.tsx` | Change "VIOLATION" to "CODE ISSUE"; add `break-words` to label |
+### Problem
+"Fixture Wear" is vague. Homeowners hate leaky faucets and corroded pipes—but they don't think of them as "fixtures."
+
+### Solution
+Rename to **"Pipes"** (short, fits the grid). The Wrench icon can stay—it implies plumbing work needed.
+
+### Changes to `src/components/HardWaterTaxCard.tsx`
+
+**Lines 161-165** - Update the Fixture Wear cell:
+```text
+Current:
+  Label: "Fixture Wear"
+
+New:
+  Label: "Pipes"
+```
+
+---
+
+## Task 4: Improve "Extra Soap" Credibility (Documentation Only)
+
+### Observation
+$225/year for "Extra Soap" is a high number that may trigger skepticism.
+
+### No Code Change Required
+This is a training/talking point for technicians. The algorithm's calculation is defensible:
+- Soft water lathers 50-70% more effectively
+- A family of 4 uses ~$300-400/year in soap products
+- Hard water can double usage in severe cases
+
+**Technician Script**: "Soft water lathers better, so you use about half the shampoo and detergent. Think about how quickly you go through those Costco soap packs."
+
+---
+
+## Summary of File Changes
+
+| File | Line(s) | Change |
+|------|---------|--------|
+| `HardWaterTaxCard.tsx` | 1 | Import `WashingMachine` instead of `TrendingDown` |
+| `HardWaterTaxCard.tsx` | 152-154 | Change icon to `WashingMachine`, label to "Appliances" |
+| `HardWaterTaxCard.tsx` | 164 | Change label from "Fixture Wear" to "Pipes" |
+| `HardWaterTaxCard.tsx` | 179-184 | Replace "amortized" with "Annual operating cost", replace payback with 10-year savings |
 
 ---
 
 ## Visual Outcome
 
-**Before:**
-- Two competing CTAs visible at once
-- Truncated "Thermal expansion pr..." with aggressive "VIOLATION" badge
+### Before (Current State)
+```text
+┌─────────────────────────────────────────────┐
+│  With a Softener                   +$312/yr │
+├─────────────────────────────────────────────┤
+│  Softener cost: ~$250/yr amortized          │
+│                         Pays for itself ~8yr│
+└─────────────────────────────────────────────┘
 
-**After:**
-- Single clear conversion point (sticky footer)
-- Full "Thermal expansion protection" readable with softer "CODE ISSUE" badge
+│ 🔥 Energy │ 📉 Asset  │ 💧 Extra  │ 🔧 Fixture│
+│   Loss    │   Loss    │   Soap    │   Wear   │
+```
+
+### After (Proposed)
+```text
+┌─────────────────────────────────────────────┐
+│  With a Softener                   +$312/yr │
+├─────────────────────────────────────────────┤
+│  Annual operating cost: ~$250               │
+│                    10-Year Savings: $3,120  │
+└─────────────────────────────────────────────┘
+
+│ 🔥 Energy │ 🧺 Appli- │ 💧 Extra  │ 🔧 Pipes │
+│   Loss    │   ances   │   Soap    │          │
+```
+
+The changes make the card more scannable, relatable, and persuasive without changing the underlying math.
 
