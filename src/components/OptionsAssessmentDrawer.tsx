@@ -80,13 +80,14 @@ function getSituationSummary(inputs: ForensicInputs, metrics: OpterraMetrics, ti
     points.push(verdictReason);
   }
   
-  // Age context
+  // Age context - use qualitative labels instead of numerical bio-age
+  const wearLevel = metrics.bioAge > inputs.calendarAge + 5 ? 'high' : metrics.bioAge > inputs.calendarAge + 2 ? 'elevated' : 'normal';
   if (metrics.bioAge >= 12) {
-    points.push(`Your unit is ${Math.round(metrics.bioAge)} years old biologically – well past the typical 8-12 year lifespan.`);
+    points.push(`Your unit is showing ${wearLevel} wear – well past the typical 8-12 year lifespan.`);
   } else if (metrics.bioAge >= 8) {
-    points.push(`At ${Math.round(metrics.bioAge)} biological years, your unit is entering its later years.`);
+    points.push(`Your unit is entering its later years based on wear level.`);
   } else if (tier !== 'monitor') {
-    points.push(`Your unit is ${Math.round(metrics.bioAge)} biological years old – still within its prime lifespan.`);
+    points.push(`Your unit is still within its prime lifespan.`);
   }
   
   // Condition factors (skip for monitor - we don't want to alarm them)

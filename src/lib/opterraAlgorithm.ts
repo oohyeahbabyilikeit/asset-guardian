@@ -1489,7 +1489,7 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     return {
       action: 'REPLACE',
       title: 'End of Service Life',
-      reason: `Unit has exceeded its statistical service life (${data.calendarAge} years / ${metrics.failProb.toFixed(0)}% risk).`,
+      reason: `Your unit has reached the end of its expected service life and is no longer reliable.`,
       urgent: false,
       badgeColor: 'red',
       badge: 'REPLACE'
@@ -1509,7 +1509,7 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     return {
       action: 'REPLACE',
       title: 'Attic Liability',
-      reason: `Attic unit without drain pan protection. At ${metrics.failProb.toFixed(0)}% risk, potential for $15,000+ water damage is unacceptable.`,
+      reason: `Attic unit without drain pan protection. The risk of water damage to your home is unacceptably high.`,
       urgent: true,
       badgeColor: 'red',
       badge: 'CRITICAL'
@@ -1520,7 +1520,7 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     return {
       action: 'REPLACE',
       title: 'Liability Hazard',
-      reason: `Unit is in a high-damage zone. Statistical failure risk (${metrics.failProb.toFixed(0)}%) exceeds the safety threshold for finished areas.`,
+      reason: `Unit is in a high-damage zone. The failure risk exceeds the safety threshold for finished areas.`,
       urgent: false,
       badgeColor: 'orange',
       badge: 'REPLACE'
@@ -1538,7 +1538,7 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
     return {
       action: 'REPLACE',
       title: 'Repair Not Economical',
-      reason: `At ${data.calendarAge} years with ${metrics.bioAge.toFixed(1)} years of biological wear, repair costs outweigh remaining service life.`,
+      reason: `Your unit shows significant wear. At this stage, repairs won't meaningfully extend its life.`,
       urgent: false,
       badgeColor: 'orange',
       badge: 'REPLACE'

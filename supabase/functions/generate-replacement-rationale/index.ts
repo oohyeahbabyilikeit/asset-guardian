@@ -224,7 +224,14 @@ function buildUserPrompt(ctx: RationaleContext): string {
   const chemicalRate = ctx.stressFactors?.chemical ? formatAgingPercent(ctx.stressFactors.chemical) : null;
   const sedimentRate = ctx.stressFactors?.sediment ? formatAgingPercent(ctx.stressFactors.sediment) : null;
   
+  // Convert bio-age to qualitative wear level
+  const wearLevel = ctx.bioAge > ctx.calendarAge + 5 ? 'High' : ctx.bioAge > ctx.calendarAge + 2 ? 'Elevated' : 'Normal';
+  const condition = ctx.healthScore > 70 ? 'Good' : ctx.healthScore > 40 ? 'Fair' : 'Poor';
+  const riskLevel = ctx.failProb > 30 ? 'High' : ctx.failProb > 15 ? 'Medium' : 'Low';
+  
   let prompt = `Generate a personalized explanation for why we're recommending ${isUrgent ? 'immediate' : 'planned'} replacement over repairs.
+
+IMPORTANT: Do NOT mention specific percentages, dollar amounts, or numerical "biological age" values. Use qualitative descriptions only.
 
 ## THE HOMEOWNER'S SPECIFIC DATA
 
@@ -232,12 +239,12 @@ function buildUserPrompt(ctx: RationaleContext): string {
 - Type: ${ctx.unitType === 'tankless' ? 'Tankless' : ctx.unitType === 'hybrid' ? 'Heat Pump Hybrid' : 'Tank'} water heater
 - Brand: ${ctx.manufacturer || 'Unknown brand'}
 - Calendar Age: ${ctx.calendarAge} years old
-- Biological Age: ${ctx.bioAge.toFixed(1)} years (how worn the unit actually is based on conditions)
+- Wear Level: ${wearLevel}
 - Warranty: ${ctx.warrantyRemaining > 0 ? `${ctx.warrantyRemaining} years remaining` : 'Expired'}
 
 **Risk Assessment:**
-- Failure Probability: ${Math.round(ctx.failProb)}% chance of failure in the next 12 months
-- Health Score: ${ctx.healthScore}/100`;
+- Risk Level: ${riskLevel}
+- Condition: ${condition}`;
 
   if (ctx.shieldLife !== undefined && ctx.unitType === 'tank') {
     prompt += `\n- Anode Shield Life: ${ctx.shieldLife.toFixed(0)}% remaining`;

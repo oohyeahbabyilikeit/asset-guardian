@@ -234,14 +234,20 @@ function buildUserPrompt(findingType: string, ctx: FindingContext): string {
     ? `${ctx.manufacturer} ${ctx.unitType} water heater` 
     : `${ctx.unitType} water heater`;
   
+  // Convert bio-age to qualitative wear level
+  const wearLevel = ctx.bioAge > ctx.calendarAge + 5 ? 'High' : ctx.bioAge > ctx.calendarAge + 2 ? 'Elevated' : 'Normal';
+  const condition = ctx.healthScore > 70 ? 'Good' : ctx.healthScore > 40 ? 'Fair' : 'Poor';
+  
   const baseInfo = `
 UNIT: ${unitDesc}
 Calendar Age: ${ctx.calendarAge} years
-Biological Age: ${ctx.bioAge.toFixed(1)} years
+Wear Level: ${wearLevel}
+Condition: ${condition}
 Fuel Type: ${ctx.fuelType}
 ${ctx.tankCapacity ? `Tank Capacity: ${ctx.tankCapacity} gallons` : ''}
-Health Score: ${ctx.healthScore}/100
 Replacement Recommended: ${ctx.isReplacementRecommended ? 'YES' : 'NO'}
+
+IMPORTANT: Do NOT mention specific percentages, dollar amounts, or numerical "biological age" values. Use qualitative descriptions only (e.g., "significant wear", "high stress", "concerning condition").
 `;
 
   switch (findingType) {

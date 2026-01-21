@@ -1060,10 +1060,10 @@ export function FindingsSummaryPage({
         id: 'bio-age',
         icon: <Clock className="w-6 h-6" />,
         title: 'Environmental Stress Caused Premature Failure',
-        measurement: `${currentInputs.calendarAge} years old with ${metrics.bioAge.toFixed(0)}-year wear`,
+        measurement: ageDelta > 5 ? 'High wear for its age' : 'Elevated wear for its age',
         explanation: isTanklessUnit
-          ? `Although only ${currentInputs.calendarAge} years old, this tankless unit accumulated ${ageDelta.toFixed(1)} years of extra wear from ${currentInputs.hardnessGPG > 10 ? 'hard water scale buildup, ' : ''}${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}environmental factors. For your next unit: ${currentInputs.hardnessGPG > 10 ? 'install a water softener and ' : ''}plan for regular descaling.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For')
-          : `Although only ${currentInputs.calendarAge} years old, this unit accumulated ${ageDelta.toFixed(1)} years of extra wear from ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion, ' : ''}environmental factors. For your next unit: address these issues at installation to maximize lifespan.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For'),
+          ? `Although only ${currentInputs.calendarAge} years old, this tankless unit shows significant wear from ${currentInputs.hardnessGPG > 10 ? 'hard water scale buildup, ' : ''}${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}environmental factors. For your next unit: ${currentInputs.hardnessGPG > 10 ? 'install a water softener and ' : ''}plan for regular descaling.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For')
+          : `Although only ${currentInputs.calendarAge} years old, this unit shows significant wear from ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion, ' : ''}environmental factors. For your next unit: address these issues at installation to maximize lifespan.`.replace(/, environmental factors/, ' and other factors').replace(/, For/, '. For'),
         severity: 'info',
         severityValue: 50,
         educationalTopic: isTanklessUnit ? 'aging-tankless' : 'aging',
@@ -1073,10 +1073,10 @@ export function FindingsSummaryPage({
         id: 'bio-age',
         icon: <Clock className="w-6 h-6" />,
         title: 'Premature Aging Detected',
-        measurement: `${currentInputs.calendarAge} years old → ${metrics.bioAge.toFixed(1)} bio-age`,
+        measurement: ageDelta > 5 ? 'High environmental stress' : 'Elevated environmental stress',
         explanation: isTanklessUnit
-          ? `Your ${currentInputs.manufacturer || 'tankless water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.hardnessGPG > 10 ? 'hard water scale buildup, ' : ''}${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}environmental factors.`.replace(/, environmental factors/, ' and other factors').replace(/,\s*$/, '.')
-          : `Your ${currentInputs.manufacturer || 'water heater'} is only ${currentInputs.calendarAge} years old, but shows wear equivalent to a ${metrics.bioAge.toFixed(0)}-year-old unit. That's ${ageDelta.toFixed(1)} years of extra wear caused by ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion stress, ' : ''}and other environmental factors.`.replace(/, $/, '.'),
+          ? `Your ${currentInputs.manufacturer || 'tankless water heater'} is showing more wear than expected for its age. This is caused by ${currentInputs.hardnessGPG > 10 ? 'hard water scale buildup, ' : ''}${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}environmental factors.`.replace(/, environmental factors/, ' and other factors').replace(/,\s*$/, '.')
+          : `Your ${currentInputs.manufacturer || 'water heater'} is showing more wear than expected for its age. This is caused by ${currentInputs.housePsi > 70 ? 'high pressure, ' : ''}${currentInputs.hardnessGPG > 10 ? 'hard water, ' : ''}${!hasWorkingExpTank && isClosedSystem ? 'thermal expansion stress, ' : ''}and other environmental factors.`.replace(/, $/, '.'),
         severity: 'warning',
         severityValue: Math.min(100, Math.round((metrics.bioAge / (isTanklessUnit ? 20 : 15)) * 100)),
         educationalTopic: isTanklessUnit ? 'aging-tankless' : 'aging',
@@ -1242,7 +1242,7 @@ export function FindingsSummaryPage({
         recommendation: 'REPLACE_NOW' as const,
         title: 'Replacement Is the Smart Move',
         timeframe: 'Within the next 1-3 months',
-        reasoning: `At ${age} years old with a biological age of ${bioAge.toFixed(1)} years, your unit has exceeded its designed service life. The numbers don't support further investment in repairs.`,
+        reasoning: `Based on its condition and wear level, your unit has exceeded its designed service life. Further investment in repairs isn't recommended.`,
         comparison: repairCosts > 0 ? {
           repairPath: repairCosts + Math.round(replacementCost * 0.9), // Repairs now + eventual replacement
           replacePath: replacementCost,

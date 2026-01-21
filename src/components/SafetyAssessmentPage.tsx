@@ -228,7 +228,7 @@ export function SafetyAssessmentPage({
     if (isSafetyCritical) {
       return `We've detected signs that make continuing to run this unit risky. Your safety comes first.`;
     }
-    return `At ${Math.round(bioAge)} biological years, repairs would cost more than the life they'd add. The math just doesn't work in your favor anymore.`;
+    return `Given its current condition, repairs won't add meaningful life to the unit. The math just doesn't work in your favor anymore.`;
   };
 
   return (

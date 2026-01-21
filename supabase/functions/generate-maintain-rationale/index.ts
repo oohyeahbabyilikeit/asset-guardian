@@ -195,7 +195,14 @@ Return a JSON object with exactly this structure:
 function buildUserPrompt(ctx: MaintainRationaleContext): string {
   const isMonitor = ctx.recommendationType === 'MONITOR';
   
+  // Convert bio-age to qualitative wear level
+  const wearLevel = ctx.bioAge > ctx.calendarAge + 5 ? 'High' : ctx.bioAge > ctx.calendarAge + 2 ? 'Elevated' : 'Normal';
+  const condition = ctx.healthScore > 70 ? 'Good' : ctx.healthScore > 40 ? 'Fair' : 'Poor';
+  const riskLevel = ctx.failProb > 30 ? 'High' : ctx.failProb > 15 ? 'Medium' : 'Low';
+  
   let prompt = `Generate a personalized explanation for why we're recommending ${isMonitor ? 'monitoring' : 'regular maintenance'} rather than replacement.
+
+IMPORTANT: Do NOT mention specific percentages or numerical "biological age" values. Use qualitative descriptions only.
 
 ## THE HOMEOWNER'S SPECIFIC DATA
 
@@ -203,12 +210,12 @@ function buildUserPrompt(ctx: MaintainRationaleContext): string {
 - Type: ${ctx.unitType === 'tankless' ? 'Tankless' : ctx.unitType === 'hybrid' ? 'Heat Pump Hybrid' : 'Tank'} water heater
 - Brand: ${ctx.manufacturer || 'Unknown brand'}
 - Calendar Age: ${ctx.calendarAge} years old
-- Biological Age: ${ctx.bioAge.toFixed(1)} years (how worn the unit actually is)
+- Wear Level: ${wearLevel}
 - Warranty: ${ctx.warrantyRemaining > 0 ? `${ctx.warrantyRemaining} years remaining` : 'Expired'}
 
 **Health Metrics (These are GOOD!):**
-- Health Score: ${ctx.healthScore}/100
-- Failure Probability: Only ${Math.round(ctx.failProb)}% chance of failure in the next 12 months`;
+- Condition: ${condition}
+- Risk Level: ${riskLevel} (this is good for maintenance!)`;
 
   if (ctx.shieldLife !== undefined && ctx.unitType === 'tank') {
     prompt += `\n- Anode Shield Life: ${ctx.shieldLife.toFixed(0)}% remaining`;
