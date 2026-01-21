@@ -143,22 +143,40 @@ function getFindingStyle(finding: PriorityFinding) {
 // Map finding IDs to educational topics
 function getEducationalTopic(findingId: string): EducationalTopic | null {
   const topicMap: Record<string, EducationalTopic> = {
+    // Expansion tank issues
+    'exp_tank_required': 'thermal-expansion',
+    'exp_tank_failed': 'thermal-expansion',
     'EXP_TANK_MISSING': 'thermal-expansion',
     'EXP_TANK_FAILED': 'thermal-expansion',
+    // PRV issues
+    'prv_failed': 'prv',
+    'prv_critical': 'prv',
+    'prv_recommended': 'prv',
     'PRV_MISSING': 'prv',
     'PRV_FAILED': 'prv',
+    // Pressure issues
     'PRESSURE_HIGH': 'pressure',
     'PRESSURE_CRITICAL': 'pressure',
+    // Anode issues
     'ANODE_DEPLETED': 'anode-rod',
     'ANODE_FUSED': 'anode-rod-fused',
+    // Sediment issues
     'SEDIMENT_HEAVY': 'sediment',
     'SEDIMENT_RISKY': 'sediment-risky',
+    // Water quality
+    'hardness_extreme': 'hardness',
     'HARDNESS_EXTREME': 'hardness',
+    'softener_recommended': 'hardness',
+    'softener_service': 'hardness',
     'SCALE_BUILDUP': 'scale-tankless',
+    // Temperature
     'TEMP_HIGH': 'temperature',
+    // Tank issues
     'TANK_FAILURE': 'tank-failure',
     'AGE_CRITICAL': 'aging',
     'FAILURE_RATE_HIGH': 'failure-rate',
+    // Replacement consultation
+    'replacement_urgent': 'replacement-consultation',
     'REPLACEMENT_CONSULTATION': 'replacement-consultation',
     'URGENT_REPLACEMENT': 'replacement-consultation',
   };
