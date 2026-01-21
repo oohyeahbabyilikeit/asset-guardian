@@ -439,7 +439,7 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
                   )}>
                     {msg.content ? (
                       msg.role === 'assistant' ? (
-                        <div className="text-sm leading-relaxed prose prose-sm prose-invert max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
+                        <div className="text-sm leading-[1.7] space-y-3 [&>p]:mb-3 [&>p:last-child]:mb-0 [&>ul]:pl-4 [&>ul]:space-y-1.5 [&>ol]:pl-4 [&>ol]:space-y-1.5 [&>ul>li]:list-disc [&>ol>li]:list-decimal [&_strong]:font-semibold [&_strong]:text-primary">
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
                         </div>
                       ) : (
