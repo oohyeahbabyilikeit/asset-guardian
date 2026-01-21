@@ -275,45 +275,6 @@ export function ServiceSelectionDrawer({
             </div>
           )}
 
-          {/* Add-Ons Section - OPTIMIZATION items (softeners, longevity PRV) */}
-          {addOns.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-medium text-accent-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Lightbulb className="w-3.5 h-3.5" />
-                Add-Ons
-              </h3>
-              <div className="space-y-2">
-                {addOns.map(task => {
-                  const IconComponent = getIcon(task);
-                  const isSelected = selectedTypes.has(task.type);
-                  return (
-                    <button
-                      key={task.type}
-                      onClick={() => toggleTask(task.type)}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                        isSelected 
-                          ? "border-accent bg-accent/10" 
-                          : "border-accent/30 bg-accent/5 hover:bg-accent/10"
-                      )}
-                    >
-                      <div className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                        isSelected ? "bg-accent text-accent-foreground" : "bg-accent/15 text-accent-foreground"
-                      )}>
-                        {isSelected ? <Check className="w-5 h-5" /> : <IconComponent className="w-5 h-5" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-foreground">{task.label}</p>
-                        <p className="text-xs text-muted-foreground">{task.benefit}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Replacement Consultation Section */}
           {replacementTasks.length > 0 && (
             <div className="space-y-2">
@@ -400,6 +361,45 @@ export function ServiceSelectionDrawer({
                       {isOverdue && !isSelected && (
                         <span className="text-xs font-medium text-warning shrink-0">Due now</span>
                       )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Add-Ons Section - OPTIMIZATION items (softeners, longevity PRV) - Always last */}
+          {addOns.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-medium text-accent-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Lightbulb className="w-3.5 h-3.5" />
+                Add-Ons
+              </h3>
+              <div className="space-y-2">
+                {addOns.map(task => {
+                  const IconComponent = getIcon(task);
+                  const isSelected = selectedTypes.has(task.type);
+                  return (
+                    <button
+                      key={task.type}
+                      onClick={() => toggleTask(task.type)}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                        isSelected 
+                          ? "border-accent bg-accent/10" 
+                          : "border-accent/30 bg-accent/5 hover:bg-accent/10"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                        isSelected ? "bg-accent text-accent-foreground" : "bg-accent/15 text-accent-foreground"
+                      )}>
+                        {isSelected ? <Check className="w-5 h-5" /> : <IconComponent className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground">{task.label}</p>
+                        <p className="text-xs text-muted-foreground">{task.benefit}</p>
+                      </div>
                     </button>
                   );
                 })}
