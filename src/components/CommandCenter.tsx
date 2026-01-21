@@ -10,6 +10,7 @@ import { OptionsAssessmentDrawer } from '@/components/OptionsAssessmentDrawer';
 import { ServiceSelectionDrawer } from '@/components/ServiceSelectionDrawer';
 import { PlumberContactForm } from '@/components/PlumberContactForm';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
+import { VerdictCard } from '@/components/VerdictCard';
 
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
 import { BreachAlert } from '@/components/BreachAlert';
@@ -618,6 +619,18 @@ export function CommandCenter({
               inputs={currentInputs}
               onLearnMore={handleLearnMore}
               onIssueLearnMore={handleIssueLearnMore}
+            />
+          </motion.div>
+
+          {/* VERDICT CARD: Clear recommendation with CTA */}
+          <motion.div variants={fadeUp} className="px-4">
+            <VerdictCard
+              recommendation={recommendation}
+              healthScore={dynamicHealthScore.score}
+              yearsRemaining={yearsRemaining}
+              isLeaking={currentInputs.isLeaking}
+              visualRust={currentInputs.visualRust}
+              onGetHelp={handleGetExpertHelp}
             />
           </motion.div>
 
