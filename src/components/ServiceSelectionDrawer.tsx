@@ -442,7 +442,10 @@ export function ServiceSelectionDrawer({
             <>
               <Button 
                 variant="outline" 
-                onClick={() => setShowCorrtexChat(true)} 
+                onClick={() => {
+                  onOpenChange(false); // Close the drawer first
+                  setShowCorrtexChat(true); // Then show chat
+                }} 
                 className="w-full gap-2"
               >
                 <Sparkles className="w-4 h-4" />
@@ -456,8 +459,8 @@ export function ServiceSelectionDrawer({
         </DrawerFooter>
       </DrawerContent>
       
-      {/* Corrtex Chat Overlay */}
-      {inputs && metrics && recommendation && (
+      {/* Corrtex Chat Overlay - rendered outside the Drawer so it shows alone */}
+      {inputs && metrics && recommendation && showCorrtexChat && (
         <CorrtexChatOverlay
           open={showCorrtexChat}
           onClose={() => setShowCorrtexChat(false)}
