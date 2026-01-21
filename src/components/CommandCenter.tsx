@@ -560,8 +560,17 @@ export function CommandCenter({
   // Only pass violations as separate tasks when NOT replacing
   const displayViolations = shouldBundleViolations ? [] : violationTasks;
 
-  // Build final maintenance tasks based on recommendation (no longer includes recommendations)
-  const maintenanceTasks: MaintenanceTask[] = shouldShowReplacementOption
+  // For urgent replacement (REPLACE_NOW), put replacement consultation in Urgent Actions
+  // For non-urgent replacement (REPLACE_SOON), put it in regular maintenance
+  const isUrgentReplacement = recommendationType === 'REPLACE_NOW';
+  
+  // Add urgent replacement to recommendations (Urgent Actions section)
+  const finalRecommendationTasks = isUrgentReplacement 
+    ? [...recommendationTasks, replacementTask]
+    : recommendationTasks;
+
+  // Build final maintenance tasks based on recommendation
+  const maintenanceTasks: MaintenanceTask[] = shouldShowReplacementOption && !isUrgentReplacement
     ? [replacementTask]
     : shouldShowMaintenance
       ? baseMaintenanceTasks
@@ -727,7 +736,7 @@ export function CommandCenter({
         onOpenChange={setShowServiceSelection}
         violations={displayViolations}
         maintenanceTasks={maintenanceTasks}
-        recommendations={recommendationTasks}
+        recommendations={finalRecommendationTasks}
         addOns={addOnTasks}
         onSubmit={handleServiceSelectionSubmit}
         isPassVerdict={isPassVerdict}
