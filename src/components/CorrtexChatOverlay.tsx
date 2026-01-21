@@ -372,7 +372,7 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-background via-background to-secondary/20"
+          className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-xl"
         >
           {/* Header with gradient */}
           <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-primary/5 via-background to-primary/5">
