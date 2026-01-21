@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { 
   Droplets, Shield, Flame, Filter, Wrench, Wind, 
-  AlertTriangle, Gauge, Check, Phone, Lightbulb, Clock, CalendarClock, Eye
+  AlertTriangle, Gauge, Check, Phone, Lightbulb, Clock, CalendarClock, Eye, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import { MaintenanceTask } from '@/lib/maintenanceCalculations';
+import { CorrtexChatOverlay } from '@/components/CorrtexChatOverlay';
+import type { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 
 interface ServiceSelectionDrawerProps {
   open: boolean;
@@ -21,6 +23,11 @@ interface ServiceSelectionDrawerProps {
   verdictReason?: string;
   verdictTitle?: string;
   yearsRemaining?: number;
+  // AI Chat context props
+  inputs?: ForensicInputs;
+  metrics?: OpterraMetrics;
+  recommendation?: { action: string; badge: string; title: string; description?: string };
+  healthScore?: number;
 }
 
 export function ServiceSelectionDrawer({
@@ -35,7 +42,12 @@ export function ServiceSelectionDrawer({
   verdictReason,
   verdictTitle,
   yearsRemaining = 0,
+  inputs,
+  metrics,
+  recommendation,
+  healthScore = 0,
 }: ServiceSelectionDrawerProps) {
+  const [showCorrtexChat, setShowCorrtexChat] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   
   const allTasks = [...violations, ...maintenanceTasks, ...recommendations, ...addOns];
@@ -424,8 +436,41 @@ export function ServiceSelectionDrawer({
               : 'Have My Plumber Reach Out'
             }
           </Button>
+          
+          {/* Corrtex AI Chat Button */}
+          {inputs && metrics && recommendation && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCorrtexChat(true)} 
+                className="w-full gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Chat with Corrtex AI
+              </Button>
+              <p className="text-[10px] text-center text-muted-foreground">
+                Get instant answers about your options
+              </p>
+            </>
+          )}
         </DrawerFooter>
       </DrawerContent>
+      
+      {/* Corrtex Chat Overlay */}
+      {inputs && metrics && recommendation && (
+        <CorrtexChatOverlay
+          open={showCorrtexChat}
+          onClose={() => setShowCorrtexChat(false)}
+          inputs={inputs}
+          metrics={metrics}
+          recommendation={recommendation}
+          violations={violations}
+          recommendations={recommendations}
+          maintenanceTasks={maintenanceTasks}
+          addOns={addOns}
+          healthScore={healthScore}
+        />
+      )}
     </Drawer>
   );
 }

@@ -777,6 +777,16 @@ export function CommandCenter({
         verdictReason={verdict.reason}
         verdictTitle={verdict.title}
         yearsRemaining={yearsRemaining}
+        // AI Chat context
+        inputs={currentInputs}
+        metrics={metrics}
+        recommendation={{ 
+          action: recommendation.action, 
+          badge: recommendation.badge || '', 
+          title: recommendation.title || '',
+          description: recommendation.reason || '' 
+        }}
+        healthScore={dynamicHealthScore.score}
       />
 
       {/* Contact Form Modal - lead capture */}
