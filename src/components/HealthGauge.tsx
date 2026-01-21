@@ -256,8 +256,11 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
         return { message: 'Service Due Soon', severity: 'info' };
       }
       
-      // Bio age significantly higher than calendar age
-      if (metrics.bioAge >= 10) {
+      // Bio age significantly higher than calendar age (context-aware check)
+      // Only flag "Wear Catching Up" if bioAge is 1.5x+ calendar age AND unit is at least 5 years old
+      // This prevents misleading messages for young tanks with correctable stress
+      const ageRatio = metrics.bioAge / Math.max(inputs?.calendarAge || 1, 1);
+      if (ageRatio > 1.5 && (inputs?.calendarAge || 0) >= 5) {
         return { message: 'Wear Catching Up', severity: 'info' };
       }
     }

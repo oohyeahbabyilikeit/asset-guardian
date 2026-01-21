@@ -352,13 +352,15 @@ const Index = () => {
       const verdict = opterraResult.verdict;
       let recommendationType: 'REPLACE_NOW' | 'REPLACE_SOON' | 'MAINTAIN' | 'MONITOR' = 'MONITOR';
       
-      if (verdict.action === 'REPLACE' || urgency === 'IMMEDIATE') {
-        recommendationType = 'REPLACE_NOW';
-      } else if (urgency === 'HIGH' || opterraResult.metrics.bioAge >= 10) {
-        recommendationType = 'REPLACE_SOON';
+      // Respect the algorithm's verdict - don't override REPAIR with bioAge checks
+      if (verdict.action === 'REPLACE') {
+        recommendationType = verdict.urgent ? 'REPLACE_NOW' : 'REPLACE_SOON';
       } else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
         recommendationType = 'MAINTAIN';
+      } else if (verdict.action === 'UPGRADE') {
+        recommendationType = 'MONITOR';
       }
+      // PASS stays as default MONITOR
       
       console.log('[Index] Prefetching AI findings in background...');
       prefetchFindings(currentInputs, opterraResult, recommendationType);
