@@ -134,23 +134,15 @@ function buildSystemPrompt(context: WaterHeaterContext): string {
     }
   }
 
-  if (financial?.totalReplacementCost) {
-    prompt += `\n## FINANCIAL CONTEXT\n`;
-    prompt += `- Estimated Replacement Cost: $${financial.totalReplacementCost.toLocaleString()}\n`;
-    if (financial.monthlyBudget) {
-      prompt += `- Monthly Budget: $${financial.monthlyBudget}\n`;
-    }
-    if (financial.targetDate) {
-      prompt += `- Target Date: ${financial.targetDate}\n`;
-    }
-  }
+  // Note: Financial context removed in v9.0 - focus on physics-based explanations
 
   prompt += `
 ## GUIDELINES
 - Answer based on their specific situation and data above
 - Be honest about what you know vs. don't know
 - When explaining technical concepts (like thermal expansion), relate it to their specific situation
-- If they ask about costs, use the estimates provided but note they may vary
+- NEVER mention specific dollar amounts or costs - focus on the physics and risk factors
+- If they ask about costs, explain that pricing varies by location and suggest they discuss with a local professional
 - If they seem worried, acknowledge their concerns while being reassuring and practical
 - Suggest actionable next steps when appropriate
 - Keep responses focused and avoid unnecessary jargon`;

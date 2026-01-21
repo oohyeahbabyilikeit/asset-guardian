@@ -1,9 +1,37 @@
-import { Flame, WashingMachine, Droplets, CheckCircle2, Wrench, ShieldCheck } from 'lucide-react';
+import { Droplets, CheckCircle2, ShieldCheck, AlertTriangle, Zap, Home, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HardWaterTax } from '@/lib/opterraAlgorithm';
 
 interface HardWaterTaxCardProps {
   hardWaterTax: HardWaterTax;
+}
+
+// Helper to convert numeric impact to qualitative label
+function getImpactLabel(value: number, type: 'energy' | 'appliance' | 'detergent' | 'plumbing'): { label: string; severity: 'low' | 'moderate' | 'high' | 'severe' } {
+  // Different thresholds for different impact types
+  const thresholds = {
+    energy: { low: 30, moderate: 60, high: 100 },
+    appliance: { low: 50, moderate: 100, high: 150 },
+    detergent: { low: 100, moderate: 200, high: 300 },
+    plumbing: { low: 50, moderate: 100, high: 150 },
+  };
+  
+  const t = thresholds[type];
+  
+  if (value <= 0) return { label: 'None', severity: 'low' };
+  if (value < t.low) return { label: 'Low', severity: 'low' };
+  if (value < t.moderate) return { label: 'Moderate', severity: 'moderate' };
+  if (value < t.high) return { label: 'High', severity: 'high' };
+  return { label: 'Severe', severity: 'severe' };
+}
+
+function getSeverityColor(severity: 'low' | 'moderate' | 'high' | 'severe'): string {
+  switch (severity) {
+    case 'low': return 'text-emerald-400';
+    case 'moderate': return 'text-yellow-400';
+    case 'high': return 'text-amber-400';
+    case 'severe': return 'text-red-400';
+  }
 }
 
 export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
@@ -13,12 +41,10 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
     applianceDepreciation,
     detergentOverspend,
     plumbingProtection,
-    totalAnnualLoss,
-    softenerAnnualCost,
-    netAnnualSavings,
-    paybackYears,
     recommendation,
     protectedAmount,
+    netAnnualSavings,
+    softenerAnnualCost,
   } = hardWaterTax;
 
   // Don't render if no recommendation needed
@@ -54,30 +80,44 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
             </div>
           </div>
 
-          {/* Savings Display */}
+          {/* Protection Status */}
           <div className="text-center py-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
-            <p className="text-xs text-muted-foreground mb-1">Annual Protection Value</p>
-            <p className="text-2xl font-bold text-emerald-400 font-data">${protectedAmount || 0}</p>
-            <p className="text-[10px] text-muted-foreground mt-1">saved per year by your softener</p>
+            <p className="text-xs text-muted-foreground mb-1">Protection Status</p>
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <p className="text-lg font-bold text-emerald-400">Active</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">Your softener is working effectively</p>
           </div>
 
-          {/* Net Savings */}
+          {/* Net Benefit Summary */}
           {netAnnualSavings > 0 && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Net savings (after salt & maintenance):</span>
-              <span className="font-bold text-emerald-400">+${netAnnualSavings}/yr</span>
+              <span className="text-muted-foreground">Net annual benefit:</span>
+              <span className="font-bold text-emerald-400">Positive ROI ✓</span>
             </div>
           )}
           
-          {/* ROI Breakdown */}
+          {/* Softener status */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Softener operating cost: ~${softenerAnnualCost}/yr</span>
-            <span className="text-emerald-400">ROI: Positive ✓</span>
+            <span>Softener maintaining equipment protection</span>
+            <span className="text-emerald-400">Active ✓</span>
           </div>
         </div>
       </div>
     );
   }
+
+  // Calculate impact labels
+  const energyImpact = getImpactLabel(energyLoss, 'energy');
+  const applianceImpact = getImpactLabel(applianceDepreciation, 'appliance');
+  const detergentImpact = getImpactLabel(detergentOverspend, 'detergent');
+  const plumbingImpact = getImpactLabel(plumbingProtection, 'plumbing');
+  
+  // Calculate overall impact level
+  const impactCount = [energyImpact, applianceImpact, detergentImpact, plumbingImpact]
+    .filter(i => i.severity === 'high' || i.severity === 'severe').length;
+  const overallImpact = impactCount >= 3 ? 'High' : impactCount >= 1 ? 'Moderate' : 'Low';
 
   const isRecommend = recommendation === 'RECOMMEND';
 
@@ -118,7 +158,7 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
               </h3>
               <p className="text-xs text-muted-foreground">
                 {isRecommend 
-                  ? 'High hardness is costing you money'
+                  ? 'Hard water is affecting your equipment'
                   : 'Moderate hardness detected'
                 }
               </p>
@@ -134,52 +174,64 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
           </div>
         </div>
 
-        {/* Main Cost Display */}
+        {/* Overall Impact Display */}
         <div className="text-center py-3 bg-secondary/20 rounded-xl border border-border/30">
-          <p className="text-xs text-muted-foreground mb-1">Annual Hard Water Tax</p>
-          <p className="text-2xl font-bold text-amber-400 font-data">${totalAnnualLoss}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">per year in hidden costs</p>
+          <p className="text-xs text-muted-foreground mb-1">Overall Hard Water Impact</p>
+          <p className={cn(
+            "text-xl font-bold",
+            overallImpact === 'High' ? "text-amber-400" : 
+            overallImpact === 'Moderate' ? "text-yellow-400" : "text-emerald-400"
+          )}>
+            {overallImpact}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">on equipment and household costs</p>
         </div>
 
-        {/* Cost Breakdown */}
+        {/* Impact Breakdown - Qualitative Labels */}
         <div className="grid grid-cols-4 gap-2">
           <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <Flame className="w-4 h-4 mx-auto mb-1.5 text-orange-400/70" />
-            <p className="text-sm font-bold font-data text-foreground">${energyLoss}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Energy Loss</p>
+            <Zap className="w-4 h-4 mx-auto mb-1.5 text-orange-400/70" />
+            <p className={cn("text-xs font-bold", getSeverityColor(energyImpact.severity))}>
+              {energyImpact.label}
+            </p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Energy</p>
           </div>
           <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <WashingMachine className="w-4 h-4 mx-auto mb-1.5 text-red-400/70" />
-            <p className="text-sm font-bold font-data text-foreground">${applianceDepreciation}</p>
+            <Home className="w-4 h-4 mx-auto mb-1.5 text-red-400/70" />
+            <p className={cn("text-xs font-bold", getSeverityColor(applianceImpact.severity))}>
+              {applianceImpact.label}
+            </p>
             <p className="text-[9px] text-muted-foreground mt-0.5">Appliances</p>
           </div>
           <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <Droplets className="w-4 h-4 mx-auto mb-1.5 text-blue-400/70" />
-            <p className="text-sm font-bold font-data text-foreground">${detergentOverspend}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Extra Soap</p>
+            <Sparkles className="w-4 h-4 mx-auto mb-1.5 text-blue-400/70" />
+            <p className={cn("text-xs font-bold", getSeverityColor(detergentImpact.severity))}>
+              {detergentImpact.label}
+            </p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Soap Usage</p>
           </div>
           <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <Wrench className="w-4 h-4 mx-auto mb-1.5 text-purple-400/70" />
-            <p className="text-sm font-bold font-data text-foreground">${plumbingProtection}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Pipes</p>
+            <AlertTriangle className="w-4 h-4 mx-auto mb-1.5 text-purple-400/70" />
+            <p className={cn("text-xs font-bold", getSeverityColor(plumbingImpact.severity))}>
+              {plumbingImpact.label}
+            </p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Plumbing</p>
           </div>
         </div>
 
-        {/* ROI Summary */}
-        {netAnnualSavings > 0 && (
+        {/* Softener Recommendation */}
+        {isRecommend && (
           <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span className="text-sm font-medium text-emerald-400">With a Softener</span>
               </div>
-              <span className="text-lg font-bold font-data text-emerald-400">+${netAnnualSavings}/yr</span>
+              <span className="text-xs font-bold text-emerald-400">Positive ROI</span>
             </div>
-            
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Annual operating cost: ~${softenerAnnualCost}</span>
-              <span className="font-semibold text-emerald-400">10-Year Savings: ${netAnnualSavings * 10}</span>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              A water softener would reduce wear on your water heater and household appliances while lowering soap usage.
+            </p>
           </div>
         )}
       </div>

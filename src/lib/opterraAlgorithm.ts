@@ -57,15 +57,28 @@ export type ConnectionType = 'DIELECTRIC' | 'BRASS' | 'DIRECT_COPPER';
 // Heat pump units need ~700 cu ft of air volume to work efficiently
 export type RoomVolumeType = 'OPEN' | 'CLOSET_LOUVERED' | 'CLOSET_SEALED';
 
+// NEW v9.0: TierProfile focuses on physical characteristics, not pricing
+export type InsulationQuality = 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+export type AnodeType = 'SINGLE' | 'SINGLE_LARGE' | 'DUAL' | 'POWERED';
+export type FailureMode = 'CATASTROPHIC' | 'GRADUAL' | 'SLOW_LEAK' | 'CONTROLLED';
+
 export interface TierProfile {
   tier: QualityTier;
   tierLabel: string;
   warrantyYears: number;
   ventType: VentType;
   features: string[];
+  // NEW v9.0: Physical traits for risk assessment (replace pricing)
+  insulationQuality: InsulationQuality;  // Affects standby loss
+  anodeType: AnodeType;                  // Affects protection duration
+  failureMode: FailureMode;              // How tanks typically fail
+  expectedLife: number;                  // Statistical mean lifespan in years
+  /** @deprecated - kept for backwards compatibility during migration */
   baseCostGas: number;
+  /** @deprecated - kept for backwards compatibility during migration */
   baseCostElectric: number;
-  baseCostHybrid: number;  // NEW v7.3: Heat pump water heaters
+  /** @deprecated - kept for backwards compatibility during migration */
+  baseCostHybrid: number;
 }
 
 // Helper to detect tankless fuel types
@@ -269,23 +282,41 @@ export interface Recommendation {
 
 export type RecommendationBadge = 'CRITICAL' | 'REPLACE' | 'SERVICE' | 'MONITOR' | 'OPTIMAL';
 
-// Financial Forecasting Interface (NEW v6.4, UPDATED v7.2)
+// NEW v9.0: Plumber Handshake Interface (Triage & Outreach Engine)
+// Replaces FinancialForecast - provides scripts instead of prices
+export interface PlumberHandshake {
+  // The "Hook" - Why the homeowner should act NOW
+  urgency: 'EMERGENCY' | 'PRIORITY' | 'ROUTINE' | 'MONITOR';
+  headline: string; // e.g., "Critical Failure Risk: Anode Depleted"
+  
+  // The "Brief" - What the plumber needs to know (Lead Quality)
+  technicalSummary: string; // e.g. "12yo Gas Unit, Basement, Atmospheric Vent"
+  jobComplexity: 'STANDARD' | 'ELEVATED' | 'COMPLEX'; 
+  codeAlerts: string[];     // e.g. ["Missing Thermal Expansion Tank"]
+  
+  // The "Script" - Questions homeowner should ask
+  talkingPoints: string[];
+  
+  // Estimated timeline (no dollars)
+  yearsRemaining: number;
+  planningHorizon: 'IMMEDIATE' | 'THIS_YEAR' | '1_TO_3_YEARS' | '3_PLUS_YEARS';
+}
+
+// DEPRECATED: FinancialForecast - kept for backwards compatibility during migration
 export interface FinancialForecast {
-  targetReplacementDate: string;  // "June 2028"
+  targetReplacementDate: string;
   monthsUntilTarget: number;
-  estReplacementCost: number;     // Mid-range estimate (for backwards compat)
-  estReplacementCostMin: number;  // Low end of contractor range
-  estReplacementCostMax: number;  // High end of contractor range
-  monthlyBudget: number;          // Recommended savings (based on max)
+  estReplacementCost: number;
+  estReplacementCostMin: number;
+  estReplacementCostMax: number;
+  monthlyBudget: number;
   budgetUrgency: 'LOW' | 'MED' | 'HIGH' | 'IMMEDIATE';
   recommendation: string;
-  
-  // NEW v7.2: Tier-Aware Replacement Options
-  currentTier: TierProfile;       // Detected quality tier of existing unit
-  likeForLikeCost: number;        // Cost to replace with same tier
-  upgradeTier?: TierProfile;      // Optional upgrade tier
-  upgradeCost?: number;           // Cost of upgrade tier
-  upgradeValueProp?: string;      // Why upgrade is worth considering
+  currentTier: TierProfile;
+  likeForLikeCost: number;
+  upgradeTier?: TierProfile;
+  upgradeCost?: number;
+  upgradeValueProp?: string;
 }
 
 // Hard Water Tax Interface (NEW v6.7, UPDATED v7.7 for Electric Burnout Risk)
@@ -320,13 +351,15 @@ export interface HardWaterTax {
 export interface OpterraResult {
   metrics: OpterraMetrics;
   verdict: Recommendation;
+  handshake: PlumberHandshake;  // NEW v9.0: Replaces financial
+  hardWaterTax: HardWaterTax;
+  /** @deprecated Use handshake instead - kept for backwards compatibility */
   financial: FinancialForecast;
-  hardWaterTax: HardWaterTax;  // NEW v6.7
 }
 
 // --- CONSTANTS & CONFIGURATION ---
 
-// NEW v7.2: Quality Tier Pricing Database
+// NEW v9.0: Quality Tier Database - Physical characteristics for risk assessment
 const TIER_PROFILES: Record<QualityTier, TierProfile> = {
   BUILDER: {
     tier: 'BUILDER',
@@ -334,9 +367,15 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     warrantyYears: 6,
     ventType: 'ATMOSPHERIC',
     features: ['Basic glass-lined tank', 'Single anode rod', 'Standard thermostat'],
+    // Physical traits for risk assessment
+    insulationQuality: 'LOW',
+    anodeType: 'SINGLE',
+    failureMode: 'CATASTROPHIC',  // Cheap tanks tend to burst
+    expectedLife: 10,
+    // Deprecated: kept for backwards compat
     baseCostGas: 1400,
     baseCostElectric: 1200,
-    baseCostHybrid: 2800,  // Heat pumps start higher
+    baseCostHybrid: 2800,
   },
   STANDARD: {
     tier: 'STANDARD',
@@ -344,6 +383,10 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     warrantyYears: 9,
     ventType: 'ATMOSPHERIC',
     features: ['Premium glass lining', 'Larger anode rod', 'Self-cleaning dip tube'],
+    insulationQuality: 'MEDIUM',
+    anodeType: 'SINGLE_LARGE',
+    failureMode: 'GRADUAL',  // Tends to weep before burst
+    expectedLife: 12,
     baseCostGas: 1900,
     baseCostElectric: 1600,
     baseCostHybrid: 3400,
@@ -354,6 +397,10 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     warrantyYears: 12,
     ventType: 'ATMOSPHERIC',
     features: ['Dual anode rods', 'High-recovery burner', 'Brass drain valve', 'Commercial-grade thermostat'],
+    insulationQuality: 'HIGH',
+    anodeType: 'DUAL',
+    failureMode: 'SLOW_LEAK',  // Well-protected tanks leak slowly first
+    expectedLife: 14,
     baseCostGas: 2600,
     baseCostElectric: 2200,
     baseCostHybrid: 4200,
@@ -364,6 +411,10 @@ const TIER_PROFILES: Record<QualityTier, TierProfile> = {
     warrantyYears: 15,
     ventType: 'ATMOSPHERIC',
     features: ['Stainless steel tank OR Lifetime warranty', 'Powered anode', 'WiFi monitoring', 'Leak detection'],
+    insulationQuality: 'VERY_HIGH',
+    anodeType: 'POWERED',  // Never depletes
+    failureMode: 'CONTROLLED',  // Built-in leak detection
+    expectedLife: 18,
     baseCostGas: 3500,
     baseCostElectric: 3000,
     baseCostHybrid: 5200,
@@ -1732,9 +1783,13 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   };
 }
 
-// --- ECONOMIC OPTIMIZATION ENGINE ---
+// --- TECHNICAL NECESSITY ENGINE (v9.0 - Replaces Economic Optimization) ---
 
-function optimizeEconomicDecision(
+/**
+ * Applies physical responsibility checks instead of economic calculations.
+ * This focuses on whether repairs are technically sound, not whether they're "worth it".
+ */
+function optimizeTechnicalNecessity(
   rec: Recommendation, 
   data: ForensicInputs, 
   metrics: OpterraMetrics
@@ -1744,37 +1799,74 @@ function optimizeEconomicDecision(
   // High Risk Location Logic (e.g. Attic) - v6.6
   const isHighRisk = metrics.riskLevel >= CONSTANTS.RISK_HIGH;
 
-  // SAFETY OVERRIDE: If unit is in Attic/Upper Floor and needs repair, force urgency
-  if (isHighRisk && rec.action === 'REPAIR') {
-    rec.urgent = true;
-    rec.note = 'Safety override: High risk location increases repair urgency.';
+  // RULE 1: The "Naked" Rule (Liability Protection)
+  // If the tank has no anode protection, repairs are professionally irresponsible
+  if (metrics.shieldLife <= 0 && rec.action === 'MAINTAIN') {
+    return {
+      action: 'REPLACE',
+      title: 'End of Service Life',
+      reason: 'Internal protection is depleted. Repairs at this stage typically fail within 6 months.',
+      urgent: true,
+      badgeColor: 'red',
+      badge: 'CRITICAL'
+    };
   }
-  
-  // HEAVY REPAIR OPTIMIZATION (PRV / Exp Tank / Pressure)
+
+  // RULE 2: The "Code Trap" (Complexity Protection)
+  // If an old tank needs major code upgrades, push toward replacement consultation
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
+  if (metrics.riskLevel >= 3 && data.calendarAge > 8 && !data.hasExpTank && isActuallyClosed) {
+    return {
+      action: 'REPLACE',
+      title: 'System Upgrade Required',
+      reason: 'Unit requires critical safety upgrades that are best bundled with replacement.',
+      urgent: false,
+      badgeColor: 'orange',
+      badge: 'REPLACE'
+    };
+  }
+
+  // RULE 3: The "High Risk Location" Rule
+  // Attic/upper floor with moderate failure risk = urgent action
+  if (isHighRisk && rec.action !== 'PASS') {
+    if (rec.action === 'REPAIR' || rec.action === 'UPGRADE') {
+      rec.urgent = true;
+      rec.note = 'Location increases urgency—water damage risk is significant.';
+    }
+    
+    // If already recommending REPLACE in high-risk location, ensure it's marked urgent
+    if (rec.action === 'REPLACE' && !rec.urgent && metrics.failProb > 30) {
+      rec.urgent = true;
+      rec.note = 'High-risk location with elevated failure probability.';
+    }
+  }
+
+  // RULE 4: Heavy Repair Optimization for Old Tanks
+  // Certain repairs don't make sense on old tanks regardless of economics
   if (rec.action === 'REPAIR' || rec.action === 'UPGRADE') {
     const isHeavyRepair = rec.title.includes('PRV') 
                        || rec.title.includes('Expansion') 
                        || rec.title.includes('Pressure');
     
     if (isHeavyRepair && isOld) {
-      // Scenario A: Low Risk Location (Garage) -> RUN TO FAILURE
+      // Low Risk Location -> Run to failure (repairs don't extend life significantly)
       if (metrics.riskLevel <= CONSTANTS.RISK_MED) {
         return {
           action: 'PASS',
           title: 'Run to Failure',
-          reason: `High pressure detected, but tank age (${data.calendarAge} yrs) does not justify expensive repairs in this low-risk location. Budget for replacement.`,
+          reason: `Tank age (${data.calendarAge} yrs) does not justify major repairs in this low-risk location. Monitor and budget for replacement.`,
           urgent: false,
           badgeColor: 'yellow',
           badge: 'MONITOR'
         };
       }
       
-      // Scenario B: High Risk Location (Attic/Living) -> STRATEGIC REPLACEMENT
-      if (metrics.riskLevel >= CONSTANTS.RISK_HIGH) {
+      // High Risk Location -> Push toward replacement
+      if (isHighRisk) {
         return {
           action: 'REPLACE',
           title: 'Strategic Replacement',
-          reason: `System requires major pressure repairs ($$$). Given tank age (${data.calendarAge} yrs) and high-risk location, replacement is the safer investment.`,
+          reason: `System requires major repairs. Given tank age (${data.calendarAge} yrs) and high-risk location, replacement is the safer choice.`,
           urgent: false,
           badgeColor: 'orange',
           badge: 'REPLACE'
@@ -1783,12 +1875,12 @@ function optimizeEconomicDecision(
     }
   }
 
-  // BUDGETING ADVICE (Past Warranty)
+  // RULE 5: Warranty expired advisory
   if (rec.action === 'PASS' && data.calendarAge > data.warrantyYears) {
     return {
       action: 'PASS',
       title: 'Warranty Expired',
-      reason: `Unit is past its ${data.warrantyYears}-year manufacturer warranty. Consider budgeting for eventual replacement while maintaining current unit.`,
+      reason: `Unit is past its ${data.warrantyYears}-year manufacturer warranty. Continue maintenance while planning for eventual replacement.`,
       urgent: false,
       badgeColor: 'blue',
       badge: 'MONITOR'
@@ -2234,6 +2326,114 @@ export function calculateHardWaterTax(
   };
 }
 
+// --- PLUMBER HANDSHAKE GENERATOR (NEW v9.0) ---
+
+/**
+ * Generates a "Plumber Handshake" - a technical briefing for plumbers
+ * that replaces dollar-based financial forecasts with actionable scripts.
+ */
+function generatePlumberHandshake(
+  data: ForensicInputs, 
+  metrics: OpterraMetrics,
+  verdict: Recommendation
+): PlumberHandshake {
+  const codeAlerts: string[] = [];
+  const talkingPoints: string[] = [];
+  let complexityScore = 0;
+
+  // 1. Detect Complexity (The "Gotchas")
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
+  
+  if (!data.hasExpTank && isActuallyClosed) {
+    codeAlerts.push("Code Upgrade: Thermal Expansion Tank required");
+    talkingPoints.push("Ask if my closed-loop system needs an expansion tank.");
+    complexityScore += 2;
+  }
+  
+  if (data.location === 'ATTIC' || data.location === 'CRAWLSPACE') {
+    codeAlerts.push("Access: Difficult location - may require 2 technicians");
+    complexityScore += 3;
+  }
+  
+  if (data.location === 'UPPER_FLOOR') {
+    codeAlerts.push("Location: Upper floor - extra care for water damage risk");
+    complexityScore += 2;
+  }
+  
+  if (data.ventType === 'POWER_VENT') {
+    codeAlerts.push("Electrical: Power vent requires 120V outlet");
+    complexityScore += 1;
+  }
+  
+  if (data.ventingScenario === 'ORPHANED_FLUE') {
+    codeAlerts.push("Venting: Orphaned flue - chimney liner likely required");
+    complexityScore += 3;
+  }
+  
+  if (data.fuelType === 'HYBRID' && data.roomVolumeType === 'CLOSET_SEALED') {
+    codeAlerts.push("Airflow: Heat pump in sealed closet - ventilation needed");
+    complexityScore += 2;
+  }
+  
+  // Connection type alerts
+  if (data.connectionType === 'DIRECT_COPPER' && data.nippleMaterial !== 'FACTORY_PROTECTED') {
+    codeAlerts.push("Galvanic: Direct copper connection - dielectric unions needed");
+    complexityScore += 1;
+  }
+  
+  // Generate talking points based on metrics
+  if (metrics.shieldLife <= 0) {
+    talkingPoints.push("My anode is depleted—can you check for internal rust?");
+  }
+  
+  if (metrics.sedimentLbs > 10) {
+    talkingPoints.push("There may be significant sediment—is flushing safe?");
+  }
+  
+  if (metrics.isTransientPressure) {
+    talkingPoints.push("I may have thermal expansion issues—what should I look for?");
+  }
+  
+  if (data.housePsi > 80) {
+    talkingPoints.push("My water pressure seems high—should I be concerned?");
+  }
+
+  // 2. Determine Urgency from verdict
+  let urgency: PlumberHandshake['urgency'] = 'ROUTINE';
+  if (verdict.action === 'REPLACE' && verdict.urgent) urgency = 'EMERGENCY';
+  else if (verdict.action === 'REPLACE') urgency = 'PRIORITY';
+  else if (verdict.action === 'REPAIR' && verdict.urgent) urgency = 'PRIORITY';
+  else if (verdict.action === 'PASS') urgency = 'MONITOR';
+  else if (verdict.action === 'MAINTAIN') urgency = 'ROUTINE';
+  else if (verdict.action === 'UPGRADE') urgency = 'ROUTINE';
+
+  // 3. Planning horizon (no dollars, just timeline)
+  const TARGET_SERVICE_LIFE = 13;
+  const yearsRemaining = Math.max(0, Math.round(TARGET_SERVICE_LIFE - metrics.bioAge));
+  
+  let planningHorizon: PlumberHandshake['planningHorizon'] = '3_PLUS_YEARS';
+  if (yearsRemaining <= 0 || verdict.action === 'REPLACE') planningHorizon = 'IMMEDIATE';
+  else if (yearsRemaining <= 1) planningHorizon = 'THIS_YEAR';
+  else if (yearsRemaining <= 3) planningHorizon = '1_TO_3_YEARS';
+
+  // 4. Build technical summary
+  const manufacturer = data.manufacturer || 'Unknown';
+  const fuelLabel = data.fuelType === 'HYBRID' ? 'Heat Pump' : data.fuelType;
+  const ventLabel = data.ventType || 'Atmospheric';
+  const technicalSummary = `${data.calendarAge}yr ${manufacturer} ${fuelLabel} in ${data.location}, ${ventLabel} vent`;
+
+  return {
+    urgency,
+    headline: verdict.title,
+    technicalSummary,
+    jobComplexity: complexityScore > 4 ? 'COMPLEX' : (complexityScore > 1 ? 'ELEVATED' : 'STANDARD'),
+    codeAlerts,
+    talkingPoints,
+    yearsRemaining,
+    planningHorizon
+  };
+}
+
 // --- TANKLESS ENGINE IMPORT ---
 
 import { 
@@ -2253,17 +2453,20 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
     const verdict = getTanklessRecommendation(metrics, data);
     const financial = getTanklessFinancials(metrics, data);
     const hardWaterTax = calculateHardWaterTax(data, metrics);
+    const handshake = generatePlumberHandshake(data, metrics, verdict);
     
-    return { metrics, verdict, financial, hardWaterTax };
+    return { metrics, verdict, handshake, hardWaterTax, financial };
   }
 
   // Standard tank heater logic
   const metrics = calculateHealth(data);
   const rawVerdict = getRawRecommendation(metrics, data);
-  const verdict = optimizeEconomicDecision(rawVerdict, data, metrics);
+  const verdict = optimizeTechnicalNecessity(rawVerdict, data, metrics);
   const financial = calculateFinancialForecast(data, metrics);
   const hardWaterTax = calculateHardWaterTax(data, metrics);
+  const handshake = generatePlumberHandshake(data, metrics, verdict);
   
-  return { metrics, verdict, financial, hardWaterTax };
+  return { metrics, verdict, handshake, hardWaterTax, financial };
 }
+
 
