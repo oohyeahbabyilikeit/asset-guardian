@@ -1,114 +1,192 @@
 
-# Fix: Properly Separate "Urgent Actions" from "Add-Ons"
+# Transform Assessment Page into Priority Findings Education
 
 ## The Problem
-Water softeners (and other `OPTIMIZATION` items) are appearing under "Urgent Actions" because `CommandCenter.tsx` merges both `INFRASTRUCTURE` and `OPTIMIZATION` categories into a single `recommendations` array.
+The current "Your Assessment" drawer shows generic content like:
+- "Your unit is showing high wear"  
+- "Expert Guidance: A professional can provide personalized recommendations"
+
+This doesn't educate customers on their **specific** issues or preview what the next page will recommend.
 
 ## The Solution
-Split the categories properly:
-- **Urgent Actions**: `INFRASTRUCTURE` items only (recommended protective work that genuinely matters)
-- **Add-Ons**: `OPTIMIZATION` items (premium nice-to-haves like water softeners)
+Rewrite the assessment drawer to show:
+1. **Top 2-3 Priority Findings** - the actual issues detected (e.g., "Missing Expansion Tank", "High Water Pressure")
+2. **What We Recommend** - preview the exact categories they'll see next (Violations, Urgent Actions, etc.)
 
 ---
 
-## Changes Required
+## Data Already Available
 
-### 1. Update CommandCenter.tsx - Split Categories
+The `CommandCenter` already computes all the data we need:
 
-**Current (lines 473-486):**
-```typescript
-const recommendationIssues = [
-  ...getIssuesByCategory(infrastructureIssues, 'INFRASTRUCTURE'),
-  ...getIssuesByCategory(infrastructureIssues, 'OPTIMIZATION'),
-];
-```
+| Data | Source | Purpose |
+|------|--------|---------|
+| `violationIssues` | `getIssuesByCategory(..., 'VIOLATION')` | Code compliance issues |
+| `infrastructureRecommendations` | `getIssuesByCategory(..., 'INFRASTRUCTURE')` | Urgent protective work |
+| `optimizationIssues` | `getIssuesByCategory(..., 'OPTIMIZATION')` | Add-ons like softeners |
+| `verdict.title` | Algorithm output | "Liability Hazard", "Aging Too Fast", etc. |
+| `metrics.stressFactors` | Algorithm output | Pressure, sediment, etc. |
 
-**New:**
-```typescript
-// INFRASTRUCTURE = Urgent protective work  
-const infrastructureRecommendations = getIssuesByCategory(infrastructureIssues, 'INFRASTRUCTURE');
-const urgentTasks: MaintenanceTask[] = infrastructureRecommendations.map(issue => ({
-  type: 'inspection' as MaintenanceTask['type'],
-  label: issue.name,
-  description: issue.description,
-  monthsUntilDue: 0,
-  urgency: 'schedule' as const,
-  benefit: issue.friendlyName,
-  whyExplanation: issue.description,
-  icon: 'wrench' as const,
-  isInfrastructure: true,
-}));
+---
 
-// OPTIMIZATION = Nice-to-have add-ons (softeners, longevity PRV)
-const optimizationIssues = getIssuesByCategory(infrastructureIssues, 'OPTIMIZATION');
-const addOnTasks: MaintenanceTask[] = optimizationIssues.map(issue => ({
-  type: 'inspection' as MaintenanceTask['type'],
-  label: issue.name,
-  description: issue.description,
-  monthsUntilDue: 0,
-  urgency: 'optimal' as const,  // Lower urgency
-  benefit: issue.friendlyName,
-  whyExplanation: issue.description,
-  icon: 'lightbulb' as const,  // Different icon
-  isInfrastructure: true,
-}));
-```
+## Implementation Plan
 
-### 2. Update ServiceSelectionDrawer Props
+### 1. Expand OptionsAssessmentDrawer Props
 
-Add a new `addOns` prop to separate the categories:
+Add new props to pass the prioritized findings:
 
 ```typescript
-interface ServiceSelectionDrawerProps {
+interface OptionsAssessmentDrawerProps {
   // ... existing props
-  recommendations: MaintenanceTask[];  // INFRASTRUCTURE (urgent)
-  addOns?: MaintenanceTask[];          // NEW: OPTIMIZATION (nice-to-have)
+  
+  // NEW: Priority findings for education
+  priorityFindings?: {
+    id: string;
+    name: string;
+    friendlyName: string;
+    category: 'VIOLATION' | 'INFRASTRUCTURE' | 'OPTIMIZATION';
+    severity: 'critical' | 'warning' | 'info';
+  }[];
+  
+  // NEW: Preview what next page will show
+  nextPagePreview?: {
+    hasViolations: boolean;
+    hasUrgentActions: boolean;
+    hasAddOns: boolean;
+    hasReplacement: boolean;
+  };
 }
 ```
 
-### 3. Update ServiceSelectionDrawer Rendering
+### 2. Pass Data from CommandCenter
 
-Move the current "Add-Ons" section (which was incorrectly using `replacementTasks`) to use the new `addOns` prop:
+In `CommandCenter.tsx`, compute and pass the priority findings:
 
-| Section | Data Source | Label |
-|---------|-------------|-------|
-| Code Violations | `violations` (VIOLATION) | 🔴 "Code Violations" |
-| Urgent Actions | `recommendations` (INFRASTRUCTURE) | 🟠 "Urgent Actions" |
-| Add-Ons | `addOns` (OPTIMIZATION) | 💡 "Add-Ons" |
-| Maintenance | `regularMaintenanceTasks` | "Maintenance" |
+```typescript
+// Build priority findings from infrastructure issues
+const priorityFindings = [
+  ...violationIssues.map(i => ({ ...i, severity: 'critical' as const })),
+  ...infrastructureRecommendations.map(i => ({ ...i, severity: 'warning' as const })),
+].slice(0, 3); // Top 3 priority items
 
-### 4. Pass the Split Arrays from CommandCenter
+const nextPagePreview = {
+  hasViolations: violationIssues.length > 0,
+  hasUrgentActions: finalRecommendationTasks.length > 0,
+  hasAddOns: addOnTasks.length > 0,
+  hasReplacement: shouldShowReplacementOption,
+};
 
-Update the `ServiceSelectionDrawer` call in CommandCenter to pass both arrays:
-
-```tsx
-<ServiceSelectionDrawer
-  violations={violationTasks}
-  maintenanceTasks={maintenanceTasks}
-  recommendations={urgentTasks}      // INFRASTRUCTURE only
-  addOns={addOnTasks}                // NEW: OPTIMIZATION items
-  // ...
+// Pass to drawer
+<OptionsAssessmentDrawer
+  ...
+  priorityFindings={priorityFindings}
+  nextPagePreview={nextPagePreview}
 />
+```
+
+### 3. Replace Generic Content with Specific Findings
+
+**Current "Your Situation" section** (generic):
+```
+• Your unit is showing high wear – well past the typical 8-12 year lifespan.
+• Missing expansion tank on a closed-loop system creates excess pressure stress.
+```
+
+**New "Priority Findings" section** (specific):
+```
+⚠️ CODE VIOLATION
+   Expansion Tank Required
+   Your closed-loop system needs thermal expansion protection
+
+⚠️ URGENT ACTION  
+   PRV Installation Recommended
+   Water pressure at 75 PSI accelerates wear on all plumbing
+```
+
+### 4. Add "Next Steps" Preview
+
+Replace generic "Why This Matters" with a preview of what they'll see:
+
+**Current**:
+```
+🔧 Replacement Planning
+   Understanding your options now helps you avoid emergency decisions later.
+
+⚡ Expert Guidance  
+   A professional can provide personalized recommendations...
+```
+
+**New "What We'll Cover Next"**:
+```
+You'll see options in these areas:
+
+🔴 Code Violations (1 item)
+   Required work for system compliance
+
+🟠 Urgent Actions (2 items)
+   Protective measures to prevent damage
+
+💡 Add-Ons  
+   Optional improvements worth discussing
 ```
 
 ---
 
-## What This Fixes
+## Visual Design
 
-| Item | Category | Before | After |
-|------|----------|--------|-------|
-| Water Softener Install | OPTIMIZATION | 🟠 Urgent Actions | 💡 Add-Ons ✓ |
-| Water Softener Replace | OPTIMIZATION | 🟠 Urgent Actions | 💡 Add-Ons ✓ |
-| PRV for Longevity (60-69 PSI) | OPTIMIZATION | 🟠 Urgent Actions | 💡 Add-Ons ✓ |
-| PRV Recommended (70-80 PSI) | INFRASTRUCTURE | 🟠 Urgent Actions | 🟠 Urgent Actions ✓ |
-| Softener Service | INFRASTRUCTURE | 🟠 Urgent Actions | 🟠 Urgent Actions ✓ |
-| Expansion Tank Replace | INFRASTRUCTURE | 🟠 Urgent Actions | 🟠 Urgent Actions ✓ |
+### Priority Findings Card
+- Each finding gets its own mini-card with severity-based styling
+- Use the same color coding as ServiceSelectionDrawer:
+  - Red border for VIOLATION
+  - Amber border for INFRASTRUCTURE/Urgent
+  - Accent border for OPTIMIZATION
+
+### Next Steps Preview
+- Simple list showing category icons + counts
+- Matches what they'll see on the next page
+- Builds anticipation and reduces surprise
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/components/CommandCenter.tsx` | Split `INFRASTRUCTURE` and `OPTIMIZATION` into separate task arrays |
-| `src/components/ServiceSelectionDrawer.tsx` | Add `addOns` prop, render it in the "Add-Ons" section |
+| File | Changes |
+|------|---------|
+| `src/components/OptionsAssessmentDrawer.tsx` | Add new props, replace `getSituationSummary` and `getWhyMatters` with findings-based content |
+| `src/components/CommandCenter.tsx` | Build `priorityFindings` array and `nextPagePreview` object, pass to drawer |
+
+---
+
+## Example Output
+
+For a unit with missing expansion tank, high pressure, and replacement recommended:
+
+**Header**: "Immediate Attention Recommended"
+
+**Priority Findings**:
+```
+┌─────────────────────────────────────┐
+│ 🔴 CODE VIOLATION                   │
+│ ─────────────────────────────────── │
+│ Expansion Tank Required             │
+│ Needed for closed-loop system       │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ 🟠 URGENT ACTION                    │
+│ ─────────────────────────────────── │
+│ Replacement Consultation            │
+│ Your unit needs professional review │
+└─────────────────────────────────────┘
+```
+
+**What's Next**:
+```
+On the next screen, we'll cover:
+• 1 Code Violation to address
+• 2 Urgent Actions to discuss  
+
+[See My Options →]
+```
+
+This way, customers know exactly what was found and what they're about to see, making the transition educational rather than surprising.
