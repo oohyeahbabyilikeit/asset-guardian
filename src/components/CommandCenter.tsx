@@ -9,9 +9,7 @@ import { IssueGuidanceDrawer } from '@/components/IssueGuidanceDrawer';
 import { OptionsAssessmentDrawer } from '@/components/OptionsAssessmentDrawer';
 import { ServiceSelectionDrawer } from '@/components/ServiceSelectionDrawer';
 import { PlumberContactForm } from '@/components/PlumberContactForm';
-import { UnitProfileCard } from '@/components/UnitProfileCard';
-import { VerdictCard } from '@/components/VerdictCard';
-
+import { UnifiedStatusCard } from '@/components/UnifiedStatusCard';
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
 import { BreachAlert } from '@/components/BreachAlert';
 import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
@@ -580,56 +578,17 @@ export function CommandCenter({
           animate="visible"
           className="space-y-3"
         >
-          {/* DISCOVERY PHASE 1: Your Unit Profile */}
+          {/* UNIFIED STATUS CARD: Identity + Health + Violations + Recommendation */}
           <motion.div ref={profileRef} variants={popIn} className="px-4 pt-4">
-            <UnitProfileCard asset={currentAsset} inputs={currentInputs} />
-          </motion.div>
-
-          {/* CRITICAL: Breach Alert - Shown IMMEDIATELY if rust or leak detected */}
-          {(currentInputs.isLeaking || currentInputs.visualRust) && (
-            <motion.div 
-              variants={popIn} 
-              className="px-4"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-            >
-              <BreachAlert
-                isLeaking={currentInputs.isLeaking}
-                visualRust={currentInputs.visualRust}
-                leakSource={currentInputs.leakSource}
-                onLearnMore={() => setShowAssessment(true)}
-              />
-            </motion.div>
-          )}
-
-          {/* DISCOVERY PHASE 1b: Health Gauge slides in from left */}
-          <motion.div ref={healthRef} variants={slideInLeft} className="px-4">
-            <HealthGauge 
-              healthScore={dynamicHealthScore} 
-              location={currentAsset.location} 
-              riskLevel={riskLevel}
-              primaryStressor={dynamicVitals.biologicalAge.primaryStressor}
-              estDamageCost={financial.estReplacementCost}
-              metrics={metrics}
-              recommendation={recommendation}
-              isLeaking={currentInputs.isLeaking}
-              visualRust={currentInputs.visualRust}
-              fuelType={currentInputs.fuelType}
+            <UnifiedStatusCard
+              asset={currentAsset}
               inputs={currentInputs}
-              onLearnMore={handleLearnMore}
-              onIssueLearnMore={handleIssueLearnMore}
-            />
-          </motion.div>
-
-          {/* VERDICT CARD: Clear recommendation with CTA */}
-          <motion.div variants={fadeUp} className="px-4">
-            <VerdictCard
+              healthScore={dynamicHealthScore}
+              riskLevel={riskLevel}
               recommendation={recommendation}
-              healthScore={dynamicHealthScore.score}
+              metrics={metrics}
               yearsRemaining={yearsRemaining}
-              isLeaking={currentInputs.isLeaking}
-              visualRust={currentInputs.visualRust}
+              onIssueLearnMore={handleIssueLearnMore}
             />
           </motion.div>
 
