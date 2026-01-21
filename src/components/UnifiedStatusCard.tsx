@@ -139,8 +139,9 @@ export function UnifiedStatusCard({
   const riskStatus = getRiskStatus();
 
   const getStatusColor = () => {
-    if (riskStatus === 'CRITICAL' || riskStatus === 'HIGH') return 'text-red-400';
-    if (riskStatus === 'ELEVATED') return 'text-amber-400';
+    // Color based on health score: low = red (bad), medium = amber, high = green (good)
+    if (score < 40) return 'text-red-400';
+    if (score < 70) return 'text-amber-400';
     return 'text-emerald-400';
   };
 
