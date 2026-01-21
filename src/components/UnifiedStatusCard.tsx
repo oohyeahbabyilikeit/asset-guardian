@@ -178,10 +178,11 @@ export function UnifiedStatusCard({
               </p>
             </div>
             <div className="flex flex-col items-end shrink-0">
-              <div className="flex items-center gap-1.5">
-                <span className={cn("text-lg font-bold", getStatusColor())}>
-                  {score < 40 ? 'Poor' : score < 60 ? 'Fair' : score < 80 ? 'Good' : 'Excellent'}
+              <div className="flex items-baseline gap-1">
+                <span className={cn("text-2xl font-bold", getStatusColor())}>
+                  {score}
                 </span>
+                <span className="text-sm text-muted-foreground">/100</span>
               </div>
               {isBreach && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse mt-1">
