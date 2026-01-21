@@ -1,192 +1,80 @@
 
-# Transform Assessment Page into Priority Findings Education
 
-## The Problem
-The current "Your Assessment" drawer shows generic content like:
-- "Your unit is showing high wear"  
-- "Expert Guidance: A professional can provide personalized recommendations"
+# Fix: Urgency Tier Must Account for Priority Findings
 
-This doesn't educate customers on their **specific** issues or preview what the next page will recommend.
+## The Bug
 
-## The Solution
-Rewrite the assessment drawer to show:
-1. **Top 2-3 Priority Findings** - the actual issues detected (e.g., "Missing Expansion Tank", "High Water Pressure")
-2. **What We Recommend** - preview the exact categories they'll see next (Violations, Urgent Actions, etc.)
-
----
-
-## Data Already Available
-
-The `CommandCenter` already computes all the data we need:
-
-| Data | Source | Purpose |
-|------|--------|---------|
-| `violationIssues` | `getIssuesByCategory(..., 'VIOLATION')` | Code compliance issues |
-| `infrastructureRecommendations` | `getIssuesByCategory(..., 'INFRASTRUCTURE')` | Urgent protective work |
-| `optimizationIssues` | `getIssuesByCategory(..., 'OPTIMIZATION')` | Add-ons like softeners |
-| `verdict.title` | Algorithm output | "Liability Hazard", "Aging Too Fast", etc. |
-| `metrics.stressFactors` | Algorithm output | Pressure, sediment, etc. |
-
----
-
-## Implementation Plan
-
-### 1. Expand OptionsAssessmentDrawer Props
-
-Add new props to pass the prioritized findings:
+The `getUrgencyTier` function returns `'monitor'` (stable) when `isPassVerdict` is true, completely ignoring whether violations exist:
 
 ```typescript
-interface OptionsAssessmentDrawerProps {
-  // ... existing props
+if (isPassVerdict) return 'monitor';  // Shows "Your Unit Is Stable"
+```
+
+This creates a contradiction where the drawer says "stable" while showing a red CODE VIOLATION card.
+
+## The Root Cause
+
+The algorithm's `isPassVerdict` only reflects the **water heater's servicability** (e.g., "anode may be fused - don't touch it"). It does NOT account for **installation infrastructure issues** like missing expansion tanks.
+
+These are separate concerns:
+- **Unit servicability**: Can we safely perform maintenance on the tank?
+- **Code compliance**: Are there installation violations that need fixing?
+
+## The Fix
+
+Update `getUrgencyTier` in `OptionsAssessmentDrawer.tsx` to check for priority findings before defaulting to monitor tier.
+
+### Changes to OptionsAssessmentDrawer.tsx
+
+**1. Update function signature** (add priorityFindings parameter):
+
+```typescript
+function getUrgencyTier(
+  healthScore: number, 
+  verdictAction: VerdictAction, 
+  isPassVerdict: boolean,
+  priorityFindings: PriorityFinding[]  // NEW
+): UrgencyTier {
+  // Check for critical findings first - violations override PASS verdict
+  const hasCriticalFinding = priorityFindings.some(f => f.severity === 'critical');
+  const hasWarningFinding = priorityFindings.some(f => f.severity === 'warning');
   
-  // NEW: Priority findings for education
-  priorityFindings?: {
-    id: string;
-    name: string;
-    friendlyName: string;
-    category: 'VIOLATION' | 'INFRASTRUCTURE' | 'OPTIMIZATION';
-    severity: 'critical' | 'warning' | 'info';
-  }[];
+  if (hasCriticalFinding) return 'critical';  // Violations = immediate attention
+  if (hasWarningFinding) return 'attention';  // Infrastructure issues = proactive
   
-  // NEW: Preview what next page will show
-  nextPagePreview?: {
-    hasViolations: boolean;
-    hasUrgentActions: boolean;
-    hasAddOns: boolean;
-    hasReplacement: boolean;
-  };
+  // Only show "stable" if PASS verdict AND no findings
+  if (isPassVerdict) return 'monitor';
+  
+  // Existing logic for health score thresholds
+  if (healthScore < 40 || verdictAction === 'REPLACE') return 'critical';
+  if (healthScore < 70 || verdictAction === 'REPAIR') return 'attention';
+  return 'healthy';
 }
 ```
 
-### 2. Pass Data from CommandCenter
-
-In `CommandCenter.tsx`, compute and pass the priority findings:
+**2. Update the function call** in the component:
 
 ```typescript
-// Build priority findings from infrastructure issues
-const priorityFindings = [
-  ...violationIssues.map(i => ({ ...i, severity: 'critical' as const })),
-  ...infrastructureRecommendations.map(i => ({ ...i, severity: 'warning' as const })),
-].slice(0, 3); // Top 3 priority items
-
-const nextPagePreview = {
-  hasViolations: violationIssues.length > 0,
-  hasUrgentActions: finalRecommendationTasks.length > 0,
-  hasAddOns: addOnTasks.length > 0,
-  hasReplacement: shouldShowReplacementOption,
-};
-
-// Pass to drawer
-<OptionsAssessmentDrawer
-  ...
-  priorityFindings={priorityFindings}
-  nextPagePreview={nextPagePreview}
-/>
+const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
 ```
 
-### 3. Replace Generic Content with Specific Findings
+**3. Update monitor tier messaging** for when it IS actually stable:
 
-**Current "Your Situation" section** (generic):
-```
-• Your unit is showing high wear – well past the typical 8-12 year lifespan.
-• Missing expansion tank on a closed-loop system creates excess pressure stress.
-```
+The current messaging is fine for the true "stable" case - it will only show when:
+- `isPassVerdict` is true AND
+- There are zero priority findings
 
-**New "Priority Findings" section** (specific):
-```
-⚠️ CODE VIOLATION
-   Expansion Tank Required
-   Your closed-loop system needs thermal expansion protection
+## Result
 
-⚠️ URGENT ACTION  
-   PRV Installation Recommended
-   Water pressure at 75 PSI accelerates wear on all plumbing
-```
-
-### 4. Add "Next Steps" Preview
-
-Replace generic "Why This Matters" with a preview of what they'll see:
-
-**Current**:
-```
-🔧 Replacement Planning
-   Understanding your options now helps you avoid emergency decisions later.
-
-⚡ Expert Guidance  
-   A professional can provide personalized recommendations...
-```
-
-**New "What We'll Cover Next"**:
-```
-You'll see options in these areas:
-
-🔴 Code Violations (1 item)
-   Required work for system compliance
-
-🟠 Urgent Actions (2 items)
-   Protective measures to prevent damage
-
-💡 Add-Ons  
-   Optional improvements worth discussing
-```
-
----
-
-## Visual Design
-
-### Priority Findings Card
-- Each finding gets its own mini-card with severity-based styling
-- Use the same color coding as ServiceSelectionDrawer:
-  - Red border for VIOLATION
-  - Amber border for INFRASTRUCTURE/Urgent
-  - Accent border for OPTIMIZATION
-
-### Next Steps Preview
-- Simple list showing category icons + counts
-- Matches what they'll see on the next page
-- Builds anticipation and reduces surprise
-
----
+| Scenario | Before | After |
+|----------|--------|-------|
+| PASS verdict + no findings | "Your Unit Is Stable" | "Your Unit Is Stable" |
+| PASS verdict + violation | "Your Unit Is Stable" (BUG) | "Immediate Attention Recommended" |
+| PASS verdict + infrastructure issue | "Your Unit Is Stable" (BUG) | "Proactive Maintenance Recommended" |
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/components/OptionsAssessmentDrawer.tsx` | Add new props, replace `getSituationSummary` and `getWhyMatters` with findings-based content |
-| `src/components/CommandCenter.tsx` | Build `priorityFindings` array and `nextPagePreview` object, pass to drawer |
+| File | Change |
+|------|--------|
+| `src/components/OptionsAssessmentDrawer.tsx` | Update `getUrgencyTier` to check priority findings before returning monitor tier |
 
----
-
-## Example Output
-
-For a unit with missing expansion tank, high pressure, and replacement recommended:
-
-**Header**: "Immediate Attention Recommended"
-
-**Priority Findings**:
-```
-┌─────────────────────────────────────┐
-│ 🔴 CODE VIOLATION                   │
-│ ─────────────────────────────────── │
-│ Expansion Tank Required             │
-│ Needed for closed-loop system       │
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│ 🟠 URGENT ACTION                    │
-│ ─────────────────────────────────── │
-│ Replacement Consultation            │
-│ Your unit needs professional review │
-└─────────────────────────────────────┘
-```
-
-**What's Next**:
-```
-On the next screen, we'll cover:
-• 1 Code Violation to address
-• 2 Urgent Actions to discuss  
-
-[See My Options →]
-```
-
-This way, customers know exactly what was found and what they're about to see, making the transition educational rather than surprising.
