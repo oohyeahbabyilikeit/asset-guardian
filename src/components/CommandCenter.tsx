@@ -10,7 +10,7 @@ import { OptionsAssessmentDrawer } from '@/components/OptionsAssessmentDrawer';
 import { ServiceSelectionDrawer } from '@/components/ServiceSelectionDrawer';
 import { PlumberContactForm } from '@/components/PlumberContactForm';
 import { UnitProfileCard } from '@/components/UnitProfileCard';
-import { IndustryBenchmarks } from '@/components/IndustryBenchmarks';
+
 import { HardWaterTaxCard } from '@/components/HardWaterTaxCard';
 import { BreachAlert } from '@/components/BreachAlert';
 import { calculateOpterraRisk, ForensicInputs, OpterraResult } from '@/lib/opterraAlgorithm';
@@ -172,7 +172,7 @@ export function CommandCenter({
   const profileRef = useRef<HTMLDivElement>(null);
   const healthRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
-  const benchmarksRef = useRef<HTMLDivElement>(null);
+  
   const hardWaterRef = useRef<HTMLDivElement>(null);
   
   // Guard to ensure dock only reveals once per animation cycle
@@ -266,7 +266,6 @@ export function CommandCenter({
             profile: getOffset(profileRef),
             health: getOffset(healthRef),
             history: getOffset(historyRef),
-            benchmarks: getOffset(benchmarksRef),
             hardWater: hasHardWaterCard ? getOffset(hardWaterRef) : null,
             end: container.scrollHeight - container.clientHeight,
           };
@@ -289,10 +288,6 @@ export function CommandCenter({
           // History
           keyframes.push(positions.history);
           times.push(TIMELINE.HISTORY);
-          
-          // Benchmarks
-          keyframes.push(positions.benchmarks);
-          times.push(TIMELINE.BENCHMARKS);
           
           // HardWater (conditional)
           if (hasHardWaterCard && positions.hardWater !== null) {
@@ -661,17 +656,6 @@ export function CommandCenter({
             />
           </motion.div>
 
-          {/* DISCOVERY PHASE 3: How Water Heaters Age - fades up */}
-          <motion.div ref={benchmarksRef} variants={fadeUp} className="px-4">
-            <IndustryBenchmarks 
-              asset={currentAsset} 
-              inputs={currentInputs}
-              onLearnMore={handleLearnMore}
-              agingRate={agingRate}
-              bioAge={bioAge}
-              recommendation={recommendation}
-            />
-          </motion.div>
 
           {/* Hard Water Tax Card - bounces up if shown */}
           {hardWaterTax.recommendation !== 'NONE' && (
