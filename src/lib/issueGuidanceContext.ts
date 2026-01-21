@@ -41,12 +41,10 @@ export function getIssueGuidanceContext(
   const locationKey = getLocationKey(inputs.location);
   const damageScenario = DAMAGE_SCENARIOS[locationKey];
   
-  // Determine if fixing makes economic sense
-  // Don't recommend fixing if unit should be replaced or health is very low
-  const isServiceable = 
-    recommendation.action !== 'REPLACE' && 
-    healthScore > 30 &&
-    inputs.calendarAge < 12;
+  // Determine if fixing makes sense based on algorithm action
+  // The algorithm is the source of truth - if it says REPAIR/MAINTAIN, we fix
+  const isRepairAction = recommendation.action === 'REPAIR' || recommendation.action === 'MAINTAIN';
+  const isServiceable = isRepairAction;
   
   return {
     issueId: issue.id,
@@ -105,17 +103,20 @@ export function getStaticGuidance(
     'softener_new': 'Hard water causes mineral scale to build up inside your water heater, reducing efficiency and accelerating wear. A softener prevents this damage.',
   };
 
+  // Qualitative health label
+  const healthLabel = healthScore >= 70 ? 'good' : healthScore >= 40 ? 'fair' : 'concerning';
+  
   if (isServiceable) {
     return {
       headline: 'Protect Your Investment',
       explanation: explanations[issue.id] || issue.description,
-      yourSituation: `Your water heater is in ${healthScore >= 60 ? 'good' : 'fair'} condition and worth protecting. ${isHighRisk ? `Being installed in ${location.toLowerCase().replace('_', ' ')}, a failure here could cause significant damage.` : 'Addressing this issue now prevents bigger problems later.'}`,
-      recommendation: `We recommend addressing this issue to protect your current unit. Fixing this now is much easier than dealing with the potential damage from a failure.`,
-      economicContext: `${isHighRisk ? 'Your location makes this especially important to address.' : 'Taking care of this now prevents bigger problems later.'}`,
+      yourSituation: `Your water heater is in ${healthLabel} condition and is a good candidate for this improvement. ${isHighRisk ? `Being in a ${location.toLowerCase().replace('_', ' ')}, addressing this protects against potential water damage.` : 'Addressing this now helps protect your unit.'}`,
+      recommendation: `We recommend addressing this issue to protect your current unit. This improvement helps maintain your system's reliability and longevity.`,
+      economicContext: `${isHighRisk ? 'Your location makes this especially valuable to address.' : 'Proactive maintenance prevents bigger problems later.'}`,
       actionItems: [
         'Have your plumber reach out to discuss this issue',
-        'Ask about bundling with annual maintenance',
-        'Consider additional protective measures for your location',
+        'Ask about bundling with other recommended services',
+        'Consider additional protective measures for your situation',
       ],
       shouldFix: true,
     };
@@ -123,13 +124,13 @@ export function getStaticGuidance(
     return {
       headline: 'Plan for Replacement',
       explanation: explanations[issue.id] || issue.description,
-      yourSituation: `Given your unit's current condition (health score: ${healthScore}/100), investing in repairs isn't the best use of your money. Your replacement will include proper infrastructure.`,
-      recommendation: `Don't spend money fixing this on a unit that needs replacement. Your new water heater installation will include the proper infrastructure to protect your investment from day one.`,
-      economicContext: `Your replacement will include ${issue.friendlyName.toLowerCase()} as part of the complete installation package.`,
+      yourSituation: `Given your unit's current condition, the recommended path forward is replacement rather than investing in individual repairs. Your new system will include proper infrastructure.`,
+      recommendation: `We recommend focusing on replacement rather than this individual fix. Your new water heater installation will include the proper infrastructure to protect your investment from day one.`,
+      economicContext: `Your replacement will include ${issue.friendlyName.toLowerCase()} as part of the complete installation.`,
       actionItems: [
         'Have your plumber reach out to discuss replacement options',
         'Ask about what protections are included in installation',
-        'Learn about financing options for a complete system upgrade',
+        'Learn about your options for a complete system upgrade',
       ],
       shouldFix: false,
     };

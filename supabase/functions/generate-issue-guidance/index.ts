@@ -57,26 +57,29 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert plumbing advisor explaining infrastructure issues to homeowners. Your job is to provide clear, honest guidance that factors in:
-1. The unit's current condition and age
-2. Whether fixing the issue makes economic sense
-3. The location-based risk
-4. The algorithm's overall recommendation
+    const systemPrompt = `You are an expert plumbing advisor explaining infrastructure issues to homeowners. Your job is to provide clear, honest guidance based on the algorithm's technical assessment.
 
-Be direct and honest. If the unit should be replaced, don't recommend spending money on repairs. If the unit is new and healthy, explain why the fix protects their investment.
+CRITICAL RULES:
+1. TRUST THE ALGORITHM - The recommendation (action field) is the source of truth. Do NOT override or second-guess it.
+2. NO PERCENTAGES OR DOLLAR AMOUNTS - Never mention specific costs, prices, failure rates, or percentages
+3. Use qualitative labels only: "elevated wear", "concerning condition", "aging faster than normal"
+4. Match your headline to the algorithm's action: REPAIR/MAINTAIN = "Protect Your Investment", REPLACE = "Plan for Replacement", MONITOR = "Stay Vigilant"
+5. For REPAIR/MAINTAIN actions on young tanks - emphasize the Infrastructure First approach: fixing the issue now protects a viable unit
+6. For REPLACE actions - explain why investing in this fix doesn't make sense when the unit needs replacement anyway
+7. For MONITOR actions - explain why no immediate action is needed
 
-IMPORTANT: Do NOT mention any specific prices, costs, or dollar amounts. Focus on the value and importance of addressing the issue, not the cost.
+Response format (JSON only):
+{
+  "headline": "3-5 word summary matching the action",
+  "explanation": "2-3 sentences explaining what this infrastructure issue is in plain language",
+  "yourSituation": "2-3 sentences personalizing to their unit's condition - use qualitative terms, not numbers",
+  "recommendation": "2-3 sentences with clear guidance that aligns with the algorithm's action",
+  "economicContext": "1-2 sentences about protection value - no dollar amounts",
+  "actionItems": ["2-3 specific next steps - use 'Have your plumber reach out' not 'schedule'"],
+  "shouldFix": true/false based on whether action is REPAIR/MAINTAIN (true) vs REPLACE/MONITOR (false)
+}
 
-Always respond with a JSON object with these fields:
-- headline: A 3-5 word summary of what they should do (e.g., "Protect Your Investment" or "Plan for Replacement")
-- explanation: 2-3 sentences explaining what this issue is in plain language
-- yourSituation: 2-3 sentences personalizing the guidance to their specific unit, age, and condition
-- recommendation: 2-3 sentences with a clear recommendation on what to do NOW
-- economicContext: 1-2 sentences about WHY this matters (not specific costs) - focus on protection, prevention, peace of mind
-- actionItems: Array of 2-3 specific next steps (use "Have your plumber reach out" not "schedule")
-- shouldFix: Boolean - true if they should fix this issue now, false if they should replace the unit instead
-
-Keep language warm but professional. Avoid jargon. Focus on actionable guidance. Never mention specific dollar amounts or prices.`;
+Keep language warm but professional. Focus on actionable guidance that matches the algorithm's verdict.`;
 
     const userPrompt = buildUserPrompt(context);
 
@@ -145,49 +148,69 @@ Keep language warm but professional. Avoid jargon. Focus on actionable guidance.
 });
 
 function buildUserPrompt(ctx: IssueGuidanceContext): string {
-  const isReplacementRecommended = ctx.recommendation.action === 'REPLACE';
-  const isNewUnit = ctx.unitAge <= 3;
-  const isHealthy = ctx.healthScore >= 60;
+  const action = ctx.recommendation.action;
+  const isRepairAction = action === 'REPAIR' || action === 'MAINTAIN';
+  const isReplaceAction = action === 'REPLACE';
+  const isMonitorAction = action === 'MONITOR';
+  const isYoungTank = ctx.unitAge <= 8;
   const isHighRiskLocation = ['ATTIC', 'UTILITY_CLOSET', 'LIVING_AREA'].includes(ctx.location.toUpperCase());
   
-  let situationSummary = '';
+  // Qualitative descriptors based on health
+  const healthLabel = ctx.healthScore >= 70 ? 'good condition' :
+                      ctx.healthScore >= 40 ? 'fair condition' :
+                      'concerning condition';
   
-  if (isReplacementRecommended) {
-    situationSummary = `This unit is recommended for REPLACEMENT (reason: ${ctx.recommendation.reason}). The customer should NOT invest in fixing this infrastructure issue because the entire system needs to be replaced. The replacement will include proper infrastructure.`;
-  } else if (isNewUnit && isHealthy) {
-    situationSummary = `This is a relatively NEW unit (${ctx.unitAge} years old) with good health (${ctx.healthScore}/100). Fixing this issue is a SMART INVESTMENT that will protect the unit for years to come.`;
-  } else if (isHealthy) {
-    situationSummary = `This unit is in decent condition (health: ${ctx.healthScore}/100) and has life left. Fixing this issue is RECOMMENDED to extend its service life.`;
-  } else {
-    situationSummary = `This unit is showing wear (health: ${ctx.healthScore}/100, age: ${ctx.unitAge} years). Consider whether fixing this issue makes sense vs. planning for replacement soon.`;
+  const agingLabel = ctx.agingRate <= 1.2 ? 'normal aging' :
+                     ctx.agingRate <= 2.0 ? 'elevated wear' :
+                     ctx.agingRate <= 4.0 ? 'accelerated aging' :
+                     'significantly accelerated aging';
+
+  let actionGuidance = '';
+  
+  if (isReplaceAction) {
+    actionGuidance = `ALGORITHM VERDICT: REPLACE - The algorithm has determined this unit needs replacement (reason: ${ctx.recommendation.reason}). 
+Do NOT recommend investing in this infrastructure fix. The replacement will include proper infrastructure.
+Your guidance should help them understand why their money is better spent on replacement, not repairs.`;
+  } else if (isRepairAction && isYoungTank) {
+    actionGuidance = `ALGORITHM VERDICT: ${action} - This is a younger tank (${ctx.unitAge} years) that can benefit from infrastructure improvements.
+This is an "Infrastructure First" situation - fixing this issue protects a viable unit with remaining service life.
+Your guidance should emphasize that addressing this now protects their investment.`;
+  } else if (isRepairAction) {
+    actionGuidance = `ALGORITHM VERDICT: ${action} - The algorithm recommends addressing this infrastructure issue.
+The unit has sufficient remaining value to warrant this investment.
+Your guidance should explain the protective value of this fix.`;
+  } else if (isMonitorAction) {
+    actionGuidance = `ALGORITHM VERDICT: MONITOR - The algorithm has determined no immediate action is needed.
+The unit is stable enough that this infrastructure concern doesn't require urgent attention.
+Your guidance should reassure them while noting what to watch for.`;
   }
 
-  const locationRisk = isHighRiskLocation
-    ? `HIGH RISK LOCATION: ${formatLocation(ctx.location)}. A failure here could cause significant water damage. ${ctx.damageScenario.description}`
-    : `LOWER RISK LOCATION: ${formatLocation(ctx.location)}. A failure could still cause damage, but the risk is more manageable.`;
+  const locationContext = isHighRiskLocation
+    ? `HIGH RISK LOCATION: ${formatLocation(ctx.location)}. A failure here could cause significant water damage.`
+    : `STANDARD RISK LOCATION: ${formatLocation(ctx.location)}.`;
 
   return `
 INFRASTRUCTURE ISSUE: ${ctx.issueName}
 Friendly description: ${ctx.friendlyName}
 
-UNIT CONTEXT:
+UNIT CONTEXT (use qualitative descriptions, not these numbers):
 - Age: ${ctx.unitAge} years
-- Health Score: ${ctx.healthScore}/100
-- Aging Rate: ${ctx.agingRate.toFixed(2)}x (1.0 = normal)
+- Condition: ${healthLabel}
+- Wear pattern: ${agingLabel}
 ${ctx.manufacturer ? `- Brand: ${ctx.manufacturer}` : ''}
 
-ALGORITHM RECOMMENDATION: ${ctx.recommendation.action}
-Reason: ${ctx.recommendation.reason}
+${actionGuidance}
 
-SITUATION ASSESSMENT:
-${situationSummary}
+LOCATION CONTEXT:
+${locationContext}
 
-LOCATION & RISK:
-${locationRisk}
+IMPORTANT REMINDERS:
+- Match your headline to the algorithm's ${action} verdict
+- Set shouldFix to ${isRepairAction ? 'true' : 'false'} based on the ${action} action
+- Do NOT mention specific percentages, dollar amounts, or failure rates
+- Use qualitative terms: "elevated wear", "concerning condition", "healthy unit"
 
-IS THIS SERVICEABLE?: ${ctx.isServiceable ? 'Yes - fixing this issue makes sense' : 'No - the unit should be replaced instead'}
-
-Generate personalized guidance for this customer about what "${ctx.issueName}" means for THEIR specific situation. Be honest about whether they should fix this or plan for replacement. Do NOT include any specific dollar amounts or prices in your response.`;
+Generate personalized guidance for this homeowner about "${ctx.issueName}".`;
 }
 
 function formatLocation(location: string): string {
