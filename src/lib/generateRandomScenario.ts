@@ -62,6 +62,52 @@ const ARCHETYPES = [
   { name: 'The Leaker', weight: 0.07, config: { ageRange: [6, 12], condition: 'leaking' } },
 ];
 
+/**
+ * Generate a specific test scenario: Young tank (2 years) in closed-loop system missing expansion tank
+ * This tests the "Infrastructure First" gate - should return REPAIR, not REPLACE
+ */
+export function generateYoungTankMissingExpansionScenario(): GeneratedScenario {
+  const fuelType: FuelType = 'GAS';
+  const brandData = BRANDS[fuelType][0]; // Rheem
+  
+  const inputs: ForensicInputs = {
+    calendarAge: 2,
+    warrantyYears: 12,
+    housePsi: 75, // Moderate pressure, but closed-loop causes spikes
+    tempSetting: 'NORMAL',
+    location: 'GARAGE',
+    isFinishedArea: false,
+    fuelType,
+    hardnessGPG: 12,
+    streetHardnessGPG: 12,
+    peopleCount: 4,
+    usageType: 'normal',
+    tankCapacity: 50,
+    ventType: 'ATMOSPHERIC',
+    hasSoftener: false,
+    hasCircPump: false,
+    hasExpTank: false, // KEY: Missing expansion tank
+    expTankStatus: 'MISSING',
+    hasPrv: true,
+    isClosedLoop: true, // KEY: Closed-loop system
+    hasDrainPan: true,
+    visualRust: false,
+    isLeaking: false,
+    leakSource: 'NONE',
+    connectionType: 'DIELECTRIC',
+    lastFlushYearsAgo: 1, // Well maintained
+    lastAnodeReplaceYearsAgo: undefined, // Original anode still good at 2 years
+  };
+  
+  return {
+    name: 'Young Tank - Missing Expansion (TEST)',
+    inputs,
+    brand: brandData.brand,
+    model: brandData.models[0],
+    serialNumber: `RH-${new Date().getFullYear() - 2}-TEST`,
+  };
+}
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }

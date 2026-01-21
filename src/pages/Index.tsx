@@ -11,7 +11,7 @@ import { MaintenancePlan } from '@/components/MaintenancePlan';
 import { EducationPage } from '@/components/EducationPage';
 
 import { type ForensicInputs, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
-import { generateRandomScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
+import { generateRandomScenario, generateYoungTankMissingExpansionScenario, type GeneratedScenario } from '@/lib/generateRandomScenario';
 import { type TechnicianInspectionData } from '@/types/technicianInspection';
 import { mapTechnicianToForensicInputs, mapTechnicianToAssetDisplay } from '@/types/technicianMapper';
 import { type OnboardingData, DEFAULT_ONBOARDING_DATA, mapOnboardingToForensicInputs } from '@/types/onboarding';
@@ -146,6 +146,20 @@ const Index = () => {
   // Handle quick random scenario - skips onboarding, goes straight to command center
   const handleQuickRandom = useCallback(() => {
     const scenario = generateRandomScenario();
+    setState({
+      screen: 'command-center',
+      mode: 'demo',
+      demoScenario: scenario,
+      technicianData: null,
+      onboardingData: DEFAULT_ONBOARDING_DATA,
+    });
+  }, []);
+
+  // Handle test scenario: Young tank missing expansion tank (should show REPAIR, not REPLACE)
+  const handleTestYoungTank = useCallback(() => {
+    const scenario = generateYoungTankMissingExpansionScenario();
+    console.log('[TEST] Young Tank Missing Expansion scenario:', scenario);
+    console.log('[TEST] Expected: REPAIR verdict, NOT REPLACE_SOON');
     setState({
       screen: 'command-center',
       mode: 'demo',
@@ -390,7 +404,7 @@ const Index = () => {
   // Render based on current screen
   switch (state.screen) {
     case 'mode-select':
-      return <ModeSelectScreen onSelectMode={handleModeSelect} onQuickRandom={handleQuickRandom} />;
+      return <ModeSelectScreen onSelectMode={handleModeSelect} onQuickRandom={handleQuickRandom} onTestYoungTank={handleTestYoungTank} />;
 
     case 'technician-flow':
       return (

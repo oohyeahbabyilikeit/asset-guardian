@@ -13,9 +13,10 @@ import {
 interface ModeSelectScreenProps {
   onSelectMode: (mode: 'technician' | 'demo') => void;
   onQuickRandom?: () => void;
+  onTestYoungTank?: () => void;
 }
 
-export function ModeSelectScreen({ onSelectMode, onQuickRandom }: ModeSelectScreenProps) {
+export function ModeSelectScreen({ onSelectMode, onQuickRandom, onTestYoungTank }: ModeSelectScreenProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header with gradient overlay */}
@@ -107,7 +108,7 @@ export function ModeSelectScreen({ onSelectMode, onQuickRandom }: ModeSelectScre
       </div>
       
       {/* Footer with Quick Random Button */}
-      <div className="px-6 pb-6 space-y-4">
+      <div className="px-6 pb-6 space-y-3">
         {onQuickRandom && (
           <button
             onClick={onQuickRandom}
@@ -115,6 +116,15 @@ export function ModeSelectScreen({ onSelectMode, onQuickRandom }: ModeSelectScre
           >
             <Sparkles className="h-4 w-4" />
             Quick Random (Testing)
+          </button>
+        )}
+        {onTestYoungTank && (
+          <button
+            onClick={onTestYoungTank}
+            className="w-full max-w-md mx-auto flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-dashed border-amber-500/40 text-amber-600 hover:border-amber-500 hover:bg-amber-50/50 transition-colors text-xs font-medium"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            Test: Young Tank Missing Expansion (REPAIR expected)
           </button>
         )}
         <p className="text-xs text-center text-muted-foreground/70 max-w-sm mx-auto">
