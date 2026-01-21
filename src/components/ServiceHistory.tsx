@@ -967,8 +967,8 @@ export function ServiceHistory({
 
   // Get header label based on fuel type
   const getHeaderLabel = () => {
-    if (isTanklessUnit) return 'Unit Health';
-    return 'Tank Health';
+    if (isTanklessUnit) return 'Current Condition';
+    return 'Current Condition';
   };
 
   // Get fuel type badge
