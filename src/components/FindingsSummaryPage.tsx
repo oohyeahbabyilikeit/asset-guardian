@@ -1,4 +1,4 @@
-import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2, MessageCircle, Loader2, Home } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Info, ChevronRight, Wrench, AlertCircle, Shield, Gauge, Droplets, Clock, ThermometerSun, Check, ArrowRight, TrendingUp, DollarSign, Calendar, CheckCircle2, Loader2, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,7 +10,6 @@ import { DAMAGE_SCENARIOS, getLocationKey } from '@/data/damageScenarios';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaintenanceEducationCard } from './MaintenanceEducationCard';
-import { WaterHeaterChatbot } from './WaterHeaterChatbot';
 import { getCachedFinding } from '@/hooks/useGeneratedFindings';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -770,7 +769,6 @@ export function FindingsSummaryPage({
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [showSummary, setShowSummary] = useState(false);
   const [openTopic, setOpenTopic] = useState<EducationalTopic | null>(null);
-  const [showChatbot, setShowChatbot] = useState(false);
   
   const { metrics, verdict } = opterraResult;
   const violations = getIssuesByCategory(infrastructureIssues, 'VIOLATION');
@@ -1451,16 +1449,6 @@ export function FindingsSummaryPage({
               </Button>
             )}
 
-            {/* Chat button */}
-            <Button
-              onClick={() => setShowChatbot(true)}
-              variant="ghost"
-              className="w-full h-auto py-2.5 text-muted-foreground hover:text-foreground"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              <span className="text-sm">Have Questions? Chat with AI</span>
-            </Button>
-
             <div className="flex gap-2">
               <Button
                 onClick={onMaintenance}
@@ -1481,56 +1469,6 @@ export function FindingsSummaryPage({
             </div>
           </div>
         </div>
-
-        {/* AI Chatbot */}
-        <AnimatePresence>
-          {showChatbot && (
-            <WaterHeaterChatbot
-              onClose={() => setShowChatbot(false)}
-              context={{
-                inputs: {
-                  manufacturer: currentInputs.manufacturer,
-                  modelNumber: currentInputs.modelNumber,
-                  calendarAgeYears: currentInputs.calendarAge,
-                  fuelType: currentInputs.fuelType,
-                  tankCapacityGallons: currentInputs.tankCapacity,
-                  hasPrv: currentInputs.hasPrv,
-                  hasExpTank: currentInputs.hasExpTank,
-                  expTankStatus: currentInputs.expTankStatus,
-                  isClosedLoop: currentInputs.isClosedLoop,
-                  streetHardnessGpg: currentInputs.streetHardnessGPG,
-                  hasSoftener: currentInputs.hasSoftener,
-                  housePsi: currentInputs.housePsi,
-                  visualRust: currentInputs.visualRust,
-                  isLeaking: currentInputs.isLeaking,
-                  leakSource: currentInputs.leakSource,
-                },
-                metrics: {
-                  healthScore: metrics.healthScore,
-                  bioAge: metrics.bioAge,
-                  stressFactors: metrics.stressFactors,
-                },
-                recommendation: {
-                  action: verdict.action,
-                  badge: verdict.badge,
-                  title: verdict.title,
-                  description: verdict.reason,
-                },
-                findings: findings.map(f => ({
-                  title: f.title,
-                  measurement: f.measurement,
-                  explanation: f.explanation,
-                  severity: f.severity,
-                })),
-                financial: {
-                  totalReplacementCost: financial.estReplacementCost,
-                  monthlyBudget: financial.monthlyBudget,
-                  targetDate: financial.targetReplacementDate,
-                },
-              }}
-            />
-          )}
-        </AnimatePresence>
       </div>
     );
   }
@@ -1602,15 +1540,6 @@ export function FindingsSummaryPage({
         )}
       </AnimatePresence>
 
-      {/* Chat FAB */}
-      <button
-        onClick={() => setShowChatbot(true)}
-        className="fixed bottom-24 right-6 z-20 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center"
-        style={{ boxShadow: '0 4px 20px -4px hsl(var(--primary) / 0.5)' }}
-      >
-        <MessageCircle className="w-6 h-6" />
-      </button>
-
       {/* Educational drawer with personalized LLM content */}
       {openTopic && (
         <EducationalDrawer
@@ -1623,56 +1552,6 @@ export function FindingsSummaryPage({
           }}
         />
       )}
-
-      {/* AI Chatbot */}
-      <AnimatePresence>
-        {showChatbot && (
-          <WaterHeaterChatbot
-            onClose={() => setShowChatbot(false)}
-            context={{
-              inputs: {
-                manufacturer: currentInputs.manufacturer,
-                modelNumber: currentInputs.modelNumber,
-                calendarAgeYears: currentInputs.calendarAge,
-                fuelType: currentInputs.fuelType,
-                tankCapacityGallons: currentInputs.tankCapacity,
-                hasPrv: currentInputs.hasPrv,
-                hasExpTank: currentInputs.hasExpTank,
-                expTankStatus: currentInputs.expTankStatus,
-                isClosedLoop: currentInputs.isClosedLoop,
-                streetHardnessGpg: currentInputs.streetHardnessGPG,
-                hasSoftener: currentInputs.hasSoftener,
-                housePsi: currentInputs.housePsi,
-                visualRust: currentInputs.visualRust,
-                isLeaking: currentInputs.isLeaking,
-                leakSource: currentInputs.leakSource,
-              },
-              metrics: {
-                healthScore: metrics.healthScore,
-                bioAge: metrics.bioAge,
-                stressFactors: metrics.stressFactors,
-              },
-              recommendation: {
-                action: verdict.action,
-                badge: verdict.badge,
-                title: verdict.title,
-                description: verdict.reason,
-              },
-              findings: findings.map(f => ({
-                title: f.title,
-                measurement: f.measurement,
-                explanation: f.explanation,
-                severity: f.severity,
-              })),
-              financial: {
-                totalReplacementCost: financial.estReplacementCost,
-                monthlyBudget: financial.monthlyBudget,
-                targetDate: financial.targetReplacementDate,
-              },
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

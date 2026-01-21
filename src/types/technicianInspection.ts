@@ -110,6 +110,21 @@ export interface TanklessInspection {
 // Building type for inspection context
 export type BuildingType = 'residential' | 'multifamily' | 'commercial';
 
+// Contractor context for chain of custody branding
+export interface ContractorContext {
+  companyName: string;      // "ABC Plumbing"
+  technicianName?: string;  // "Mike"
+  companyPhone: string;     // For SMS links
+}
+
+// Homeowner context captured at handoff
+export interface HomeownerContext {
+  name?: string;            // "John" (captured at handoff)
+}
+
+// Handoff mode determines CTA behavior
+export type HandoffMode = 'tablet' | 'remote';
+
 // Complete technician inspection data
 export interface TechnicianInspectionData {
   // When inspection started
@@ -132,6 +147,11 @@ export interface TechnicianInspectionData {
   // Derived
   calendarAge: number;  // Calculated from serial/install date
   streetHardnessGPG: number;  // Auto-fetched from API
+  
+  // Chain of custody context (Sales Closing Tool)
+  contractorContext?: ContractorContext;
+  homeownerContext?: HomeownerContext;
+  handoffMode?: HandoffMode;
 }
 
 // Defaults for initialization
