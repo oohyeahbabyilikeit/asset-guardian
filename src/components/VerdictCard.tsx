@@ -26,33 +26,33 @@ interface VerdictConfig {
 const verdictConfigs: Record<VerdictType, VerdictConfig> = {
   'replace-now': {
     icon: AlertTriangle,
-    iconBg: 'bg-destructive/15',
+    iconBg: 'bg-destructive/10',
     iconColor: 'text-destructive',
-    borderColor: 'border-destructive/30',
+    borderColor: 'border-transparent',
     title: 'Replace Your Water Heater',
     ctaText: 'Discuss Replacement Options',
   },
   'replace-soon': {
     icon: Clock,
-    iconBg: 'bg-amber-500/15',
-    iconColor: 'text-amber-400',
-    borderColor: 'border-amber-500/30',
+    iconBg: 'bg-muted',
+    iconColor: 'text-muted-foreground',
+    borderColor: 'border-transparent',
     title: 'Plan for Replacement',
     ctaText: 'Discuss Your Options',
   },
   'maintain': {
     icon: Wrench,
-    iconBg: 'bg-cyan-500/15',
-    iconColor: 'text-cyan-400',
-    borderColor: 'border-cyan-500/30',
+    iconBg: 'bg-muted',
+    iconColor: 'text-muted-foreground',
+    borderColor: 'border-transparent',
     title: 'Schedule Maintenance',
     ctaText: 'Have My Plumber Reach Out',
   },
   'monitor': {
     icon: CheckCircle,
-    iconBg: 'bg-emerald-500/15',
-    iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/30',
+    iconBg: 'bg-muted',
+    iconColor: 'text-muted-foreground',
+    borderColor: 'border-transparent',
     title: 'Your Unit Is Running Well',
     ctaText: 'Set a Reminder',
   },
@@ -118,10 +118,7 @@ export function VerdictCard({
   const description = getVerdictDescription(verdictType, recommendation, yearsRemaining, isLeaking, visualRust);
 
   return (
-    <div className={cn(
-      "command-card p-4 space-y-4 overflow-hidden w-full max-w-full",
-      config.borderColor
-    )}>
+    <div className="space-y-4 overflow-hidden w-full max-w-full">
       {/* Header */}
       <div className="flex items-start gap-3">
         <div className={cn(
@@ -147,16 +144,10 @@ export function VerdictCard({
         {description}
       </p>
 
-      {/* CTA Button */}
+      {/* CTA Button - Single accent color for all states */}
       <Button 
         onClick={onGetHelp}
-        className={cn(
-          "w-full h-12 text-sm font-medium gap-2",
-          verdictType === 'replace-now' && "bg-destructive hover:bg-destructive/90",
-          verdictType === 'replace-soon' && "bg-amber-500 hover:bg-amber-600 text-white",
-          verdictType === 'maintain' && "bg-primary hover:bg-primary/90",
-          verdictType === 'monitor' && "bg-secondary hover:bg-secondary/80 text-foreground"
-        )}
+        className="w-full h-12 text-sm font-medium gap-2 bg-primary hover:bg-primary/90"
       >
         {config.ctaText}
         <ChevronRight className="w-4 h-4" />
