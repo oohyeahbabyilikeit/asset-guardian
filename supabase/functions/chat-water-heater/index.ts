@@ -66,6 +66,22 @@ interface WaterHeaterContext {
   };
 }
 
+// Convert numeric health score to qualitative label
+function getHealthLabel(score?: number): string {
+  if (score === undefined) return 'Unknown';
+  if (score >= 70) return 'Good';
+  if (score >= 40) return 'Fair';
+  return 'Poor';
+}
+
+// Convert stress factor to qualitative descriptor
+function getStressLabel(factor?: number): string {
+  if (factor === undefined) return 'Normal';
+  if (factor >= 2.0) return 'High';
+  if (factor >= 1.3) return 'Elevated';
+  return 'Normal';
+}
+
 function buildSystemPrompt(context: WaterHeaterContext): string {
   const { inputs, metrics, recommendation, findings, serviceContext } = context;
   
@@ -78,10 +94,7 @@ function buildSystemPrompt(context: WaterHeaterContext): string {
     prompt += `- Brand/Model: ${inputs.manufacturer || 'Unknown'} ${inputs.modelNumber || ''}\n`;
   }
   if (inputs.calendarAgeYears !== undefined) {
-    prompt += `- Calendar Age: ${inputs.calendarAgeYears} years\n`;
-  }
-  if (metrics.bioAge !== undefined) {
-    prompt += `- Biological Age (wear-adjusted): ${metrics.bioAge.toFixed(1)} years\n`;
+    prompt += `- Age: ${inputs.calendarAgeYears} years\n`;
   }
   if (inputs.fuelType) {
     prompt += `- Fuel Type: ${inputs.fuelType}\n`;
@@ -92,10 +105,8 @@ function buildSystemPrompt(context: WaterHeaterContext): string {
 
   prompt += `\n## HEALTH ASSESSMENT\n`;
   if (metrics.healthScore !== undefined) {
-    prompt += `- Health Score: ${metrics.healthScore}/100\n`;
-  }
-  if (metrics.failProbability !== undefined) {
-    prompt += `- Failure Probability: ${(metrics.failProbability * 100).toFixed(0)}%\n`;
+    const healthLabel = getHealthLabel(metrics.healthScore);
+    prompt += `- Overall Condition: ${healthLabel}\n`;
   }
 
   prompt += `\n## PLUMBING ENVIRONMENT\n`;
@@ -103,22 +114,27 @@ function buildSystemPrompt(context: WaterHeaterContext): string {
   prompt += `- Expansion Tank: ${inputs.hasExpTank ? (inputs.expTankStatus || 'Installed') : 'Not installed'}\n`;
   prompt += `- Closed-Loop System: ${inputs.isClosedLoop || inputs.hasPrv ? 'Yes' : 'No'}\n`;
   if (inputs.streetHardnessGpg !== undefined) {
-    prompt += `- Water Hardness: ${inputs.streetHardnessGpg} GPG${inputs.hasSoftener ? ' (softener installed)' : ''}\n`;
+    const hardnessLabel = inputs.streetHardnessGpg > 15 ? 'Very Hard' : inputs.streetHardnessGpg > 7 ? 'Hard' : 'Moderate';
+    prompt += `- Water Hardness: ${hardnessLabel}${inputs.hasSoftener ? ' (softener installed)' : ''}\n`;
   }
   if (inputs.housePsi !== undefined) {
-    prompt += `- Water Pressure: ${inputs.housePsi} PSI\n`;
+    const pressureLabel = inputs.housePsi > 80 ? 'High' : inputs.housePsi > 60 ? 'Normal' : 'Low';
+    prompt += `- Water Pressure: ${pressureLabel}\n`;
   }
 
   if (metrics.stressFactors) {
-    prompt += `\n## STRESS FACTORS (multipliers accelerating wear)\n`;
-    if (metrics.stressFactors.age) {
-      prompt += `- Age Factor: ${metrics.stressFactors.age.toFixed(1)}x\n`;
-    }
+    prompt += `\n## WEAR FACTORS\n`;
     if (metrics.stressFactors.pressure) {
-      prompt += `- Pressure/Thermal Expansion: ${metrics.stressFactors.pressure.toFixed(1)}x\n`;
+      const label = getStressLabel(metrics.stressFactors.pressure);
+      if (label !== 'Normal') {
+        prompt += `- Pressure/Thermal Stress: ${label}\n`;
+      }
     }
     if (metrics.stressFactors.waterQuality) {
-      prompt += `- Water Quality: ${metrics.stressFactors.waterQuality.toFixed(1)}x\n`;
+      const label = getStressLabel(metrics.stressFactors.waterQuality);
+      if (label !== 'Normal') {
+        prompt += `- Water Quality Impact: ${label}\n`;
+      }
     }
   }
 
@@ -154,20 +170,20 @@ function buildSystemPrompt(context: WaterHeaterContext): string {
     }
   }
 
-  // Note: Financial context removed in v9.0 - focus on physics-based explanations
-
   prompt += `
 ## GUIDELINES
 - Answer based on their specific situation and data above
 - Be honest about what you know vs. don't know
 - When explaining technical concepts (like thermal expansion), relate it to their specific situation
-- NEVER mention specific dollar amounts or costs - focus on the physics and risk factors
+- NEVER mention "biological age", "bio age", failure percentages, or specific dollar amounts
+- Use qualitative terms like "elevated wear", "concerning condition", "good shape" instead of numbers
 - If they ask about costs, explain that pricing varies by location and suggest they discuss with a local professional
 - If they seem worried, acknowledge their concerns while being reassuring and practical
 - Suggest actionable next steps when appropriate
 - Keep responses focused and avoid unnecessary jargon
 - If they ask about services on their list, explain WHY those services matter for their specific situation
-- Be supportive of their decision to learn more before committing`;
+- Be supportive of their decision to learn more before committing
+- Sound like a trusted advisor, not a salesperson`;
 
   return prompt;
 }
