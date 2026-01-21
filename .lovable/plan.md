@@ -1,229 +1,114 @@
 
+# Fix: Properly Separate "Urgent Actions" from "Add-Ons"
 
-# Strategic Pivot: Lead Generator → Sales Closing Tool
+## The Problem
+Water softeners (and other `OPTIMIZATION` items) are appearing under "Urgent Actions" because `CommandCenter.tsx` merges both `INFRASTRUCTURE` and `OPTIMIZATION` categories into a single `recommendations` array.
 
-## The Vision
-Transform the app from "getting a stranger's phone number" to **validating the expert's advice**. When the plumber says "You need a replacement," the app becomes the "Bad Cop" (objective data) so the plumber can be the "Good Cop" (trusted advisor with solutions).
+## The Solution
+Split the categories properly:
+- **Urgent Actions**: `INFRASTRUCTURE` items only (recommended protective work that genuinely matters)
+- **Add-Ons**: `OPTIMIZATION` items (premium nice-to-haves like water softeners)
 
 ---
 
-## Phase 1: Chain of Custody Branding
+## Changes Required
 
-### 1.1 Add Contractor & Homeowner Context to Data Flow
+### 1. Update CommandCenter.tsx - Split Categories
 
-**New Interface: `InspectionContext`**
+**Current (lines 473-486):**
 ```typescript
-// src/types/technicianInspection.ts (add to TechnicianInspectionData)
-contractorContext?: {
-  companyName: string;      // "ABC Plumbing"
-  technicianName?: string;  // "Mike"  
-  companyPhone: string;     // For SMS links
-};
-homeownerContext?: {
-  name?: string;            // "John" (captured at handoff)
-};
+const recommendationIssues = [
+  ...getIssuesByCategory(infrastructureIssues, 'INFRASTRUCTURE'),
+  ...getIssuesByCategory(infrastructureIssues, 'OPTIMIZATION'),
+];
 ```
 
-**Impact**: Flows through `Index.tsx` → `CommandCenter` → `DashboardHeader`
-
-### 1.2 Update Dashboard Header
-
-**Current**: Just "CORTEX" with hardcoded "HO" avatar
-
-**New Layout**:
-```
-┌─────────────────────────────────────────────────┐
-│ [Logo] CORTEX                                   │
-│ Report for John • Verified by ABC Plumbing      │
-└─────────────────────────────────────────────────┘
-```
-
-**Files to modify**:
-- `src/components/DashboardHeader.tsx` - Add props for `homeownerName`, `contractorName`
-- `src/pages/Index.tsx` - Pass context through
-
----
-
-## Phase 2: Expectation Shift (CTA Rename)
-
-### 2.1 Rename Primary Button
-
-| Location | Current | New |
-|----------|---------|-----|
-| `ActionDock.tsx` line 40 | "What are my options?" | "View Risk Analysis" |
-| `BreachAlert.tsx` line 204 | "What are my options?" | "View Risk Analysis" |
-
-### 2.2 Internal Navigation Rename
-
-Update `handleServiceRequest` logic in `Index.tsx` to navigate to a renamed screen:
-- `critical-assessment` → Continue using for red tier
-- `findings-summary` → Continue using for yellow/green
-
-The "Risk Analysis" terminology sets the expectation of **diagnosis**, not shopping.
-
----
-
-## Phase 3: The Prescription Pad (Replace Contact Form)
-
-### 3.1 Delete the Chatbot
-
-Remove `WaterHeaterChatbot.tsx` and all references:
-- `FindingsSummaryPage.tsx` (chat button + state)
-- `CommandCenter.tsx` (any chat triggers)
-- Edge function `chat-water-heater` can remain for now (no code change needed)
-
-### 3.2 Create New "Prescription Pad" Component
-
-**New File**: `src/components/PrescriptionPad.tsx`
-
-**Layout**:
-```
-┌─────────────────────────────────────────────────┐
-│ ⚠️ REMEDIATION PROTOCOL                         │
-├─────────────────────────────────────────────────┤
-│ FINDINGS & REQUIRED ACTIONS                     │
-│                                                 │
-│ 🔴 Anode Depleted                               │
-│    → Unit Replacement (Safety Compromised)      │
-│                                                 │
-│ 🟠 High Pressure (110 PSI)                      │
-│    → Install PRV + Expansion Tank (Code Req.)   │
-│                                                 │
-│ 🟡 Hard Water (18 GPG)                          │
-│    → Water Softener (Prevent Future Failure)    │
-├─────────────────────────────────────────────────┤
-│ [PRIMARY BUTTON - context dependent]            │
-└─────────────────────────────────────────────────┘
-```
-
-**Data Source**: Uses `getInfrastructureIssues()` + verdict to map issues to line items with explicit remediation labels.
-
-### 3.3 Issue → Line Item Mapping
-
-Enhance `InfrastructureIssue` to include `remediationLabel`:
-
-| Issue ID | Finding Label | Remediation Label |
-|----------|---------------|-------------------|
-| `exp_tank_required` | Missing Expansion Tank | Install Expansion Tank |
-| `prv_critical` | High Pressure (>80 PSI) | Install PRV |
-| `prv_failed` | PRV Failed | Replace PRV |
-| `softener_new` | Hard Water Detected | Install Water Softener |
-| (verdict=REPLACE) | End of Service Life | Unit Replacement |
-
-This creates a "prescription" that maps the diagnosis directly to billable work.
-
----
-
-## Phase 4: Magic Buttons (Facilitate Outreach)
-
-### 4.1 Two Button Modes
-
-**Scenario A: Shoulder-to-Shoulder (Plumber Present)**
-```
-┌─────────────────────────────────────────────────┐
-│ [Button] Review Solutions with Technician       │
-│ "Turn to your technician to discuss next steps" │
-└─────────────────────────────────────────────────┘
-```
-- **Behavior**: Closes the prescription pad, returns to dashboard, perhaps shows a "Discussion Complete" state
-- **No lead capture needed** - the plumber is already there
-
-**Scenario B: Remote Follow-Up (Viewing Alone)**
-```
-┌─────────────────────────────────────────────────┐
-│ [Button] I'm Ready to Proceed                   │
-│ "Opens a text to your plumber"                  │
-└─────────────────────────────────────────────────┘
-```
-- **Behavior**: Opens SMS with pre-filled message:
-  ```
-  sms:555-0199?body=I've%20reviewed%20the%20Cortex%20report.%20I%20understand%20the%20risks%20and%20I'm%20ready%20to%20schedule%20the%20replacement.%20Please%20call%20me%20to%20finalize.
-  ```
-
-### 4.2 Mode Detection
-
-Add to `InspectionContext`:
+**New:**
 ```typescript
-handoffMode: 'tablet' | 'remote';
+// INFRASTRUCTURE = Urgent protective work  
+const infrastructureRecommendations = getIssuesByCategory(infrastructureIssues, 'INFRASTRUCTURE');
+const urgentTasks: MaintenanceTask[] = infrastructureRecommendations.map(issue => ({
+  type: 'inspection' as MaintenanceTask['type'],
+  label: issue.name,
+  description: issue.description,
+  monthsUntilDue: 0,
+  urgency: 'schedule' as const,
+  benefit: issue.friendlyName,
+  whyExplanation: issue.description,
+  icon: 'wrench' as const,
+  isInfrastructure: true,
+}));
+
+// OPTIMIZATION = Nice-to-have add-ons (softeners, longevity PRV)
+const optimizationIssues = getIssuesByCategory(infrastructureIssues, 'OPTIMIZATION');
+const addOnTasks: MaintenanceTask[] = optimizationIssues.map(issue => ({
+  type: 'inspection' as MaintenanceTask['type'],
+  label: issue.name,
+  description: issue.description,
+  monthsUntilDue: 0,
+  urgency: 'optimal' as const,  // Lower urgency
+  benefit: issue.friendlyName,
+  whyExplanation: issue.description,
+  icon: 'lightbulb' as const,  // Different icon
+  isInfrastructure: true,
+}));
 ```
 
-This is already captured in `HandoffStep.tsx` - just needs to flow through to the final screen.
+### 2. Update ServiceSelectionDrawer Props
+
+Add a new `addOns` prop to separate the categories:
+
+```typescript
+interface ServiceSelectionDrawerProps {
+  // ... existing props
+  recommendations: MaintenanceTask[];  // INFRASTRUCTURE (urgent)
+  addOns?: MaintenanceTask[];          // NEW: OPTIMIZATION (nice-to-have)
+}
+```
+
+### 3. Update ServiceSelectionDrawer Rendering
+
+Move the current "Add-Ons" section (which was incorrectly using `replacementTasks`) to use the new `addOns` prop:
+
+| Section | Data Source | Label |
+|---------|-------------|-------|
+| Code Violations | `violations` (VIOLATION) | 🔴 "Code Violations" |
+| Urgent Actions | `recommendations` (INFRASTRUCTURE) | 🟠 "Urgent Actions" |
+| Add-Ons | `addOns` (OPTIMIZATION) | 💡 "Add-Ons" |
+| Maintenance | `regularMaintenanceTasks` | "Maintenance" |
+
+### 4. Pass the Split Arrays from CommandCenter
+
+Update the `ServiceSelectionDrawer` call in CommandCenter to pass both arrays:
+
+```tsx
+<ServiceSelectionDrawer
+  violations={violationTasks}
+  maintenanceTasks={maintenanceTasks}
+  recommendations={urgentTasks}      // INFRASTRUCTURE only
+  addOns={addOnTasks}                // NEW: OPTIMIZATION items
+  // ...
+/>
+```
 
 ---
 
-## Phase 5: Kill "Have My Plumber Reach Out" Pattern
+## What This Fixes
 
-### 5.1 Remove Contact Form Usage
-
-| File | Current CTA | New CTA |
-|------|-------------|---------|
-| `CriticalAssessmentPage.tsx` | "Have My Plumber Reach Out" | Prescription Pad button |
-| `ReplacementOptionsPage.tsx` | "Have My Plumber Reach Out" | Prescription Pad button |
-| `ServiceSelectionDrawer.tsx` | "Have My Plumber Reach Out" | "Review with Technician" or SMS button |
-| `MaintenancePlan.tsx` | Contact form flow | Prescription Pad or SMS |
-
-### 5.2 Keep PlumberContactForm for Edge Cases
-
-Only use for truly cold leads (e.g., someone finds the report link weeks later without the plumber). Add a small "Need help?" link that opens the form as fallback.
+| Item | Category | Before | After |
+|------|----------|--------|-------|
+| Water Softener Install | OPTIMIZATION | 🟠 Urgent Actions | 💡 Add-Ons ✓ |
+| Water Softener Replace | OPTIMIZATION | 🟠 Urgent Actions | 💡 Add-Ons ✓ |
+| PRV for Longevity (60-69 PSI) | OPTIMIZATION | 🟠 Urgent Actions | 💡 Add-Ons ✓ |
+| PRV Recommended (70-80 PSI) | INFRASTRUCTURE | 🟠 Urgent Actions | 🟠 Urgent Actions ✓ |
+| Softener Service | INFRASTRUCTURE | 🟠 Urgent Actions | 🟠 Urgent Actions ✓ |
+| Expansion Tank Replace | INFRASTRUCTURE | 🟠 Urgent Actions | 🟠 Urgent Actions ✓ |
 
 ---
 
-## Summary of Changes
+## Files to Modify
 
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/types/technicianInspection.ts` | Add `contractorContext` and `homeownerContext` |
-| `src/components/DashboardHeader.tsx` | Add "Chain of Custody" badge display |
-| `src/components/ActionDock.tsx` | Rename button to "View Risk Analysis" |
-| `src/components/BreachAlert.tsx` | Rename button to "View Risk Analysis" |
-| `src/components/PrescriptionPad.tsx` | **NEW** - Prescription summary with magic buttons |
-| `src/components/WaterHeaterChatbot.tsx` | **DELETE** |
-| `src/components/FindingsSummaryPage.tsx` | Remove chatbot, add Prescription Pad integration |
-| `src/components/CriticalAssessmentPage.tsx` | Replace CTA with Prescription Pad |
-| `src/components/ServiceSelectionDrawer.tsx` | Rework as Prescription Pad display or remove |
-| `src/lib/infrastructureIssues.ts` | Add `remediationLabel` field to issues |
-| `src/pages/Index.tsx` | Pass contractor/homeowner context through |
-| `src/components/steps/technician/HandoffStep.tsx` | Capture and pass `handoffMode` |
-
----
-
-## Technical Notes
-
-### SMS Link Format
-```typescript
-const smsLink = `sms:${contractorPhone}?body=${encodeURIComponent(
-  `I've reviewed the Cortex report. I understand the risks and I'm ready to schedule the replacement. Please call me to finalize.`
-)}`;
-
-// Trigger:
-window.location.href = smsLink;
-```
-
-### Fallback for iOS vs Android
-iOS uses `sms:` with `&body=`, Android uses `sms:` with `?body=`. The `?body=` format works on both in most cases, but may need testing.
-
----
-
-## User Experience Flow (After Changes)
-
-```
-Technician completes inspection
-         ↓
-Homeowner sees dashboard:
-"Report for John • Verified by ABC Plumbing"
-         ↓
-Taps "View Risk Analysis"
-         ↓
-Sees Prescription Pad:
-- 🔴 Replace Unit (Safety)
-- 🟠 Install PRV (Code)
-- 🟡 Add Softener (Protection)
-         ↓
-[If plumber present]     [If viewing remotely]
-"Review with Tech"  →   "I'm Ready" → SMS opens
-         ↓                    ↓
-Discussion happens     Pre-filled text sent
-```
-
-This removes all friction while validating the plumber's expertise.
-
+| `src/components/CommandCenter.tsx` | Split `INFRASTRUCTURE` and `OPTIMIZATION` into separate task arrays |
+| `src/components/ServiceSelectionDrawer.tsx` | Add `addOns` prop, render it in the "Add-Ons" section |
