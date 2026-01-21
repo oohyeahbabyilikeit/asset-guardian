@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Sparkles, MessageCircle, Loader2 } from 'lucide-react';
+import { X, Send, Sparkles, User, Loader2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { MaintenanceTask } from '@/lib/maintenanceCalculations';
-import type { InfrastructureIssue } from '@/lib/infrastructureIssues';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -19,17 +18,14 @@ interface Message {
 interface CorrtexChatOverlayProps {
   open: boolean;
   onClose: () => void;
-  // Context for AI
   inputs: ForensicInputs;
   metrics: OpterraMetrics;
   recommendation: { action: string; badge: string; title: string; description?: string };
-  // Services being shown to generate questions
   violations: MaintenanceTask[];
   recommendations: MaintenanceTask[];
   maintenanceTasks: MaintenanceTask[];
   addOns: MaintenanceTask[];
   healthScore: number;
-  // Optional additional context
   priorityFindings?: Array<{
     id: string;
     name: string;
@@ -39,7 +35,6 @@ interface CorrtexChatOverlayProps {
   }>;
 }
 
-// Generate suggested questions based on services
 function generateSuggestedQuestions(
   violations: MaintenanceTask[],
   recommendations: MaintenanceTask[],
@@ -50,7 +45,6 @@ function generateSuggestedQuestions(
 ): string[] {
   const questions: string[] = [];
   
-  // Check for specific services and add relevant questions
   if (violations.some(v => v.type.includes('exp_tank'))) {
     questions.push("Why is an expansion tank required?");
   }
@@ -75,35 +69,29 @@ function generateSuggestedQuestions(
     questions.push("How would a softener help my situation?");
   }
   
-  // Pressure-related questions
   if (inputs.housePsi > 70) {
     questions.push("Is my water pressure dangerous?");
   }
   
-  // Age-related questions
   if (inputs.calendarAge >= 10) {
     questions.push("How much life does my unit have left?");
   }
   
-  // Hard water questions
   if (inputs.hardnessGPG > 10 && !inputs.hasSoftener) {
     questions.push("How does hard water affect my water heater?");
   }
   
-  // General health questions
   if (questions.length === 0) {
     questions.push("What's the most important thing I should know?");
     questions.push("What should I do next?");
   }
   
-  return questions.slice(0, 4); // Max 4 suggestions
+  return questions.slice(0, 4);
 }
 
-// Build context for the AI
 function buildChatContext(props: CorrtexChatOverlayProps) {
   const { inputs, metrics, recommendation, violations, recommendations, maintenanceTasks, addOns, healthScore, priorityFindings } = props;
   
-  // Build findings array for AI context
   const findings = [
     ...violations.map(v => ({
       title: v.label,
@@ -131,7 +119,6 @@ function buildChatContext(props: CorrtexChatOverlayProps) {
     })),
   ].slice(0, 6);
 
-  // Build service context for the AI
   const serviceContext = {
     selectedServices: [
       ...violations.map(v => v.label),
@@ -182,6 +169,29 @@ function buildChatContext(props: CorrtexChatOverlayProps) {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-water-heater`;
 
+// Typing indicator component
+function TypingIndicator() {
+  return (
+    <div className="flex items-center gap-1 px-2 py-1">
+      <motion.div 
+        className="w-2 h-2 rounded-full bg-primary/60"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+      />
+      <motion.div 
+        className="w-2 h-2 rounded-full bg-primary/60"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
+      />
+      <motion.div 
+        className="w-2 h-2 rounded-full bg-primary/60"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
+      />
+    </div>
+  );
+}
+
 export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
   const { open, onClose, violations, recommendations, maintenanceTasks, addOns, inputs, recommendation } = props;
   
@@ -196,7 +206,6 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
     violations, recommendations, maintenanceTasks, addOns, inputs, recommendation
   );
   
-  // Initialize with greeting when opened
   useEffect(() => {
     if (open && !isInitialized) {
       const totalServices = violations.length + recommendations.length + maintenanceTasks.length + addOns.length;
@@ -213,7 +222,6 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
     }
   }, [open, isInitialized, violations.length, recommendations.length, maintenanceTasks.length, addOns.length]);
   
-  // Reset when closed
   useEffect(() => {
     if (!open) {
       setMessages([]);
@@ -222,17 +230,15 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
     }
   }, [open]);
   
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
   
-  // Focus input when opened
   useEffect(() => {
     if (open && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open]);
   
@@ -280,7 +286,6 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
       let textBuffer = '';
       let streamDone = false;
       
-      // Add assistant message placeholder
       const assistantId = `assistant-${Date.now()}`;
       setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '' }]);
       
@@ -314,14 +319,12 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
               );
             }
           } catch {
-            // Incomplete JSON, put it back
             textBuffer = line + '\n' + textBuffer;
             break;
           }
         }
       }
       
-      // Final flush
       if (textBuffer.trim()) {
         for (let raw of textBuffer.split('\n')) {
           if (!raw) continue;
@@ -358,91 +361,118 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
   const handleSuggestedQuestion = (question: string) => {
     sendMessage(question);
   };
-  
-  if (!open) return null;
-  
+
+  // Always render but toggle visibility for instant appearance
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-background flex flex-col"
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-background via-background to-secondary/20"
         >
-          {/* Header */}
-          <motion.header
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm"
-          >
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Sparkles className="w-5 h-5 text-primary" />
+          {/* Header with gradient */}
+          <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-primary/5 via-background to-primary/5">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                {/* Glow effect */}
+                <div className="absolute inset-0 rounded-xl bg-primary/20 blur-md -z-10" />
               </div>
               <div>
-                <h1 className="font-semibold text-foreground">Corrtex AI</h1>
+                <h1 className="font-semibold text-foreground flex items-center gap-2">
+                  Corrtex AI
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    Online
+                  </span>
+                </h1>
                 <p className="text-xs text-muted-foreground">Your water heater assistant</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">
+            <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0 rounded-full hover:bg-secondary">
               <X className="w-5 h-5" />
             </Button>
-          </motion.header>
+          </header>
           
           {/* Messages */}
           <ScrollArea className="flex-1 px-4 py-4" ref={scrollRef}>
-            <div className="space-y-4 max-w-2xl mx-auto">
-              {messages.map((msg, idx) => (
+            <div className="space-y-4 max-w-2xl mx-auto pb-4">
+              {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx === 0 ? 0.2 : 0 }}
+                  transition={{ duration: 0.2 }}
                   className={cn(
                     "flex gap-3",
                     msg.role === 'user' ? "justify-end" : "justify-start"
                   )}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-4 h-4 text-primary" />
+                    <div className="relative shrink-0">
+                      <div className={cn(
+                        "w-9 h-9 rounded-full flex items-center justify-center",
+                        "bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20"
+                      )}>
+                        <Sparkles className={cn(
+                          "w-4 h-4 text-primary",
+                          isLoading && msg.content === '' && "animate-pulse"
+                        )} />
+                      </div>
+                      {/* Glow when loading */}
+                      {isLoading && msg.content === '' && (
+                        <div className="absolute inset-0 rounded-full bg-primary/30 blur-md animate-pulse" />
+                      )}
                     </div>
                   )}
                   <div className={cn(
-                    "rounded-2xl px-4 py-3 max-w-[85%]",
+                    "rounded-2xl px-4 py-3 max-w-[85%] shadow-sm",
                     msg.role === 'user' 
-                      ? "bg-primary text-primary-foreground rounded-br-md" 
-                      : "bg-secondary text-foreground rounded-bl-md"
+                      ? "bg-primary text-primary-foreground rounded-br-lg shadow-primary/20" 
+                      : "bg-secondary/80 text-foreground rounded-bl-lg border border-border/50 backdrop-blur-sm"
                   )}>
-                    <p className="text-sm whitespace-pre-wrap">{msg.content || (isLoading && msg.role === 'assistant' ? '...' : '')}</p>
+                    {msg.content ? (
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    ) : (
+                      isLoading && msg.role === 'assistant' && <TypingIndicator />
+                    )}
                   </div>
                   {msg.role === 'user' && (
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50">
+                      <User className="w-4 h-4 text-muted-foreground" />
                     </div>
                   )}
                 </motion.div>
               ))}
               
-              {/* Suggested Questions - show only after greeting, before first user message */}
+              {/* Suggested Questions - card style */}
               {messages.length === 1 && messages[0].role === 'assistant' && !isLoading && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="space-y-2"
+                  transition={{ duration: 0.2, delay: 0.1 }}
+                  className="space-y-3 pt-2"
                 >
-                  <p className="text-xs text-muted-foreground text-center">Suggested questions:</p>
-                  <div className="flex flex-wrap gap-2 justify-center">
+                  <p className="text-xs text-muted-foreground text-center font-medium">Quick questions</p>
+                  <div className="grid grid-cols-2 gap-2">
                     {suggestedQuestions.map((q, idx) => (
                       <button
                         key={idx}
                         onClick={() => handleSuggestedQuestion(q)}
-                        className="px-3 py-2 text-xs rounded-full bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors"
+                        className={cn(
+                          "flex items-start gap-2 p-3 text-left text-xs rounded-xl",
+                          "bg-secondary/60 hover:bg-secondary border border-border/50",
+                          "transition-all duration-200 hover:shadow-md hover:border-primary/30",
+                          "group"
+                        )}
                       >
-                        {q}
+                        <HelpCircle className="w-4 h-4 text-primary shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                        <span className="text-foreground leading-snug">{q}</span>
                       </button>
                     ))}
                   </div>
@@ -451,30 +481,32 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
             </div>
           </ScrollArea>
           
-          {/* Input */}
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="border-t border-border bg-background/95 backdrop-blur-sm p-4"
-          >
-            <form onSubmit={handleSubmit} className="max-w-2xl mx-auto flex gap-2">
-              <Input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about your water heater..."
-                className="flex-1"
-                disabled={isLoading}
-              />
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </Button>
+          {/* Input Area - cleaner design */}
+          <div className="border-t border-border/50 bg-background/95 backdrop-blur-sm p-4">
+            <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+              <div className="flex gap-2 items-center bg-secondary/50 rounded-xl p-1.5 border border-border/50 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask about your water heater..."
+                  className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
+                  disabled={isLoading}
+                />
+                <Button 
+                  type="submit" 
+                  size="icon" 
+                  disabled={isLoading || !input.trim()}
+                  className="shrink-0 rounded-lg h-9 w-9 bg-primary hover:bg-primary/90"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
             </form>
-            <p className="text-[10px] text-center text-muted-foreground mt-2">
+            <p className="text-[10px] text-center text-muted-foreground/60 mt-2">
               Corrtex AI provides educational guidance. For specific recommendations, consult your plumber.
             </p>
-          </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
