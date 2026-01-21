@@ -261,12 +261,27 @@ export function UnifiedStatusCard({
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
                 Our Recommendation
               </p>
-              <h3 className="text-sm font-semibold text-foreground">
-                {verdictConfig.title}
-              </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-1">
-                {verdictDescription}
-              </p>
+              {/* Show combined message when violations exist with maintenance */}
+              {hasViolations && (verdictType === 'maintain' || verdictType === 'monitor') ? (
+                <>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Fix Code Issues + {verdictConfig.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    <span className="text-destructive font-medium">Address the code {criticalIssues.length === 1 ? 'violation' : 'violations'} above</span>
+                    {' '}and continue with scheduled maintenance to protect your investment.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {verdictConfig.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    {verdictDescription}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
