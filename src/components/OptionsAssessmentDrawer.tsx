@@ -47,9 +47,23 @@ interface OptionsAssessmentDrawerProps {
 
 type UrgencyTier = 'critical' | 'attention' | 'healthy' | 'monitor';
 
-function getUrgencyTier(healthScore: number, verdictAction: VerdictAction, isPassVerdict: boolean): UrgencyTier {
-  // PASS verdicts get their own tier
+function getUrgencyTier(
+  healthScore: number, 
+  verdictAction: VerdictAction, 
+  isPassVerdict: boolean,
+  priorityFindings: PriorityFinding[]
+): UrgencyTier {
+  // Check for critical findings first - violations override PASS verdict
+  const hasCriticalFinding = priorityFindings.some(f => f.severity === 'critical');
+  const hasWarningFinding = priorityFindings.some(f => f.severity === 'warning');
+  
+  if (hasCriticalFinding) return 'critical';  // Violations = immediate attention
+  if (hasWarningFinding) return 'attention';  // Infrastructure issues = proactive
+  
+  // Only show "stable" if PASS verdict AND no findings
   if (isPassVerdict) return 'monitor';
+  
+  // Existing logic for health score thresholds
   if (healthScore < 40 || verdictAction === 'REPLACE') return 'critical';
   if (healthScore < 70 || verdictAction === 'REPAIR') return 'attention';
   return 'healthy';
@@ -163,7 +177,7 @@ export function OptionsAssessmentDrawer({
   verdictReason,
   yearsRemaining = 0,
 }: OptionsAssessmentDrawerProps) {
-  const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict);
+  const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
   const recommendation = getRecommendation(tier);
   const Icon = recommendation.icon;
   
