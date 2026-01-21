@@ -1974,7 +1974,12 @@ function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetric
   let adjustedYearsRemaining = 0.5;
   
   if (rawYearsRemaining > 0) {
-    adjustedYearsRemaining = rawYearsRemaining / metrics.agingRate;
+    // INFRASTRUCTURE FIRST GATE (v8.3): For young tanks with correctable issues,
+    // use the optimized rate instead of current stressed rate.
+    // This assumes the recommended infrastructure fix IS applied.
+    const isYoungWithCorrectableIssues = data.calendarAge < 8 && metrics.optimizedRate < metrics.agingRate;
+    const effectiveRate = isYoungWithCorrectableIssues ? metrics.optimizedRate : metrics.agingRate;
+    adjustedYearsRemaining = rawYearsRemaining / effectiveRate;
   }
   
   // Override for failed units - immediate action needed

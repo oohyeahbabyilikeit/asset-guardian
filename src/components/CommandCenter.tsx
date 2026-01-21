@@ -500,7 +500,14 @@ export function CommandCenter({
   
   // Calculate estimated remaining life for PASS verdicts
   const estimatedTotalLife = 13; // Average tank life based on Weibull analysis
-  const yearsRemaining = Math.max(0, Math.round(estimatedTotalLife - metrics.bioAge));
+  let yearsRemaining = Math.max(0, Math.round(estimatedTotalLife - metrics.bioAge));
+  
+  // INFRASTRUCTURE FIRST GATE: If algorithm says REPAIR on a young tank,
+  // give them credit for the fix by using optimized remaining life
+  const isYoungRepairCandidate = currentInputs.calendarAge < 8 && (verdict.action === 'REPAIR' || verdict.action === 'UPGRADE');
+  if (isYoungRepairCandidate && metrics.yearsLeftOptimized > yearsRemaining) {
+    yearsRemaining = Math.round(metrics.yearsLeftOptimized);
+  }
 
   // When replacement is recommended, violations are bundled into the replacement job
   const shouldBundleViolations = shouldShowReplacementOption;
