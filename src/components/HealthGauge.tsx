@@ -24,54 +24,122 @@ interface HealthGaugeProps {
   onIssueLearnMore?: (issue: InfrastructureIssue) => void; // For infrastructure issue guidance drawer
 }
 
+// Types for plain-English findings
+interface Finding {
+  status: 'good' | 'warning' | 'critical' | 'info';
+  message: string;
+}
+
+// Helper to translate metrics into homeowner-friendly findings
+function getPlainEnglishFindings(metrics: OpterraMetrics, isTanklessUnit: boolean): Finding[] {
+  const findings: Finding[] = [];
+  
+  if (isTanklessUnit) {
+    // Scale buildup (tankless)
+    if (metrics.stressFactors.chemical > 1.5) {
+      findings.push({ status: 'critical', message: 'Mineral scale is building up inside — needs descaling' });
+    } else if (metrics.stressFactors.chemical > 1.15) {
+      findings.push({ status: 'warning', message: 'Some mineral buildup detected' });
+    }
+    
+    // Flow restriction
+    if (metrics.stressFactors.pressure > 1.5) {
+      findings.push({ status: 'critical', message: 'Water flow is restricted' });
+    } else if (metrics.stressFactors.pressure > 1.15) {
+      findings.push({ status: 'warning', message: 'Water flow is slightly reduced' });
+    }
+  } else {
+    // Sediment (tank)
+    if (metrics.stressFactors.sediment > 1.5) {
+      findings.push({ status: 'critical', message: 'Heavy sediment buildup at the bottom' });
+    } else if (metrics.stressFactors.sediment > 1.15) {
+      findings.push({ status: 'warning', message: 'Sediment is collecting at the bottom' });
+    }
+    
+    // Pressure
+    if (metrics.stressFactors.pressure > 1.5) {
+      findings.push({ status: 'critical', message: 'Water pressure is too high — straining your tank' });
+    } else if (metrics.stressFactors.pressure > 1.15) {
+      findings.push({ status: 'warning', message: 'Water pressure is a bit high' });
+    }
+    
+    // Closed loop stress
+    if (metrics.stressFactors.loop > 1.3) {
+      findings.push({ status: 'warning', message: 'System is running under pressure stress' });
+    }
+  }
+  
+  // Usage impact (both types)
+  if (metrics.stressFactors.usageIntensity > 1.3) {
+    findings.push({ status: 'info', message: 'Heavy use is adding extra wear' });
+  } else if (metrics.stressFactors.usageIntensity > 1.15) {
+    findings.push({ status: 'info', message: 'Above-average usage detected' });
+  }
+  
+  // If nothing notable, show good status
+  if (findings.length === 0) {
+    findings.push({ status: 'good', message: 'No unusual stress on the system' });
+  }
+  
+  return findings;
+}
+
+// Helper to summarize aging rate in plain language
+function getAgingRateSummary(agingRate: number): { text: string; severity: 'good' | 'warning' | 'critical' } {
+  if (agingRate <= 1.1) return { text: "Your unit is aging normally", severity: 'good' };
+  if (agingRate <= 1.3) return { text: "Your unit is aging slightly faster than normal", severity: 'warning' };
+  if (agingRate <= 1.8) return { text: "Your unit is aging faster than normal", severity: 'warning' };
+  if (agingRate <= 2.5) return { text: "Your unit is aging much faster than normal", severity: 'critical' };
+  return { text: "Your unit is under severe stress", severity: 'critical' };
+}
+
+// Component for displaying a single finding
+function FindingItem({ finding }: { finding: Finding }) {
+  const StatusIcon = finding.status === 'critical' ? XCircle 
+    : finding.status === 'warning' ? AlertCircle 
+    : finding.status === 'info' ? AlertCircle
+    : CheckCircle;
+  
+  return (
+    <div className="flex items-start gap-2 py-1.5">
+      <StatusIcon className={cn(
+        "w-4 h-4 shrink-0 mt-0.5",
+        finding.status === 'critical' ? "text-red-400" :
+        finding.status === 'warning' ? "text-amber-400" :
+        finding.status === 'info' ? "text-cyan-400" :
+        "text-emerald-400"
+      )} />
+      <span className="text-sm text-foreground">{finding.message}</span>
+    </div>
+  );
+}
+
+// Technical details stress factor item (hidden in accordion)
 interface StressFactorItemProps {
   icon: React.ElementType;
   label: string;
   value: number;
-  isNeutral?: boolean;
 }
 
-function StressFactorItem({ icon: Icon, label, value, isNeutral }: StressFactorItemProps) {
+function StressFactorItem({ icon: Icon, label, value }: StressFactorItemProps) {
   const isElevated = value > 1.15;
   const isHigh = value > 1.5;
   
-  // Accessibility: pair status with icon for colorblind users
-  const StatusIcon = isHigh ? XCircle : isElevated ? AlertCircle : CheckCircle;
-  const status = isHigh ? 'critical' : isElevated ? 'warning' : 'optimal';
-  
   return (
-    <div className="flex items-center justify-between py-1.5">
+    <div className="flex items-center justify-between py-1">
       <div className="flex items-center gap-2">
-        {/* Icon - muted by default, only colorize for warnings */}
         <Icon className={cn(
-          "w-3.5 h-3.5",
-          isNeutral ? "text-muted-foreground" :
-          isHigh ? "text-red-400" : 
-          isElevated ? "text-amber-400" : 
-          "text-muted-foreground"
+          "w-3 h-3",
+          isHigh ? "text-red-400" : isElevated ? "text-amber-400" : "text-muted-foreground"
         )} />
-        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-[10px] text-muted-foreground">{label}</span>
       </div>
-      {/* Value with status icon for accessibility */}
-      <div className="flex items-center gap-1.5">
-        {!isNeutral && (
-          <StatusIcon className={cn(
-            "w-3 h-3",
-            status === 'critical' ? "text-red-400" : 
-            status === 'warning' ? "text-amber-400" : 
-            "text-emerald-400"
-          )} />
-        )}
-        <span className={cn(
-          "text-xs font-mono font-medium",
-          isNeutral ? "text-muted-foreground" :
-          isHigh ? "text-red-400" : 
-          isElevated ? "text-amber-400" : 
-          "text-muted-foreground"
-        )}>
-          {value.toFixed(2)}x
-        </span>
-      </div>
+      <span className={cn(
+        "text-[10px] font-mono",
+        isHigh ? "text-red-400" : isElevated ? "text-amber-400" : "text-muted-foreground"
+      )}>
+        {value.toFixed(2)}x
+      </span>
     </div>
   );
 }
@@ -395,110 +463,32 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
         <CollapsibleContent>
           <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/30">
             
-            {/* Note: Critical issues are now shown OUTSIDE collapsible (always visible) */}
-            {/* Stress Factors Breakdown */}
+            {/* What We Found - Plain English Findings */}
             {metrics && (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
-                    Stress Factors
-                  </span>
+              <div className="space-y-2">
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  What We Found
+                </span>
+                <div className="bg-secondary/20 rounded-lg p-3 space-y-0.5">
+                  {getPlainEnglishFindings(metrics, isTanklessUnit).map((finding, index) => (
+                    <FindingItem key={index} finding={finding} />
+                  ))}
                 </div>
-                <div className="bg-secondary/20 rounded-lg p-2 space-y-0.5">
-                  {isTanklessUnit ? (
-                    // Tankless-specific stress factors
-                    <>
-                      <StressFactorItem 
-                        icon={Droplets} 
-                        label="Scale Buildup" 
-                        value={metrics.stressFactors.chemical} 
-                      />
-                      <StressFactorItem 
-                        icon={Gauge} 
-                        label="Flow Restriction" 
-                        value={metrics.stressFactors.pressure} 
-                      />
-                      <StressFactorItem 
-                        icon={Flame} 
-                        label="Cycle Intensity" 
-                        value={metrics.stressFactors.mechanical} 
-                      />
-                      <StressFactorItem 
-                        icon={Zap} 
-                        label="Recirculation" 
-                        value={metrics.stressFactors.circ} 
-                      />
-                      <StressFactorItem 
-                        icon={Thermometer} 
-                        label="Temperature" 
-                        value={metrics.stressFactors.temp} 
-                      />
-                    </>
-                  ) : (
-                    // Tank-specific stress factors
-                    <>
-                      <StressFactorItem 
-                        icon={Gauge} 
-                        label="Pressure" 
-                        value={metrics.stressFactors.pressure} 
-                      />
-                      <StressFactorItem 
-                        icon={Thermometer} 
-                        label="Thermal Cycling" 
-                        value={metrics.stressFactors.tempMechanical} 
-                      />
-                      <StressFactorItem 
-                        icon={Droplets} 
-                        label="Sediment" 
-                        value={metrics.stressFactors.sediment} 
-                      />
-                      <StressFactorItem 
-                        icon={Zap} 
-                        label="Circulation" 
-                        value={metrics.stressFactors.circ} 
-                      />
-                      <StressFactorItem 
-                        icon={Shield} 
-                        label="Closed Loop" 
-                        value={metrics.stressFactors.loop} 
-                      />
-                      {metrics.stressFactors.undersizing > 1.0 && (
-                        <StressFactorItem 
-                          icon={Maximize2} 
-                          label="Tank Undersized" 
-                          value={metrics.stressFactors.undersizing} 
-                        />
-                      )}
-                    </>
-                  )}
-                  
-                  {/* Usage context - shown as info, not multiplier */}
-                  {metrics.stressFactors.usageIntensity > 1.0 && (
-                    <div className="flex items-center justify-between py-1.5 border-t border-border/20 mt-1">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-3.5 h-3.5 text-cyan-400" />
-                        <span className="text-xs text-muted-foreground">{isTanklessUnit ? 'Cycle Impact' : 'Usage Impact'}</span>
-                      </div>
-                      <span className="text-xs font-mono text-cyan-400">
-                        +{((metrics.stressFactors.usageIntensity - 1) * 100).toFixed(0)}% wear
-                      </span>
-                    </div>
-                  )}
-                  
-                  <div className="border-t border-border/30 pt-1.5 mt-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground">Combined Aging Rate</span>
-                      <span className={cn(
-                        "text-xs font-mono font-bold",
-                        metrics.agingRate > 2 ? "text-red-400" :
-                        metrics.agingRate > 1.3 ? "text-amber-400" :
-                        "text-foreground"
-                      )}>
-                        {metrics.agingRate.toFixed(2)}x
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                
+                {/* Aging Rate Summary - Plain Language */}
+                {(() => {
+                  const agingSummary = getAgingRateSummary(metrics.agingRate);
+                  return (
+                    <p className={cn(
+                      "text-sm px-1",
+                      agingSummary.severity === 'critical' ? "text-red-400" :
+                      agingSummary.severity === 'warning' ? "text-amber-400" :
+                      "text-muted-foreground"
+                    )}>
+                      {agingSummary.text}
+                    </p>
+                  );
+                })()}
               </div>
             )}
 
@@ -616,6 +606,43 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
                   </span>
                 </div>
               </div>
+            )}
+
+            {/* Technical Details Accordion - For plumbers/curious users */}
+            {metrics && (
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1">
+                  <ChevronRight className="w-3 h-3 transition-transform data-[state=open]:rotate-90" />
+                  <span>Technical details</span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 bg-secondary/20 rounded-lg p-2 space-y-0.5">
+                    {isTanklessUnit ? (
+                      <>
+                        <StressFactorItem icon={Droplets} label="Scale Buildup" value={metrics.stressFactors.chemical} />
+                        <StressFactorItem icon={Gauge} label="Flow Restriction" value={metrics.stressFactors.pressure} />
+                        <StressFactorItem icon={Flame} label="Cycle Intensity" value={metrics.stressFactors.mechanical} />
+                        <StressFactorItem icon={Zap} label="Recirculation" value={metrics.stressFactors.circ} />
+                        <StressFactorItem icon={Thermometer} label="Temperature" value={metrics.stressFactors.temp} />
+                      </>
+                    ) : (
+                      <>
+                        <StressFactorItem icon={Gauge} label="Pressure" value={metrics.stressFactors.pressure} />
+                        <StressFactorItem icon={Thermometer} label="Thermal Cycling" value={metrics.stressFactors.tempMechanical} />
+                        <StressFactorItem icon={Droplets} label="Sediment" value={metrics.stressFactors.sediment} />
+                        <StressFactorItem icon={Zap} label="Circulation" value={metrics.stressFactors.circ} />
+                        <StressFactorItem icon={Shield} label="Closed Loop" value={metrics.stressFactors.loop} />
+                      </>
+                    )}
+                    <div className="border-t border-border/30 pt-1.5 mt-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">Combined Aging Rate</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">{metrics.agingRate.toFixed(2)}x</span>
+                      </div>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {/* Location Context */}
