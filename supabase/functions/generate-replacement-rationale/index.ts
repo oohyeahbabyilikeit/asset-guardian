@@ -107,12 +107,13 @@ serve(async (req) => {
 Your goal is to educate, not sell. Be empathetic, clear, and use their actual data to make the case. Avoid jargon. Speak in plain language.
 
 CRITICAL RULES:
-1. Use the SPECIFIC numbers provided (age, failure probability, costs, etc.) - don't make up numbers
+1. Use the SPECIFIC numbers provided (age, failure probability, etc.) - don't make up numbers
 2. Be honest about the situation - don't exaggerate or minimize
 3. Keep each section focused and under 60 words
 4. Use "your" and "you" to make it personal
 5. Acknowledge this is a significant decision
 6. If location is risky (attic, upstairs, finished area), emphasize potential damage costs
+7. NEVER mention specific dollar amounts for repairs or replacements - focus on the physics and risk
 
 CRITICAL - AGING RATE LANGUAGE:
 When explaining accelerated wear or stress factors, ALWAYS use PERCENTAGE-BASED language:
@@ -126,7 +127,7 @@ Return a JSON object with exactly this structure:
 {
   "sections": [
     {"heading": "The Numbers", "content": "..."},
-    {"heading": "The Economics", "content": "..."},
+    {"heading": "The Physics", "content": "..."},
     {"heading": "The Risk", "content": "..."},
     {"heading": "The Opportunity", "content": "..."}
   ]
@@ -296,10 +297,6 @@ function buildUserPrompt(ctx: RationaleContext): string {
 
   prompt += `
 
-**Financial Context:**
-- Estimated repair/maintenance costs: $${ctx.estimatedRepairCost}
-- Estimated replacement cost: $${ctx.estimatedReplacementCost}
-
 **Our Recommendation:** ${ctx.recommendationType === 'REPLACE_NOW' ? 'REPLACE NOW' : 'PLAN REPLACEMENT SOON'}
 ${ctx.recommendationTitle ? `Reason: ${ctx.recommendationTitle}` : ''}
 
@@ -307,11 +304,11 @@ ${ctx.recommendationTitle ? `Reason: ${ctx.recommendationTitle}` : ''}
 
 Generate 4 sections explaining why replacement makes sense:
 1. "The Numbers" - Use their actual age, bio-age, and failure probability. Explain what ${Math.round(ctx.failProb)}% failure risk really means.
-2. "The Economics" - Why spending $${ctx.estimatedRepairCost} on repairs doesn't make sense for a ${ctx.calendarAge}-year-old unit. Compare to replacement value.
-3. "The Risk" - Focus on their ${formatLocation(ctx.installLocation)} installation. ${locationRisk.level === 'HIGH' ? 'Emphasize potential water damage costs ($10,000-$30,000+ for attic/upstairs leaks).' : 'Discuss the inconvenience and stress of emergency replacement.'}
-4. "The Opportunity" - Benefits of proactive replacement: control timing, compare options, get efficient unit, new warranty.
+2. "The Physics" - Explain the technical reasons why repairs don't make sense at this stage (depleted protection, structural fatigue, etc.). NO DOLLAR AMOUNTS.
+3. "The Risk" - Focus on their ${formatLocation(ctx.installLocation)} installation. ${locationRisk.level === 'HIGH' ? 'Emphasize potential water damage if the unit fails in this location.' : 'Discuss the inconvenience and stress of emergency replacement.'}
+4. "The Opportunity" - Benefits of proactive replacement: control timing, compare options, get efficient unit, new warranty, peace of mind.
 
-Be specific with their numbers. Be empathetic about the decision. Don't be salesy.`;
+Be specific with their numbers. Be empathetic about the decision. Don't be salesy. NEVER mention specific dollar amounts.`;
 
   return prompt;
 }
