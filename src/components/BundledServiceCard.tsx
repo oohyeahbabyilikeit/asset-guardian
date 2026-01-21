@@ -121,14 +121,14 @@ export function BundledServiceCard({
                 <IconComponent className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {task.isInfrastructure && (
-                    <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white">
-                      VIOLATION
+                    <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white whitespace-nowrap">
+                      CODE ISSUE
                     </span>
                   )}
                   <p className={cn(
-                    "font-medium text-sm",
+                    "font-medium text-sm break-words",
                     task.isInfrastructure ? "text-destructive" : "text-foreground"
                   )}>{task.label}</p>
                 </div>

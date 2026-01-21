@@ -91,7 +91,7 @@ export function UnifiedMaintenanceCard({
           : 'bg-primary/15 text-primary border-primary/20';
 
   const getStatusLabel = () => {
-    if (isViolation) return 'Code Violation';
+    if (isViolation) return 'Code Issue';
     if (isImpossible) return 'Setup Required';
     if (isOverdue) return 'Action Required';
     if (isDueSoon) return 'Due Soon';
@@ -110,16 +110,16 @@ export function UnifiedMaintenanceCard({
           <div className={cn("p-2.5 rounded-xl border", iconBg)}>
             <IconComponent className="w-5 h-5" />
           </div>
-          <div>
+          <div className="min-w-0">
             {isViolation && (
               <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white mb-1 mr-2">
-                VIOLATION
+                CODE ISSUE
               </span>
             )}
             <p className={cn("text-xs font-medium uppercase tracking-wider mb-0.5", urgencyStyles.accent)}>
               {getStatusLabel()}
             </p>
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="text-lg font-semibold text-foreground break-words">
               {label}
             </h3>
           </div>
