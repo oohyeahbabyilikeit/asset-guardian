@@ -724,6 +724,40 @@ export function CommandCenter({
         metrics={metrics}
         verdictAction={recommendation.action}
         healthScore={dynamicHealthScore.score}
+        priorityFindings={[
+          ...violationIssues.map(i => ({ 
+            id: i.id, 
+            name: i.name, 
+            friendlyName: i.friendlyName, 
+            description: i.description,
+            category: i.category,
+            severity: 'critical' as const 
+          })),
+          ...infrastructureRecommendations.map(i => ({ 
+            id: i.id, 
+            name: i.name, 
+            friendlyName: i.friendlyName, 
+            description: i.description,
+            category: i.category,
+            severity: 'warning' as const 
+          })),
+          // Include urgent replacement as a finding
+          ...(isUrgentReplacement ? [{
+            id: 'replacement_urgent',
+            name: 'Replacement Consultation',
+            friendlyName: 'Your unit needs professional review',
+            description: 'Based on our assessment, replacement should be discussed',
+            category: 'INFRASTRUCTURE' as const,
+            severity: 'warning' as const,
+          }] : []),
+        ].slice(0, 3)}
+        nextPagePreview={{
+          violationCount: displayViolations.length,
+          urgentActionCount: finalRecommendationTasks.length,
+          addOnCount: addOnTasks.length,
+          hasReplacement: shouldShowReplacementOption,
+          isUrgentReplacement,
+        }}
         isPassVerdict={isPassVerdict}
         verdictReason={verdict.reason}
         verdictTitle={verdict.title}

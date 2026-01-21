@@ -1,10 +1,30 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, AlertTriangle, CheckCircle, Clock, Wrench, ShieldCheck, Zap, Eye, CalendarClock } from 'lucide-react';
+import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb } from 'lucide-react';
 import { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
+import type { IssueCategory } from '@/lib/infrastructureIssues';
 
 // Local type for verdict action - matches Recommendation interface
 type VerdictAction = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
+
+// Priority finding from infrastructure issues
+interface PriorityFinding {
+  id: string;
+  name: string;
+  friendlyName: string;
+  description: string;
+  category: IssueCategory;
+  severity: 'critical' | 'warning' | 'info';
+}
+
+// Preview of what's on the next page
+interface NextPagePreview {
+  violationCount: number;
+  urgentActionCount: number;
+  addOnCount: number;
+  hasReplacement: boolean;
+  isUrgentReplacement: boolean;
+}
 
 interface OptionsAssessmentDrawerProps {
   open: boolean;
@@ -14,6 +34,10 @@ interface OptionsAssessmentDrawerProps {
   metrics: OpterraMetrics;
   verdictAction: VerdictAction;
   healthScore: number;
+  // Priority findings for education
+  priorityFindings?: PriorityFinding[];
+  // Preview of next page content
+  nextPagePreview?: NextPagePreview;
   // PASS verdict props
   isPassVerdict?: boolean;
   verdictReason?: string;
@@ -36,7 +60,7 @@ function getRecommendation(tier: UrgencyTier) {
     case 'critical':
       return {
         headline: 'Immediate Attention Recommended',
-        subheadline: 'Based on our assessment, your water heater needs professional evaluation soon.',
+        subheadline: 'Our assessment found issues that need prompt professional attention.',
         icon: AlertTriangle,
         iconColor: 'text-destructive',
         bgColor: 'bg-destructive/10',
@@ -72,15 +96,43 @@ function getRecommendation(tier: UrgencyTier) {
   }
 }
 
-function getSituationSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tier: UrgencyTier, verdictReason?: string): string[] {
+// Get styling for priority finding cards based on category/severity
+function getFindingStyle(finding: PriorityFinding) {
+  if (finding.category === 'VIOLATION' || finding.severity === 'critical') {
+    return {
+      label: 'CODE VIOLATION',
+      bgColor: 'bg-destructive/10',
+      borderColor: 'border-destructive/40',
+      labelColor: 'text-destructive',
+      icon: CircleAlert,
+    };
+  }
+  if (finding.category === 'INFRASTRUCTURE' || finding.severity === 'warning') {
+    return {
+      label: 'URGENT ACTION',
+      bgColor: 'bg-warning/10',
+      borderColor: 'border-warning/40',
+      labelColor: 'text-warning',
+      icon: Wrench,
+    };
+  }
+  return {
+    label: 'RECOMMENDATION',
+    bgColor: 'bg-accent/10',
+    borderColor: 'border-accent/40',
+    labelColor: 'text-accent-foreground',
+    icon: Lightbulb,
+  };
+}
+
+// Fallback situation summary for when no priority findings
+function getFallbackSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tier: UrgencyTier, verdictReason?: string): string[] {
   const points: string[] = [];
   
-  // For monitor tier, show the algorithm's reason first
   if (tier === 'monitor' && verdictReason) {
     points.push(verdictReason);
   }
   
-  // Age context - use qualitative labels instead of numerical bio-age
   const wearLevel = metrics.bioAge > inputs.calendarAge + 5 ? 'high' : metrics.bioAge > inputs.calendarAge + 2 ? 'elevated' : 'normal';
   if (metrics.bioAge >= 12) {
     points.push(`Your unit is showing ${wearLevel} wear – well past the typical 8-12 year lifespan.`);
@@ -90,89 +142,11 @@ function getSituationSummary(inputs: ForensicInputs, metrics: OpterraMetrics, ti
     points.push(`Your unit is still within its prime lifespan.`);
   }
   
-  // Condition factors (skip for monitor - we don't want to alarm them)
-  if (tier !== 'monitor') {
-    if (inputs.isLeaking) {
-      points.push('Active leaking detected – this requires immediate attention to prevent water damage.');
-    } else if (inputs.visualRust) {
-      points.push('Visible corrosion indicates the tank may be compromised internally.');
-    }
-    
-    // Infrastructure issues
-    if (!inputs.hasExpTank && inputs.isClosedLoop) {
-      points.push('Missing expansion tank on a closed-loop system creates excess pressure stress.');
-    }
-    if (!inputs.hasPrv && inputs.housePsi > 80) {
-      points.push('High water pressure without a PRV accelerates wear on all plumbing components.');
-    }
-    
-    // Maintenance status
-    if (metrics.flushStatus === 'lockout' || metrics.flushStatus === 'due') {
-      points.push('Tank flush is overdue – sediment buildup reduces efficiency and lifespan.');
-    }
-  }
-  
-  // For healthy units, add positive context
   if (tier === 'healthy' && points.length < 2) {
     points.push('Regular maintenance helps prevent unexpected failures and extends equipment life.');
   }
   
-  return points.slice(0, 3); // Max 3 points for readability
-}
-
-function getWhyMatters(tier: UrgencyTier, inputs: ForensicInputs, yearsRemaining: number): { title: string; description: string; icon: typeof Wrench }[] {
-  const topics: { title: string; description: string; icon: typeof Wrench }[] = [];
-  
-  // Monitor tier gets planning-focused topics
-  if (tier === 'monitor') {
-    // INFRASTRUCTURE FIRST GATE: Only show replacement planning for older tanks (6+ years)
-    // Young tanks with low years remaining likely just need infrastructure fixes
-    const isOldEnoughForReplacementPlanning = inputs.calendarAge >= 6;
-    if (yearsRemaining > 0 && yearsRemaining <= 3 && isOldEnoughForReplacementPlanning) {
-      topics.push({
-        title: 'Plan for Replacement',
-        description: `With approximately ${yearsRemaining} year${yearsRemaining === 1 ? '' : 's'} of typical life remaining, now is a good time to start budgeting.`,
-        icon: CalendarClock,
-      });
-    }
-    topics.push({
-      title: 'We\'re Here When You Need Us',
-      description: 'When it\'s time to replace or if issues arise, we\'ll be ready to help.',
-      icon: ShieldCheck,
-    });
-    return topics.slice(0, 2);
-  }
-  
-  if (tier === 'critical') {
-    if (inputs.isLeaking || inputs.location === 'ATTIC') {
-      topics.push({
-        title: 'Water Damage Risk',
-        description: 'A failing water heater in your location could cause significant property damage.',
-        icon: AlertTriangle,
-      });
-    }
-    topics.push({
-      title: 'Replacement Planning',
-      description: 'Understanding your options now helps you avoid emergency decisions later.',
-      icon: Wrench,
-    });
-  }
-  
-  if (tier === 'attention') {
-    topics.push({
-      title: 'Preventive Care',
-      description: 'Addressing issues now is typically 3-5x less expensive than emergency repairs.',
-      icon: ShieldCheck,
-    });
-  }
-  
-  topics.push({
-    title: 'Expert Guidance',
-    description: 'A professional can provide personalized recommendations for your specific situation.',
-    icon: Zap,
-  });
-  
-  return topics.slice(0, 2);
+  return points.slice(0, 3);
 }
 
 export function OptionsAssessmentDrawer({
@@ -183,16 +157,19 @@ export function OptionsAssessmentDrawer({
   metrics,
   verdictAction,
   healthScore,
+  priorityFindings = [],
+  nextPagePreview,
   isPassVerdict = false,
   verdictReason,
-  verdictTitle,
   yearsRemaining = 0,
 }: OptionsAssessmentDrawerProps) {
   const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict);
   const recommendation = getRecommendation(tier);
-  const situationPoints = getSituationSummary(inputs, metrics, tier, verdictReason);
-  const whyTopics = getWhyMatters(tier, inputs, yearsRemaining);
   const Icon = recommendation.icon;
+  
+  // Use priority findings if available, otherwise fall back to generic content
+  const hasPriorityFindings = priorityFindings.length > 0;
+  const fallbackPoints = !hasPriorityFindings ? getFallbackSummary(inputs, metrics, tier, verdictReason) : [];
   
   // Different CTAs based on tier
   const ctaText = tier === 'monitor'
@@ -205,7 +182,6 @@ export function OptionsAssessmentDrawer({
   
   const handleCTA = () => {
     if (tier === 'monitor') {
-      // Just close the drawer for monitor state
       onOpenChange(false);
     } else {
       onContinue();
@@ -237,33 +213,103 @@ export function OptionsAssessmentDrawer({
               </div>
             </div>
             
-            {/* Your Situation */}
-            <div className="space-y-3">
-              <h4 className="font-medium text-foreground">Your Situation</h4>
-              <ul className="space-y-2">
-                {situationPoints.map((point, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            {/* Why This Matters */}
-            {whyTopics.length > 0 && (
+            {/* Priority Findings - specific issues detected */}
+            {hasPriorityFindings && (
               <div className="space-y-3">
-                <h4 className="font-medium text-foreground">{tier === 'monitor' ? 'What\'s Next' : 'Why This Matters'}</h4>
+                <h4 className="font-medium text-foreground">Priority Findings</h4>
                 <div className="space-y-2">
-                  {whyTopics.map((topic, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                      <topic.icon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-sm text-foreground">{topic.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{topic.description}</p>
+                  {priorityFindings.map((finding) => {
+                    const style = getFindingStyle(finding);
+                    const FindingIcon = style.icon;
+                    return (
+                      <div 
+                        key={finding.id} 
+                        className={`rounded-lg p-3 ${style.bgColor} border ${style.borderColor}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <FindingIcon className={`w-5 h-5 ${style.labelColor} flex-shrink-0 mt-0.5`} />
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-xs font-semibold uppercase tracking-wide ${style.labelColor} mb-0.5`}>
+                              {style.label}
+                            </div>
+                            <p className="font-medium text-sm text-foreground">{finding.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{finding.friendlyName}</p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {/* Fallback: Generic situation summary when no specific findings */}
+            {!hasPriorityFindings && fallbackPoints.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground">Your Situation</h4>
+                <ul className="space-y-2">
+                  {fallbackPoints.map((point, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                      <span>{point}</span>
+                    </li>
                   ))}
+                </ul>
+              </div>
+            )}
+            
+            {/* What's Next - preview of next page categories */}
+            {nextPagePreview && tier !== 'monitor' && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground">What We'll Cover Next</h4>
+                <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                  {nextPagePreview.violationCount > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CircleAlert className="w-4 h-4 text-destructive" />
+                      <span className="text-foreground">
+                        {nextPagePreview.violationCount} Code {nextPagePreview.violationCount === 1 ? 'Violation' : 'Violations'}
+                      </span>
+                      <span className="text-muted-foreground">– required for compliance</span>
+                    </div>
+                  )}
+                  {nextPagePreview.urgentActionCount > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Wrench className="w-4 h-4 text-warning" />
+                      <span className="text-foreground">
+                        {nextPagePreview.urgentActionCount} Urgent {nextPagePreview.urgentActionCount === 1 ? 'Action' : 'Actions'}
+                      </span>
+                      <span className="text-muted-foreground">– protective measures</span>
+                    </div>
+                  )}
+                  {nextPagePreview.addOnCount > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Lightbulb className="w-4 h-4 text-accent-foreground" />
+                      <span className="text-foreground">
+                        {nextPagePreview.addOnCount} Add-{nextPagePreview.addOnCount === 1 ? 'On' : 'Ons'}
+                      </span>
+                      <span className="text-muted-foreground">– optional improvements</span>
+                    </div>
+                  )}
+                  {nextPagePreview.hasReplacement && !nextPagePreview.isUrgentReplacement && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="w-4 h-4 text-primary" />
+                      <span className="text-foreground">Replacement Options</span>
+                      <span className="text-muted-foreground">– worth discussing</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Monitor tier: show planning info */}
+            {tier === 'monitor' && yearsRemaining > 0 && yearsRemaining <= 3 && inputs.calendarAge >= 6 && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground">Plan Ahead</h4>
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-sm text-muted-foreground">
+                    With approximately {yearsRemaining} year{yearsRemaining === 1 ? '' : 's'} of typical life remaining, 
+                    now is a good time to start budgeting for eventual replacement. We're here when you need us.
+                  </p>
                 </div>
               </div>
             )}
