@@ -100,7 +100,7 @@ function WaterHeaterDiagram({
   return (
     <svg 
       viewBox={`0 0 ${width} ${height}`} 
-      className={cn("w-full h-auto", isHybrid ? "max-h-[380px]" : "max-h-[280px]")}
+      className={cn("w-full h-auto", isHybrid ? "max-h-[400px]" : "max-h-[320px]")}
       style={{ filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }}
     >
       <defs>
