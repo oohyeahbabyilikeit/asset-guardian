@@ -13,7 +13,8 @@ interface ServiceSelectionDrawerProps {
   onOpenChange: (open: boolean) => void;
   violations: MaintenanceTask[];
   maintenanceTasks: MaintenanceTask[];
-  recommendations: MaintenanceTask[];
+  recommendations: MaintenanceTask[]; // INFRASTRUCTURE items (urgent protective work)
+  addOns?: MaintenanceTask[]; // OPTIMIZATION items (nice-to-have like softeners)
   onSubmit: (selectedTasks: MaintenanceTask[]) => void;
   // PASS verdict props for "Monitor Only" state
   isPassVerdict?: boolean;
@@ -28,6 +29,7 @@ export function ServiceSelectionDrawer({
   violations,
   maintenanceTasks,
   recommendations,
+  addOns = [],
   onSubmit,
   isPassVerdict = false,
   verdictReason,
@@ -36,7 +38,7 @@ export function ServiceSelectionDrawer({
 }: ServiceSelectionDrawerProps) {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   
-  const allTasks = [...violations, ...maintenanceTasks, ...recommendations];
+  const allTasks = [...violations, ...maintenanceTasks, ...recommendations, ...addOns];
   
   const toggleTask = (type: string) => {
     const newSet = new Set(selectedTypes);
@@ -86,7 +88,8 @@ export function ServiceSelectionDrawer({
   const isReplacementOnly = replacementTasks.length > 0 && 
                             violations.length === 0 && 
                             regularMaintenanceTasks.length === 0 &&
-                            recommendations.length === 0;
+                            recommendations.length === 0 &&
+                            addOns.length === 0;
   
   // PASS verdict = "Monitor Only" state - no maintenance recommended
   const isMonitorOnly = isPassVerdict && allTasks.length === 0;
@@ -272,15 +275,15 @@ export function ServiceSelectionDrawer({
             </div>
           )}
 
-          {/* Replacement Consultation Section - Add-ons */}
-          {replacementTasks.length > 0 && (
+          {/* Add-Ons Section - OPTIMIZATION items (softeners, longevity PRV) */}
+          {addOns.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-medium text-accent-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Lightbulb className="w-3.5 h-3.5" />
                 Add-Ons
               </h3>
               <div className="space-y-2">
-                {replacementTasks.map(task => {
+                {addOns.map(task => {
                   const IconComponent = getIcon(task);
                   const isSelected = selectedTypes.has(task.type);
                   return (
@@ -297,6 +300,45 @@ export function ServiceSelectionDrawer({
                       <div className={cn(
                         "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
                         isSelected ? "bg-accent text-accent-foreground" : "bg-accent/15 text-accent-foreground"
+                      )}>
+                        {isSelected ? <Check className="w-5 h-5" /> : <IconComponent className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground">{task.label}</p>
+                        <p className="text-xs text-muted-foreground">{task.benefit}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Replacement Consultation Section */}
+          {replacementTasks.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5" />
+                Worth Discussing
+              </h3>
+              <div className="space-y-2">
+                {replacementTasks.map(task => {
+                  const IconComponent = getIcon(task);
+                  const isSelected = selectedTypes.has(task.type);
+                  return (
+                    <button
+                      key={task.type}
+                      onClick={() => toggleTask(task.type)}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                        isSelected 
+                          ? "border-primary bg-primary/10" 
+                          : "border-border bg-card hover:bg-secondary/50"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
                       )}>
                         {isSelected ? <Check className="w-5 h-5" /> : <IconComponent className="w-5 h-5" />}
                       </div>

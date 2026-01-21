@@ -469,12 +469,9 @@ export function CommandCenter({
     isInfrastructure: true,
   }));
 
-  // Infrastructure & optimization items (like softeners for hard water) become regular recommendations
-  const recommendationIssues = [
-    ...getIssuesByCategory(infrastructureIssues, 'INFRASTRUCTURE'),
-    ...getIssuesByCategory(infrastructureIssues, 'OPTIMIZATION'),
-  ];
-  const recommendationTasks: MaintenanceTask[] = recommendationIssues.map(issue => ({
+  // INFRASTRUCTURE = Urgent protective work (PRV for high pressure, expansion tank replacement, etc.)
+  const infrastructureRecommendations = getIssuesByCategory(infrastructureIssues, 'INFRASTRUCTURE');
+  const recommendationTasks: MaintenanceTask[] = infrastructureRecommendations.map(issue => ({
     type: 'inspection' as MaintenanceTask['type'],
     label: issue.name,
     description: issue.description,
@@ -483,6 +480,20 @@ export function CommandCenter({
     benefit: issue.friendlyName,
     whyExplanation: issue.description,
     icon: 'wrench' as const,
+    isInfrastructure: true,
+  }));
+
+  // OPTIMIZATION = Nice-to-have add-ons (softeners, longevity PRV)
+  const optimizationIssues = getIssuesByCategory(infrastructureIssues, 'OPTIMIZATION');
+  const addOnTasks: MaintenanceTask[] = optimizationIssues.map(issue => ({
+    type: 'inspection' as MaintenanceTask['type'],
+    label: issue.name,
+    description: issue.description,
+    monthsUntilDue: 0,
+    urgency: 'optimal' as const,
+    benefit: issue.friendlyName,
+    whyExplanation: issue.description,
+    icon: 'lightbulb' as const,
     isInfrastructure: true,
   }));
 
@@ -717,6 +728,7 @@ export function CommandCenter({
         violations={displayViolations}
         maintenanceTasks={maintenanceTasks}
         recommendations={recommendationTasks}
+        addOns={addOnTasks}
         onSubmit={handleServiceSelectionSubmit}
         isPassVerdict={isPassVerdict}
         verdictReason={verdict.reason}
