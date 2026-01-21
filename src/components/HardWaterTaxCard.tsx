@@ -1,4 +1,4 @@
-import { Flame, TrendingDown, Droplets, CheckCircle2, Wrench, ShieldCheck } from 'lucide-react';
+import { Flame, WashingMachine, Droplets, CheckCircle2, Wrench, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HardWaterTax } from '@/lib/opterraAlgorithm';
 
@@ -149,9 +149,9 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
             <p className="text-[9px] text-muted-foreground mt-0.5">Energy Loss</p>
           </div>
           <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <TrendingDown className="w-4 h-4 mx-auto mb-1.5 text-red-400/70" />
+            <WashingMachine className="w-4 h-4 mx-auto mb-1.5 text-red-400/70" />
             <p className="text-sm font-bold font-data text-foreground">${applianceDepreciation}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Asset Loss</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Appliances</p>
           </div>
           <div className="text-center p-2 bg-secondary/30 rounded-lg">
             <Droplets className="w-4 h-4 mx-auto mb-1.5 text-blue-400/70" />
@@ -161,7 +161,7 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
           <div className="text-center p-2 bg-secondary/30 rounded-lg">
             <Wrench className="w-4 h-4 mx-auto mb-1.5 text-purple-400/70" />
             <p className="text-sm font-bold font-data text-foreground">${plumbingProtection}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Fixture Wear</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Pipes</p>
           </div>
         </div>
 
@@ -177,10 +177,8 @@ export function HardWaterTaxCard({ hardWaterTax }: HardWaterTaxCardProps) {
             </div>
             
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Softener cost: ~${softenerAnnualCost}/yr amortized</span>
-              {paybackYears < 20 && (
-                <span>Pays for itself in ~{paybackYears} yrs</span>
-              )}
+              <span>Annual operating cost: ~${softenerAnnualCost}</span>
+              <span className="font-semibold text-emerald-400">10-Year Savings: ${netAnnualSavings * 10}</span>
             </div>
           </div>
         )}
