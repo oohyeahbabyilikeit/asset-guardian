@@ -37,7 +37,7 @@ export function ActionDock({
             boxShadow: '0 4px 24px -4px hsl(var(--primary) / 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)',
           }}
         >
-          <span className="truncate">What are my options?</span>
+          <span className="truncate">View Risk Analysis</span>
           <ChevronRight className="w-5 h-5 ml-2 flex-shrink-0" />
         </Button>
       </div>

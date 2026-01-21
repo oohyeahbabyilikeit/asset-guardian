@@ -19,6 +19,7 @@ export interface InfrastructureIssue {
   id: string;
   name: string;
   friendlyName: string; // Customer-facing benefit language
+  remediationLabel: string; // Prescription Pad action item (e.g., "Install PRV")
   category: IssueCategory;
   costMin: number;
   costMax: number;
@@ -53,6 +54,7 @@ export function getInfrastructureIssues(
       id: 'exp_tank_required',
       name: 'Expansion Tank Install',
       friendlyName: 'Thermal expansion protection',
+      remediationLabel: 'Install Expansion Tank',
       category: 'VIOLATION',
       costMin: 250,
       costMax: 400,
@@ -67,6 +69,7 @@ export function getInfrastructureIssues(
       id: 'prv_failed',
       name: 'PRV Replacement',
       friendlyName: 'Pressure regulation (required)',
+      remediationLabel: 'Replace Failed PRV',
       category: 'VIOLATION',
       costMin: 350,
       costMax: 550,
@@ -81,6 +84,7 @@ export function getInfrastructureIssues(
       id: 'prv_critical',
       name: 'PRV Installation (Critical)',
       friendlyName: 'Pressure regulation (required)',
+      remediationLabel: 'Install PRV',
       category: 'VIOLATION',
       costMin: 350,
       costMax: 550,
@@ -99,6 +103,7 @@ export function getInfrastructureIssues(
       id: 'prv_recommended',
       name: 'PRV Installation',
       friendlyName: 'Pressure protection for longevity',
+      remediationLabel: 'Install PRV',
       category: 'INFRASTRUCTURE',
       costMin: 350,
       costMax: 550,
@@ -113,6 +118,7 @@ export function getInfrastructureIssues(
       id: 'softener_service',
       name: 'Water Softener Service',
       friendlyName: 'Water quality optimization',
+      remediationLabel: 'Service Softener',
       category: 'INFRASTRUCTURE',
       costMin: 200,
       costMax: 350,
@@ -127,6 +133,7 @@ export function getInfrastructureIssues(
       id: 'exp_tank_replace',
       name: 'Expansion Tank Replacement',
       friendlyName: 'Thermal expansion protection',
+      remediationLabel: 'Replace Expansion Tank',
       category: 'INFRASTRUCTURE',
       costMin: 250,
       costMax: 400,
@@ -151,6 +158,7 @@ export function getInfrastructureIssues(
       id: 'softener_replace',
       name: 'Water Softener Replacement',
       friendlyName: 'Complete water quality system',
+      remediationLabel: 'Replace Softener',
       category: 'OPTIMIZATION',
       costMin: 2200,
       costMax: 3000,
@@ -165,6 +173,7 @@ export function getInfrastructureIssues(
       id: 'prv_longevity',
       name: 'PRV for Extended Life',
       friendlyName: 'Maximum pressure protection',
+      remediationLabel: 'Install PRV',
       category: 'OPTIMIZATION',
       costMin: 350,
       costMax: 550,
@@ -179,6 +188,7 @@ export function getInfrastructureIssues(
       id: 'softener_new',
       name: 'Water Softener Installation',
       friendlyName: 'Complete water quality system',
+      remediationLabel: 'Install Water Softener',
       category: 'OPTIMIZATION',
       costMin: 2400,
       costMax: 3200,

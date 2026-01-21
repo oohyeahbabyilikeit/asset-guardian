@@ -201,7 +201,7 @@ export function BreachAlert({
                 : "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
             )}
           >
-            <span>What are my options?</span>
+            <span>View Risk Analysis</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         )}
