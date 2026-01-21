@@ -124,7 +124,10 @@ function getWhyMatters(tier: UrgencyTier, inputs: ForensicInputs, yearsRemaining
   
   // Monitor tier gets planning-focused topics
   if (tier === 'monitor') {
-    if (yearsRemaining > 0 && yearsRemaining <= 3) {
+    // INFRASTRUCTURE FIRST GATE: Only show replacement planning for older tanks (6+ years)
+    // Young tanks with low years remaining likely just need infrastructure fixes
+    const isOldEnoughForReplacementPlanning = inputs.calendarAge >= 6;
+    if (yearsRemaining > 0 && yearsRemaining <= 3 && isOldEnoughForReplacementPlanning) {
       topics.push({
         title: 'Plan for Replacement',
         description: `With approximately ${yearsRemaining} year${yearsRemaining === 1 ? '' : 's'} of typical life remaining, now is a good time to start budgeting.`,
