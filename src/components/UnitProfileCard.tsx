@@ -9,17 +9,6 @@ interface UnitProfileCardProps {
   inputs: ForensicInputs;
 }
 
-// Approximate dimensions based on tank capacity
-function getDimensions(capacity: string, isTanklessUnit: boolean): string {
-  if (isTanklessUnit) {
-    return '14" × 24" × 10"'; // Typical wall-mount tankless
-  }
-  const gallons = parseInt(capacity) || 50;
-  if (gallons <= 40) return '18" × 48"';
-  if (gallons <= 50) return '20" × 54"';
-  if (gallons <= 65) return '22" × 58"';
-  return '24" × 60"';
-}
 
 export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -101,12 +90,6 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
     'CRAWLSPACE': 'Crawlspace',
   }[inputs.location] || inputs.location;
 
-  // Map usage type to readable string
-  const usageLabel = {
-    'light': 'Light',
-    'normal': 'Normal',
-    'heavy': 'Heavy',
-  }[inputs.usageType] || inputs.usageType;
 
   // Calculate warranty remaining
   const warrantyRemaining = Math.max(0, inputs.warrantyYears - inputs.calendarAge);
@@ -152,7 +135,7 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
             </div>
 
             {/* Specs Grid */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <span className="text-muted-foreground text-xs block font-medium">Capacity</span>
                 <p className="font-semibold text-foreground">{asset.specs.capacity}</p>
@@ -162,18 +145,8 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
                 <p className="font-semibold text-foreground capitalize">{asset.specs.fuelType}</p>
               </div>
               <div className="space-y-1">
-                <span className="text-muted-foreground text-xs block font-medium">
-                  {isTanklessUnit ? 'Size' : 'Dimensions'}
-                </span>
-                <p className="font-semibold text-foreground">{getDimensions(asset.specs.capacity, isTanklessUnit)}</p>
-              </div>
-              <div className="space-y-1">
                 <span className="text-muted-foreground text-xs block font-medium">Vent Type</span>
                 <p className="font-semibold text-foreground">{asset.specs.ventType}</p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-muted-foreground text-xs block font-medium">Piping</span>
-                <p className="font-semibold text-foreground">{asset.specs.piping}</p>
               </div>
               <div className="space-y-1">
                 <span className="text-muted-foreground text-xs block font-medium">Warranty</span>
@@ -187,41 +160,23 @@ export function UnitProfileCard({ asset, inputs }: UnitProfileCardProps) {
               </div>
             </div>
 
-            {/* Household Usage */}
-            <div className="grid grid-cols-2 gap-4 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
-              <div className="space-y-1">
-                <span className="text-muted-foreground text-xs block font-medium">Household Size</span>
-                <p className="font-semibold text-foreground">{inputs.peopleCount} {inputs.peopleCount === 1 ? 'person' : 'people'}</p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-muted-foreground text-xs block font-medium">Usage Pattern</span>
-                <p className={`font-semibold ${
-                  inputs.usageType === 'heavy' ? 'text-amber-400' : 
-                  inputs.usageType === 'light' ? 'text-emerald-400' : 
-                  'text-foreground'
-                }`}>
-                  {usageLabel}
-                </p>
-              </div>
-            </div>
-
-            {/* Equipment Grid */}
-            <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-secondary/20 border border-border/20">
+            {/* Equipment List */}
+            <div className="space-y-2 p-3 rounded-xl bg-secondary/20 border border-border/20">
               {equipment.map((item) => (
                 <div 
                   key={item.label} 
-                  className="flex items-center gap-2.5 py-1.5"
+                  className="flex items-center gap-2.5 py-1"
                 >
                   {item.present ? (
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-muted/30 border border-border/30 flex items-center justify-center">
-                      <Circle className="w-3 h-3 text-muted-foreground/40" />
+                    <div className="w-4 h-4 rounded-full bg-muted/30 border border-border/30 flex items-center justify-center">
+                      <Circle className="w-2.5 h-2.5 text-muted-foreground/40" />
                     </div>
                   )}
-                  <span className={`text-sm ${item.present ? 'text-foreground font-medium' : 'text-muted-foreground/60'}`}>
+                  <span className={`text-sm ${item.present ? 'text-foreground' : 'text-muted-foreground/60'}`}>
                     {item.label}
                   </span>
                 </div>
