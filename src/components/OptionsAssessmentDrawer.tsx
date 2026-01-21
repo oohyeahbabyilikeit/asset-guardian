@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb } from 'lucide-react';
+import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info } from 'lucide-react';
 import { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { IssueCategory } from '@/lib/infrastructureIssues';
-
+import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
 // Local type for verdict action - matches Recommendation interface
 type VerdictAction = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
 
@@ -139,6 +140,29 @@ function getFindingStyle(finding: PriorityFinding) {
   };
 }
 
+// Map finding IDs to educational topics
+function getEducationalTopic(findingId: string): EducationalTopic | null {
+  const topicMap: Record<string, EducationalTopic> = {
+    'EXP_TANK_MISSING': 'thermal-expansion',
+    'EXP_TANK_FAILED': 'thermal-expansion',
+    'PRV_MISSING': 'prv',
+    'PRV_FAILED': 'prv',
+    'PRESSURE_HIGH': 'pressure',
+    'PRESSURE_CRITICAL': 'pressure',
+    'ANODE_DEPLETED': 'anode-rod',
+    'ANODE_FUSED': 'anode-rod-fused',
+    'SEDIMENT_HEAVY': 'sediment',
+    'SEDIMENT_RISKY': 'sediment-risky',
+    'HARDNESS_EXTREME': 'hardness',
+    'SCALE_BUILDUP': 'scale-tankless',
+    'TEMP_HIGH': 'temperature',
+    'TANK_FAILURE': 'tank-failure',
+    'AGE_CRITICAL': 'aging',
+    'FAILURE_RATE_HIGH': 'failure-rate',
+  };
+  return topicMap[findingId] || null;
+}
+
 // Fallback situation summary for when no priority findings
 function getFallbackSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tier: UrgencyTier, verdictReason?: string): string[] {
   const points: string[] = [];
@@ -177,6 +201,8 @@ export function OptionsAssessmentDrawer({
   verdictReason,
   yearsRemaining = 0,
 }: OptionsAssessmentDrawerProps) {
+  const [selectedTopic, setSelectedTopic] = useState<EducationalTopic | null>(null);
+  
   const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
   const recommendation = getRecommendation(tier);
   const Icon = recommendation.icon;
@@ -184,6 +210,13 @@ export function OptionsAssessmentDrawer({
   // Use priority findings if available, otherwise fall back to generic content
   const hasPriorityFindings = priorityFindings.length > 0;
   const fallbackPoints = !hasPriorityFindings ? getFallbackSummary(inputs, metrics, tier, verdictReason) : [];
+  
+  const handleFindingClick = (finding: PriorityFinding) => {
+    const topic = getEducationalTopic(finding.id);
+    if (topic) {
+      setSelectedTopic(topic);
+    }
+  };
   
   // Different CTAs based on tier
   const ctaText = tier === 'monitor'
@@ -235,10 +268,12 @@ export function OptionsAssessmentDrawer({
                   {priorityFindings.map((finding) => {
                     const style = getFindingStyle(finding);
                     const FindingIcon = style.icon;
+                    const hasTopic = getEducationalTopic(finding.id) !== null;
                     return (
-                      <div 
+                      <button 
                         key={finding.id} 
-                        className={`rounded-lg p-3 ${style.bgColor} border ${style.borderColor}`}
+                        onClick={() => handleFindingClick(finding)}
+                        className={`w-full text-left rounded-lg p-3 ${style.bgColor} border ${style.borderColor} transition-all duration-200 ${hasTopic ? 'hover:scale-[1.01] hover:shadow-md active:scale-[0.99] cursor-pointer' : ''}`}
                       >
                         <div className="flex items-start gap-3">
                           <FindingIcon className={`w-5 h-5 ${style.labelColor} flex-shrink-0 mt-0.5`} />
@@ -249,8 +284,14 @@ export function OptionsAssessmentDrawer({
                             <p className="font-medium text-sm text-foreground">{finding.name}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{finding.friendlyName}</p>
                           </div>
+                          {hasTopic && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Info className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Learn</span>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -341,6 +382,15 @@ export function OptionsAssessmentDrawer({
           </div>
         </div>
       </DrawerContent>
+      
+      {/* Educational Drawer for learning more about findings */}
+      {selectedTopic && (
+        <EducationalDrawer
+          topic={selectedTopic}
+          isOpen={!!selectedTopic}
+          onClose={() => setSelectedTopic(null)}
+        />
+      )}
     </Drawer>
   );
 }
