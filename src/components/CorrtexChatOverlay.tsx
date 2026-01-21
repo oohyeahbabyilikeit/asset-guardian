@@ -8,6 +8,7 @@ import type { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { MaintenanceTask } from '@/lib/maintenanceCalculations';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   id: string;
@@ -437,7 +438,13 @@ export function CorrtexChatOverlay(props: CorrtexChatOverlayProps) {
                       : "bg-secondary/80 text-foreground rounded-bl-lg border border-border/50 backdrop-blur-sm"
                   )}>
                     {msg.content ? (
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      msg.role === 'assistant' ? (
+                        <div className="text-sm leading-relaxed prose prose-sm prose-invert max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      )
                     ) : (
                       isLoading && msg.role === 'assistant' && <TypingIndicator />
                     )}
