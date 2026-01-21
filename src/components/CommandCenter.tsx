@@ -630,7 +630,6 @@ export function CommandCenter({
               yearsRemaining={yearsRemaining}
               isLeaking={currentInputs.isLeaking}
               visualRust={currentInputs.visualRust}
-              onGetHelp={handleGetExpertHelp}
             />
           </motion.div>
 

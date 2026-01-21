@@ -1,6 +1,5 @@
-import { AlertTriangle, Wrench, Clock, CheckCircle, ChevronRight, Shield } from 'lucide-react';
+import { AlertTriangle, Wrench, Clock, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { type Recommendation } from '@/lib/opterraAlgorithm';
 
 interface VerdictCardProps {
@@ -9,7 +8,6 @@ interface VerdictCardProps {
   yearsRemaining?: number;
   isLeaking?: boolean;
   visualRust?: boolean;
-  onGetHelp: () => void;
 }
 
 type VerdictType = 'replace-now' | 'replace-soon' | 'maintain' | 'monitor';
@@ -20,7 +18,6 @@ interface VerdictConfig {
   iconColor: string;
   borderColor: string;
   title: string;
-  ctaText: string;
 }
 
 const verdictConfigs: Record<VerdictType, VerdictConfig> = {
@@ -30,7 +27,6 @@ const verdictConfigs: Record<VerdictType, VerdictConfig> = {
     iconColor: 'text-destructive',
     borderColor: 'border-transparent',
     title: 'Replace Your Water Heater',
-    ctaText: 'Discuss Replacement Options',
   },
   'replace-soon': {
     icon: Clock,
@@ -38,7 +34,6 @@ const verdictConfigs: Record<VerdictType, VerdictConfig> = {
     iconColor: 'text-muted-foreground',
     borderColor: 'border-transparent',
     title: 'Plan for Replacement',
-    ctaText: 'Discuss Your Options',
   },
   'maintain': {
     icon: Wrench,
@@ -46,7 +41,6 @@ const verdictConfigs: Record<VerdictType, VerdictConfig> = {
     iconColor: 'text-muted-foreground',
     borderColor: 'border-transparent',
     title: 'Schedule Maintenance',
-    ctaText: 'Have My Plumber Reach Out',
   },
   'monitor': {
     icon: CheckCircle,
@@ -54,7 +48,6 @@ const verdictConfigs: Record<VerdictType, VerdictConfig> = {
     iconColor: 'text-muted-foreground',
     borderColor: 'border-transparent',
     title: 'Your Unit Is Running Well',
-    ctaText: 'Set a Reminder',
   },
 };
 
@@ -110,7 +103,6 @@ export function VerdictCard({
   yearsRemaining,
   isLeaking,
   visualRust,
-  onGetHelp 
 }: VerdictCardProps) {
   const verdictType = getVerdictType(recommendation, isLeaking, visualRust);
   const config = verdictConfigs[verdictType];
@@ -143,23 +135,6 @@ export function VerdictCard({
       <p className="text-sm text-muted-foreground leading-relaxed">
         {description}
       </p>
-
-      {/* CTA Button - Single accent color for all states */}
-      <Button 
-        onClick={onGetHelp}
-        className="w-full h-12 text-sm font-medium gap-2 bg-primary hover:bg-primary/90"
-      >
-        {config.ctaText}
-        <ChevronRight className="w-4 h-4" />
-      </Button>
-
-      {/* Trust indicator */}
-      <div className="flex items-center justify-center gap-1.5 pt-1">
-        <Shield className="w-3 h-3 text-muted-foreground" />
-        <span className="text-[10px] text-muted-foreground">
-          No obligation • Just a quick chat
-        </span>
-      </div>
     </div>
   );
 }
