@@ -403,18 +403,7 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
             />
           </div>
 
-          {/* Status Label - Hide when breach is showing */}
-          {!isBreach && (
-            <div className={cn(
-              "text-[10px] font-bold uppercase tracking-wider text-center px-3 py-1 rounded-full w-fit mx-auto",
-              intelligentStatus.severity === 'critical' ? "bg-red-500/15 text-red-400 border border-red-500/20" :
-              intelligentStatus.severity === 'warning' ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
-              intelligentStatus.severity === 'info' ? "bg-blue-500/15 text-blue-400 border border-blue-500/20" :
-              "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-            )}>
-              {intelligentStatus.message}
-            </div>
-          )}
+          {/* Status Label removed - VerdictCard now handles this messaging */}
 
           {/* Breach Evidence Photo - Always visible when breach detected */}
           {isBreach && (
