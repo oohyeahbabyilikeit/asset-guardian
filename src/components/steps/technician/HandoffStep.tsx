@@ -61,11 +61,16 @@ function formatLocation(location: string): string {
   return location.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
-type HandoffMode = 'select' | 'tablet' | 'remote';
+type HandoffModeLocal = 'select' | 'tablet' | 'remote';
+
+interface HandoffContext {
+  handoffMode: 'tablet' | 'remote';
+  homeownerName?: string;
+}
 
 interface HandoffStepProps {
   data: TechnicianInspectionData;
-  onComplete: () => void;
+  onComplete: (context: HandoffContext) => void;
   onSendRemoteLink?: (contact: { type: 'email' | 'sms'; value: string }) => void;
   // Optional IDs for lead tracking
   propertyId?: string;
@@ -81,12 +86,13 @@ export function HandoffStep({
   waterHeaterId,
   contractorId,
 }: HandoffStepProps) {
-  const [mode, setMode] = useState<HandoffMode>('select');
+  const [mode, setMode] = useState<HandoffModeLocal>('select');
   const [contactType, setContactType] = useState<'email' | 'sms'>('email');
   const [contactValue, setContactValue] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [homeownerName, setHomeownerName] = useState('');
   
   const hasIssues = data.location.isLeaking || data.location.visualRust;
   
@@ -344,19 +350,37 @@ export function HandoffStep({
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                   Hand the device to the homeowner to answer a few quick questions about their usage habits and service history.
                 </p>
-                <div className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>About 2 minutes</span>
-                </div>
               </div>
             </div>
+          </div>
+          
+          {/* Homeowner Name Input */}
+          <div className="p-4 bg-card rounded-xl border border-border space-y-3">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              Homeowner's First Name (optional)
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g. John"
+              value={homeownerName}
+              onChange={(e) => setHomeownerName(e.target.value)}
+              className="h-12"
+            />
+            <p className="text-xs text-muted-foreground">
+              This personalizes the report for the homeowner
+            </p>
           </div>
           
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setMode('select')} className="flex-1">
               Back
             </Button>
-            <Button onClick={onComplete} className="flex-1 h-12 text-base font-semibold" size="lg">
+            <Button 
+              onClick={() => onComplete({ handoffMode: 'tablet', homeownerName: homeownerName.trim() || undefined })} 
+              className="flex-1 h-12 text-base font-semibold" 
+              size="lg"
+            >
               <span>Start Questions</span>
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
