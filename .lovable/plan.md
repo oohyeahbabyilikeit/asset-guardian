@@ -1,120 +1,99 @@
 
 
-# Fix Corrtex AI Chat - Immediate Popup + Better Visual Design
+# Fix: Young Tank Replacement Recommendation Bug
 
-## Issues Identified
+## Problem Summary
+A **2-year-old unit** missing only an expansion tank is incorrectly being recommended for **replacement**. The algorithm correctly returns `REPAIR` (install expansion tank), but downstream components override this verdict based on flawed heuristics.
 
-### Issue 1: Chat doesn't immediately pop up
-The current `CorrtexChatOverlay` uses `if (!open) return null` which only renders after state changes, but the framer-motion animations add perceived delay. The chat should feel instant.
+## Root Cause
+Three components use hardcoded `bioAge >= 10` checks that **bypass the algorithm's decision**:
 
-### Issue 2: Chat UI looks unpolished
-The current design is functional but lacks the visual polish of the rest of the app:
-- Generic styling with basic backgrounds
-- Message bubbles feel flat
-- No visual hierarchy for the AI avatar
-- Header is plain
-- No typing indicator while streaming
+| Location | Bug | Impact |
+|----------|-----|--------|
+| `Index.tsx:357` | `bioAge >= 10` → `REPLACE_SOON` | AI prefetch uses wrong recommendation type |
+| `FindingsSummaryPage.tsx:1252` | `bioAge >= 10` → `REPLACE_SOON` | Customer sees "Start Planning Replacement" |
+| `HealthGauge.tsx:260` | `bioAge >= 10` → "Wear Catching Up" | Misleading status message |
 
----
+### Why This Happens
+A 2-year-old tank in a closed-loop system **without an expansion tank** experiences:
+- Pressure spikes to ~120 PSI during heating cycles
+- This causes elevated stress factors in the algorithm
+- The `bioAge` can spike to 10+ even on a young tank
 
-## Proposed Fixes
+But this is **correctable damage** — install the expansion tank, and the stress disappears. The algorithm knows this and returns `REPAIR`, but the UI ignores it.
 
-### 1. Instant Appearance
-- Remove animation delays that make it feel slow
-- Use `initial={false}` on outer container to skip entrance animation
-- Keep only subtle inner animations for messages
-- Pre-render the component (always mounted, just hidden) for instant show
+## Solution
 
-### 2. Visual Polish Overhaul
+### Step 1: Fix `Index.tsx` (Prefetch Logic)
+Replace the flawed recommendation type logic with the correct pattern from `CommandCenter.tsx`:
 
-**Header**
-- Add gradient background matching app theme
-- Make Corrtex branding more prominent with a glowing icon effect
-- Add subtle status indicator showing "Online"
+```typescript
+// BEFORE (buggy)
+if (verdict.action === 'REPLACE' || urgency === 'IMMEDIATE') {
+  recommendationType = 'REPLACE_NOW';
+} else if (urgency === 'HIGH' || opterraResult.metrics.bioAge >= 10) {
+  recommendationType = 'REPLACE_SOON';  // ❌ Ignores REPAIR verdict!
+} else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
+  recommendationType = 'MAINTAIN';
+}
 
-**Chat Container**
-- Add a warm gradient background instead of flat `bg-background`
-- Better visual separation between sections
-
-**Message Bubbles**
-- AI messages: Softer background with subtle left border accent
-- User messages: Keep primary color but add slight shadow
-- Better typography with proper line height
-- Add subtle fade-in for new messages (no delay though)
-
-**AI Avatar**
-- Glowing/pulsing sparkle icon when responding
-- Larger, more prominent avatar
-
-**Suggested Questions**
-- Card-style design instead of plain pills
-- Slight elevation and hover effects
-- Better spacing
-
-**Input Area**
-- Cleaner design with integrated send button
-- Focus ring that matches theme
-
----
-
-## Technical Changes
-
-### File: `src/components/CorrtexChatOverlay.tsx`
-
-1. **Remove entrance delay** - Change `initial={{ opacity: 0 }}` to `initial={false}` or `initial={{ opacity: 1 }}`
-2. **Add typing indicator** - Show animated dots while streaming
-3. **Polish header** - Add gradient, glow effect on icon
-4. **Redesign message bubbles** - Better backgrounds, shadows, spacing
-5. **Improve suggested questions** - Card-style with icons
-6. **Better input area** - Cleaner, more integrated design
-
-### Visual Reference (target look):
-
-```text
-┌─────────────────────────────────────────────────────┐
-│ ✨ Corrtex AI                        [X]            │
-│     Your water heater assistant • Online            │
-│─────────────────────────────────────────────────────│
-│                                                     │
-│  ┌────────────────────────────────────────────────┐ │
-│  │ ✨ Hi! I've reviewed your water heater         │ │
-│  │    assessment. Based on what we found, you     │ │
-│  │    have 4 items to discuss. Ask me anything!   │ │
-│  └────────────────────────────────────────────────┘ │
-│                                                     │
-│  ┌──────────────────┐ ┌──────────────────┐          │
-│  │ Why expansion    │ │ Is replacement   │          │
-│  │ tank required?   │ │ urgent?          │          │
-│  └──────────────────┘ └──────────────────┘          │
-│  ┌──────────────────┐ ┌──────────────────┐          │
-│  │ How does anode   │ │ What if I skip   │          │
-│  │ protect tank?    │ │ the flush?       │          │
-│  └──────────────────┘ └──────────────────┘          │
-│                                                     │
-│─────────────────────────────────────────────────────│
-│  ┌─────────────────────────────────────────┐ [>]    │
-│  │ Ask about your water heater...          │        │
-│  └─────────────────────────────────────────┘        │
-└─────────────────────────────────────────────────────┘
+// AFTER (correct)
+if (verdict.action === 'REPLACE') {
+  recommendationType = verdict.urgent ? 'REPLACE_NOW' : 'REPLACE_SOON';
+} else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
+  recommendationType = 'MAINTAIN';
+} else if (verdict.action === 'UPGRADE') {
+  recommendationType = 'MONITOR';
+}
+// PASS stays as MONITOR
 ```
 
----
+### Step 2: Fix `FindingsSummaryPage.tsx` (Bottom Line Logic)
+The `getBottomLine()` function needs the same fix. It should respect the algorithm's verdict:
 
-## Implementation Summary
+- If `verdict.action === 'REPLACE'` → Return replacement recommendation
+- If `verdict.action === 'REPAIR'` or `MAINTAIN` → Return maintenance recommendation
+- Remove the `bioAge >= 10` override entirely
 
-| Change | What |
-|--------|------|
-| Remove opacity animation delay | Instant popup |
-| Add gradient header | Visual polish |
-| Redesign message bubbles | Better readability |
-| Add streaming indicator | Shows AI is typing |
-| Card-style suggested questions | More tappable look |
-| Glowing AI avatar | Premium feel |
-| Cleaner input area | Modern design |
+### Step 3: Fix `HealthGauge.tsx` (Status Messaging)
+Update the status message logic to compare `bioAge` relative to `calendarAge` instead of using an absolute threshold:
 
----
+```typescript
+// BEFORE (misleading)
+if (metrics.bioAge >= 10) {
+  return { message: 'Wear Catching Up', severity: 'info' };
+}
+
+// AFTER (context-aware)
+const ageRatio = metrics.bioAge / Math.max(inputs.calendarAge, 1);
+if (ageRatio > 1.5 && inputs.calendarAge >= 5) {
+  return { message: 'Wear Catching Up', severity: 'info' };
+}
+```
+
+This ensures a 2-year-old tank with `bioAge: 10` (due to stress) isn't flagged the same as a 10-year-old tank with `bioAge: 10` (normal wear).
 
 ## Files to Modify
 
-- `src/components/CorrtexChatOverlay.tsx` - Main visual overhaul
+1. **`src/pages/Index.tsx`** — Lines 355-361
+2. **`src/components/FindingsSummaryPage.tsx`** — Lines 1252-1270 (the `getBottomLine` function)
+3. **`src/components/HealthGauge.tsx`** — Lines 260-262
+
+## Alignment with Existing Architecture
+
+This fix aligns with the documented business logic:
+
+- **Infrastructure First Gate**: Young tanks (<8 years) with correctable issues should get REPAIR/MAINTAIN verdicts
+- **Technical Necessity**: The algorithm is the single source of truth for verdicts
+- **Young Tank Recommendation Gate**: Replacement recommendations on young tanks are gated
+
+## Testing Scenarios
+
+After the fix, verify these scenarios:
+
+| Scenario | Calendar Age | bioAge | Missing Exp Tank | Expected Result |
+|----------|-------------|--------|------------------|-----------------|
+| Young tank, missing expansion | 2 | 10+ | Yes | `REPAIR` (install tank) |
+| Old tank, missing expansion | 12 | 15+ | Yes | `REPLACE` (too fragile) |
+| Young tank, healthy | 3 | 3.5 | No | `PASS` (no issues) |
 
