@@ -1,150 +1,139 @@
 
 
-# Redesign HealthGauge for Homeowner Clarity
+# UX Refinement: CTA Consolidation & Violation Alert Cleanup
 
-## Goal
-Transform the technical "stress factors" display into homeowner-friendly insights while preserving the data for technical users.
+## Overview
+This plan addresses two UX friction points: redundant CTAs creating decision fatigue, and a truncated/aggressive violation alert that looks broken to users.
 
-## Changes to `src/components/HealthGauge.tsx`
+---
 
-### 1. Replace "Stress Factors" with "What We Found"
-Replace the multiplier grid with a plain-English findings list:
+## Task 1: Consolidate Redundant CTAs
+
+### Problem
+Two primary CTAs visible simultaneously:
+- VerdictCard: "Discuss Your Options" (context-aware)
+- ActionDock (sticky footer): "What are my options?"
+
+Both trigger the same action but compete for attention.
+
+### Solution
+Remove the CTA button from VerdictCard and let the sticky ActionDock handle all primary conversion. VerdictCard becomes purely informational.
+
+### Changes
+
+**File: `src/components/VerdictCard.tsx`**
+- Remove the `<Button>` component entirely (lines 147-154)
+- Remove the trust indicator below it (lines 156-162)
+- Remove the `onGetHelp` prop since it's no longer needed
+- Simplify the component to show only: icon, title, and description
+
+**File: `src/components/CommandCenter.tsx`**
+- Remove the `onGetHelp` prop from VerdictCard usage (line 633)
+
+### Result
+VerdictCard becomes a clear, non-competing summary card. The always-visible sticky footer ("What are my options?") becomes the single conversion point.
+
+---
+
+## Task 2: Fix Truncated Text & Soften "VIOLATION" Label
+
+### Problem
+1. "Thermal expansion pr..." is truncating — looks broken
+2. "VIOLATION" label is aggressive for homeowners
+
+### Solution
+1. Allow text to wrap properly by adjusting flex layout
+2. Rename "VIOLATION" to "CODE ISSUE" (maintains urgency but feels less punitive)
+
+### Changes
+
+**File: `src/components/UnifiedMaintenanceCard.tsx`**
+
+Lines 114-124: Update violation badge and fix layout
+```jsx
+// Change from:
+<span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white mb-1 mr-2">
+  VIOLATION
+</span>
+
+// Change to:
+<span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white mb-1 mr-2">
+  CODE ISSUE
+</span>
+```
+
+Line 122: Ensure label wraps properly
+```jsx
+// Change from:
+<h3 className="text-lg font-semibold text-foreground">
+  {label}
+</h3>
+
+// Change to:
+<h3 className="text-lg font-semibold text-foreground break-words">
+  {label}
+</h3>
+```
+
+**File: `src/components/BundledServiceCard.tsx`**
+
+Line 126-128: Same label change
+```jsx
+// Change from:
+<span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white">
+  VIOLATION
+</span>
+
+// Change to:
+<span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive text-white whitespace-nowrap">
+  CODE ISSUE
+</span>
+```
+
+Lines 130-133: Fix label wrapping in the task display
+```jsx
+// Change from:
+<p className={cn(
+  "font-medium text-sm",
+  task.isInfrastructure ? "text-destructive" : "text-foreground"
+)}>{task.label}</p>
+
+// Change to:
+<p className={cn(
+  "font-medium text-sm break-words",
+  task.isInfrastructure ? "text-destructive" : "text-foreground"
+)}>{task.label}</p>
+```
+
+Also update `getStatusLabel()` in UnifiedMaintenanceCard.tsx (line 94):
+```jsx
+// Change from:
+if (isViolation) return 'Code Violation';
+
+// Change to:
+if (isViolation) return 'Code Issue';
+```
+
+---
+
+## Summary of Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/VerdictCard.tsx` | Remove CTA button and trust indicator; remove `onGetHelp` prop |
+| `src/components/CommandCenter.tsx` | Remove `onGetHelp` prop from VerdictCard |
+| `src/components/UnifiedMaintenanceCard.tsx` | Change "VIOLATION" to "CODE ISSUE"; add `break-words` to label |
+| `src/components/BundledServiceCard.tsx` | Change "VIOLATION" to "CODE ISSUE"; add `break-words` to label |
+
+---
+
+## Visual Outcome
 
 **Before:**
-```
-Stress Factors
-Pressure         1.00x ✓
-Thermal Cycling  1.02x ✓
-Sediment         1.25x ⚠
-Circulation      1.00x ✓
-Closed Loop      1.00x ✓
-Usage Impact     +20% wear
-Combined Aging Rate  1.28x
-```
+- Two competing CTAs visible at once
+- Truncated "Thermal expansion pr..." with aggressive "VIOLATION" badge
 
 **After:**
-```
-What We Found
-
-✅ Water pressure is normal
-⚠️ Sediment is building up faster than normal
-✅ No unusual stress on the system
-
-Your unit is aging about 28% faster than ideal.
-```
-
-### 2. Create Helper Function for Plain-English Findings
-Add a function that translates metrics into homeowner language:
-
-```typescript
-function getPlainEnglishFindings(metrics: OpterraMetrics, isTankless: boolean): Finding[] {
-  const findings: Finding[] = [];
-  
-  // Pressure
-  if (metrics.stressFactors.pressure > 1.15) {
-    findings.push({
-      status: metrics.stressFactors.pressure > 1.5 ? 'critical' : 'warning',
-      message: 'Water pressure is too high - this strains your tank'
-    });
-  } else {
-    findings.push({ status: 'good', message: 'Water pressure is normal' });
-  }
-  
-  // Sediment (tank) or Scale (tankless)
-  if (isTankless) {
-    if (metrics.stressFactors.chemical > 1.15) {
-      findings.push({
-        status: metrics.stressFactors.chemical > 1.5 ? 'critical' : 'warning',
-        message: 'Mineral scale is building up inside'
-      });
-    }
-  } else {
-    if (metrics.stressFactors.sediment > 1.15) {
-      findings.push({
-        status: metrics.stressFactors.sediment > 1.5 ? 'critical' : 'warning',
-        message: 'Sediment is collecting at the bottom'
-      });
-    }
-  }
-  
-  // Usage impact
-  if (metrics.stressFactors.usageIntensity > 1.15) {
-    findings.push({
-      status: 'info',
-      message: `Heavy use is adding extra wear`
-    });
-  }
-  
-  // Only show issues, not "all good" for every factor
-  return findings;
-}
-```
-
-### 3. Simplify Combined Aging Rate Display
-Replace technical "1.28x" with plain language:
-
-```typescript
-function getAgingRateSummary(agingRate: number): string {
-  if (agingRate <= 1.1) return "Your unit is aging normally";
-  if (agingRate <= 1.3) return "Your unit is aging slightly faster than normal";
-  if (agingRate <= 1.8) return "Your unit is aging faster than normal";
-  if (agingRate <= 2.5) return "Your unit is aging much faster than normal";
-  return "Your unit is under severe stress";
-}
-```
-
-### 4. Add Optional Technical Details Accordion
-For plumbers or curious homeowners, add a collapsible "Technical Details" section at the bottom that contains the raw stress factor multipliers.
-
-```tsx
-<Collapsible>
-  <CollapsibleTrigger className="text-xs text-muted-foreground flex items-center gap-1">
-    <ChevronRight className="w-3 h-3" />
-    Technical details
-  </CollapsibleTrigger>
-  <CollapsibleContent>
-    {/* Original StressFactorItem components here */}
-  </CollapsibleContent>
-</Collapsible>
-```
-
-### 5. Keep What Works
-- Health score header (19/100 with bar) - intuitive
-- Status badge ("On Borrowed Time") - clear
-- Breach photo when relevant - visual evidence
-- 5-Year Projection Chart - tells a story
-- Infrastructure violation buttons - actionable
-
-## New UI Structure
-
-```
-┌─────────────────────────────────────────┐
-│ System Health                    19/100 │
-│ [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] │
-│          [ On Borrowed Time ]           │
-├─────────────────────────────────────────┤
-│ What We Found                           │
-│ ✅ Water pressure is normal             │
-│ ⚠️ Sediment is building up              │
-│ ✅ No unusual thermal stress            │
-│                                         │
-│ Your unit is aging about 28% faster     │
-│ than normal.                            │
-├─────────────────────────────────────────┤
-│ [VIOLATION] Missing Expansion Tank  →   │
-├─────────────────────────────────────────┤
-│ 5-Year Health Projection                │
-│ [Chart stays the same]                  │
-├─────────────────────────────────────────┤
-│ ▶ Technical details                     │
-└─────────────────────────────────────────┘
-```
-
-## Files to Modify
-- `src/components/HealthGauge.tsx` - Main changes
-
-## Outcome
-- Homeowners understand their situation without needing an engineering degree
-- The important data is still there for technicians (in accordion)
-- Aligns with your "grandma-friendly" and "consultative messaging" UX principles
+- Single clear conversion point (sticky footer)
+- Full "Thermal expansion protection" readable with softer "CODE ISSUE" badge
 
