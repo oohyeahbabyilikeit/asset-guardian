@@ -303,12 +303,12 @@ ${ctx.recommendationTitle ? `Reason: ${ctx.recommendationTitle}` : ''}
 ---
 
 Generate 4 sections explaining why replacement makes sense:
-1. "The Numbers" - Use their actual age, bio-age, and failure probability. Explain what ${Math.round(ctx.failProb)}% failure risk really means.
-2. "The Physics" - Explain the technical reasons why repairs don't make sense at this stage (depleted protection, structural fatigue, etc.). NO DOLLAR AMOUNTS.
+1. "The Situation" - Describe their unit's condition qualitatively: wear level is ${ctx.bioAge > ctx.calendarAge + 5 ? 'high' : ctx.bioAge > ctx.calendarAge + 2 ? 'elevated' : 'normal'}, risk level is ${ctx.failProb > 30 ? 'high' : ctx.failProb > 15 ? 'moderate' : 'low'}. DO NOT use percentages or specific numbers. Use terms like "elevated risk" or "significant wear" instead.
+2. "The Physics" - Explain the technical reasons why repairs don't make sense at this stage (depleted protection, structural fatigue, etc.). NO DOLLAR AMOUNTS, NO PERCENTAGES.
 3. "The Risk" - Focus on their ${formatLocation(ctx.installLocation)} installation. ${locationRisk.level === 'HIGH' ? 'Emphasize potential water damage if the unit fails in this location.' : 'Discuss the inconvenience and stress of emergency replacement.'}
 4. "The Opportunity" - Benefits of proactive replacement: control timing, compare options, get efficient unit, new warranty, peace of mind.
 
-Be specific with their numbers. Be empathetic about the decision. Don't be salesy. NEVER mention specific dollar amounts.`;
+Be empathetic about the decision. Don't be salesy. NEVER mention specific dollar amounts or percentages. Use qualitative terms only.`;
 
   return prompt;
 }

@@ -148,7 +148,7 @@ export function VitalsGrid({
         icon: <Heart className="w-5 h-5" />,
         title: healthStatus === 'critical' ? 'System Critical' :
                healthStatus === 'warning' ? 'System Stressed' : 'System Healthy',
-        subtitle: `${healthScore}% health • ${primaryStressor}`,
+        subtitle: healthStatus === 'critical' ? `Poor condition • ${primaryStressor}` : healthStatus === 'warning' ? `Fair condition • ${primaryStressor}` : `Good condition`,
         tooltip: healthStatus !== 'optimal' 
           ? `Primary issue: ${primaryStressor}. Address to improve system health.`
           : 'Unit is operating within normal parameters.',
@@ -158,7 +158,7 @@ export function VitalsGrid({
         status: scaleStatus,
         icon: <Droplets className="w-5 h-5" />,
         title: scaleStatus === 'optimal' ? 'Heat Exchanger Clear' : 'Scale Buildup',
-        subtitle: `${scaleBuildupScore.toFixed(0)}% blockage estimated`,
+        subtitle: scaleStatus === 'optimal' ? 'Minimal buildup' : scaleStatus === 'critical' ? 'Severe blockage' : 'Moderate buildup',
         tooltip: scaleStatus !== 'optimal' 
           ? 'Scale insulates the heat exchanger, reducing efficiency and causing overheating.'
           : 'Heat exchanger efficiency is good.',
@@ -365,10 +365,10 @@ export function VitalsGrid({
     {
       status: vitals.biologicalAge.status,
       icon: <Clock className="w-5 h-5" />,
-      title: vitals.biologicalAge.agingRate > 1.5 ? 'Accelerated Wear' : 'Aging Rate',
-      subtitle: `${vitals.biologicalAge.agingRate.toFixed(1)}x Normal Speed`,
+      title: vitals.biologicalAge.agingRate > 1.8 ? 'High Stress' : vitals.biologicalAge.agingRate > 1.3 ? 'Elevated Stress' : 'Normal Wear',
+      subtitle: vitals.biologicalAge.agingRate > 1.8 ? 'Significant accelerated wear' : vitals.biologicalAge.agingRate > 1.3 ? 'Faster than normal aging' : 'Healthy aging rate',
       tooltip: vitals.biologicalAge.agingRate > 1.2 
-        ? `${vitals.biologicalAge.primaryStressor} is causing accelerated wear.${vitals.biologicalAge.lifeExtension > 0.5 ? ` Fix to gain ~${vitals.biologicalAge.lifeExtension.toFixed(1)} years.` : ''}`
+        ? `${vitals.biologicalAge.primaryStressor} is causing accelerated wear. Addressing this can extend service life.`
         : 'Your tank is aging at a healthy rate.',
     },
     {

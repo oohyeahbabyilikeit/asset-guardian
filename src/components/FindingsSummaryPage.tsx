@@ -320,32 +320,32 @@ function RecommendationEducationStep({
   const getStatContext = () => {
     const contexts: { stat: string; explanation: string; severity: 'good' | 'warning' | 'critical' }[] = [];
     
-    // Bio Age context
+    // Wear Level context (replaces Bio Age)
     const ageDiff = bioAge - calendarAge;
-    if (ageDiff > 3) {
+    if (ageDiff > 5) {
       contexts.push({
-        stat: 'Bio Age',
-        explanation: `Your water conditions added ${ageDiff.toFixed(0)} years of wear`,
-        severity: ageDiff > 5 ? 'critical' : 'warning'
+        stat: 'Wear Level',
+        explanation: 'Your water conditions have caused significant accelerated wear',
+        severity: 'critical'
       });
-    } else if (bioAge > 10) {
+    } else if (ageDiff > 2) {
       contexts.push({
-        stat: 'Bio Age',
-        explanation: 'Past typical service life for this type of unit',
+        stat: 'Wear Level',
+        explanation: 'Environmental stress is causing faster-than-normal wear',
         severity: 'warning'
       });
     }
     
-    // Fail probability context
-    if (failProb > 25) {
+    // Risk Level context (replaces Fail Risk percentage)
+    if (failProb > 30) {
       contexts.push({
-        stat: 'Fail Risk',
-        explanation: '1 in 4 chance of failure in the next year',
+        stat: 'Risk Level',
+        explanation: 'High likelihood of failure in the coming year',
         severity: 'critical'
       });
     } else if (failProb > 15) {
       contexts.push({
-        stat: 'Fail Risk', 
+        stat: 'Risk Level', 
         explanation: 'Elevated chance of unexpected breakdown',
         severity: 'warning'
       });
@@ -461,39 +461,41 @@ function RecommendationEducationStep({
             </div>
           </div>
 
-          {/* Key Stats - The Proof */}
+          {/* Key Stats - The Proof (Qualitative) */}
           <div className="grid grid-cols-3 divide-x divide-border/50 bg-muted/30">
             <div className="p-3 text-center">
-              <div className="text-xl font-bold text-foreground">
-                {bioAge.toFixed(0)}
-                <span className="text-xs font-normal text-muted-foreground ml-0.5">yrs</span>
+              <div className={cn(
+                "text-lg font-bold",
+                bioAge > calendarAge + 5 ? "text-destructive" : bioAge > calendarAge + 2 ? "text-amber-600" : "text-foreground"
+              )}>
+                {bioAge > calendarAge + 5 ? 'High' : bioAge > calendarAge + 2 ? 'Elevated' : 'Normal'}
               </div>
-              <div className="text-xs text-muted-foreground">Bio Age</div>
+              <div className="text-xs text-muted-foreground">Wear Level</div>
               {bioAge > calendarAge + 2 && (
-                <div className="text-[10px] text-amber-600 mt-0.5">
-                  ({calendarAge}yr unit)
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  accelerated aging
                 </div>
               )}
             </div>
             <div className="p-3 text-center">
               <div className={cn(
-                "text-xl font-bold",
-                failProb > 30 ? "text-destructive" : failProb > 15 ? "text-amber-600" : "text-foreground"
+                "text-lg font-bold",
+                failProb > 30 ? "text-destructive" : failProb > 15 ? "text-amber-600" : "text-emerald-600"
               )}>
-                {Math.round(failProb)}%
+                {failProb > 30 ? 'High' : failProb > 15 ? 'Medium' : 'Low'}
               </div>
-              <div className="text-xs text-muted-foreground">Fail Risk</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">next 12mo</div>
+              <div className="text-xs text-muted-foreground">Risk Level</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">failure risk</div>
             </div>
             <div className="p-3 text-center">
               <div className={cn(
-                "text-xl font-bold",
+                "text-lg font-bold",
                 healthScore < 40 ? "text-destructive" : healthScore < 60 ? "text-amber-600" : "text-emerald-600"
               )}>
-                {healthScore}
+                {healthScore < 40 ? 'Poor' : healthScore < 60 ? 'Fair' : healthScore < 80 ? 'Good' : 'Excellent'}
               </div>
-              <div className="text-xs text-muted-foreground">Health</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">out of 100</div>
+              <div className="text-xs text-muted-foreground">Condition</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">overall health</div>
             </div>
           </div>
 
