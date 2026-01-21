@@ -10,6 +10,7 @@ import {
 } from '@/data/damageScenarios';
 import { failProbToHealthScore, FuelType } from '@/lib/opterraAlgorithm';
 import { getUnitTypeLabel, getContextualRecommendation as getUnitRecommendation, isTankless, isHybrid, getStressFactors } from '@/lib/unitTypeContent';
+import { cn } from '@/lib/utils';
 
 interface StressFactor {
   name: string;
@@ -283,12 +284,22 @@ export function SafetyAssessmentPage({
             {/* Key Stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-foreground">{Math.round(bioAge)}</p>
-                <p className="text-xs text-muted-foreground">Bio Age (years)</p>
+                <p className={cn(
+                  "text-xl font-bold",
+                  bioAge > chronoAge + 5 ? "text-destructive" : bioAge > chronoAge + 2 ? "text-amber-600" : "text-foreground"
+                )}>
+                  {bioAge > chronoAge + 5 ? 'High' : bioAge > chronoAge + 2 ? 'Elevated' : 'Normal'}
+                </p>
+                <p className="text-xs text-muted-foreground">Wear Level</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-foreground">{agingMultiple}x</p>
-                <p className="text-xs text-muted-foreground">Aging Rate</p>
+                <p className={cn(
+                  "text-xl font-bold",
+                  agingRate > 1.8 ? "text-destructive" : agingRate > 1.3 ? "text-amber-600" : "text-foreground"
+                )}>
+                  {agingRate > 1.8 ? 'High' : agingRate > 1.3 ? 'Elevated' : 'Normal'}
+                </p>
+                <p className="text-xs text-muted-foreground">Stress Factor</p>
               </div>
             </div>
           </CardContent>

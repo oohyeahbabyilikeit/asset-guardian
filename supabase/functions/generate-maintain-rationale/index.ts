@@ -250,11 +250,11 @@ ${ctx.recommendationTitle ? `Summary: ${ctx.recommendationTitle}` : ''}
 ---
 
 Generate 3 sections explaining why their unit is in good shape:
-1. "Why Your Unit Is Healthy" - Use their ${ctx.healthScore}/100 health score and ${Math.round(ctx.failProb)}% failure probability. Explain why these numbers are reassuring.
+1. "Why Your Unit Is Healthy" - Explain that their unit shows ${ctx.healthScore < 40 ? 'concerning' : ctx.healthScore < 60 ? 'moderate' : ctx.healthScore < 80 ? 'good' : 'excellent'} overall condition with ${ctx.failProb > 30 ? 'high' : ctx.failProb > 15 ? 'moderate' : 'low'} risk level. Use qualitative terms, NOT percentages.
 2. "What's Working in Your Favor" - Mention specific factors: ${ctx.hasSoftener ? 'water softener protecting the unit,' : ''} ${ctx.housePsi <= 70 ? 'good water pressure,' : ''} ${ctx.calendarAge <= 8 ? 'relatively young age,' : ''} ${ctx.shieldLife && ctx.shieldLife > 50 ? 'good anode protection,' : ''} etc.
 3. "Keep It Running Strong" - Specific maintenance recommendations based on their data. What should they do to keep this unit healthy for years to come?
 
-Be encouraging and positive. Use their actual numbers. Give them confidence their unit is doing well.`;
+Be encouraging and positive. Use qualitative descriptions (low/moderate/high risk, good/fair/poor condition). Give them confidence their unit is doing well.`;
 
   return prompt;
 }
