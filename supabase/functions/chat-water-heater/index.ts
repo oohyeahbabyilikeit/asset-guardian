@@ -56,12 +56,20 @@ interface WaterHeaterContext {
     monthlyBudget?: number;
     targetDate?: string;
   };
+  // NEW: Service context for Corrtex AI chat
+  serviceContext?: {
+    selectedServices: string[];
+    violationCount: number;
+    recommendationCount: number;
+    maintenanceCount: number;
+    addOnCount: number;
+  };
 }
 
 function buildSystemPrompt(context: WaterHeaterContext): string {
-  const { inputs, metrics, recommendation, findings, financial } = context;
+  const { inputs, metrics, recommendation, findings, serviceContext } = context;
   
-  let prompt = `You are a friendly, knowledgeable water heater advisor helping a homeowner understand their assessment results. Use the specific data below to answer their questions. Be conversational, honest, and helpful. Keep responses concise but thorough.
+  let prompt = `You are Corrtex AI, a friendly and knowledgeable water heater advisor helping a homeowner understand their assessment results. Use the specific data below to answer their questions. Be conversational, honest, and helpful. Keep responses concise but thorough.
 
 ## THEIR WATER HEATER
 `;
@@ -134,6 +142,18 @@ function buildSystemPrompt(context: WaterHeaterContext): string {
     }
   }
 
+  // Service context for helping customer understand their options
+  if (serviceContext && serviceContext.selectedServices.length > 0) {
+    prompt += `\n## SERVICES BEING CONSIDERED\n`;
+    prompt += `The homeowner is looking at these service options:\n`;
+    serviceContext.selectedServices.forEach((service, i) => {
+      prompt += `${i + 1}. ${service}\n`;
+    });
+    if (serviceContext.violationCount > 0) {
+      prompt += `\n⚠️ ${serviceContext.violationCount} item(s) are code violations that require attention.\n`;
+    }
+  }
+
   // Note: Financial context removed in v9.0 - focus on physics-based explanations
 
   prompt += `
@@ -145,7 +165,9 @@ function buildSystemPrompt(context: WaterHeaterContext): string {
 - If they ask about costs, explain that pricing varies by location and suggest they discuss with a local professional
 - If they seem worried, acknowledge their concerns while being reassuring and practical
 - Suggest actionable next steps when appropriate
-- Keep responses focused and avoid unnecessary jargon`;
+- Keep responses focused and avoid unnecessary jargon
+- If they ask about services on their list, explain WHY those services matter for their specific situation
+- Be supportive of their decision to learn more before committing`;
 
   return prompt;
 }
