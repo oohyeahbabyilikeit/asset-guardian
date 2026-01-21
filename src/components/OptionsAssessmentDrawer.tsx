@@ -159,6 +159,8 @@ function getEducationalTopic(findingId: string): EducationalTopic | null {
     'TANK_FAILURE': 'tank-failure',
     'AGE_CRITICAL': 'aging',
     'FAILURE_RATE_HIGH': 'failure-rate',
+    'REPLACEMENT_CONSULTATION': 'replacement-consultation',
+    'URGENT_REPLACEMENT': 'replacement-consultation',
   };
   return topicMap[findingId] || null;
 }
