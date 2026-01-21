@@ -1,80 +1,210 @@
 
 
-# Fix: Urgency Tier Must Account for Priority Findings
+# Add Corrtex AI Chat to Service Selection
 
-## The Bug
+## Overview
+Add a "Chat with Corrtex AI" button below the plumber contact button that opens a fullscreen AI-powered chat. The chat will be pre-loaded with all inspection data and display suggested questions based on the customer's specific recommended services.
 
-The `getUrgencyTier` function returns `'monitor'` (stable) when `isPassVerdict` is true, completely ignoring whether violations exist:
+---
 
-```typescript
-if (isPassVerdict) return 'monitor';  // Shows "Your Unit Is Stable"
+## Architecture
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│               ServiceSelectionDrawer                       │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  [Services List - Violations, Urgent, Maintenance]   │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                            │
+│  Footer:                                                   │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  [📞 Have My Plumber Reach Out] ← Primary CTA        │  │
+│  │  [💬 Chat with Corrtex AI] ← Secondary, opens chat   │  │
+│  └──────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
+                           │
+                           ▼ Opens fullscreen overlay
+┌────────────────────────────────────────────────────────────┐
+│                   CorrtexChatOverlay                       │
+│  Header: "Corrtex AI" + Close button                       │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  Initial Message:                                     │  │
+│  │  "Hi! I've reviewed your water heater assessment.     │  │
+│  │   Based on what we found, you have [X] items to       │  │
+│  │   discuss. Ask me anything about your options!"       │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                            │
+│  Suggested Questions (based on their services):           │
+│  ┌────────────────┐ ┌─────────────────┐ ┌───────────────┐ │
+│  │ Why expansion  │ │ Is replacement  │ │ What's a PRV? │ │
+│  │ tank needed?   │ │ urgent?         │ │               │ │
+│  └────────────────┘ └─────────────────┘ └───────────────┘ │
+│                                                            │
+│  [Input field] [Send]                                      │
+└────────────────────────────────────────────────────────────┘
 ```
 
-This creates a contradiction where the drawer says "stable" while showing a red CODE VIOLATION card.
+---
 
-## The Root Cause
+## Implementation Plan
 
-The algorithm's `isPassVerdict` only reflects the **water heater's servicability** (e.g., "anode may be fused - don't touch it"). It does NOT account for **installation infrastructure issues** like missing expansion tanks.
+### 1. Create New Component: CorrtexChatOverlay
 
-These are separate concerns:
-- **Unit servicability**: Can we safely perform maintenance on the tank?
-- **Code compliance**: Are there installation violations that need fixing?
+**File**: `src/components/CorrtexChatOverlay.tsx`
 
-## The Fix
+A fullscreen chat overlay that:
+- Receives context: inputs, metrics, recommendation, selected tasks, and priority findings
+- Streams responses from the existing `chat-water-heater` edge function
+- Generates dynamic suggested questions based on what services are being shown
 
-Update `getUrgencyTier` in `OptionsAssessmentDrawer.tsx` to check for priority findings before defaulting to monitor tier.
-
-### Changes to OptionsAssessmentDrawer.tsx
-
-**1. Update function signature** (add priorityFindings parameter):
-
+**Props**:
 ```typescript
-function getUrgencyTier(
-  healthScore: number, 
-  verdictAction: VerdictAction, 
-  isPassVerdict: boolean,
-  priorityFindings: PriorityFinding[]  // NEW
-): UrgencyTier {
-  // Check for critical findings first - violations override PASS verdict
-  const hasCriticalFinding = priorityFindings.some(f => f.severity === 'critical');
-  const hasWarningFinding = priorityFindings.some(f => f.severity === 'warning');
-  
-  if (hasCriticalFinding) return 'critical';  // Violations = immediate attention
-  if (hasWarningFinding) return 'attention';  // Infrastructure issues = proactive
-  
-  // Only show "stable" if PASS verdict AND no findings
-  if (isPassVerdict) return 'monitor';
-  
-  // Existing logic for health score thresholds
-  if (healthScore < 40 || verdictAction === 'REPLACE') return 'critical';
-  if (healthScore < 70 || verdictAction === 'REPAIR') return 'attention';
-  return 'healthy';
+interface CorrtexChatOverlayProps {
+  open: boolean;
+  onClose: () => void;
+  // Context for AI
+  inputs: ForensicInputs;
+  metrics: OpterraMetrics;
+  recommendation: { action: string; badge: string; title: string; };
+  // Services being shown to generate questions
+  violations: MaintenanceTask[];
+  recommendations: MaintenanceTask[];
+  maintenanceTasks: MaintenanceTask[];
+  addOns: MaintenanceTask[];
+  healthScore: number;
 }
 ```
 
-**2. Update the function call** in the component:
+**Key Features**:
+- Fullscreen overlay (similar to MaintenanceChatInterface fullscreen mode)
+- SSE streaming for real-time AI responses
+- Dynamic suggested questions based on their specific situation
+- Handles rate limit (429) and payment required (402) errors gracefully
 
-```typescript
-const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
+### 2. Update ServiceSelectionDrawer
+
+**File**: `src/components/ServiceSelectionDrawer.tsx`
+
+Add new props and button:
+- Add props for AI context (inputs, metrics, recommendation, healthScore)
+- Add state: `showCorrtexChat` 
+- Add "Chat with Corrtex AI" button below the plumber CTA
+
+**Footer Changes**:
+```tsx
+<DrawerFooter className="border-t border-border">
+  <p className="text-xs text-center text-muted-foreground mb-2">
+    No obligation—just a quick conversation
+  </p>
+  <Button onClick={handleSubmit} disabled={selectedTypes.size === 0} className="w-full gap-2 h-12">
+    <Phone className="w-4 h-4" />
+    Have My Plumber Reach Out
+  </Button>
+  
+  {/* NEW: Corrtex AI Chat Button */}
+  <Button 
+    variant="outline" 
+    onClick={() => setShowCorrtexChat(true)} 
+    className="w-full gap-2"
+  >
+    <Sparkles className="w-4 h-4" />
+    Chat with Corrtex AI
+  </Button>
+  <p className="text-[10px] text-center text-muted-foreground">
+    Get instant answers about your options
+  </p>
+</DrawerFooter>
 ```
 
-**3. Update monitor tier messaging** for when it IS actually stable:
+### 3. Update CommandCenter to Pass Context
 
-The current messaging is fine for the true "stable" case - it will only show when:
-- `isPassVerdict` is true AND
-- There are zero priority findings
+**File**: `src/components/CommandCenter.tsx`
 
-## Result
+Pass additional context to ServiceSelectionDrawer:
+```tsx
+<ServiceSelectionDrawer
+  // ... existing props
+  inputs={currentInputs}           // NEW
+  metrics={metrics}                // NEW  
+  recommendation={recommendation}  // NEW
+  healthScore={dynamicHealthScore.score}  // NEW
+/>
+```
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| PASS verdict + no findings | "Your Unit Is Stable" | "Your Unit Is Stable" |
-| PASS verdict + violation | "Your Unit Is Stable" (BUG) | "Immediate Attention Recommended" |
-| PASS verdict + infrastructure issue | "Your Unit Is Stable" (BUG) | "Proactive Maintenance Recommended" |
+### 4. Dynamic Suggested Questions Logic
 
-## Files to Modify
+Questions are generated based on what's in their service list:
 
-| File | Change |
+| Service Type | Suggested Questions |
+|--------------|---------------------|
+| Expansion Tank (violation) | "Why is an expansion tank required?" |
+| PRV Installation | "What does a PRV do?" |
+| Replacement Consultation | "Is replacement urgent or can I wait?" |
+| Anode Replacement | "How does an anode protect my tank?" |
+| Tank Flush | "What happens if I skip the flush?" |
+| Water Softener (add-on) | "How would a softener help?" |
+| High Pressure detected | "Is my water pressure dangerous?" |
+
+**Example question generator**:
+```typescript
+function generateSuggestedQuestions(
+  violations: MaintenanceTask[],
+  recommendations: MaintenanceTask[],
+  maintenanceTasks: MaintenanceTask[],
+  addOns: MaintenanceTask[]
+): string[] {
+  const questions: string[] = [];
+  
+  // Check for specific services and add relevant questions
+  if (violations.some(v => v.type.includes('expansion'))) {
+    questions.push("Why is the expansion tank required?");
+  }
+  if (recommendations.some(r => r.type === 'replacement_consult')) {
+    questions.push("Is replacement urgent?");
+  }
+  if (maintenanceTasks.some(m => m.type === 'flush')) {
+    questions.push("What if I skip the flush?");
+  }
+  // ... more mappings
+  
+  return questions.slice(0, 4); // Max 4 suggestions
+}
+```
+
+---
+
+## Edge Function: Already Exists!
+
+The `chat-water-heater` edge function is already perfect for this:
+- Accepts `messages` and `context` (inputs, metrics, recommendation, findings)
+- Uses Lovable AI (Gemini 3 Flash) for streaming responses
+- Has proper CORS and error handling
+
+**Minor Enhancement**: Update the system prompt to mention they're looking at service options (not just a general assessment).
+
+---
+
+## Files to Create/Modify
+
+| File | Action |
 |------|--------|
-| `src/components/OptionsAssessmentDrawer.tsx` | Update `getUrgencyTier` to check priority findings before returning monitor tier |
+| `src/components/CorrtexChatOverlay.tsx` | **CREATE** - New fullscreen chat component |
+| `src/components/ServiceSelectionDrawer.tsx` | **MODIFY** - Add button + new props |
+| `src/components/CommandCenter.tsx` | **MODIFY** - Pass context to drawer |
+| `supabase/functions/chat-water-heater/index.ts` | **MODIFY** - Update prompt for service context |
+
+---
+
+## User Experience Flow
+
+1. Customer sees their service options in ServiceSelectionDrawer
+2. Before committing to plumber contact, they tap "Chat with Corrtex AI"
+3. Fullscreen chat opens with personalized greeting
+4. Suggested questions appear based on their specific violations/recommendations
+5. They can ask anything - AI has full context of their assessment
+6. Once educated, they close chat and either:
+   - Request plumber callback (confident)
+   - Continue browsing (needs more time)
+
+This gives customers a self-serve education path before committing to a lead.
 
