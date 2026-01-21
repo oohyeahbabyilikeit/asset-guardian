@@ -92,13 +92,13 @@ Floating action buttons for quick actions (schedule service, view report, etc.)
 
 ---
 
-### TieredPricingDisplay
-`src/components/TieredPricingDisplay.tsx`
+### ReplacementOptionsPage
+`src/components/ReplacementOptionsPage.tsx`
 
-Displays replacement options across three quality tiers:
-- **Essential** - Basic compliant installation
-- **Recommended** - Best value with key upgrades
-- **Premium** - Full infrastructure overhaul
+Displays replacement tier options with PlumberHandshake integration:
+- Tier education (Builder, Standard, Professional, Premium)
+- Job complexity indicators
+- Code alerts and talking points for plumber consultation
 
 ---
 
