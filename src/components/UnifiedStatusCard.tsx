@@ -248,14 +248,14 @@ export function UnifiedStatusCard({
                 <button
                   key={issue.id}
                   onClick={() => onIssueLearnMore?.(issue)}
-                  className="w-full text-left flex items-center gap-2.5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 hover:bg-destructive/15 active:bg-destructive/20 transition-colors min-h-[48px] group cursor-pointer"
+                  className="w-full text-left flex items-center gap-2.5 p-3 rounded-lg bg-red-500/20 border border-red-400/40 hover:bg-red-500/25 active:bg-red-500/30 transition-colors min-h-[48px] group cursor-pointer"
                 >
-                  <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-                  <span className="flex-1 text-sm text-destructive font-medium break-words leading-snug">
+                  <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+                  <span className="flex-1 text-sm text-red-300 font-medium break-words leading-snug">
                     <span className="font-bold">CODE ISSUE:</span> {issue.friendlyName}
-                    <span className="block text-xs text-destructive/70 mt-0.5 group-hover:underline">Tap to learn more</span>
+                    <span className="block text-xs text-red-400/80 mt-0.5 group-hover:underline">Tap to learn more</span>
                   </span>
-                  <ChevronRight className="w-5 h-5 text-destructive/60 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                  <ChevronRight className="w-5 h-5 text-red-400/70 shrink-0 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               ))}
             </div>
