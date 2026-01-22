@@ -5,7 +5,8 @@ export type CaptureSource =
   | 'replacement_quote'     // From tier selection page
   | 'handoff_remote'        // From technician handoff
   | 'emergency_flow'        // From panic mode
-  | 'chat_escalation';      // From chatbot escalation
+  | 'chat_escalation'       // From chatbot escalation
+  | 'maintenance_reminder'; // From healthy unit reminder opt-in
 
 export interface LeadSubmission {
   customerName: string;
