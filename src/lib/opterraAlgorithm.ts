@@ -1513,6 +1513,44 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   }
 
   // ============================================
+  // TIER 1.9: YOUNG TANK OVERRIDE (v9.1)
+  // Physical age trumps statistical age for tanks ≤6 years
+  // A depleted anode is NOT end-of-life - it's a serviceable part
+  // ============================================
+  const YOUNG_TANK_ABSOLUTE_THRESHOLD = 6; // Years
+  const isPhysicalBreach = data.visualRust || isTankBodyLeak;
+  
+  if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
+    // Young tank cannot hit "End of Service Life" - anode is replaceable
+    const isAnodeDepletedYoung = metrics.shieldLife <= 0;
+    const needsInfrastructure = 
+      (data.isClosedLoop && !data.hasExpTank) || 
+      (data.housePsi > 80 && !data.hasPrv);
+    
+    if (isAnodeDepletedYoung || needsInfrastructure) {
+      const primaryIssue = isAnodeDepletedYoung ? 'anode' : 'infrastructure';
+      const title = isAnodeDepletedYoung 
+        ? 'Anode Service Required' 
+        : 'Infrastructure Upgrade Required';
+      const reason = `Your ${data.calendarAge}-year-old tank is young enough to protect. ${
+        isAnodeDepletedYoung 
+          ? 'The sacrificial anode has been consumed faster than expected - replacement will restore corrosion protection.'
+          : 'Installing code-required infrastructure will reduce stress and extend useful life.'
+      }`;
+      
+      return {
+        action: 'REPAIR',
+        title,
+        reason,
+        urgent: true,
+        badgeColor: 'orange',
+        badge: 'SERVICE',
+        note: `Young tank with correctable ${primaryIssue} issues - worth protecting.`
+      };
+    }
+  }
+
+  // ============================================
   // TIER 2: ECONOMIC REPLACEMENT (Risk > Value)
   // Only if failProb exceeds strict thresholds
   // ============================================

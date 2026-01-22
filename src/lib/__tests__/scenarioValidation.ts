@@ -685,6 +685,60 @@ export const TEST_HARNESS_SCENARIOS: ValidatedScenario[] = [
     },
     expected: { action: 'MAINTAIN', actionAlternatives: ['REPAIR', 'REPLACE'] },
   },
+  // v9.1: Young Tank Override test scenarios
+  {
+    name: 'Young Tank with Softener',
+    source: 'testHarness',
+    inputs: {
+      calendarAge: 3,
+      fuelType: 'GAS',
+      hasSoftener: true,
+      yearsWithoutSoftener: 0, // Softener since day 1
+      isClosedLoop: true,
+      hasExpTank: false,
+      hardnessGPG: 15,
+      housePsi: 65,
+      hasPrv: false,
+      visualRust: false,
+      isLeaking: false,
+      location: 'BASEMENT',
+      isFinishedArea: true,
+      hasCircPump: false,
+      tempSetting: 'NORMAL',
+      warrantyYears: 6,
+      peopleCount: 3,
+      usageType: 'normal',
+      tankCapacity: 50,
+    },
+    // v9.1: Young Tank Override gate should catch this - depleted anode is serviceable
+    expected: { action: 'REPAIR', titleContains: 'anode' },
+  },
+  {
+    name: 'Young Tank High Pressure',
+    source: 'testHarness',
+    inputs: {
+      calendarAge: 5,
+      fuelType: 'ELECTRIC',
+      hasSoftener: true,
+      housePsi: 95,
+      hasPrv: false,
+      isClosedLoop: false,
+      hasExpTank: true,
+      hardnessGPG: 12,
+      visualRust: false,
+      isLeaking: false,
+      location: 'GARAGE',
+      isFinishedArea: false,
+      hasCircPump: false,
+      tempSetting: 'NORMAL',
+      warrantyYears: 6,
+      peopleCount: 4,
+      usageType: 'normal',
+      tankCapacity: 50,
+    },
+    // v9.1: Young tank with high pressure should get infrastructure fix, not replace
+    expected: { action: 'REPAIR', actionAlternatives: ['MAINTAIN'] },
+  },
 ];
 
 // Combined all scenarios

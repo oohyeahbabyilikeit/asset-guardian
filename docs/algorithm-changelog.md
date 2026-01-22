@@ -4,6 +4,34 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.1 (Young Tank Override Gate)
+
+**Problem Solved:**
+The v9.0 anode physics corrections made the algorithm too aggressive on young tanks with softeners. A 3-year-old tank with a softener from Day 1 would show a depleted anode (3 years × 3.0x = 9 anode-years consumed vs 4 year capacity), pushing failProb above 60% and triggering "End of Service Life" replacement.
+
+**Root Cause:**
+The v9.0 changes correctly model anode physics, but the failProb threshold (60%) in Tier 2A didn't account for the new aggressive calculation. Young tanks with softeners legitimately have depleted anodes, but they're still **young enough to save** with an anode replacement.
+
+**Solution: "Young Tank Override" Priority Gate (Tier 1.9)**
+```
+If tank is ≤ 6 years old AND has no physical breach (no rust/leak):
+  → Cannot trigger "End of Service Life"
+  → Redirect to REPAIR with "Anode Service Required" or "Infrastructure Upgrade Required"
+```
+
+**Technical Necessity Principle:**
+A 3-year-old tank with a depleted anode is NOT at end of life - it needs an anode replacement. The steel hasn't failed; only the sacrificial protection has.
+
+**Expected Behavior:**
+| Scenario | Before v9.1 | After v9.1 |
+|----------|-------------|------------|
+| 3yr tank, softener, closed-loop, no exp tank | REPLACE (failProb 65%) | REPAIR (Anode Service) |
+| 5yr tank, softener, high pressure, no PRV | REPLACE (failProb 55%) | REPAIR (Infrastructure) |
+| 8yr tank, same issues | REPLACE (too old) | REPLACE (correctly) |
+| 3yr tank, visual rust | REPLACE (breach) | REPLACE (correctly) |
+
+---
+
 ## v9.0 (Anode Shield Life Physics Correction)
 
 **Critical Algorithm Fixes:**
