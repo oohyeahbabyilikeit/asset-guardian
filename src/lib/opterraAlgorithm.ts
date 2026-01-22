@@ -1570,9 +1570,13 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
     // Young tank cannot hit "End of Service Life" - anode is replaceable
     const isAnodeDepletedYoung = metrics.shieldLife <= 0;
-    const needsInfrastructure = 
-      (data.isClosedLoop && !data.hasExpTank) || 
-      (data.housePsi > 80 && !data.hasPrv);
+    
+    // v9.1.1 FIX: Use same closed-loop logic as infrastructureIssues.ts
+    // PRV and recirc pump CREATE closed-loop conditions even if isClosedLoop is false
+    const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
+    const needsExpansionTank = isActuallyClosed && !data.hasExpTank;
+    const needsPrv = (data.housePsi ?? 0) > 80 && !data.hasPrv;
+    const needsInfrastructure = needsExpansionTank || needsPrv;
     
     if (isAnodeDepletedYoung || needsInfrastructure) {
       const primaryIssue = isAnodeDepletedYoung ? 'anode' : 'infrastructure';
@@ -1604,6 +1608,19 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   
   // 2A. Statistical End-of-Life (Patched Highlander Loophole)
   // We added || age > 20 to ensure old tanks don't slip through the math
+  // v9.1.1 SAFETY NET: Young tanks cannot hit "End of Service Life"
+  // If they have high failProb but no specific issue was caught above, redirect to MAINTAIN
+  if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach && metrics.failProb > 60) {
+    return {
+      action: 'MAINTAIN',
+      title: 'Elevated Wear Detected',
+      reason: `Your ${data.calendarAge}-year-old tank is showing higher-than-expected wear. Professional inspection recommended to identify the root cause.`,
+      urgent: true,
+      badgeColor: 'orange',
+      badge: 'SERVICE'
+    };
+  }
+  
   if (metrics.failProb > 60 || data.calendarAge > CONSTANTS.LIMIT_AGE_MAX) {
     return {
       action: 'REPLACE',
@@ -1657,9 +1674,11 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   // can be saved with infrastructure upgrades, even if anode is depleted
   const YOUNG_TANK_THRESHOLD = 6; // Years - within this range, infrastructure fixes are worthwhile
   const isYoungTank = data.calendarAge <= YOUNG_TANK_THRESHOLD;
+  // v9.1.1 FIX: Use unified closed-loop detection
+  const isActuallyClosedV2 = data.isClosedLoop || data.hasPrv || data.hasCircPump;
   const hasCorrectableStress = 
-    (data.isClosedLoop && !data.hasExpTank) ||  // Missing expansion tank in closed loop
-    (data.housePsi > 80 && !data.hasPrv);       // Missing PRV with high pressure
+    (isActuallyClosedV2 && !data.hasExpTank) ||  // Missing expansion tank in closed loop
+    ((data.housePsi ?? 0) > 80 && !data.hasPrv);       // Missing PRV with high pressure
 
   // Young tank with high stress that can be reduced via infrastructure
   if (isYoungTank && hasHighBioAge && hasCorrectableStress && metrics.failProb < 50) {
