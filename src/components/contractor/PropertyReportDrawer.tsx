@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Phone, 
   Mail, 
@@ -359,6 +359,13 @@ export function PropertyReportDrawer({
   onEmail,
 }: PropertyReportDrawerProps) {
   const [showSalesCoach, setShowSalesCoach] = useState(false);
+
+  // Reset Sales Coach state when drawer closes or opportunity changes
+  useEffect(() => {
+    if (!open) {
+      setShowSalesCoach(false);
+    }
+  }, [open, opportunity?.id]);
 
   if (!opportunity) return null;
   
