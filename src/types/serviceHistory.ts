@@ -1,6 +1,25 @@
+// Service event types that affect algorithm calculations
+export type ServiceEventType = 
+  // Core maintenance
+  | 'flush' 
+  | 'anode_replacement' 
+  | 'inspection' 
+  | 'repair'
+  // Infrastructure changes (affect anode decay / aging multipliers)
+  | 'softener_install'    // Affects anode decay rate (+1.4x in soft water)
+  | 'circ_pump_install'   // Affects anode decay rate (+0.5x erosion)
+  | 'exp_tank_install'    // Reduces pressure stress (up to 7x aging reduction)
+  | 'exp_tank_replace'    // Replaces failed expansion tank
+  | 'prv_install'         // Reduces pressure stress
+  | 'prv_replace'         // Replaces failed PRV
+  // Tankless maintenance
+  | 'descale'
+  | 'filter_clean'
+  | 'valve_install';      // Isolation valve installation
+
 export interface ServiceEvent {
   id: string;
-  type: 'flush' | 'anode_replacement' | 'inspection' | 'repair';
+  type: ServiceEventType;
   date: string;
   technicianName?: string;
   notes?: string;
@@ -8,6 +27,8 @@ export interface ServiceEvent {
   healthScoreBefore?: number;
   healthScoreAfter?: number;
   findings?: string[];
+  // Impact description for display
+  impactDescription?: string;
 }
 
 // Convert service history to algorithm inputs
