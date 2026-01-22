@@ -1,5 +1,6 @@
 import { Wrench, AlertTriangle, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
-import { mockPipeline } from '@/data/mockContractorData';
+import type { MockOpportunity } from '@/data/mockContractorData';
+import { getClosesMetrics } from '@/hooks/useContractorOpportunities';
 
 interface CategoryRowProps {
   icon: React.ReactNode;
@@ -27,10 +28,11 @@ function CategoryRow({ icon, label, count, detail }: CategoryRowProps) {
 
 interface ClosesBreakdownProps {
   compact?: boolean;
+  opportunities: MockOpportunity[];
 }
 
-export function ClosesBreakdown({ compact = false }: ClosesBreakdownProps) {
-  const { closes } = mockPipeline;
+export function ClosesBreakdown({ compact = false, opportunities }: ClosesBreakdownProps) {
+  const closes = getClosesMetrics(opportunities);
   
   const percentChange = closes.lastMonth > 0 
     ? Math.round(((closes.thisMonth - closes.lastMonth) / closes.lastMonth) * 100)

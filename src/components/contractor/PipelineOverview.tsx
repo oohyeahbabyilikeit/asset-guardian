@@ -1,12 +1,14 @@
 import { TrendingUp, TrendingDown, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { mockPipeline } from '@/data/mockContractorData';
+import type { MockOpportunity } from '@/data/mockContractorData';
+import { getPipelineMetrics } from '@/hooks/useContractorOpportunities';
 
 interface PipelineOverviewProps {
   compact?: boolean;
+  opportunities: MockOpportunity[];
 }
 
-export function PipelineOverview({ compact = false }: PipelineOverviewProps) {
-  const { stages, conversionRate, closes } = mockPipeline;
+export function PipelineOverview({ compact = false, opportunities }: PipelineOverviewProps) {
+  const { stages, conversionRate, closes } = getPipelineMetrics(opportunities);
 
   if (compact) {
     return (

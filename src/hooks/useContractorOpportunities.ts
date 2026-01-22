@@ -88,3 +88,111 @@ export function getOpportunityCountsByPriority(
 
   return counts;
 }
+
+/**
+ * Pipeline stage metrics derived from opportunity statuses
+ */
+export interface PipelineMetrics {
+  stages: { name: string; count: number }[];
+  conversionRate: number;
+  closes: {
+    thisMonth: number;
+    lastMonth: number;
+    trend: 'up' | 'down' | 'flat';
+  };
+}
+
+export function getPipelineMetrics(opportunities: MockOpportunity[]): PipelineMetrics {
+  const newCount = opportunities.filter(o => o.status === 'pending').length;
+  const contactedCount = opportunities.filter(o => o.status === 'viewed' || o.status === 'contacted').length;
+  const scheduledCount = 0; // Reserved for future status
+  const completedCount = opportunities.filter(o => o.status === 'converted').length;
+  
+  const total = opportunities.length;
+  const conversionRate = total > 0 
+    ? Math.round(((contactedCount + scheduledCount + completedCount) / total) * 100) 
+    : 0;
+
+  return {
+    stages: [
+      { name: 'New', count: newCount },
+      { name: 'Contacted', count: contactedCount },
+      { name: 'Scheduled', count: scheduledCount },
+      { name: 'Done', count: completedCount },
+    ],
+    conversionRate,
+    closes: {
+      thisMonth: completedCount,
+      lastMonth: Math.max(0, completedCount - 2), // Simulated for demo
+      trend: completedCount >= 2 ? 'up' : 'flat',
+    },
+  };
+}
+
+/**
+ * Service closes breakdown derived from opportunity types and forensic inputs
+ */
+export interface ClosesMetrics {
+  thisMonth: number;
+  lastMonth: number;
+  trend: 'up' | 'down' | 'flat';
+  maintenance: {
+    total: number;
+    breakdown: { flush: number; anode: number; descale: number };
+  };
+  codeFixes: {
+    total: number;
+    breakdown: { expTank: number; prv: number; softener: number };
+  };
+  replacements: {
+    total: number;
+  };
+}
+
+export function getClosesMetrics(opportunities: MockOpportunity[]): ClosesMetrics {
+  // Maintenance counts by opportunity type
+  const flushCount = opportunities.filter(o => o.opportunityType === 'flush_due').length;
+  const anodeCount = opportunities.filter(o => o.opportunityType === 'anode_due').length;
+  const descaleCount = opportunities.filter(o => o.opportunityType === 'descale_due').length;
+  const maintenanceTotal = flushCount + anodeCount + descaleCount;
+
+  // Code fixes derived from forensic inputs
+  let expTankCount = 0;
+  let prvCount = 0;
+  let softenerCount = 0;
+
+  for (const opp of opportunities) {
+    const fi = opp.forensicInputs;
+    if (fi) {
+      if (!fi.hasExpTank && fi.isClosedLoop) expTankCount++;
+      if (!fi.hasPrv && (fi.housePsi ?? 0) > 80) prvCount++;
+      if (!fi.hasSoftener && (fi.hardnessGPG ?? 0) > 15) softenerCount++;
+    }
+  }
+  const codeFixTotal = expTankCount + prvCount + softenerCount;
+
+  // Replacements
+  const replacementCount = opportunities.filter(
+    o => o.opportunityType === 'replacement_urgent' || o.opportunityType === 'replacement_recommended'
+  ).length;
+
+  const thisMonth = maintenanceTotal + codeFixTotal + replacementCount;
+  const lastMonth = Math.max(0, thisMonth - 3); // Simulated for demo
+
+  return {
+    thisMonth,
+    lastMonth,
+    trend: thisMonth > lastMonth ? 'up' : thisMonth < lastMonth ? 'down' : 'flat',
+    maintenance: {
+      total: maintenanceTotal,
+      breakdown: { flush: flushCount, anode: anodeCount, descale: descaleCount },
+    },
+    codeFixes: {
+      total: codeFixTotal,
+      breakdown: { expTank: expTankCount, prv: prvCount, softener: softenerCount },
+    },
+    replacements: {
+      total: replacementCount,
+    },
+  };
+}
