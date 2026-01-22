@@ -29,6 +29,12 @@ interface ForensicInputs {
   sedimentLevel?: string;
   leakStatus?: string;
   ventType?: string;
+  // Usage context for sizing analysis
+  peopleCount?: number;
+  usageType?: 'low' | 'normal' | 'heavy';
+  // Symptom flags from onboarding
+  runsOutOfHotWater?: boolean;
+  lukewarmWater?: boolean;
 }
 
 interface OpterraResult {
@@ -59,8 +65,47 @@ interface SalesCoachRequest {
   messages?: Message[];
 }
 
+function analyzeSizingMismatch(capacity: number | undefined, forensicInputs?: ForensicInputs): { isUndersized: boolean; reason?: string; recommendedCapacity?: number } {
+  if (!capacity || !forensicInputs) return { isUndersized: false };
+  
+  const peopleCount = forensicInputs.peopleCount || 3;
+  const usageType = forensicInputs.usageType || 'normal';
+  const runsOutOfHotWater = forensicInputs.runsOutOfHotWater;
+  const lukewarmWater = forensicInputs.lukewarmWater;
+  
+  // Industry sizing guidelines: 10-12 gallons per person for normal usage
+  const usageMultiplier = usageType === 'heavy' ? 15 : usageType === 'low' ? 8 : 12;
+  const recommendedCapacity = peopleCount * usageMultiplier;
+  
+  // Check for undersizing indicators
+  const capacityShortfall = recommendedCapacity - capacity;
+  const hasSymptoms = runsOutOfHotWater || lukewarmWater;
+  
+  if (capacityShortfall > 10 || (capacityShortfall > 0 && hasSymptoms)) {
+    let reason = '';
+    if (hasSymptoms) {
+      reason = runsOutOfHotWater 
+        ? 'Customer reported running out of hot water frequently'
+        : 'Customer reported lukewarm water issues';
+    } else {
+      reason = `${peopleCount} people with ${usageType} usage on ${capacity}-gallon tank`;
+    }
+    
+    // Round up to standard tank sizes
+    const standardSizes = [40, 50, 65, 75, 80];
+    const nextSize = standardSizes.find(s => s >= recommendedCapacity) || 80;
+    
+    return { isUndersized: true, reason, recommendedCapacity: nextSize };
+  }
+  
+  return { isUndersized: false };
+}
+
 function buildOpportunityContext(opportunity: Opportunity): string {
   const { asset, forensicInputs, opterraResult, inspectionNotes, priority, opportunityType } = opportunity;
+  
+  // Analyze if tank is undersized for the household
+  const sizingAnalysis = analyzeSizingMismatch(asset.capacity, forensicInputs);
   
   let context = `## PROPERTY DETAILS
 - Customer: ${opportunity.customerName || 'Homeowner'}
@@ -76,6 +121,28 @@ function buildOpportunityContext(opportunity: Opportunity): string {
 ${asset.capacity ? `- Capacity: ${asset.capacity} gallons` : ''}
 ${asset.fuelType ? `- Fuel Type: ${asset.fuelType}` : ''}
 `;
+
+  // Add household usage context
+  if (forensicInputs?.peopleCount || forensicInputs?.usageType) {
+    context += `
+## HOUSEHOLD USAGE
+${forensicInputs.peopleCount ? `- People in Home: ${forensicInputs.peopleCount}` : ''}
+${forensicInputs.usageType ? `- Usage Intensity: ${forensicInputs.usageType.toUpperCase()}` : ''}
+${forensicInputs.runsOutOfHotWater ? `- ⚠️ SYMPTOM: Customer reports running out of hot water` : ''}
+${forensicInputs.lukewarmWater ? `- ⚠️ SYMPTOM: Customer reports lukewarm water issues` : ''}
+`;
+  }
+
+  // Add sizing analysis if undersized
+  if (sizingAnalysis.isUndersized) {
+    context += `
+## 📏 SIZING OPPORTUNITY
+- Current Tank: ${asset.capacity} gallons - UNDERSIZED for this household
+- Reason: ${sizingAnalysis.reason}
+- Recommended Upgrade: ${sizingAnalysis.recommendedCapacity} gallons
+- This is a strong upsell opportunity when discussing replacement
+`;
+  }
 
   if (opterraResult) {
     const healthLabel = opterraResult.healthScore >= 70 ? 'Good' : opterraResult.healthScore >= 40 ? 'Fair' : 'Poor';
