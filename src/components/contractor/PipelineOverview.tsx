@@ -1,4 +1,4 @@
-import { TrendingUp, DollarSign, ArrowRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { mockPipeline } from '@/data/mockContractorData';
 
 interface PipelineOverviewProps {
@@ -6,23 +6,18 @@ interface PipelineOverviewProps {
 }
 
 export function PipelineOverview({ compact = false }: PipelineOverviewProps) {
-  const { stages, conversionRate, totalRevenue } = mockPipeline;
-  
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const { stages, conversionRate, closes } = mockPipeline;
 
   if (compact) {
     return (
       <div className="bg-white rounded-lg border border-gray-100 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-gray-700">Pipeline</h3>
-          <span className="text-xs text-emerald-600 font-medium">{formatCurrency(totalRevenue)}</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-emerald-600 font-medium">{closes.thisMonth} done</span>
+            {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
+            {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-500" />}
+          </div>
         </div>
         
         {/* Compact funnel */}
@@ -31,7 +26,7 @@ export function PipelineOverview({ compact = false }: PipelineOverviewProps) {
             <div key={stage.name} className="flex items-center">
               <div className="text-center">
                 <div className="text-lg font-semibold text-gray-700">{stage.count}</div>
-                <div className="text-[10px] text-gray-400 uppercase">{stage.name.slice(0, 3)}</div>
+                <div className="text-[10px] text-gray-400 uppercase">{stage.name.slice(0, 4)}</div>
               </div>
               {idx < stages.length - 1 && (
                 <ArrowRight className="w-3 h-3 text-gray-300 mx-1" />
@@ -58,10 +53,12 @@ export function PipelineOverview({ compact = false }: PipelineOverviewProps) {
     <div className="rounded-xl border border-gray-100 bg-white p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium text-gray-700">Lead Pipeline</h3>
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <DollarSign className="w-3 h-3" />
-          <span className="text-gray-600">{formatCurrency(totalRevenue)}</span>
-          <span>potential</span>
+        <div className="flex items-center gap-1.5 text-xs">
+          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+          <span className="text-gray-600 font-medium">{closes.thisMonth}</span>
+          <span className="text-gray-400">completed</span>
+          {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
+          {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-500" />}
         </div>
       </div>
       
@@ -74,9 +71,6 @@ export function PipelineOverview({ compact = false }: PipelineOverviewProps) {
           >
             <div className="text-xl font-semibold text-gray-700">{stage.count}</div>
             <div className="text-xs text-gray-500">{stage.name}</div>
-            <div className="text-[10px] text-gray-400 mt-1">
-              {formatCurrency(stage.revenue)}
-            </div>
             
             {/* Connector arrow (except last) */}
             {index < stages.length - 1 && (
@@ -100,7 +94,7 @@ export function PipelineOverview({ compact = false }: PipelineOverviewProps) {
             <span className="font-medium text-gray-600">{conversionRate}%</span> conversion
           </p>
           <p className="text-xs text-gray-400">
-            {stages[stages.length - 1].count} closed this month
+            {stages[stages.length - 1].count} completed this month
           </p>
         </div>
       </div>

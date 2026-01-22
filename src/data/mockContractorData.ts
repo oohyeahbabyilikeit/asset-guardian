@@ -13,6 +13,38 @@ export type Priority = 'critical' | 'high' | 'medium' | 'low';
 
 export type JobComplexity = 'STANDARD' | 'ELEVATED' | 'COMPLEX';
 
+export type CloseCategory = 'maintenance' | 'code_fixes' | 'replacements';
+
+export interface MaintenanceBreakdown {
+  flush: number;
+  anode: number;
+  descale: number;
+  inspection: number;
+}
+
+export interface CodeFixBreakdown {
+  expTank: number;
+  prv: number;
+  softener: number;
+}
+
+export interface ServiceCloseMetrics {
+  maintenance: {
+    total: number;
+    breakdown: MaintenanceBreakdown;
+  };
+  codeFixes: {
+    total: number;
+    breakdown: CodeFixBreakdown;
+  };
+  replacements: {
+    total: number;
+  };
+  thisMonth: number;
+  lastMonth: number;
+  trend: 'up' | 'down' | 'flat';
+}
+
 export interface MockOpportunity {
   id: string;
   propertyAddress: string;
@@ -32,13 +64,12 @@ export interface MockOpportunity {
 export interface PipelineStage {
   name: string;
   count: number;
-  revenue: number;
 }
 
 export interface MockPipeline {
   stages: PipelineStage[];
   conversionRate: number;
-  totalRevenue: number;
+  closes: ServiceCloseMetrics;
 }
 
 // Generate realistic mock opportunities based on existing scenarios
@@ -240,16 +271,31 @@ export const mockOpportunities: MockOpportunity[] = [
   },
 ];
 
-// Mock pipeline data
+// Mock pipeline data - service-based closes (no revenue)
 export const mockPipeline: MockPipeline = {
   stages: [
-    { name: 'New', count: 8, revenue: 24500 },
-    { name: 'Contacted', count: 4, revenue: 12800 },
-    { name: 'Quoted', count: 2, revenue: 8400 },
-    { name: 'Closed', count: 12, revenue: 42600 },
+    { name: 'New', count: 8 },
+    { name: 'Contacted', count: 4 },
+    { name: 'Scheduled', count: 2 },
+    { name: 'Completed', count: 12 },
   ],
   conversionRate: 46,
-  totalRevenue: 88300,
+  closes: {
+    maintenance: {
+      total: 8,
+      breakdown: { flush: 4, anode: 2, descale: 1, inspection: 1 }
+    },
+    codeFixes: {
+      total: 3,
+      breakdown: { expTank: 1, prv: 1, softener: 1 }
+    },
+    replacements: {
+      total: 1,
+    },
+    thisMonth: 12,
+    lastMonth: 9,
+    trend: 'up',
+  }
 };
 
 // Helper to get counts by priority

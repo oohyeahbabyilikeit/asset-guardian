@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { TodaysSummary } from '@/components/contractor/TodaysSummary';
 import { OpportunityFeed } from '@/components/contractor/OpportunityFeed';
 import { PipelineOverview } from '@/components/contractor/PipelineOverview';
+import { ClosesBreakdown } from '@/components/contractor/ClosesBreakdown';
 import { QuickActions } from '@/components/contractor/QuickActions';
 import { cn } from '@/lib/utils';
 import { 
@@ -96,6 +97,7 @@ export default function Contractor() {
             onPriorityClick={handlePriorityClick} 
           />
           <PipelineOverview compact />
+          <ClosesBreakdown compact />
           <QuickActions compact />
         </aside>
         
@@ -109,6 +111,7 @@ export default function Contractor() {
                 onPriorityClick={handlePriorityClick} 
               />
               <PipelineOverview />
+              <ClosesBreakdown />
               <QuickActions />
             </div>
           ) : (
