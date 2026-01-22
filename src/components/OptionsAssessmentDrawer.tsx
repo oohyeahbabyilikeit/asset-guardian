@@ -362,363 +362,52 @@ export function OptionsAssessmentDrawer({
     return topicMap[taskType] || null;
   };
   
+  // State for unified details expansion
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  
+  // Calculate if there's any secondary content to show
+  const hasSecondaryContent = 
+    (verdictAction === 'REPLACE' && inputs.photoUrls?.condition) ||
+    (verdictAction === 'REPLACE' && (rationale?.sections?.length || 0) > 0) ||
+    hasPriorityFindings;
+  
+  // Get one-sentence summary for unified verdict block
+  const getVerdictSummary = () => {
+    if (verdictAction === 'REPLACE') {
+      return rationale?.sections?.[0]?.content || 
+        "Based on your inspection, continuing to repair this unit will likely cost more than it's worth. A new water heater gives you reliability and peace of mind.";
+    }
+    return recommendation.subheadline;
+  };
+  
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[92vh]">
         <div className="overflow-y-auto pb-8">
           <DrawerHeader className="text-left pb-2">
-            <DrawerTitle className="text-xl">Your Assessment</DrawerTitle>
-            <DrawerDescription className="text-muted-foreground">
-              Here's what we found based on your water heater's condition
-            </DrawerDescription>
+            <DrawerTitle className="text-lg">Your Assessment</DrawerTitle>
           </DrawerHeader>
           
-          <div className="px-4 space-y-5">
-            {/* 1. ENLARGED Recommendation Banner - Big, clear verdict */}
-            <div className={`rounded-2xl p-5 ${recommendation.bgColor} border-2 ${recommendation.borderColor}`}>
-              <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-xl ${recommendation.bgColor}`}>
-                  <Icon className={`w-8 h-8 ${recommendation.iconColor}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-foreground">{recommendation.headline}</h3>
-                  <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{recommendation.subheadline}</p>
-                </div>
+          <div className="px-4 space-y-4">
+            {/* 1. UNIFIED VERDICT BLOCK - One clear message */}
+            <div className={`rounded-2xl p-6 ${recommendation.bgColor} border-2 ${recommendation.borderColor}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <Icon className={`w-7 h-7 ${recommendation.iconColor}`} />
+                <h3 className="text-lg font-bold text-foreground">{recommendation.headline}</h3>
               </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {rationaleLoading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Analyzing your situation...
+                  </span>
+                ) : (
+                  getVerdictSummary()
+                )}
+              </p>
             </div>
             
-            {/* 2. Visual Evidence - Show actual inspection photo for REPLACE verdicts */}
-            {verdictAction === 'REPLACE' && inputs.photoUrls?.condition && (
-              <div className="rounded-xl overflow-hidden border border-border">
-                <img 
-                  src={inputs.photoUrls.condition} 
-                  alt="Your water heater condition"
-                  className="w-full h-44 object-cover"
-                />
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/40">
-                  <Camera className="w-4 h-4 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">
-                    Photo captured during your inspection
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            {/* 3. ELEVATED "Why We Recommend This" - Primary focus for REPLACE verdicts */}
-            {verdictAction === 'REPLACE' && (
-              <div className="space-y-3">
-                <h4 className="text-base font-semibold text-foreground">Here's why this makes sense for you</h4>
-                {rationaleLoading ? (
-                  <div className="flex items-center gap-2 p-4 rounded-xl bg-muted/30 border border-border/50 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Analyzing your situation...</span>
-                  </div>
-                ) : rationale?.sections && rationale.sections.length > 0 ? (
-                  <div className="space-y-3">
-                    {rationale.sections.slice(0, 3).map((section, index) => (
-                      <div key={index} className="p-4 rounded-xl bg-muted/30 border border-border/50">
-                        <h5 className="text-sm font-semibold text-foreground mb-1.5">
-                          {section.heading}
-                        </h5>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {section.content}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      At this point, repairs would likely cost more than they're worth. A new unit gives you reliability, improved efficiency, and peace of mind with a fresh warranty.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* 4. COLLAPSED Priority Findings - Technical details demoted */}
-            {hasPriorityFindings && (
-              <Collapsible open={findingsExpanded} onOpenChange={setFindingsExpanded}>
-                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">What We Found</span>
-                    <span className="text-xs text-muted-foreground">({priorityFindings.length} items)</span>
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${findingsExpanded ? 'rotate-180' : ''}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3">
-                  <div className="space-y-2">
-                    {priorityFindings.map((finding) => {
-                      const style = getFindingStyle(finding);
-                      const FindingIcon = style.icon;
-                      const hasTopic = getEducationalTopic(finding.id) !== null;
-                      return (
-                        <button 
-                          key={finding.id} 
-                          onClick={() => handleFindingClick(finding)}
-                          className={`w-full text-left rounded-lg p-3 ${style.bgColor} border ${style.borderColor} transition-all duration-200 ${hasTopic ? 'hover:scale-[1.01] hover:shadow-md active:scale-[0.99] cursor-pointer' : ''}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <FindingIcon className={`w-5 h-5 ${style.labelColor} flex-shrink-0 mt-0.5`} />
-                            <div className="flex-1 min-w-0">
-                              <div className={`text-xs font-semibold uppercase tracking-wide ${style.labelColor} mb-0.5`}>
-                                {style.label}
-                              </div>
-                              <p className="font-medium text-sm text-foreground">{finding.name}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{finding.friendlyName}</p>
-                            </div>
-                            {hasTopic && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Info className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Learn</span>
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
-            
-            {/* Fallback: Generic situation summary when no specific findings */}
-            {!hasPriorityFindings && fallbackPoints.length > 0 && tier !== 'monitor' && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-foreground">Your Situation</h4>
-                <ul className="space-y-2">
-                  {fallbackPoints.map((point, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            {/* Monitor tier: Personalized maintenance schedule */}
-            {tier === 'monitor' && schedule && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-foreground">Your Maintenance Schedule</h4>
-                <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-2">
-                  {/* Primary task */}
-                  {schedule.primaryTask && (() => {
-                    const TaskIcon = getTaskIcon(schedule.primaryTask.type);
-                    const hasTopic = getTaskEducationalTopic(schedule.primaryTask.type) !== null;
-                    return (
-                      <button 
-                        onClick={() => {
-                          const topic = getTaskEducationalTopic(schedule.primaryTask!.type);
-                          if (topic) setSelectedTopic(topic);
-                        }}
-                        className={`w-full flex items-center justify-between rounded-lg p-3 transition-all duration-200 group ${hasTopic ? 'cursor-pointer bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 hover:scale-[1.01] active:scale-[0.99]' : 'bg-muted/30'}`}
-                        disabled={!hasTopic}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                            <TaskIcon className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="text-left">
-                            <span className="text-sm font-medium text-foreground">{schedule.primaryTask.label}</span>
-                            <p className="text-xs text-muted-foreground">
-                              Due in {formatDueDate(schedule.primaryTask.monthsUntilDue)}
-                            </p>
-                          </div>
-                        </div>
-                        {hasTopic && (
-                          <div className="flex items-center gap-1 text-xs text-primary/70 group-hover:text-primary transition-colors">
-                            <span className="hidden sm:inline">Learn more</span>
-                            <Info className="w-4 h-4" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })()}
-                  {/* Secondary task */}
-                  {schedule.secondaryTask && (() => {
-                    const TaskIcon = getTaskIcon(schedule.secondaryTask.type);
-                    const hasTopic = getTaskEducationalTopic(schedule.secondaryTask.type) !== null;
-                    return (
-                      <button 
-                        onClick={() => {
-                          const topic = getTaskEducationalTopic(schedule.secondaryTask!.type);
-                          if (topic) setSelectedTopic(topic);
-                        }}
-                        className={`w-full flex items-center justify-between rounded-lg p-3 transition-all duration-200 group ${hasTopic ? 'cursor-pointer bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 hover:scale-[1.01] active:scale-[0.99]' : 'bg-muted/30'}`}
-                        disabled={!hasTopic}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                            <TaskIcon className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="text-left">
-                            <span className="text-sm font-medium text-foreground">{schedule.secondaryTask.label}</span>
-                            <p className="text-xs text-muted-foreground">
-                              Due in {formatDueDate(schedule.secondaryTask.monthsUntilDue)}
-                            </p>
-                          </div>
-                        </div>
-                        {hasTopic && (
-                          <div className="flex items-center gap-1 text-xs text-primary/70 group-hover:text-primary transition-colors">
-                            <span className="hidden sm:inline">Learn more</span>
-                            <Info className="w-4 h-4" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-            
-            {/* Monitor tier: SMS/Email Reminder Opt-in */}
-            {tier === 'monitor' && !reminderEnabled && (
-              <div className="space-y-3">
-                <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Bell className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-foreground">Get Maintenance Reminders</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        We'll notify you when service is due
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Method selector */}
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      onClick={() => setReminderMethod('sms')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                        reminderMethod === 'sms' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      Text
-                    </button>
-                    <button
-                      onClick={() => setReminderMethod('email')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                        reminderMethod === 'email' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      <Mail className="w-4 h-4" />
-                      Email
-                    </button>
-                  </div>
-                  
-                  {/* Contact input */}
-                  <Input
-                    type={reminderMethod === 'sms' ? 'tel' : 'email'}
-                    placeholder={reminderMethod === 'sms' ? '(555) 123-4567' : 'you@example.com'}
-                    value={contactInfo}
-                    onChange={(e) => setContactInfo(e.target.value)}
-                    className="mb-3"
-                  />
-                  
-                  <Button 
-                    onClick={handleReminderSubmit}
-                    disabled={isSubmitting || !contactInfo.trim()}
-                    className="w-full"
-                    size="sm"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Enabling...
-                      </>
-                    ) : (
-                      'Enable Reminders'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-            
-            {/* Monitor tier: Success state after enabling reminders */}
-            {tier === 'monitor' && reminderEnabled && (
-              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/10">
-                    <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Reminders Enabled</h4>
-                    <p className="text-xs text-muted-foreground">
-                      We'll notify you before your next maintenance is due
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* What's Next - preview of next page categories */}
-            {nextPagePreview && tier !== 'monitor' && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-foreground">What We'll Cover Next</h4>
-                <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-                  {nextPagePreview.violationCount > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <CircleAlert className="w-4 h-4 text-destructive" />
-                      <span className="text-foreground">
-                        {nextPagePreview.violationCount} Code {nextPagePreview.violationCount === 1 ? 'Violation' : 'Violations'}
-                      </span>
-                      <span className="text-muted-foreground">– required for compliance</span>
-                    </div>
-                  )}
-                  {nextPagePreview.urgentActionCount > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Wrench className="w-4 h-4 text-warning" />
-                      <span className="text-foreground">
-                        {nextPagePreview.urgentActionCount} Urgent {nextPagePreview.urgentActionCount === 1 ? 'Action' : 'Actions'}
-                      </span>
-                      <span className="text-muted-foreground">– protective measures</span>
-                    </div>
-                  )}
-                  {nextPagePreview.addOnCount > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Lightbulb className="w-4 h-4 text-accent-foreground" />
-                      <span className="text-foreground">
-                        {nextPagePreview.addOnCount} Add-{nextPagePreview.addOnCount === 1 ? 'On' : 'Ons'}
-                      </span>
-                      <span className="text-muted-foreground">– optional improvements</span>
-                    </div>
-                  )}
-                  {nextPagePreview.hasReplacement && !nextPagePreview.isUrgentReplacement && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-primary" />
-                      <span className="text-foreground">Replacement Options</span>
-                      <span className="text-muted-foreground">– worth discussing</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            
-            
-            {/* Chat with Corrtex button */}
-            <Button 
-              variant="outline"
-              onClick={() => {
-                onOpenChange(false);
-                setShowCorrtexChat(true);
-              }}
-              className="w-full gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              Chat with Corrtex AI
-            </Button>
-            
-            {/* CTA */}
+            {/* 2. PRIMARY CTA - Immediately visible */}
             <Button 
               onClick={handleCTA}
               size="lg"
@@ -728,11 +417,220 @@ export function OptionsAssessmentDrawer({
               {ctaText}
               {tier !== 'monitor' && <ChevronRight className="w-5 h-5 ml-1" />}
             </Button>
+            
+            {/* 3. VIEW DETAILS - Progressive disclosure for everything else */}
+            {hasSecondaryContent && tier !== 'monitor' && (
+              <Collapsible open={detailsExpanded} onOpenChange={setDetailsExpanded}>
+                <CollapsibleTrigger className="w-full flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <span>{detailsExpanded ? 'Hide' : 'View'} Details</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${detailsExpanded ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  {/* Photo evidence */}
+                  {verdictAction === 'REPLACE' && inputs.photoUrls?.condition && (
+                    <div className="rounded-xl overflow-hidden border border-border">
+                      <img 
+                        src={inputs.photoUrls.condition} 
+                        alt="Your water heater condition"
+                        className="w-full h-36 object-cover"
+                      />
+                      <div className="flex items-center gap-2 px-3 py-2 bg-muted/40">
+                        <Camera className="w-4 h-4 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">Photo from your inspection</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Detailed rationale breakdown - only shown in expansion */}
+                  {verdictAction === 'REPLACE' && rationale?.sections && rationale.sections.length > 1 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-foreground">Why We Recommend This</h4>
+                      {rationale.sections.slice(1).map((section, i) => (
+                        <div key={i} className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                          <p className="text-xs font-medium text-foreground mb-1">{section.heading}</p>
+                          <p className="text-xs text-muted-foreground">{section.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Priority findings */}
+                  {hasPriorityFindings && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-foreground">What We Found</h4>
+                      {priorityFindings.map((finding) => {
+                        const style = getFindingStyle(finding);
+                        const FindingIcon = style.icon;
+                        const hasTopic = getEducationalTopic(finding.id) !== null;
+                        return (
+                          <button 
+                            key={finding.id} 
+                            onClick={() => handleFindingClick(finding)}
+                            className={`w-full text-left rounded-lg p-3 ${style.bgColor} border ${style.borderColor} transition-all duration-200 ${hasTopic ? 'hover:scale-[1.01] hover:shadow-md active:scale-[0.99] cursor-pointer' : ''}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <FindingIcon className={`w-4 h-4 ${style.labelColor} flex-shrink-0 mt-0.5`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm text-foreground">{finding.name}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{finding.friendlyName}</p>
+                              </div>
+                              {hasTopic && (
+                                <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  {/* Inline chat link */}
+                  <button 
+                    onClick={() => {
+                      onOpenChange(false);
+                      setShowCorrtexChat(true);
+                    }}
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Have questions? Chat with Corrtex AI
+                  </button>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+            
+            {/* MONITOR TIER: Maintenance schedule (kept separate for stable units) */}
+            {tier === 'monitor' && schedule && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground">Your Maintenance Schedule</h4>
+                <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-2">
+                  {schedule.primaryTask && (() => {
+                    const TaskIcon = getTaskIcon(schedule.primaryTask.type);
+                    const hasTopic = getTaskEducationalTopic(schedule.primaryTask.type) !== null;
+                    return (
+                      <button 
+                        onClick={() => {
+                          const topic = getTaskEducationalTopic(schedule.primaryTask!.type);
+                          if (topic) setSelectedTopic(topic);
+                        }}
+                        className={`w-full flex items-center justify-between rounded-lg p-3 transition-all duration-200 group ${hasTopic ? 'cursor-pointer bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40' : 'bg-muted/30'}`}
+                        disabled={!hasTopic}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-md bg-primary/10">
+                            <TaskIcon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="text-left">
+                            <span className="text-sm font-medium text-foreground">{schedule.primaryTask.label}</span>
+                            <p className="text-xs text-muted-foreground">Due in {formatDueDate(schedule.primaryTask.monthsUntilDue)}</p>
+                          </div>
+                        </div>
+                        {hasTopic && <Info className="w-4 h-4 text-primary/70" />}
+                      </button>
+                    );
+                  })()}
+                  {schedule.secondaryTask && (() => {
+                    const TaskIcon = getTaskIcon(schedule.secondaryTask.type);
+                    const hasTopic = getTaskEducationalTopic(schedule.secondaryTask.type) !== null;
+                    return (
+                      <button 
+                        onClick={() => {
+                          const topic = getTaskEducationalTopic(schedule.secondaryTask!.type);
+                          if (topic) setSelectedTopic(topic);
+                        }}
+                        className={`w-full flex items-center justify-between rounded-lg p-3 transition-all duration-200 group ${hasTopic ? 'cursor-pointer bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40' : 'bg-muted/30'}`}
+                        disabled={!hasTopic}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-md bg-primary/10">
+                            <TaskIcon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="text-left">
+                            <span className="text-sm font-medium text-foreground">{schedule.secondaryTask.label}</span>
+                            <p className="text-xs text-muted-foreground">Due in {formatDueDate(schedule.secondaryTask.monthsUntilDue)}</p>
+                          </div>
+                        </div>
+                        {hasTopic && <Info className="w-4 h-4 text-primary/70" />}
+                      </button>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+            
+            {/* Monitor tier: SMS/Email Reminder */}
+            {tier === 'monitor' && !reminderEnabled && (
+              <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <Bell className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Get Maintenance Reminders</h4>
+                    <p className="text-xs text-muted-foreground">We'll notify you when service is due</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setReminderMethod('sms')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      reminderMethod === 'sms' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Text
+                  </button>
+                  <button
+                    onClick={() => setReminderMethod('email')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      reminderMethod === 'email' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </button>
+                </div>
+                
+                <Input
+                  type={reminderMethod === 'sms' ? 'tel' : 'email'}
+                  placeholder={reminderMethod === 'sms' ? '(555) 123-4567' : 'you@example.com'}
+                  value={contactInfo}
+                  onChange={(e) => setContactInfo(e.target.value)}
+                />
+                
+                <Button 
+                  onClick={handleReminderSubmit}
+                  disabled={isSubmitting || !contactInfo.trim()}
+                  className="w-full"
+                  size="sm"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Enabling...
+                    </>
+                  ) : (
+                    'Enable Reminders'
+                  )}
+                </Button>
+              </div>
+            )}
+            
+            {tier === 'monitor' && reminderEnabled && (
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-emerald-500" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Reminders Enabled</h4>
+                    <p className="text-xs text-muted-foreground">We'll notify you before maintenance is due</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DrawerContent>
       
-      {/* Educational Drawer for learning more about findings */}
+      {/* Educational Drawer */}
       {selectedTopic && (
         <EducationalDrawer
           topic={selectedTopic}
