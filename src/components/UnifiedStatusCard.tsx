@@ -128,6 +128,15 @@ export function UnifiedStatusCard({
     'CRAWLSPACE': 'Crawlspace',
   }[inputs.location] || inputs.location;
 
+  // Vent type label
+  const ventTypeLabel = {
+    'DIRECT_VENT': 'Direct',
+    'POWER_VENT': 'Power',
+    'ATMOSPHERIC': 'Atmospheric',
+    'CONCENTRIC': 'Concentric',
+    'SIDEWALL': 'Sidewall',
+  }[asset.specs.ventType] || asset.specs.ventType;
+
   const getRiskStatus = () => {
     if (failureProbability === 'FAIL') return 'CRITICAL';
     const prob = typeof failureProbability === 'number' ? failureProbability : 0;
@@ -324,7 +333,7 @@ export function UnifiedStatusCard({
                 <p className="text-[9px] text-muted-foreground mt-0.5">Fuel</p>
               </div>
               <div className="text-center p-2 bg-secondary/30 rounded-lg">
-                <p className="text-xs font-semibold text-foreground">{asset.specs.ventType}</p>
+                <p className="text-xs font-semibold text-foreground">{ventTypeLabel}</p>
                 <p className="text-[9px] text-muted-foreground mt-0.5">Vent</p>
               </div>
               <div className="text-center p-2 bg-secondary/30 rounded-lg">
