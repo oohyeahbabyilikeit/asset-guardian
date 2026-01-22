@@ -207,28 +207,43 @@ function buildTankSteps(
     impact: effectiveHardness > 15 ? 'critical' : effectiveHardness > 7 ? 'negative' : 'positive',
   });
 
-  // Step 3: Anode Shield Life
-  const anodeBaseLife = 8;
-  const anodeUsagePenalty = Math.min(2.0, usageIntensity);
-  const hardnessMultiplier = 1 + (effectiveHardness / 30);
-  const anodeDecayRate = anodeUsagePenalty * hardnessMultiplier;
-  const yearsSinceAnode = inputs.lastAnodeReplaceYearsAgo ?? inputs.calendarAge;
-  const shieldLife = Math.max(0, anodeBaseLife - (yearsSinceAnode * anodeDecayRate));
+  // Step 3: Anode Shield Life (v9.0 Physics Model)
+  // v9.0: 4-year baseline, multiplicative burn rate, history-aware
+  const baseMassYears = (inputs.anodeCount === 2 || inputs.warrantyYears >= 12) ? 7.5 : 4.0;
+  const softenerFactor = inputs.hasSoftener ? 3.0 : 1.0;
+  const recircFactor = inputs.hasCircPump ? 1.25 : 1.0;
+  const galvanicFactor = inputs.connectionType === 'DIRECT_COPPER' ? 2.5 : 1.0;
+  const currentBurnRate = Math.min(8.0, softenerFactor * galvanicFactor * recircFactor);
+  
+  const anodeAge = inputs.lastAnodeReplaceYearsAgo ?? inputs.calendarAge;
+  
+  // History-aware: split years before/after softener
+  const yearsWithSoftener = inputs.yearsWithoutSoftener !== undefined
+    ? Math.max(0, anodeAge - inputs.yearsWithoutSoftener)
+    : (inputs.hasSoftener ? anodeAge : 0);
+  const yearsNormal = anodeAge - yearsWithSoftener;
+  const historicalBurnRate = galvanicFactor * recircFactor;
+  
+  const consumedMass = (yearsNormal * historicalBurnRate) + (yearsWithSoftener * currentBurnRate);
+  const remainingMass = baseMassYears - consumedMass;
+  const calculatedShieldLife = remainingMass <= 0 ? 0 : Math.max(0.5, remainingMass / currentBurnRate);
   
   steps.push({
     id: 'anode_shield',
-    name: 'Anode Shield Life',
+    name: 'Anode Shield Life (v9.0)',
     icon: <Shield className="w-4 h-4" />,
-    description: 'Sacrificial anode remaining protection capacity',
-    formula: 'max(0, 8 - (yearsSinceAnode × decayRate))',
+    description: 'Physics-corrected anode protection model (4yr baseline, multiplicative burn)',
+    formula: '(baseMass - consumedMass) / currentBurnRate',
     inputs: [
-      { label: 'Years Since Replace', value: yearsSinceAnode.toFixed(1) },
-      { label: 'Usage Penalty', value: anodeUsagePenalty.toFixed(2) + '×' },
-      { label: 'Hardness Multiplier', value: hardnessMultiplier.toFixed(2) + '×' },
-      { label: 'Decay Rate', value: anodeDecayRate.toFixed(2) },
+      { label: 'Base Capacity', value: baseMassYears.toFixed(1) + ' yrs', highlight: true },
+      { label: 'Years Normal', value: yearsNormal.toFixed(1) },
+      { label: 'Years w/ Softener', value: yearsWithSoftener.toFixed(1), highlight: yearsWithSoftener > 0 },
+      { label: 'Historical Burn', value: historicalBurnRate.toFixed(2) + '×' },
+      { label: 'Current Burn Rate', value: currentBurnRate.toFixed(2) + '×', highlight: currentBurnRate > 2 },
+      { label: 'Mass Consumed', value: consumedMass.toFixed(1) + ' yrs' },
     ],
-    result: { label: 'Shield Life Remaining', value: shieldLife.toFixed(1), unit: 'yrs' },
-    impact: shieldLife <= 0 ? 'critical' : shieldLife < 2 ? 'negative' : 'positive',
+    result: { label: 'Shield Life Remaining', value: metrics.shieldLife.toFixed(1), unit: 'yrs' },
+    impact: metrics.shieldLife <= 0 ? 'critical' : metrics.shieldLife < 1 ? 'negative' : 'positive',
   });
 
   // Step 4: Sediment Accumulation

@@ -826,91 +826,125 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // Penalty kicks in when tank is undersized by >20%
   const undersizingPenalty = sizingRatio > 1.2 ? 1 + (sizingRatio - 1) * 0.25 : 1.0;
   
-  // 1. ANODE SHIELD LIFE (Quality Credit - use anode count, not warranty sticker)
-  // FIX v7.9 "Sticker Slap": A 12-year tank is often the same steel vessel as a 6-year
-  // with a second anode rod screwed into the hot port. Physics is anode mass, not warranty.
-  // Base: 6 years for single anode. If anodeCount specified, use that; else infer from warranty.
-  let baseAnodeLife: number;
-  if (data.anodeCount !== undefined) {
-    // Direct measurement: 6 years per anode rod
-    baseAnodeLife = data.anodeCount * 6;
-  } else {
-    // Fallback to warranty-based inference (less accurate)
-    baseAnodeLife = data.warrantyYears > 0 ? Math.min(data.warrantyYears, 12) : 6;
-  }
+  // ============================================
+  // 1. ANODE SHIELD LIFE v9.0 (Physics-Corrected Model)
+  // ============================================
+  // 
+  // FIXES in v9.0:
+  // - FIX "Marketing Math": 6yr → 4yr baseline (forensic reality)
+  // - FIX "Hard Water Penalty": REMOVED (passivation protects anode)
+  // - FIX "Time Machine Bug": History-aware burn rate using yearsWithoutSoftener
+  // - CHANGE: Additive decay → Multiplicative burn rate
+  //
+  // Physics: A standard magnesium anode rod lasts 3-5 years.
+  // Manufacturers use "6-year warranty" knowing rod dies at Year 4,
+  // and the steel tank survives Years 4-6 "naked" until first leak.
   
-  // Decay rate multiplier (higher = faster anode consumption)
-  let anodeDecayRate = 1.0;
+  // v9.0 Constants (aligned with NACE/AWWA research)
+  const ANODE_CONSTANTS = {
+    BASE_LIFE_SINGLE: 4.0,      // Years for single Mg rod (was 6.0)
+    BASE_LIFE_DUAL: 7.5,        // Years for dual rods (parallel surface area reduces effectiveness)
+    BASE_LIFE_POWERED: 15,      // Powered anode (actively regenerates)
+    SOFTENER_MULTIPLIER: 3.0,   // Soft water = 3x consumption rate
+    GALVANIC_MULTIPLIER: 2.5,   // Direct copper + steel nipple
+    RECIRC_MULTIPLIER: 1.25,    // Turbulence prevents passivation
+    CHLORAMINE_MULTIPLIER: 1.2, // Ammonia byproducts accelerate corrosion
+    MAX_BURN_RATE: 8.0,         // Cap for compound effects
+  };
   
   // v7.6: Resolve effective hardness early (needed for anode decay AND sediment)
   const { effectiveHardness, streetHardness } = resolveHardness(data);
   
-  // FIX v8.3: Scale softener penalty by softening efficiency
-  // Full softening (0 GPG from 15+ GPG street) = full 1.4 penalty
-  // Partial softening = proportionally reduced penalty (min 0.5x)
-  // No softener = no penalty here (handled by hardness below)
-  if (data.hasSoftener) {
-    const softenerEfficiency = 1 - (effectiveHardness / (streetHardness || 15));
-    anodeDecayRate += 1.4 * Math.max(0.5, softenerEfficiency);
-  }
-  if (data.hasCircPump) anodeDecayRate += 0.5;  // Erosion/amperage
-  
-  // NEW v7.1: Hard water accelerates electrochemical reaction on anode
-  // Scale: 0-5 GPG = negligible, 5-15 GPG = moderate, 15+ GPG = significant
-  // Formula: 0.02 per GPG above 5 (max ~0.4 for very hard water at 25+ GPG)
-  // FIX v8.0 "Softener Double Dip": Use EFFECTIVE hardness (what anode experiences), not street hardness
-  // If softener is working, anode only sees ~0.5 GPG, not the original 20 GPG
-  const hardnessAboveBaseline = Math.max(0, effectiveHardness - 5);
-  anodeDecayRate += hardnessAboveBaseline * 0.02;
-  
-  // NEW v7.10 "Chloramine Corrosion": Chloramine is more stable but more aggressive
-  // Chloramine (vs chlorine) creates ammonia byproducts that accelerate metal corrosion
-  // - Brass dezincification risk (fittings, valves)
-  // - Rubber seal degradation (T&P valves, gaskets)
-  // - Anode consumption +20% faster due to altered water chemistry
-  if (data.sanitizerType === 'CHLORAMINE') {
-    anodeDecayRate *= 1.2;  // 20% faster anode consumption
+  // --- STEP 1: ESTABLISH BASE MASS (The "Fuel Tank") ---
+  // Use anode count if known; else infer from warranty
+  let baseMassYears: number;
+  if (data.anodeCount === 2 || data.warrantyYears >= 12) {
+    baseMassYears = ANODE_CONSTANTS.BASE_LIFE_DUAL; // 7.5 years
+  } else {
+    baseMassYears = ANODE_CONSTANTS.BASE_LIFE_SINGLE; // 4.0 years
   }
   
-  // NEW v7.10 "Smart Galvanic Detection": Only penalize actual steel-to-copper contact
-  // Modern units (Bradford White, Rheem, A.O. Smith) have factory dielectric nipples
-  // that eliminate galvanic risk even with direct copper connections
-  // FIX v8.3: Reduced galvanic penalty from 3.0x to 2.5x per NACE corrosion data
+  // --- STEP 2: DEFINE BURN RATES (Multiplicative Physics) ---
+  // Softener: Soft water is highly conductive, dissolves anode 3x faster
+  const softenerFactor = data.hasSoftener ? ANODE_CONSTANTS.SOFTENER_MULTIPLIER : 1.0;
+  
+  // Recirc pump: Turbulence prevents passivation layer
+  const recircFactor = data.hasCircPump ? ANODE_CONSTANTS.RECIRC_MULTIPLIER : 1.0;
+  
+  // Galvanic: Direct copper-to-steel creates electrochemical cell
+  let galvanicFactor = 1.0;
   if (data.connectionType === 'DIRECT_COPPER') {
-    if (data.nippleMaterial === 'STEEL') {
-      // Confirmed galvanic cell - apply penalty aligned with NACE data
-      anodeDecayRate *= 2.5;  // Galvanic cell effect - rapid electrochemical attack
-    } else if (data.nippleMaterial === 'STAINLESS_BRASS' || data.nippleMaterial === 'FACTORY_PROTECTED') {
-      // Protected connection - no corrosion penalty
-      // (Serviceability warning handled separately in scoring/recommendations)
-    } else {
-      // Unknown nipple material - apply conservative penalty (assume worst case)
-      anodeDecayRate *= 2.5;
+    if (data.nippleMaterial === 'STEEL' || data.nippleMaterial === undefined) {
+      galvanicFactor = ANODE_CONSTANTS.GALVANIC_MULTIPLIER; // 2.5x
     }
+    // STAINLESS_BRASS or FACTORY_PROTECTED = no penalty
   } else if (data.connectionType === 'BRASS') {
-    anodeDecayRate *= 1.3;  // Brass is better but not ideal
+    galvanicFactor = 1.3; // Brass is better but not ideal
   }
   // DIELECTRIC unions block galvanic current - no penalty
   
-  // NEW v6.9: Usage intensity accelerates electrochemical reactions
-  // More hot water draws = more anode consumption (sqrt dampening for realism)
-  // FIX v7.0: Cap usage penalty at 2.0x to prevent high-usage homes from showing <1 year anode life
-  anodeDecayRate *= Math.min(2.0, Math.pow(usageIntensity, 0.5));
+  // Chloramine: More aggressive than chlorine
+  const chloramineFactor = data.sanitizerType === 'CHLORAMINE' 
+    ? ANODE_CONSTANTS.CHLORAMINE_MULTIPLIER : 1.0;
   
-  // FIX v8.3: Cap total decay rate at 8x to prevent unrealistic compound effects
-  // This ensures minimum ~0.75 year anode life for single-anode tanks
-  anodeDecayRate = Math.min(8.0, anodeDecayRate);
+  // CURRENT burn rate (multiplicative - all factors compound)
+  let currentBurnRate = softenerFactor * galvanicFactor * recircFactor * chloramineFactor;
   
-  // Effective shield duration (how long the anode protects the steel)
-  const effectiveShieldDuration = baseAnodeLife / anodeDecayRate;
+  // Cap to prevent extreme compound effects
+  currentBurnRate = Math.min(ANODE_CONSTANTS.MAX_BURN_RATE, currentBurnRate);
   
+  // HISTORICAL burn rate (before softener was installed)
+  // Galvanic and recirc were always there, but softener might be new
+  const historicalBurnRate = Math.min(
+    ANODE_CONSTANTS.MAX_BURN_RATE, 
+    galvanicFactor * recircFactor * chloramineFactor
+  );
+  
+  // --- STEP 3: CALCULATE FUEL CONSUMED (History-Aware) ---
   // SERVICE HISTORY: If anode was replaced, use time since replacement; otherwise use tank age
   const anodeAge = data.lastAnodeReplaceYearsAgo ?? data.calendarAge;
   
-  // FIX v8.3: Add minimum shield life floor for non-depleted anodes
-  // Even under extreme conditions, a new anode provides some protection
-  const rawShieldLife = effectiveShieldDuration - anodeAge;
-  const shieldLife = rawShieldLife > 0 ? Math.max(0.5, rawShieldLife) : 0;
+  // How long has the softener been active?
+  // FIX v9.0 "Time Machine Bug": Don't retroactively apply softener burn to pre-softener years
+  let yearsWithSoftener: number;
+  let yearsNormal: number;
+  
+  if (data.yearsWithoutSoftener !== undefined) {
+    // We know when softener was installed
+    yearsWithSoftener = Math.max(0, anodeAge - data.yearsWithoutSoftener);
+    yearsNormal = anodeAge - yearsWithSoftener;
+  } else if (data.hasSoftener) {
+    // Has softener but unknown when installed - assume worst case (always had it)
+    yearsWithSoftener = anodeAge;
+    yearsNormal = 0;
+  } else {
+    // No softener
+    yearsWithSoftener = 0;
+    yearsNormal = anodeAge;
+  }
+  
+  // Total "Anode Mass Years" consumed
+  // (yearsNormal × historical burn) + (yearsWithSoftener × current burn)
+  const consumedMass = (yearsNormal * historicalBurnRate) + (yearsWithSoftener * currentBurnRate);
+  
+  // --- STEP 4: PREDICT REMAINING LIFE ---
+  const remainingMass = baseMassYears - consumedMass;
+  
+  // v9.0: Remaining mass divided by CURRENT burn rate = time until depletion
+  // If remainingMass <= 0, tank is "naked" (anode depleted)
+  let shieldLife: number;
+  if (remainingMass <= 0) {
+    shieldLife = 0; // Naked tank
+  } else {
+    // Add 0.5 year floor for non-depleted anodes (per v8.3 rule)
+    shieldLife = Math.max(0.5, remainingMass / currentBurnRate);
+  }
+  
+  // Store legacy values for backwards compatibility
+  const baseAnodeLife = baseMassYears;
+  const anodeDecayRate = currentBurnRate;
+  // effectiveShieldDuration is used by phase-aware aging calculations later
+  const effectiveShieldDuration = baseMassYears / currentBurnRate;
 
   // 2. SEDIMENT CALCULATION (Needed for stress factor)
   // NEW v7.3: Added HYBRID fuel type with lower sediment rate

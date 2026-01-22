@@ -1,13 +1,13 @@
+# v9.0 Anode Shield Life Algorithm - IMPLEMENTED
 
+## Status: ✅ Complete
 
-# Anode Shield Life Algorithm Fix (v9.0)
+The following v9.0 physics corrections have been applied to `src/lib/opterraAlgorithm.ts`:
 
-## Overview
-Correct the physics model and time-history logic for anode rod life estimation to align with forensic engineering reality rather than manufacturer marketing.
-
-## Issues to Fix
-
-### 1. Over-Optimistic Baseline (Marketing Math)
+1. **Marketing Math → Forensic Reality**: Base anode life reduced from 6→4 years per rod (7.5 for dual)
+2. **Hard Water Penalty REMOVED**: Passivation protects anode, no longer penalized
+3. **Time Machine Bug FIXED**: History-aware burn rate using `yearsWithoutSoftener`
+4. **Multiplicative Decay**: Softener (3.0×) × Galvanic (2.5×) × Recirc (1.25×) now compound correctly
 | Current | Proposed |
 |---------|----------|
 | 6 years per rod | **4 years per rod** |
