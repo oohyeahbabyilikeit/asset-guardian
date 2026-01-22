@@ -319,6 +319,26 @@ export function OptionsAssessmentDrawer({
     }
   };
   
+  // Map maintenance task types to educational topics
+  const getTaskEducationalTopic = (taskType: string): EducationalTopic | null => {
+    const isSedimentRisky = metrics?.sedimentLbs && metrics.sedimentLbs > 10;
+    const isAnodeNaked = metrics?.anodeStatus === 'naked';
+    
+    const topicMap: Record<string, EducationalTopic> = {
+      'flush': isSedimentRisky ? 'sediment-risky' : 'sediment',
+      'anode': isAnodeNaked ? 'anode-rod-fused' : 'anode-rod',
+      'descale': 'scale-tankless',
+      'filter_clean': 'heat-exchanger',
+      'air_filter': 'heat-exchanger',
+      'condensate': 'heat-exchanger',
+      'exp_tank_install': 'thermal-expansion',
+      'exp_tank_replace': 'thermal-expansion',
+      'prv_install': 'prv',
+      'prv_replace': 'prv',
+    };
+    return topicMap[taskType] || null;
+  };
+  
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[92vh]">
@@ -403,35 +423,57 @@ export function OptionsAssessmentDrawer({
                 <h4 className="font-medium text-foreground">Your Maintenance Schedule</h4>
                 <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-2">
                   {/* Primary task */}
-                  {schedule.primaryTask && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const TaskIcon = getTaskIcon(schedule.primaryTask.type);
-                          return <TaskIcon className="w-4 h-4 text-primary" />;
-                        })()}
-                        <span className="text-sm text-foreground">{schedule.primaryTask.label}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        Due in {formatDueDate(schedule.primaryTask.monthsUntilDue)}
-                      </span>
-                    </div>
-                  )}
+                  {schedule.primaryTask && (() => {
+                    const TaskIcon = getTaskIcon(schedule.primaryTask.type);
+                    const hasTopic = getTaskEducationalTopic(schedule.primaryTask.type) !== null;
+                    return (
+                      <button 
+                        onClick={() => {
+                          const topic = getTaskEducationalTopic(schedule.primaryTask!.type);
+                          if (topic) setSelectedTopic(topic);
+                        }}
+                        className={`w-full flex items-center justify-between hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors ${hasTopic ? 'cursor-pointer' : ''}`}
+                        disabled={!hasTopic}
+                      >
+                        <div className="flex items-center gap-2">
+                          <TaskIcon className="w-4 h-4 text-primary" />
+                          <span className="text-sm text-foreground">{schedule.primaryTask.label}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">
+                            Due in {formatDueDate(schedule.primaryTask.monthsUntilDue)}
+                          </span>
+                          {hasTopic && <Info className="w-3.5 h-3.5 text-muted-foreground" />}
+                        </div>
+                      </button>
+                    );
+                  })()}
                   {/* Secondary task */}
-                  {schedule.secondaryTask && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const TaskIcon = getTaskIcon(schedule.secondaryTask.type);
-                          return <TaskIcon className="w-4 h-4 text-primary" />;
-                        })()}
-                        <span className="text-sm text-foreground">{schedule.secondaryTask.label}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        Due in {formatDueDate(schedule.secondaryTask.monthsUntilDue)}
-                      </span>
-                    </div>
-                  )}
+                  {schedule.secondaryTask && (() => {
+                    const TaskIcon = getTaskIcon(schedule.secondaryTask.type);
+                    const hasTopic = getTaskEducationalTopic(schedule.secondaryTask.type) !== null;
+                    return (
+                      <button 
+                        onClick={() => {
+                          const topic = getTaskEducationalTopic(schedule.secondaryTask!.type);
+                          if (topic) setSelectedTopic(topic);
+                        }}
+                        className={`w-full flex items-center justify-between hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors ${hasTopic ? 'cursor-pointer' : ''}`}
+                        disabled={!hasTopic}
+                      >
+                        <div className="flex items-center gap-2">
+                          <TaskIcon className="w-4 h-4 text-primary" />
+                          <span className="text-sm text-foreground">{schedule.secondaryTask.label}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">
+                            Due in {formatDueDate(schedule.secondaryTask.monthsUntilDue)}
+                          </span>
+                          {hasTopic && <Info className="w-3.5 h-3.5 text-muted-foreground" />}
+                        </div>
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             )}
