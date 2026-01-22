@@ -362,7 +362,36 @@ export type Database = {
           updated_at?: string
           water_heater_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_notification_requests_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_notification_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_notification_requests_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
+            referencedRelation: "tank_water_heaters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_notification_requests_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
+            referencedRelation: "water_heaters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       price_lookup_cache: {
         Row: {
