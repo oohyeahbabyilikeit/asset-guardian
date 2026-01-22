@@ -1,146 +1,185 @@
 
 
-# Soften Contractor Dashboard - Professional CRM Aesthetic
+# Contractor Dashboard - Layout Redesign
 
-## Problem Analysis
+## Current Problems
 
-The current design has several visual issues causing eye strain:
+Based on the screenshot and code analysis:
 
-1. **Stark White Cards** - Pure `bg-white` cards on `bg-slate-50` create harsh contrast
-2. **Saturated Priority Colors** - Bright red/orange/amber/green borders and badges fight for attention
-3. **Visual Overload** - Every card has multiple colored elements (priority badge, health badge, complexity badge, fail risk text, colored buttons)
-4. **Dense Layout** - Too many cards visible without visual breathing room
+1. **Endless vertical scroll** - 13 lead cards stack one after another, pushing Pipeline and Quick Actions to the bottom (requires scrolling past ~15 screens of content)
+2. **Lead cards are too verbose** - Each card shows 7+ lines of content (type label, name, address, unit summary, context, metadata row, actions)
+3. **No information density** - The `max-w-3xl` constraint wastes horizontal space on larger screens
+4. **Key metrics buried** - Pipeline overview and Quick Actions (the "command center" elements) are hidden at the very bottom
+5. **No visual grouping** - Stats, Feed, Pipeline, Actions all look like separate unrelated sections
+6. **Mobile-only layout** - The single column doesn't adapt to take advantage of wider screens
 
-## Design Solution: Calm Professional Theme
+## Design Solution: Split-Panel Dashboard
 
-Shift to a softer, more muted palette inspired by modern CRMs like HubSpot, Pipedrive, and Linear:
+Create a proper CRM layout with:
+- **Left panel**: Quick metrics, pipeline, and actions (always visible)
+- **Right panel**: Scrollable opportunity feed (the "inbox")
+- **Responsive**: Collapses to tabbed view on mobile
 
-### Color Strategy
-
-| Element | Current | New |
-|---------|---------|-----|
-| Page background | `bg-slate-50` | `bg-gray-50` (warmer) |
-| Cards | `bg-white` with harsh borders | `bg-white` with softer `border-gray-100` |
-| Priority borders | Saturated colors | Muted tones, thinner |
-| Badges | Bright colored backgrounds | Subtle pill with muted text |
-| Text | `slate-800` (cold) | `gray-700` (warmer, softer) |
-| Buttons | Blue primary everywhere | Neutral grays with subtle accents |
-
-### Specific Changes
-
-**1. Page Container (Contractor.tsx)**
-- Background: `bg-gray-50` (slightly warmer)
-- Header: Lighter border, no shadow
-- More vertical spacing between sections
-
-**2. StatCard.tsx - Priority Stats**
-- Remove bold colored numbers
-- Subtle background tints instead of white
-- Smaller, less prominent
-
-**3. LeadCard.tsx - Opportunity Cards**
-- Thinner left border (2px instead of 4px)
-- Muted priority colors (pastel tones)
-- Remove redundant badges - simplify to essentials
-- Gray action buttons instead of blue primary
-- More whitespace padding
-- Softer text colors (`gray-600` body, `gray-800` headings)
-
-**4. Badges (Health, Complexity)**
-- Remove colored backgrounds
-- Simple text with subtle icon
-- Monochrome with meaning from icon/label
-
-**5. PipelineOverview.tsx**
-- Softer stage backgrounds
-- Less saturated progress bar
-- Muted currency colors
-
-**6. QuickActions.tsx**
-- Uniform muted icon backgrounds
-- Subtle hover states
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│  Header                                                                 │
+├──────────────────────────┬─────────────────────────────────────────────┤
+│                          │                                              │
+│  OVERVIEW PANEL          │  OPPORTUNITY FEED                           │
+│  (Fixed, non-scrolling)  │  (Scrollable inbox)                         │
+│                          │                                              │
+│  ┌────────────────────┐  │  ┌────────────────────────────────────────┐ │
+│  │ Today's Priority   │  │  │ Johnson Family - Active Leak           │ │
+│  │ 2 Critical Actions │  │  │ 12yr Rheem Gas Tank | Health 24        │ │
+│  └────────────────────┘  │  │ [Call] [Details] [×]                   │ │
+│                          │  └────────────────────────────────────────┘ │
+│  ┌────────────────────┐  │  ┌────────────────────────────────────────┐ │
+│  │ Pipeline           │  │  │ Williams Residence - T&P Weeping       │ │
+│  │ 8→4→2→12           │  │  │ 15yr Bradford White | Health 18        │ │
+│  │ $88K potential     │  │  │ [Call] [Details] [×]                   │ │
+│  └────────────────────┘  │  └────────────────────────────────────────┘ │
+│                          │  ┌────────────────────────────────────────┐ │
+│  ┌────────────────────┐  │  │ Martinez Residence - Warranty Exp.     │ │
+│  │ Quick Actions      │  │  │ 5yr A.O. Smith | Health 62             │ │
+│  │ [Inspect] [Props]  │  │  │ [Call] [Details] [Later] [×]          │ │
+│  │ [Pricing] [Report] │  │  └────────────────────────────────────────┘ │
+│  └────────────────────┘  │                                              │
+│                          │  ... more leads ...                          │
+│                          │                                              │
+└──────────────────────────┴─────────────────────────────────────────────┘
+```
 
 ## Component Changes
 
-### Contractor.tsx
-```
-- bg-slate-50 → bg-gray-50
-- Remove header shadow-sm
-- Softer border colors
-- Add more gap between sections (space-y-5 → space-y-6)
+### 1. Contractor.tsx - Two-Column Layout
+
+```typescript
+<main className="flex-1 flex">
+  {/* Left Panel - Overview (fixed width, no scroll) */}
+  <aside className="hidden lg:flex w-80 flex-col border-r border-gray-200/60 bg-white p-4 gap-4">
+    <TodaysSummary counts={counts} onPriorityClick={handlePriorityClick} />
+    <PipelineOverview compact />
+    <QuickActions compact />
+  </aside>
+  
+  {/* Right Panel - Feed (scrollable) */}
+  <div className="flex-1 overflow-y-auto">
+    <OpportunityFeed ... />
+  </div>
+</main>
 ```
 
-### StatCard.tsx
-```
-- White cards → Subtle tinted backgrounds
-- Large bold numbers → Medium weight
-- Muted dot colors
-- Softer selection states
+### 2. New TodaysSummary Component
+
+Replace the 4 separate StatCards with a single cohesive summary card:
+
+```typescript
+// Shows: "2 Critical | 3 High | 5 Med | 3 Low"
+// Clickable segments to filter
+// Shows most urgent item inline
 ```
 
-### LeadCard.tsx
-```
-- border-l-4 → border-l-2
-- Muted priority colors (softer reds, oranges)
-- Remove dual badges (simplify header)
-- Gray "Details" and "Later" buttons
-- Softer text hierarchy
-- More internal padding
-```
+### 3. Compact LeadCard
 
-### HealthScoreBadge.tsx
+Reduce each card from 7 lines to 3-4 lines:
+
+**Before (too verbose):**
 ```
-- Remove colored backgrounds
-- Simple gray pill with score
-- Color only on critical scores
+URGENT REPLACEMENT
+Johnson Family
+📍 1847 Sunset Dr, Phoenix AZ
+12yr Rheem Gas Tank in Attic
+Active leak detected during routine inspection
+⚙️ Elevated · 2h ago · 78% fail risk
+[Call] [Details]    [Later] [×]
 ```
 
-### JobComplexityBadge.tsx
+**After (condensed):**
 ```
-- Remove colored backgrounds
-- Gray text with icon
-- Subtle styling
-```
-
-### PipelineOverview.tsx
-```
-- Softer stage backgrounds
-- Gray/blue muted progress bar
-- Less saturated text colors
+Johnson Family · 1847 Sunset Dr          24/100
+12yr Rheem · Active leak detected
+[📞 Call] [Details] [×]
 ```
 
-### OpportunityFeed.tsx
+Changes:
+- Merge name + address on one line
+- Remove type label (redundant with context)
+- Remove complexity badge (secondary info)
+- Inline health score badge
+- Smaller action buttons
+
+### 4. Mobile Tab Navigation
+
+On mobile (< lg breakpoint), show tabs instead of panels:
+
+```typescript
+const [activeTab, setActiveTab] = useState<'overview' | 'leads'>('leads');
+
+// Mobile: Tab bar at top
+<div className="lg:hidden flex border-b">
+  <button onClick={() => setActiveTab('overview')}>Overview</button>
+  <button onClick={() => setActiveTab('leads')}>Leads (13)</button>
+</div>
 ```
-- Softer dropdown styling
-- Warmer text colors
+
+### 5. Compact Pipeline
+
+For the left panel, create a more compact pipeline visualization:
+
+```typescript
+// Horizontal mini-funnel
+8 → 4 → 2 → 12
+New  Contact  Quote  Closed
+$88.3K potential | 46% conv.
 ```
 
-## Visual Hierarchy (After)
+### 6. Compact Quick Actions
 
-1. **Headings**: `text-gray-800` - Clear but not harsh
-2. **Body text**: `text-gray-600` - Easy to read
-3. **Secondary**: `text-gray-500` - Metadata, timestamps
-4. **Muted**: `text-gray-400` - Placeholders, disabled
+2x2 grid but smaller, icon-only on desktop sidebar:
 
-## Files to Modify
+```typescript
+<div className="grid grid-cols-2 gap-2">
+  <Button size="sm" variant="outline">
+    <ClipboardList className="w-4 h-4" />
+    <span className="sr-only lg:not-sr-only">Inspect</span>
+  </Button>
+  ...
+</div>
+```
 
-| File | Changes |
-|------|---------|
-| `src/pages/Contractor.tsx` | Warmer background, softer header |
-| `src/components/contractor/StatCard.tsx` | Muted colors, smaller emphasis |
-| `src/components/contractor/LeadCard.tsx` | Thinner borders, muted colors, simplified |
-| `src/components/contractor/HealthScoreBadge.tsx` | Remove colored backgrounds |
-| `src/components/contractor/JobComplexityBadge.tsx` | Grayscale with subtle accents |
-| `src/components/contractor/PipelineOverview.tsx` | Softer stage styling |
-| `src/components/contractor/QuickActions.tsx` | Uniform muted icon styling |
-| `src/components/contractor/OpportunityFeed.tsx` | Warmer text colors |
+## File Changes
 
-## Expected Result
+| File | Action | Changes |
+|------|--------|---------|
+| `src/pages/Contractor.tsx` | **Rewrite** | Two-column layout with responsive breakpoints |
+| `src/components/contractor/TodaysSummary.tsx` | **Create** | New cohesive summary component |
+| `src/components/contractor/LeadCard.tsx` | **Modify** | Condense to 3-4 lines, inline badges |
+| `src/components/contractor/OpportunityFeed.tsx` | **Modify** | Remove header (moved to panel), tighter spacing |
+| `src/components/contractor/PipelineOverview.tsx` | **Modify** | Add `compact` prop for sidebar mode |
+| `src/components/contractor/QuickActions.tsx` | **Modify** | Add `compact` prop for sidebar mode |
+| `src/components/contractor/StatCard.tsx` | **Delete** | Replaced by TodaysSummary |
 
-A calm, professional dashboard that:
-- Is easy to scan without visual fatigue
-- Uses color sparingly for meaning (only critical items get red)
-- Feels like a modern SaaS tool (Linear, Notion, Figma aesthetic)
-- Has clear information hierarchy without competing elements
-- Is comfortable for extended use
+## Visual Improvements
+
+1. **Consistent card heights** - Lead cards should be roughly same height for visual rhythm
+2. **Tighter vertical spacing** - `space-y-2` instead of `space-y-3` in feed
+3. **Fixed sidebar** - Overview panel stays visible while scrolling leads
+4. **Count badges** - Show lead count on mobile tab: "Leads (13)"
+5. **Priority indicator** - Small colored dot instead of colored border + label
+
+## Responsive Breakpoints
+
+| Screen | Layout |
+|--------|--------|
+| < 640px (mobile) | Tabbed view: Overview / Leads tabs |
+| 640-1024px (tablet) | Single column, all sections stacked but condensed |
+| > 1024px (desktop) | Two-column: Fixed sidebar + scrollable feed |
+
+## Expected Outcome
+
+After implementation:
+- **Desktop**: See pipeline health + leads side-by-side, no buried content
+- **Mobile**: Quick tab switch between overview and action items
+- **All screens**: Leads are scannable in 2-3 lines each
+- **Faster workflow**: Key actions always one click away
 
