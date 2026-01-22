@@ -95,6 +95,11 @@ export function mapDemoRowToMockOpportunity(row: DemoOpportunityRow): MockOpport
  * Maps a MockOpportunity to the format expected by the Sales Coach edge function
  */
 export function mapMockOpportunityToSalesCoachOpportunity(opp: MockOpportunity) {
+  // Check for symptoms in extended forensic data (if available from JSONB)
+  const extendedForensics = opp.forensicInputs as ForensicInputs & { 
+    symptoms?: { notEnoughHotWater?: boolean; lukewarmWater?: boolean } 
+  };
+  
   return {
     id: opp.id,
     propertyAddress: opp.propertyAddress,
@@ -107,9 +112,18 @@ export function mapMockOpportunityToSalesCoachOpportunity(opp: MockOpportunity) 
     context: opp.context,
     asset: opp.asset,
     forensicInputs: {
-      ...opp.forensicInputs,
-      housePsi: opp.forensicInputs.housePsi,
-      hardnessGPG: opp.forensicInputs.hardnessGPG,
+      // Plumbing environment
+      psiReading: opp.forensicInputs?.housePsi,
+      hardness: opp.forensicInputs?.hardnessGPG ?? opp.forensicInputs?.streetHardnessGPG,
+      hasExpansionTank: opp.forensicInputs?.hasExpTank,
+      hasSoftener: opp.forensicInputs?.hasSoftener,
+      ventType: opp.forensicInputs?.ventType,
+      // Usage context for sizing analysis
+      peopleCount: opp.forensicInputs?.peopleCount,
+      usageType: opp.forensicInputs?.usageType,
+      // Symptom flags (if available from extended JSONB data)
+      runsOutOfHotWater: extendedForensics?.symptoms?.notEnoughHotWater,
+      lukewarmWater: extendedForensics?.symptoms?.lukewarmWater,
     },
     opterraResult: opp.opterraResult,
     inspectionNotes: opp.inspectionNotes,
