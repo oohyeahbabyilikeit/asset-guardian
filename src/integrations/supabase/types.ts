@@ -393,6 +393,85 @@ export type Database = {
           },
         ]
       }
+      opportunity_notifications: {
+        Row: {
+          calculated_age: number | null
+          contractor_id: string
+          created_at: string
+          dismiss_reason: string | null
+          expires_at: string | null
+          fail_probability: number | null
+          health_score: number | null
+          id: string
+          opportunity_context: Json | null
+          opportunity_type: string
+          priority: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          viewed_at: string | null
+          water_heater_id: string
+        }
+        Insert: {
+          calculated_age?: number | null
+          contractor_id: string
+          created_at?: string
+          dismiss_reason?: string | null
+          expires_at?: string | null
+          fail_probability?: number | null
+          health_score?: number | null
+          id?: string
+          opportunity_context?: Json | null
+          opportunity_type: string
+          priority?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+          water_heater_id: string
+        }
+        Update: {
+          calculated_age?: number | null
+          contractor_id?: string
+          created_at?: string
+          dismiss_reason?: string | null
+          expires_at?: string | null
+          fail_probability?: number | null
+          health_score?: number | null
+          id?: string
+          opportunity_context?: Json | null
+          opportunity_type?: string
+          priority?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+          water_heater_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_notifications_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_notifications_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
+            referencedRelation: "tank_water_heaters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_notifications_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
+            referencedRelation: "water_heaters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_lookup_cache: {
         Row: {
           cached_at: string
