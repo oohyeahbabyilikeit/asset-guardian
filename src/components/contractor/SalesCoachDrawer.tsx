@@ -264,7 +264,7 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl"
+        className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-xl"
       >
         {/* Header */}
         <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm border-b border-border">
