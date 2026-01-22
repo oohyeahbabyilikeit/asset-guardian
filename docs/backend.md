@@ -112,6 +112,7 @@ erDiagram
     water_heaters ||--o{ service_events : "serviced_by"
     water_heaters ||--o{ quotes : "quoted_for"
     water_heaters ||--o{ leads : "references"
+    water_heaters ||--o{ opportunity_notifications : "generates"
     
     %% Assessment Layer
     assessments ||--o{ quotes : "generates"
@@ -119,6 +120,9 @@ erDiagram
     %% Maintenance Layer
     maintenance_notification_requests }o--|| water_heaters : "for"
     maintenance_notification_requests }o--|| properties : "at"
+    
+    %% Opportunity Notifications
+    opportunity_notifications }o--|| profiles : "assigned_to"
     
     %% Contractor Config
     contractor_install_presets }o--|| profiles : "belongs_to"
@@ -174,6 +178,26 @@ erDiagram
         boolean has_exp_tank
         boolean has_softener
         string quality_tier
+        integer people_count
+        string usage_type
+        number measured_hardness_gpg
+        string sanitizer_type
+        string softener_salt_status
+        number last_flush_years_ago
+        number last_anode_replace_years_ago
+        number years_without_softener
+        number years_without_anode
+        boolean is_annually_maintained
+    }
+    
+    opportunity_notifications {
+        uuid id PK
+        uuid water_heater_id FK
+        uuid contractor_id FK
+        string opportunity_type
+        string priority
+        string status
+        timestamp expires_at
     }
     
     water_softeners {
@@ -387,6 +411,17 @@ Complete column-level schema for all database tables.
 | `is_condensate_clear` | `boolean` | Yes | - | Condensate drain status |
 | `last_descale_years_ago` | `numeric` | Yes | - | Years since descaling |
 | `error_code_count` | `integer` | Yes | `0` | Active error codes |
+| `people_count` | `integer` | Yes | `3` | Household size |
+| `usage_type` | `text` | Yes | `'normal'` | `normal`, `heavy`, `light` |
+| `measured_hardness_gpg` | `numeric` | Yes | - | Tested water hardness |
+| `sanitizer_type` | `text` | Yes | `'UNKNOWN'` | `CHLORINE`, `CHLORAMINE`, `UNKNOWN` |
+| `softener_salt_status` | `text` | Yes | `'UNKNOWN'` | Salt level status |
+| `nipple_material` | `text` | Yes | - | Pipe nipple material |
+| `last_flush_years_ago` | `numeric` | Yes | - | Years since last flush |
+| `last_anode_replace_years_ago` | `numeric` | Yes | - | Years since anode service |
+| `years_without_softener` | `numeric` | Yes | - | Hard water exposure years |
+| `years_without_anode` | `numeric` | Yes | - | Unprotected years |
+| `is_annually_maintained` | `boolean` | Yes | `false` | Regular maintenance flag |
 | `notes` | `text` | Yes | - | Additional notes |
 | `photo_urls` | `jsonb` | Yes | `'[]'` | Array of photo URLs |
 | `created_at` | `timestamptz` | No | `now()` | Record creation time |
@@ -528,6 +563,27 @@ Complete column-level schema for all database tables.
 | `status` | `text` | Yes | `'pending'` | Request status |
 | `notes` | `text` | Yes | - | Additional notes |
 | `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `opportunity_notifications`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `water_heater_id` | `uuid` | No | - | FK to water_heaters (CASCADE) |
+| `contractor_id` | `uuid` | No | - | FK to profiles (CASCADE) |
+| `opportunity_type` | `text` | No | - | `warranty_ending`, `flush_due`, `anode_due`, etc. |
+| `priority` | `text` | No | `'medium'` | `low`, `medium`, `high`, `critical` |
+| `health_score` | `integer` | Yes | - | Unit health at notification time |
+| `fail_probability` | `numeric` | Yes | - | Failure probability snapshot |
+| `calculated_age` | `numeric` | Yes | - | Bio age at notification time |
+| `opportunity_context` | `jsonb` | Yes | `'{}'` | Additional context data |
+| `status` | `text` | No | `'pending'` | `pending`, `sent`, `viewed`, `converted`, `dismissed` |
+| `dismiss_reason` | `text` | Yes | - | Why contractor dismissed |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `sent_at` | `timestamptz` | Yes | - | When notification sent |
+| `viewed_at` | `timestamptz` | Yes | - | When contractor viewed |
+| `expires_at` | `timestamptz` | Yes | `now() + 30 days` | Notification expiration |
 | `updated_at` | `timestamptz` | No | `now()` | Last update time |
 
 #### `contractor_property_relationships`
@@ -717,6 +773,21 @@ properties → water_heaters → assessments
 - Default expiration: 1 year from creation
 - `contractor_has_relationship()` function checks access
 
+#### 6. Opportunity Notification Chain
+```
+water_heaters
+    ↓ (algorithm triggers)
+opportunity_notifications
+    ↓
+contractor (via contractor_id)
+```
+
+**Key Points:**
+- Notifications generated when maintenance thresholds met
+- Linked to both asset and assigned contractor
+- Status workflow: pending → sent → viewed → converted/dismissed
+- Auto-expire after 30 days
+
 ### Foreign Key Reference Table
 
 | Child Table | FK Column | Parent Table | Cascade? |
@@ -739,6 +810,8 @@ properties → water_heaters → assessments
 | `leads` | `water_heater_id` | `water_heaters` | No |
 | `leads` | `contractor_id` | `profiles` | No |
 | `contractor_property_relationships` | `property_id` | `properties` | No |
+| `opportunity_notifications` | `water_heater_id` | `water_heaters` | CASCADE |
+| `opportunity_notifications` | `contractor_id` | `profiles` | CASCADE |
 
 ### Table Categories
 
@@ -749,7 +822,7 @@ properties → water_heaters → assessments
 | **Assets** | `water_heaters`, `water_softeners` | Equipment inventory |
 | **Assessments** | `assessments` | Condition evaluations |
 | **Service History** | `service_events` | Maintenance records |
-| **Commercial** | `quotes`, `leads`, `maintenance_notification_requests` | Business operations |
+| **Commercial** | `quotes`, `leads`, `maintenance_notification_requests`, `opportunity_notifications` | Business operations |
 | **Contractor Config** | `contractor_install_presets`, `contractor_service_prices` | Pricing/labor config |
 | **Lookup/Cache** | `unit_prices`, `price_lookup_cache`, `water_districts` | Reference data |
 | **Access Control** | `contractor_property_relationships` | Permission grants |
@@ -773,6 +846,7 @@ properties → water_heaters → assessments
 | `generate-maintain-rationale` | Content | gemini-2.5-flash | No | No |
 | `generate-educational-content` | Content | gemini-2.5-flash | No | No |
 | `chat-water-heater` | Content | gemini-2.5-flash | No | No |
+| `generate-issue-guidance` | Content | gemini-3-flash-preview | No | No |
 | `sync-inspection` | Data Ops | None | No | Yes |
 | `install-presets` | Data Ops | None | No | Yes |
 | `lookup-price` | Data Ops | gemini-2.5-flash | 30 days | No |
@@ -1081,6 +1155,62 @@ interface EducationalContentResponse {
   error?: string;
 }
 ```
+
+---
+
+#### `generate-issue-guidance`
+
+**Purpose:** Generate personalized infrastructure issue explanations for homeowners.
+
+**Request:**
+```typescript
+interface IssueGuidanceRequest {
+  context: {
+    issueId: string;          // e.g., 'missing_prv', 'missing_exp_tank'
+    issueName: string;        // Technical issue name
+    friendlyName: string;     // User-friendly description
+    recommendation: {
+      action: 'REPLACE' | 'REPAIR' | 'MAINTAIN' | 'MONITOR';
+      reason: string;
+    };
+    location: string;         // Installation location
+    damageScenario: {
+      min: number;            // Minimum damage estimate
+      max: number;            // Maximum damage estimate
+      description: string;
+    };
+    unitAge: number;
+    healthScore: number;
+    agingRate: number;
+    isServiceable: boolean;
+    manufacturer?: string;
+    stressFactors?: Record<string, number>;
+  };
+}
+```
+
+**Response:**
+```typescript
+interface IssueGuidanceResponse {
+  success: boolean;
+  guidance?: {
+    headline: string;         // 3-5 word summary
+    explanation: string;      // Plain language issue description
+    yourSituation: string;    // Personalized context
+    recommendation: string;   // Action guidance
+    economicContext: string;  // Value proposition
+    actionItems: string[];    // Next steps
+    shouldFix: boolean;       // Fix recommended?
+  };
+  error?: string;
+}
+```
+
+**AI Behavior Rules:**
+- Trust algorithm verdict (action field is source of truth)
+- No percentages or dollar amounts in responses
+- Use qualitative labels ("elevated wear", "concerning condition")
+- Match headline to algorithm action type
 
 ---
 
