@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.generate-issue-guidance]
 verify_jwt = false
+
+[functions.sales-coach]
+verify_jwt = false
