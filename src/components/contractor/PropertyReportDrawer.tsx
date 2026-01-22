@@ -387,6 +387,7 @@ export function PropertyReportDrawer({
   const warrantyExpired = asset.calendarAge > asset.warrantyYears;
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
         <SheetHeader className="sticky top-0 bg-card z-10 p-4 border-b border-border">
@@ -657,13 +658,14 @@ export function PropertyReportDrawer({
           </Button>
         </div>
       </SheetContent>
-
-      {/* Sales Coach Overlay */}
-      <SalesCoachDrawer
-        open={showSalesCoach}
-        onClose={() => setShowSalesCoach(false)}
-        opportunity={opportunity}
-      />
     </Sheet>
+
+    {/* Sales Coach Overlay - rendered outside Sheet for proper z-index */}
+    <SalesCoachDrawer
+      open={showSalesCoach}
+      onClose={() => setShowSalesCoach(false)}
+      opportunity={opportunity}
+    />
+    </>
   );
 }
