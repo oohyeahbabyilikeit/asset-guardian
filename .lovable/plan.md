@@ -1,231 +1,97 @@
 
-# Backend Documentation Update: Current Database & Edge Functions State
 
-## Overview
+# Make Maintenance Schedule Tasks Clickable for Service Information
 
-The `docs/backend.md` file needs updates to reflect the current database schema and edge function inventory. Several tables and functions have been added since the documentation was last updated.
+## What We're Building
 
-## Gap Analysis
+The "Tank Flush Due in Now" item (and other maintenance tasks) in the `OptionsAssessmentDrawer` should be clickable, opening the `EducationalDrawer` with relevant information about that service.
 
-### Missing Tables (Not Documented)
+## Current State
 
-| Table | Purpose | Status |
-|-------|---------|--------|
-| `opportunity_notifications` | Contractor alerts for maintenance/warranty opportunities | **Not in docs** |
-
-### Missing Edge Functions
-
-| Function | Purpose | Status |
-|----------|---------|--------|
-| `generate-issue-guidance` | AI-generated infrastructure issue explanations | **Not in overview table** |
-
-### Incomplete Schema Documentation
-
-The `water_heaters` table is missing 9 algorithm-related columns that now exist in the database:
-
-| Column | Type | Purpose |
-|--------|------|---------|
-| `people_count` | integer | Household size for usage calculation |
-| `usage_type` | text | normal/heavy/light usage pattern |
-| `measured_hardness_gpg` | numeric | Measured water hardness |
-| `sanitizer_type` | text | CHLORINE/CHLORAMINE/UNKNOWN |
-| `softener_salt_status` | text | Salt level status |
-| `nipple_material` | text | Connection nipple material |
-| `last_flush_years_ago` | numeric | Years since last flush |
-| `last_anode_replace_years_ago` | numeric | Years since anode replacement |
-| `years_without_softener` | numeric | Years exposed to hard water |
-| `years_without_anode` | numeric | Years without anode protection |
-| `is_annually_maintained` | boolean | Regular maintenance flag |
-
----
+- The drawer already has `EducationalDrawer` integrated with state management (`selectedTopic`)
+- Priority Findings are already clickable and map to educational topics
+- The maintenance schedule items (lines 404-435) are currently **static divs** - not interactive
 
 ## Implementation Plan
 
-### Step 1: Add `opportunity_notifications` Table Schema
+### Step 1: Add Task-to-Topic Mapping Function
 
-Add after the `maintenance_notification_requests` section (~line 531):
+Add a new helper function that maps maintenance task types to educational topics:
 
-```markdown
-#### `opportunity_notifications`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `water_heater_id` | `uuid` | No | - | FK to water_heaters (CASCADE) |
-| `contractor_id` | `uuid` | No | - | FK to profiles (CASCADE) |
-| `opportunity_type` | `text` | No | - | `warranty_ending`, `flush_due`, `anode_due`, etc. |
-| `priority` | `text` | No | `'medium'` | `low`, `medium`, `high`, `critical` |
-| `health_score` | `integer` | Yes | - | Unit health at notification time |
-| `fail_probability` | `numeric` | Yes | - | Failure probability snapshot |
-| `calculated_age` | `numeric` | Yes | - | Bio age at notification time |
-| `opportunity_context` | `jsonb` | Yes | `'{}'` | Additional context data |
-| `status` | `text` | No | `'pending'` | `pending`, `sent`, `viewed`, `converted`, `dismissed` |
-| `dismiss_reason` | `text` | Yes | - | Why contractor dismissed |
-| `created_at` | `timestamptz` | No | `now()` | Record creation time |
-| `sent_at` | `timestamptz` | Yes | - | When notification sent |
-| `viewed_at` | `timestamptz` | Yes | - | When contractor viewed |
-| `expires_at` | `timestamptz` | Yes | `now() + 30 days` | Notification expiration |
-```
-
-### Step 2: Update ER Diagram
-
-Add relationship lines in the mermaid diagram (~line 94-131):
-
-```mermaid
-%% Add to Asset Layer section
-water_heaters ||--o{ opportunity_notifications : "generates"
-opportunity_notifications }o--|| profiles : "assigned_to"
-```
-
-Add table definition:
-```
-opportunity_notifications {
-    uuid id PK
-    uuid water_heater_id FK
-    uuid contractor_id FK
-    string opportunity_type
-    string priority
-    string status
-    timestamp expires_at
-}
-```
-
-### Step 3: Add `generate-issue-guidance` Edge Function
-
-Add to the Edge Functions overview table (~line 775):
-
-```markdown
-| `generate-issue-guidance` | Content | gemini-3-flash-preview | No | No |
-```
-
-Add detailed section after `generate-educational-content` (~line 1083):
-
-```markdown
-#### `generate-issue-guidance`
-
-**Purpose:** Generate personalized infrastructure issue explanations for homeowners.
-
-**Request:**
 ```typescript
-interface IssueGuidanceRequest {
-  context: {
-    issueId: string;          // e.g., 'missing_prv', 'missing_exp_tank'
-    issueName: string;        // Technical issue name
-    friendlyName: string;     // User-friendly description
-    recommendation: {
-      action: 'REPLACE' | 'REPAIR' | 'MAINTAIN' | 'MONITOR';
-      reason: string;
-    };
-    location: string;         // Installation location
-    damageScenario: {
-      min: number;            // Minimum damage estimate
-      max: number;            // Maximum damage estimate
-      description: string;
-    };
-    unitAge: number;
-    healthScore: number;
-    agingRate: number;
-    isServiceable: boolean;
-    manufacturer?: string;
-    stressFactors?: Record<string, number>;
+function getTaskEducationalTopic(taskType: string, metrics?: OpterraMetrics): EducationalTopic | null {
+  // Context-aware mapping (like ServiceHistory does)
+  const isSedimentRisky = metrics?.sedimentLbs && metrics.sedimentLbs > 10;
+  const isAnodeFused = metrics?.anodeStatus === 'fused';
+  
+  const topicMap: Record<string, EducationalTopic> = {
+    'flush': isSedimentRisky ? 'sediment-risky' : 'sediment',
+    'anode': isAnodeFused ? 'anode-rod-fused' : 'anode-rod',
+    'descale': 'scale-tankless',
+    'filter_clean': 'heat-exchanger',
+    'exp_tank_install': 'thermal-expansion',
+    'exp_tank_replace': 'thermal-expansion',
+    'prv_install': 'prv',
+    'prv_replace': 'prv',
   };
+  return topicMap[taskType] || null;
 }
 ```
 
-**Response:**
-```typescript
-interface IssueGuidanceResponse {
-  success: boolean;
-  guidance?: {
-    headline: string;         // 3-5 word summary
-    explanation: string;      // Plain language issue description
-    yourSituation: string;    // Personalized context
-    recommendation: string;   // Action guidance
-    economicContext: string;  // Value proposition
-    actionItems: string[];    // Next steps
-    shouldFix: boolean;       // Fix recommended?
-  };
-  error?: string;
-}
+### Step 2: Convert Task Items to Clickable Buttons
+
+Transform the maintenance task items from static `<div>` to interactive `<button>` elements:
+
+**Current (lines 406-418):**
+```tsx
+<div className="flex items-center justify-between">
+  <div className="flex items-center gap-2">
+    {/* icon + label */}
+  </div>
+  <span>Due in {formatDueDate(...)}</span>
+</div>
 ```
 
-**AI Behavior Rules:**
-- Trust algorithm verdict (action field is source of truth)
-- No percentages or dollar amounts in responses
-- Use qualitative labels ("elevated wear", "concerning condition")
-- Match headline to algorithm action type
+**Updated:**
+```tsx
+<button 
+  onClick={() => {
+    const topic = getTaskEducationalTopic(schedule.primaryTask.type, metrics);
+    if (topic) setSelectedTopic(topic);
+  }}
+  className="w-full flex items-center justify-between hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors cursor-pointer"
+>
+  <div className="flex items-center gap-2">
+    {/* icon + label */}
+  </div>
+  <div className="flex items-center gap-1.5">
+    <span className="text-xs text-muted-foreground">
+      Due in {formatDueDate(...)}
+    </span>
+    <Info className="w-3.5 h-3.5 text-muted-foreground" />
+  </div>
+</button>
 ```
 
-### Step 4: Update `water_heaters` Table Schema
+### Step 3: Visual Feedback
 
-Add missing columns to the `water_heaters` table definition (~line 345-394):
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `people_count` | `integer` | Yes | `3` | Household size |
-| `usage_type` | `text` | Yes | `'normal'` | `normal`, `heavy`, `light` |
-| `measured_hardness_gpg` | `numeric` | Yes | - | Tested water hardness |
-| `sanitizer_type` | `text` | Yes | `'UNKNOWN'` | `CHLORINE`, `CHLORAMINE`, `UNKNOWN` |
-| `softener_salt_status` | `text` | Yes | `'UNKNOWN'` | Salt level status |
-| `nipple_material` | `text` | Yes | - | Pipe nipple material |
-| `last_flush_years_ago` | `numeric` | Yes | - | Years since last flush |
-| `last_anode_replace_years_ago` | `numeric` | Yes | - | Years since anode service |
-| `years_without_softener` | `numeric` | Yes | - | Hard water exposure years |
-| `years_without_anode` | `numeric` | Yes | - | Unprotected years |
-| `is_annually_maintained` | `boolean` | Yes | `false` | Regular maintenance flag |
-
-### Step 5: Update Foreign Key Reference Table
-
-Add to the FK table (~line 720-742):
-
-```markdown
-| `opportunity_notifications` | `water_heater_id` | `water_heaters` | CASCADE |
-| `opportunity_notifications` | `contractor_id` | `profiles` | CASCADE |
-```
-
-### Step 6: Update Table Categories
-
-Add `opportunity_notifications` to the Commercial category (~line 752):
-
-```markdown
-| **Commercial** | `quotes`, `leads`, `maintenance_notification_requests`, `opportunity_notifications` | Business operations |
-```
-
-### Step 7: Update Relationship Chains
-
-Add new chain after Lead Generation Chain (~line 700):
-
-```markdown
-#### 6. Opportunity Notification Chain
-```
-water_heaters
-    ↓ (algorithm triggers)
-opportunity_notifications
-    ↓
-contractor (via contractor_id)
-```
-
-**Key Points:**
-- Notifications generated when maintenance thresholds met
-- Linked to both asset and assigned contractor
-- Status workflow: pending → sent → viewed → converted/dismissed
-- Auto-expire after 30 days
-```
-
----
+Add visual cues to indicate interactivity:
+- Hover state with subtle background change
+- Info icon on the right side (consistent with ServiceHistory pattern)
+- Cursor pointer
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `docs/backend.md` | Add opportunity_notifications schema, add generate-issue-guidance function, update water_heaters columns, update ER diagram, update FK table, update category table |
+| `src/components/OptionsAssessmentDrawer.tsx` | Add `getTaskEducationalTopic` function, convert primary/secondary task divs to buttons |
 
-## Verification Checklist
+## Expected Result
 
-After implementation, confirm:
-- [ ] `opportunity_notifications` table fully documented with all 14 columns
-- [ ] `generate-issue-guidance` in edge function table and has detailed section
-- [ ] `water_heaters` table has all 11 missing algorithm columns
-- [ ] ER diagram shows `opportunity_notifications` relationships
-- [ ] FK reference table includes CASCADE delete relationships
-- [ ] Table categories include the new table
+Users can tap on "Tank Flush Due in Now" (or any maintenance task) and see educational content explaining:
+- What the service is
+- Why it's important
+- What happens if ignored
+
+This follows the existing UX pattern from `ServiceHistory.tsx` where Anode and Sediment indicators are already clickable for education.
+
