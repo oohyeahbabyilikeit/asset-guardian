@@ -432,19 +432,26 @@ export function OptionsAssessmentDrawer({
                           const topic = getTaskEducationalTopic(schedule.primaryTask!.type);
                           if (topic) setSelectedTopic(topic);
                         }}
-                        className={`w-full flex items-center justify-between hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors ${hasTopic ? 'cursor-pointer' : ''}`}
+                        className={`w-full flex items-center justify-between rounded-lg p-3 transition-all duration-200 group ${hasTopic ? 'cursor-pointer bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 hover:scale-[1.01] active:scale-[0.99]' : 'bg-muted/30'}`}
                         disabled={!hasTopic}
                       >
-                        <div className="flex items-center gap-2">
-                          <TaskIcon className="w-4 h-4 text-primary" />
-                          <span className="text-sm text-foreground">{schedule.primaryTask.label}</span>
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                            <TaskIcon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="text-left">
+                            <span className="text-sm font-medium text-foreground">{schedule.primaryTask.label}</span>
+                            <p className="text-xs text-muted-foreground">
+                              Due in {formatDueDate(schedule.primaryTask.monthsUntilDue)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">
-                            Due in {formatDueDate(schedule.primaryTask.monthsUntilDue)}
-                          </span>
-                          {hasTopic && <Info className="w-3.5 h-3.5 text-muted-foreground" />}
-                        </div>
+                        {hasTopic && (
+                          <div className="flex items-center gap-1 text-xs text-primary/70 group-hover:text-primary transition-colors">
+                            <span className="hidden sm:inline">Learn more</span>
+                            <Info className="w-4 h-4" />
+                          </div>
+                        )}
                       </button>
                     );
                   })()}
@@ -458,19 +465,26 @@ export function OptionsAssessmentDrawer({
                           const topic = getTaskEducationalTopic(schedule.secondaryTask!.type);
                           if (topic) setSelectedTopic(topic);
                         }}
-                        className={`w-full flex items-center justify-between hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors ${hasTopic ? 'cursor-pointer' : ''}`}
+                        className={`w-full flex items-center justify-between rounded-lg p-3 transition-all duration-200 group ${hasTopic ? 'cursor-pointer bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 hover:scale-[1.01] active:scale-[0.99]' : 'bg-muted/30'}`}
                         disabled={!hasTopic}
                       >
-                        <div className="flex items-center gap-2">
-                          <TaskIcon className="w-4 h-4 text-primary" />
-                          <span className="text-sm text-foreground">{schedule.secondaryTask.label}</span>
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                            <TaskIcon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="text-left">
+                            <span className="text-sm font-medium text-foreground">{schedule.secondaryTask.label}</span>
+                            <p className="text-xs text-muted-foreground">
+                              Due in {formatDueDate(schedule.secondaryTask.monthsUntilDue)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">
-                            Due in {formatDueDate(schedule.secondaryTask.monthsUntilDue)}
-                          </span>
-                          {hasTopic && <Info className="w-3.5 h-3.5 text-muted-foreground" />}
-                        </div>
+                        {hasTopic && (
+                          <div className="flex items-center gap-1 text-xs text-primary/70 group-hover:text-primary transition-colors">
+                            <span className="hidden sm:inline">Learn more</span>
+                            <Info className="w-4 h-4" />
+                          </div>
+                        )}
                       </button>
                     );
                   })()}
