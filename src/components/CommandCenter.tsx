@@ -381,6 +381,11 @@ export function CommandCenter({
     descaleStatus,
     flowDegradation,
     scaleBuildupScore,
+    // NEW v9.3: Anode burn rate transparency
+    anodeBurnRate,
+    anodeBurnFactors,
+    anodeDepletionPercent,
+    anodeStatus,
   } = metrics;
   
   const recommendation = verdict;
@@ -659,6 +664,11 @@ export function CommandCenter({
               hasIsolationValves={currentInputs.hasIsolationValves}
               descaleStatus={descaleStatus}
               healthScore={dynamicHealthScore.score}
+              // NEW v9.3: Anode burn rate transparency
+              anodeBurnRate={anodeBurnRate}
+              anodeBurnFactors={anodeBurnFactors}
+              anodeDepletionPercent={anodeDepletionPercent}
+              anodeStatus={anodeStatus}
             />
           </motion.div>
 
