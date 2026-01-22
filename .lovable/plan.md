@@ -1,210 +1,213 @@
 
+# Simplify Risk Analysis Drawer - Progressive Disclosure Approach
 
-# ✅ IMPLEMENTED: Optimize Risk Analysis Page for Homeowner Experience
+## Current Problem
 
-## Problem Analysis
+The OptionsAssessmentDrawer displays too much content at once, creating immediate visual overwhelm:
 
-The current `OptionsAssessmentDrawer` has several UX issues that make it less effective for non-technical homeowners:
+| Current Element | Lines | Issue |
+|-----------------|-------|-------|
+| Header + Description | 369-374 | Two lines of header text |
+| Large Verdict Banner | 377-388 | Good, but competes with other content |
+| Photo Evidence | 390-405 | Adds visual weight |
+| "Why" Rationale (3 cards) | 407-436 | Largest content block |
+| Collapsed Findings | 439-484 | Still visible as trigger |
+| Fallback Summary | 486-499 | Conditional but adds height |
+| "What's Next" Preview | 663-704 | 4 category previews |
+| Two CTAs | 708-730 | Chat + main CTA |
 
-| Current Issue | Impact |
-|---------------|--------|
-| Dense technical structure | Overwhelming for homeowners who just want to understand their situation |
-| "Priority Findings" with CODE labels | Technical jargon like "CODE VIOLATION" feels institutional, not personal |
-| Separate "Why We Recommend This" section | The rationale gets buried below technical findings |
-| Multiple competing content sections | Decision fatigue from too many elements |
-| Small recommendation banner | The core message doesn't stand out enough |
-| Technical fallback messaging | References "wear level" and "biological age" concepts |
+**Total: 7-8 distinct content sections visible immediately**
 
-## Proposed Solution: "Story-First" Layout
+## Solution: "Single Takeaway" Design
 
-Transform the drawer into a clear, narrative-driven assessment that leads with the personalized "why" and uses visual storytelling instead of technical data dumps.
+Transform the drawer into a focused, single-message experience with optional depth.
 
-### New Visual Hierarchy
+### New Hierarchy (3 tiers)
 
 ```text
 ┌─────────────────────────────────────────┐
-│ ⚠️  REPLACEMENT RECOMMENDED             │  ← BIG, clear verdict
-│     Your water heater has reached       │
-│     the end of its serviceable life     │
-├─────────────────────────────────────────┤
 │                                         │
-│  📸 [Condition Photo from Inspection]   │  ← NEW: Show actual evidence
+│  ⚠️  REPLACEMENT RECOMMENDED            │  
 │                                         │
-│  "Here's what we found during           │
-│   your inspection..."                   │
+│  Based on your inspection, continuing   │
+│  to repair this unit will likely cost   │
+│  more than it's worth.                  │
 │                                         │
 ├─────────────────────────────────────────┤
 │                                         │
-│  💡 WHY WE RECOMMEND THIS               │  ← MOVED UP: Primary focus
-│  ┌─────────────────────────────────┐    │
-│  │ The Economics                   │    │
-│  │ Repair costs now exceed the     │    │
-│  │ value this unit can provide...  │    │
-│  └─────────────────────────────────┘    │
-│  ┌─────────────────────────────────┐    │
-│  │ Peace of Mind                   │    │
-│  │ A new unit comes with warranty, │    │
-│  │ improved efficiency, and...     │    │
-│  └─────────────────────────────────┘    │
+│  [     See My Options →     ]           │  ← PRIMARY CTA
 │                                         │
-├─────────────────────────────────────────┤
-│                                         │
-│  🔍 WHAT WE FOUND (collapsed by default)│  ← Demoted: Secondary info
-│  ▸ Expansion tank issue                 │
-│  ▸ Sediment buildup detected            │
-│                                         │
-├─────────────────────────────────────────┤
-│                                         │
-│  [    See My Options →    ]             │
-│                                         │
-│  💬 Chat with Corrtex AI                │
+│  ▸ View Details                         │  ← Expands everything else
 │                                         │
 └─────────────────────────────────────────┘
 ```
 
 ### Key Changes
 
-1. **Lead with the Verdict (enlarged)**
-   - Make the recommendation banner larger, bolder, and more prominent
-   - Use conversational language: "Your water heater has reached the end of its serviceable life" instead of "Based on our assessment"
+**1. Merge Verdict + Rationale into One Block**
 
-2. **Add Visual Evidence Section**
-   - Show the actual inspection photo (if available from `inputs.photoUrls?.condition`)
-   - Add a brief contextual line: "Here's what we found during your inspection"
-   - This creates immediate credibility and emotional connection
+Instead of a banner THEN rationale cards, combine them:
 
-3. **Elevate the "Why" Rationale**
-   - Move the personalized rationale section to position #2 (right after the verdict)
-   - Make it the centerpiece of the drawer
-   - Add a friendly header: "Here's why this makes sense for you"
+```typescript
+<div className="rounded-2xl p-6 bg-destructive/10 border-2 border-destructive/40">
+  <div className="flex items-center gap-3 mb-4">
+    <AlertTriangle className="w-8 h-8 text-destructive" />
+    <h3 className="text-xl font-bold">Replacement Recommended</h3>
+  </div>
+  <p className="text-foreground/80 leading-relaxed">
+    {rationale?.summary || "Based on your inspection, continuing to repair 
+    this unit will likely cost more than it's worth. A new water heater 
+    gives you reliability, efficiency, and peace of mind."}
+  </p>
+</div>
+```
 
-4. **Collapse Technical Findings**
-   - Move "Priority Findings" to a collapsible accordion at the bottom
-   - Rename to "Inspection Details" or "What We Found"
-   - Default to collapsed to reduce cognitive load
-   - Users can expand if they want the technical details
+**2. Move Photo + Details to Collapsible**
 
-5. **Simplify Language Throughout**
-   - Replace "CODE VIOLATION" with "Needs Attention"
-   - Replace "URGENT ACTION" with "Worth Addressing"
-   - Remove all references to percentages, biological age, or failure rates
+Hide secondary content behind "View Details":
 
-6. **Humanize the Fallback Summary**
-   - Current: "Your unit is showing elevated wear – well past the typical 8-12 year lifespan"
-   - New: "Your water heater is older and showing signs of wear. At this point, repairs often cost more than they're worth."
+```typescript
+<Collapsible>
+  <CollapsibleTrigger>
+    ▸ View Details ({findings.length} items)
+  </CollapsibleTrigger>
+  <CollapsibleContent>
+    {/* Photo evidence */}
+    {/* Rationale breakdown cards */}
+    {/* Priority findings */}
+  </CollapsibleContent>
+</Collapsible>
+```
+
+**3. Remove "What's Next" Preview Entirely**
+
+The next page will show this - no need to preview. Delete lines 663-704.
+
+**4. Consolidate CTAs**
+
+Move "Chat with Corrtex" into the collapsible details section or make it an inline text link instead of a full-width button.
+
+**5. One-liner Summary for Rationale**
+
+Instead of 3 separate rationale cards, show just ONE key sentence from the AI, with expansion available.
+
+### Visual Comparison
+
+| Before | After |
+|--------|-------|
+| Header (2 lines) | Single title |
+| Banner (4 lines) | Combined verdict block |
+| Photo (full width) | Hidden in "Details" |
+| 3 Rationale cards | 1-sentence summary |
+| Collapsible findings | Merged into "Details" |
+| "What's Next" preview | Removed |
+| 2 CTAs stacked | 1 CTA + text link |
+| **~350px content** | **~180px content** |
+
+## Implementation Details
+
+### 1. Unified Verdict Block (replaces lines 377-436)
+
+Create a single, calm verdict card that combines the headline + one-sentence rationale:
+
+```typescript
+{/* Unified Verdict - calm, focused */}
+<div className={`rounded-2xl p-6 ${recommendation.bgColor} border ${recommendation.borderColor}`}>
+  <div className="flex items-center gap-3 mb-3">
+    <Icon className={`w-7 h-7 ${recommendation.iconColor}`} />
+    <h3 className="text-lg font-bold text-foreground">{recommendation.headline}</h3>
+  </div>
+  <p className="text-sm text-muted-foreground leading-relaxed">
+    {verdictAction === 'REPLACE' 
+      ? (rationale?.summary || "Continuing to repair this unit will likely cost more than it's worth. A new water heater gives you reliability and peace of mind.")
+      : recommendation.subheadline
+    }
+  </p>
+</div>
+```
+
+### 2. "View Details" Collapsible (replaces lines 390-499)
+
+Move ALL secondary content (photo, rationale cards, findings) into one expansion:
+
+```typescript
+<Collapsible open={detailsExpanded} onOpenChange={setDetailsExpanded}>
+  <CollapsibleTrigger className="w-full flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+    <span>{detailsExpanded ? 'Hide' : 'View'} Details</span>
+    <ChevronDown className={`w-4 h-4 transition-transform ${detailsExpanded ? 'rotate-180' : ''}`} />
+  </CollapsibleTrigger>
+  <CollapsibleContent className="space-y-4 pt-3">
+    {/* Photo evidence */}
+    {inputs.photoUrls?.condition && (
+      <div className="rounded-xl overflow-hidden border border-border">
+        <img src={inputs.photoUrls.condition} className="w-full h-36 object-cover" />
+        <p className="text-xs text-muted-foreground p-2 bg-muted/30">
+          Photo from your inspection
+        </p>
+      </div>
+    )}
+    
+    {/* Rationale breakdown - only if user expands */}
+    {rationale?.sections && (
+      <div className="space-y-2">
+        {rationale.sections.map((section, i) => (
+          <div key={i} className="p-3 rounded-lg bg-muted/20 border border-border/50">
+            <p className="text-xs font-medium text-foreground mb-1">{section.heading}</p>
+            <p className="text-xs text-muted-foreground">{section.content}</p>
+          </div>
+        ))}
+      </div>
+    )}
+    
+    {/* Priority findings */}
+    {hasPriorityFindings && (
+      <div className="space-y-2">
+        {priorityFindings.map((finding) => /* existing finding cards */)}
+      </div>
+    )}
+    
+    {/* Chat link - inline */}
+    <button 
+      onClick={() => setShowCorrtexChat(true)}
+      className="flex items-center gap-2 text-sm text-primary hover:underline"
+    >
+      <Sparkles className="w-4 h-4" />
+      Have questions? Chat with Corrtex AI
+    </button>
+  </CollapsibleContent>
+</Collapsible>
+```
+
+### 3. Delete "What's Next" Section
+
+Remove lines 663-704 entirely. The next page will reveal this content.
+
+### 4. Simplified CTA Area
+
+Single primary button, no secondary Chat button:
+
+```typescript
+<Button 
+  onClick={handleCTA}
+  size="lg"
+  className="w-full font-semibold"
+>
+  {ctaText}
+  <ChevronRight className="w-5 h-5 ml-1" />
+</Button>
+```
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/OptionsAssessmentDrawer.tsx` | Complete restructure of content hierarchy |
-
-## Implementation Details
-
-### 1. Restructure Component Layout (lines 375-700)
-
-Move the "Why We Recommend This" section immediately after the recommendation banner, before any findings:
-
-```typescript
-{/* Recommendation Banner - ENLARGED */}
-<div className={`rounded-2xl p-5 ${recommendation.bgColor} border-2 ${recommendation.borderColor}`}>
-  {/* ... existing banner content, but larger */}
-</div>
-
-{/* Visual Evidence - NEW */}
-{verdictAction === 'REPLACE' && inputs.photoUrls?.condition && (
-  <div className="rounded-xl overflow-hidden border border-border">
-    <img 
-      src={inputs.photoUrls.condition} 
-      alt="Your water heater condition"
-      className="w-full h-40 object-cover"
-    />
-    <p className="text-xs text-muted-foreground p-3 bg-muted/30">
-      Photo captured during your inspection
-    </p>
-  </div>
-)}
-
-{/* Why We Recommend This - MOVED UP */}
-{verdictAction === 'REPLACE' && (
-  <div className="space-y-3">
-    <h4 className="font-semibold text-foreground">
-      Here's why this makes sense for you
-    </h4>
-    {/* ... rationale content */}
-  </div>
-)}
-
-{/* Inspection Details - COLLAPSED BY DEFAULT */}
-{hasPriorityFindings && (
-  <Collapsible>
-    <CollapsibleTrigger>What We Found</CollapsibleTrigger>
-    <CollapsibleContent>
-      {/* ... existing findings */}
-    </CollapsibleContent>
-  </Collapsible>
-)}
-```
-
-### 2. Update Finding Labels (lines 131-157)
-
-Humanize the category labels:
-
-```typescript
-function getFindingStyle(finding: PriorityFinding) {
-  if (finding.category === 'VIOLATION' || finding.severity === 'critical') {
-    return {
-      label: 'NEEDS ATTENTION',  // was: CODE VIOLATION
-      // ... rest unchanged
-    };
-  }
-  if (finding.category === 'INFRASTRUCTURE' || finding.severity === 'warning') {
-    return {
-      label: 'WORTH ADDRESSING',  // was: URGENT ACTION
-      // ... rest unchanged
-    };
-  }
-  // ...
-}
-```
-
-### 3. Simplify Fallback Summary (lines 203-224)
-
-Make the language more conversational:
-
-```typescript
-function getFallbackSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tier: UrgencyTier): string[] {
-  const points: string[] = [];
-  
-  if (metrics.bioAge >= 12) {
-    points.push(`Your water heater is older and showing signs of wear.`);
-  } else if (metrics.bioAge >= 8) {
-    points.push(`Your unit is entering the age where issues become more common.`);
-  }
-  
-  if (tier === 'healthy') {
-    points.push('Regular maintenance helps prevent unexpected problems.');
-  }
-  
-  return points;
-}
-```
-
-### 4. Add Collapsible Component Import
-
-```typescript
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-```
+| `src/components/OptionsAssessmentDrawer.tsx` | Major restructure to progressive disclosure |
 
 ## Expected Outcome
 
-After these changes, a homeowner opening the Risk Analysis drawer will see:
+When the drawer opens, homeowners see:
+1. One clear verdict card with a single sentence explanation
+2. One primary CTA button
+3. An unobtrusive "View Details" link for those who want more
 
-1. A large, clear verdict they can understand in 2 seconds
-2. Their actual inspection photo (visual proof)
-3. A personalized explanation of WHY replacement makes sense
-4. An optional expandable section with technical details (if they want them)
-5. A clear CTA to continue
-
-This follows the "Education-First" principle while respecting that homeowners want to understand the "why" before diving into technical findings.
-
+This reduces cognitive load from 7+ sections to just 2 visible elements, making the decision path obvious while still preserving access to detailed evidence for those who want it.
