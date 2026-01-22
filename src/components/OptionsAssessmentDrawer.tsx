@@ -60,7 +60,10 @@ function getUrgencyTier(
   isPassVerdict: boolean,
   priorityFindings: PriorityFinding[]
 ): UrgencyTier {
-  // Check for critical findings first - violations override PASS verdict
+  // REPLACE verdict always takes priority - the algorithm has spoken
+  if (verdictAction === 'REPLACE') return 'critical';
+  
+  // Check for critical findings - violations override PASS verdict
   const hasCriticalFinding = priorityFindings.some(f => f.severity === 'critical');
   const hasWarningFinding = priorityFindings.some(f => f.severity === 'warning');
   
@@ -71,17 +74,23 @@ function getUrgencyTier(
   if (isPassVerdict) return 'monitor';
   
   // Existing logic for health score thresholds
-  if (healthScore < 40 || verdictAction === 'REPLACE') return 'critical';
+  if (healthScore < 40) return 'critical';
   if (healthScore < 70 || verdictAction === 'REPAIR') return 'attention';
   return 'healthy';
 }
 
-function getRecommendation(tier: UrgencyTier) {
+function getRecommendation(tier: UrgencyTier, verdictAction?: VerdictAction) {
   switch (tier) {
     case 'critical':
+      // Use replacement-specific language when REPLACE is the verdict
+      const isReplacement = verdictAction === 'REPLACE';
       return {
-        headline: 'Immediate Attention Recommended',
-        subheadline: 'Our assessment found issues that need prompt professional attention.',
+        headline: isReplacement 
+          ? 'Replacement Recommended' 
+          : 'Immediate Attention Recommended',
+        subheadline: isReplacement
+          ? 'Based on our assessment, your unit has reached the end of its serviceable life.'
+          : 'Our assessment found issues that need prompt professional attention.',
         icon: AlertTriangle,
         iconColor: 'text-destructive',
         bgColor: 'bg-destructive/10',
@@ -235,7 +244,7 @@ export function OptionsAssessmentDrawer({
   const [showCorrtexChat, setShowCorrtexChat] = useState(false);
   
   const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
-  const recommendation = getRecommendation(tier);
+  const recommendation = getRecommendation(tier, verdictAction);
   const Icon = recommendation.icon;
   
   // Calculate maintenance schedule for monitor tier
