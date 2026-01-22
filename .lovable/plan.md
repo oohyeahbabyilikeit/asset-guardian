@@ -1,185 +1,323 @@
 
 
-# Contractor Dashboard - Layout Redesign
+# Remove Dollar Tracking - Implement Service-Based Closes
 
-## Current Problems
+## Summary
 
-Based on the screenshot and code analysis:
+Replace the revenue-focused pipeline metrics with service completion tracking. "Closes" will be counted by actual technician actions recorded through the technician app, categorized into three main buckets:
 
-1. **Endless vertical scroll** - 13 lead cards stack one after another, pushing Pipeline and Quick Actions to the bottom (requires scrolling past ~15 screens of content)
-2. **Lead cards are too verbose** - Each card shows 7+ lines of content (type label, name, address, unit summary, context, metadata row, actions)
-3. **No information density** - The `max-w-3xl` constraint wastes horizontal space on larger screens
-4. **Key metrics buried** - Pipeline overview and Quick Actions (the "command center" elements) are hidden at the very bottom
-5. **No visual grouping** - Stats, Feed, Pipeline, Actions all look like separate unrelated sections
-6. **Mobile-only layout** - The single column doesn't adapt to take advantage of wider screens
+1. **Maintenance** - flush, anode_replacement, descale, filter_clean, inspection
+2. **Code Violation Fixes** - exp_tank_install, exp_tank_replace, prv_install, prv_replace, softener_install
+3. **Replacements** - replacement (full unit replacement)
 
-## Design Solution: Split-Panel Dashboard
+---
 
-Create a proper CRM layout with:
-- **Left panel**: Quick metrics, pipeline, and actions (always visible)
-- **Right panel**: Scrollable opportunity feed (the "inbox")
-- **Responsive**: Collapses to tabbed view on mobile
+## Data Model Changes
 
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│  Header                                                                 │
-├──────────────────────────┬─────────────────────────────────────────────┤
-│                          │                                              │
-│  OVERVIEW PANEL          │  OPPORTUNITY FEED                           │
-│  (Fixed, non-scrolling)  │  (Scrollable inbox)                         │
-│                          │                                              │
-│  ┌────────────────────┐  │  ┌────────────────────────────────────────┐ │
-│  │ Today's Priority   │  │  │ Johnson Family - Active Leak           │ │
-│  │ 2 Critical Actions │  │  │ 12yr Rheem Gas Tank | Health 24        │ │
-│  └────────────────────┘  │  │ [Call] [Details] [×]                   │ │
-│                          │  └────────────────────────────────────────┘ │
-│  ┌────────────────────┐  │  ┌────────────────────────────────────────┐ │
-│  │ Pipeline           │  │  │ Williams Residence - T&P Weeping       │ │
-│  │ 8→4→2→12           │  │  │ 15yr Bradford White | Health 18        │ │
-│  │ $88K potential     │  │  │ [Call] [Details] [×]                   │ │
-│  └────────────────────┘  │  └────────────────────────────────────────┘ │
-│                          │  ┌────────────────────────────────────────┐ │
-│  ┌────────────────────┐  │  │ Martinez Residence - Warranty Exp.     │ │
-│  │ Quick Actions      │  │  │ 5yr A.O. Smith | Health 62             │ │
-│  │ [Inspect] [Props]  │  │  │ [Call] [Details] [Later] [×]          │ │
-│  │ [Pricing] [Report] │  │  └────────────────────────────────────────┘ │
-│  └────────────────────┘  │                                              │
-│                          │  ... more leads ...                          │
-│                          │                                              │
-└──────────────────────────┴─────────────────────────────────────────────┘
+### Update `mockContractorData.ts`
+
+Replace revenue-based pipeline with service-close metrics:
+
+**Before:**
+```typescript
+interface PipelineStage {
+  name: string;
+  count: number;
+  revenue: number;  // ❌ Remove
+}
+
+interface MockPipeline {
+  stages: PipelineStage[];
+  conversionRate: number;
+  totalRevenue: number;  // ❌ Remove
+}
 ```
+
+**After:**
+```typescript
+export type CloseCategory = 'maintenance' | 'code_fixes' | 'replacements';
+
+interface ServiceCloseMetrics {
+  maintenance: {
+    total: number;
+    breakdown: { flush: number; anode: number; descale: number; inspection: number };
+  };
+  codeFixes: {
+    total: number;
+    breakdown: { expTank: number; prv: number; softener: number };
+  };
+  replacements: {
+    total: number;
+  };
+  thisMonth: number;
+  lastMonth: number;
+  trend: 'up' | 'down' | 'flat';
+}
+
+interface MockPipeline {
+  stages: { name: string; count: number }[];  // No revenue
+  conversionRate: number;
+  closes: ServiceCloseMetrics;  // New: tracks actual service completions
+}
+```
+
+### New Mock Data
+
+```typescript
+export const mockPipeline: MockPipeline = {
+  stages: [
+    { name: 'New', count: 8 },
+    { name: 'Contacted', count: 4 },
+    { name: 'Scheduled', count: 2 },  // Renamed from "Quoted"
+    { name: 'Completed', count: 12 }, // Renamed from "Closed"
+  ],
+  conversionRate: 46,
+  closes: {
+    maintenance: {
+      total: 8,
+      breakdown: { flush: 4, anode: 2, descale: 1, inspection: 1 }
+    },
+    codeFixes: {
+      total: 3,
+      breakdown: { expTank: 1, prv: 1, softener: 1 }
+    },
+    replacements: {
+      total: 1,
+    },
+    thisMonth: 12,
+    lastMonth: 9,
+    trend: 'up',
+  }
+};
+```
+
+---
 
 ## Component Changes
 
-### 1. Contractor.tsx - Two-Column Layout
+### 1. `PipelineOverview.tsx` - Remove All Dollar References
 
-```typescript
-<main className="flex-1 flex">
-  {/* Left Panel - Overview (fixed width, no scroll) */}
-  <aside className="hidden lg:flex w-80 flex-col border-r border-gray-200/60 bg-white p-4 gap-4">
-    <TodaysSummary counts={counts} onPriorityClick={handlePriorityClick} />
-    <PipelineOverview compact />
-    <QuickActions compact />
-  </aside>
-  
-  {/* Right Panel - Feed (scrollable) */}
-  <div className="flex-1 overflow-y-auto">
-    <OpportunityFeed ... />
-  </div>
-</main>
+**Changes:**
+- Remove `DollarSign` icon import
+- Remove `formatCurrency` function
+- Remove `totalRevenue` usage
+- Remove per-stage revenue display
+- Add service close summary instead
+
+**New Design:**
+
+```text
+┌────────────────────────────────────────────────────┐
+│  Pipeline                        12 completed ↑    │
+├────────────────────────────────────────────────────┤
+│   8  →  4  →  2  →  12                             │
+│  New  Contact  Sched  Done                         │
+├────────────────────────────────────────────────────┤
+│  ██████████████████░░░░░░░░░  46% conversion       │
+└────────────────────────────────────────────────────┘
 ```
 
-### 2. New TodaysSummary Component
-
-Replace the 4 separate StatCards with a single cohesive summary card:
-
-```typescript
-// Shows: "2 Critical | 3 High | 5 Med | 3 Low"
-// Clickable segments to filter
-// Shows most urgent item inline
-```
-
-### 3. Compact LeadCard
-
-Reduce each card from 7 lines to 3-4 lines:
-
-**Before (too verbose):**
-```
-URGENT REPLACEMENT
-Johnson Family
-📍 1847 Sunset Dr, Phoenix AZ
-12yr Rheem Gas Tank in Attic
-Active leak detected during routine inspection
-⚙️ Elevated · 2h ago · 78% fail risk
-[Call] [Details]    [Later] [×]
-```
-
-**After (condensed):**
-```
-Johnson Family · 1847 Sunset Dr          24/100
-12yr Rheem · Active leak detected
-[📞 Call] [Details] [×]
-```
-
-Changes:
-- Merge name + address on one line
-- Remove type label (redundant with context)
-- Remove complexity badge (secondary info)
-- Inline health score badge
-- Smaller action buttons
-
-### 4. Mobile Tab Navigation
-
-On mobile (< lg breakpoint), show tabs instead of panels:
-
-```typescript
-const [activeTab, setActiveTab] = useState<'overview' | 'leads'>('leads');
-
-// Mobile: Tab bar at top
-<div className="lg:hidden flex border-b">
-  <button onClick={() => setActiveTab('overview')}>Overview</button>
-  <button onClick={() => setActiveTab('leads')}>Leads (13)</button>
-</div>
-```
-
-### 5. Compact Pipeline
-
-For the left panel, create a more compact pipeline visualization:
-
-```typescript
-// Horizontal mini-funnel
+Compact version:
+```text
+Pipeline              12 done ↑
 8 → 4 → 2 → 12
-New  Contact  Quote  Closed
-$88.3K potential | 46% conv.
+[========    ] 46%
 ```
 
-### 6. Compact Quick Actions
+### 2. New Component: `ClosesBreakdown.tsx`
 
-2x2 grid but smaller, icon-only on desktop sidebar:
+A new card showing service completion breakdown by category:
 
-```typescript
-<div className="grid grid-cols-2 gap-2">
-  <Button size="sm" variant="outline">
-    <ClipboardList className="w-4 h-4" />
-    <span className="sr-only lg:not-sr-only">Inspect</span>
-  </Button>
-  ...
-</div>
+```text
+┌────────────────────────────────────────────────────┐
+│  This Month's Closes                    12 total   │
+├────────────────────────────────────────────────────┤
+│  🔧 Maintenance        8                           │
+│     4 Flush · 2 Anode · 1 Descale · 1 Inspection   │
+│                                                     │
+│  ⚠️ Code Fixes         3                           │
+│     1 Exp Tank · 1 PRV · 1 Softener                │
+│                                                     │
+│  🔄 Replacements       1                           │
+├────────────────────────────────────────────────────┤
+│  ↑ 33% vs last month (9)                           │
+└────────────────────────────────────────────────────┘
 ```
+
+### 3. `TodaysSummary.tsx` - Add Closes Summary
+
+Add a small footer showing today's/this week's completed services:
+
+```text
+┌─────────────────────────────────────────┐
+│  Today's Actions            27 total    │
+│  ⚠️ 5 urgent actions needed             │
+│                                          │
+│  [2 Crit] [3 High] [5 Med] [3 Low]      │
+│                                          │
+│  ───────────────────────────────────    │
+│  ✓ 3 completed today                    │
+└─────────────────────────────────────────┘
+```
+
+---
 
 ## File Changes
 
-| File | Action | Changes |
-|------|--------|---------|
-| `src/pages/Contractor.tsx` | **Rewrite** | Two-column layout with responsive breakpoints |
-| `src/components/contractor/TodaysSummary.tsx` | **Create** | New cohesive summary component |
-| `src/components/contractor/LeadCard.tsx` | **Modify** | Condense to 3-4 lines, inline badges |
-| `src/components/contractor/OpportunityFeed.tsx` | **Modify** | Remove header (moved to panel), tighter spacing |
-| `src/components/contractor/PipelineOverview.tsx` | **Modify** | Add `compact` prop for sidebar mode |
-| `src/components/contractor/QuickActions.tsx` | **Modify** | Add `compact` prop for sidebar mode |
-| `src/components/contractor/StatCard.tsx` | **Delete** | Replaced by TodaysSummary |
+| File | Action | Description |
+|------|--------|-------------|
+| `src/data/mockContractorData.ts` | **Modify** | Remove `revenue`/`totalRevenue`, add `ServiceCloseMetrics` type and mock close data |
+| `src/components/contractor/PipelineOverview.tsx` | **Modify** | Remove all dollar formatting, replace with completion count + trend arrow |
+| `src/components/contractor/ClosesBreakdown.tsx` | **Create** | New component showing categorized service completions |
+| `src/pages/Contractor.tsx` | **Modify** | Add `ClosesBreakdown` to the sidebar overview panel |
 
-## Visual Improvements
+---
 
-1. **Consistent card heights** - Lead cards should be roughly same height for visual rhythm
-2. **Tighter vertical spacing** - `space-y-2` instead of `space-y-3` in feed
-3. **Fixed sidebar** - Overview panel stays visible while scrolling leads
-4. **Count badges** - Show lead count on mobile tab: "Leads (13)"
-5. **Priority indicator** - Small colored dot instead of colored border + label
+## Technical Details
 
-## Responsive Breakpoints
+### Type Definitions (mockContractorData.ts)
 
-| Screen | Layout |
-|--------|--------|
-| < 640px (mobile) | Tabbed view: Overview / Leads tabs |
-| 640-1024px (tablet) | Single column, all sections stacked but condensed |
-| > 1024px (desktop) | Two-column: Fixed sidebar + scrollable feed |
+```typescript
+export type CloseCategory = 'maintenance' | 'code_fixes' | 'replacements';
 
-## Expected Outcome
+export interface MaintenanceBreakdown {
+  flush: number;
+  anode: number;
+  descale: number;
+  inspection: number;
+}
 
-After implementation:
-- **Desktop**: See pipeline health + leads side-by-side, no buried content
-- **Mobile**: Quick tab switch between overview and action items
-- **All screens**: Leads are scannable in 2-3 lines each
-- **Faster workflow**: Key actions always one click away
+export interface CodeFixBreakdown {
+  expTank: number;
+  prv: number;
+  softener: number;
+}
+
+export interface ServiceCloseMetrics {
+  maintenance: {
+    total: number;
+    breakdown: MaintenanceBreakdown;
+  };
+  codeFixes: {
+    total: number;
+    breakdown: CodeFixBreakdown;
+  };
+  replacements: {
+    total: number;
+  };
+  thisMonth: number;
+  lastMonth: number;
+  trend: 'up' | 'down' | 'flat';
+}
+
+export interface PipelineStage {
+  name: string;
+  count: number;
+  // revenue removed
+}
+
+export interface MockPipeline {
+  stages: PipelineStage[];
+  conversionRate: number;
+  closes: ServiceCloseMetrics;
+  // totalRevenue removed
+}
+```
+
+### PipelineOverview Changes
+
+```typescript
+// Before
+<div className="flex items-center gap-1.5 text-xs text-gray-400">
+  <DollarSign className="w-3 h-3" />
+  <span className="text-gray-600">{formatCurrency(totalRevenue)}</span>
+  <span>potential</span>
+</div>
+
+// After
+<div className="flex items-center gap-1.5 text-xs">
+  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+  <span className="text-gray-600 font-medium">{closes.thisMonth}</span>
+  <span className="text-gray-400">completed</span>
+  {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
+  {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-500" />}
+</div>
+```
+
+### ClosesBreakdown Component
+
+```typescript
+interface ClosesBreakdownProps {
+  closes: ServiceCloseMetrics;
+  compact?: boolean;
+}
+
+export function ClosesBreakdown({ closes, compact = false }: ClosesBreakdownProps) {
+  const percentChange = closes.lastMonth > 0 
+    ? Math.round(((closes.thisMonth - closes.lastMonth) / closes.lastMonth) * 100)
+    : 0;
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-100 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-gray-700">Completed Services</h3>
+        <span className="text-sm text-gray-600 font-medium">{closes.thisMonth}</span>
+      </div>
+      
+      {/* Category rows */}
+      <div className="space-y-2">
+        <CategoryRow 
+          icon={<Wrench />} 
+          label="Maintenance" 
+          count={closes.maintenance.total}
+          detail={`${closes.maintenance.breakdown.flush} flush · ${closes.maintenance.breakdown.anode} anode`}
+        />
+        <CategoryRow 
+          icon={<AlertTriangle />} 
+          label="Code Fixes" 
+          count={closes.codeFixes.total}
+          detail={`${closes.codeFixes.breakdown.expTank} exp tank · ${closes.codeFixes.breakdown.prv} PRV`}
+        />
+        <CategoryRow 
+          icon={<RefreshCw />} 
+          label="Replacements" 
+          count={closes.replacements.total}
+        />
+      </div>
+      
+      {/* Trend footer */}
+      <div className="mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
+        {closes.trend === 'up' && <TrendingUp className="inline w-3 h-3 text-emerald-500 mr-1" />}
+        {percentChange > 0 ? '+' : ''}{percentChange}% vs last month
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## Visual Outcome
+
+**Before (Revenue-focused):**
+```
+Pipeline                    $88.3K potential
+8 → 4 → 2 → 12
+$24.5K  $12.8K  $8.4K  $42.6K
+```
+
+**After (Service-focused):**
+```
+Pipeline                    12 completed ↑
+8 → 4 → 2 → 12
+New  Contact  Sched  Done
+────────────────────────────
+Completed Services          12
+🔧 Maintenance      8   (4 flush, 2 anode...)
+⚠️ Code Fixes       3   (1 exp tank, 1 PRV...)
+🔄 Replacements     1
++33% vs last month
+```
+
+This shifts the focus from hypothetical revenue to actual work completed through the technician app, making the metrics directly trackable via `service_events` table entries.
 
