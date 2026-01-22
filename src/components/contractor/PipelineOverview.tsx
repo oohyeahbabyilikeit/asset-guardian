@@ -1,7 +1,11 @@
 import { TrendingUp, DollarSign, ArrowRight } from 'lucide-react';
 import { mockPipeline } from '@/data/mockContractorData';
 
-export function PipelineOverview() {
+interface PipelineOverviewProps {
+  compact?: boolean;
+}
+
+export function PipelineOverview({ compact = false }: PipelineOverviewProps) {
   const { stages, conversionRate, totalRevenue } = mockPipeline;
   
   const formatCurrency = (amount: number) => {
@@ -12,6 +16,43 @@ export function PipelineOverview() {
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (compact) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-gray-700">Pipeline</h3>
+          <span className="text-xs text-emerald-600 font-medium">{formatCurrency(totalRevenue)}</span>
+        </div>
+        
+        {/* Compact funnel */}
+        <div className="flex items-center justify-between mb-3">
+          {stages.map((stage, idx) => (
+            <div key={stage.name} className="flex items-center">
+              <div className="text-center">
+                <div className="text-lg font-semibold text-gray-700">{stage.count}</div>
+                <div className="text-[10px] text-gray-400 uppercase">{stage.name.slice(0, 3)}</div>
+              </div>
+              {idx < stages.length - 1 && (
+                <ArrowRight className="w-3 h-3 text-gray-300 mx-1" />
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {/* Mini progress bar */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gray-400 rounded-full transition-all"
+              style={{ width: `${conversionRate}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-gray-500">{conversionRate}%</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-4">

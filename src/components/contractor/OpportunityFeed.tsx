@@ -86,14 +86,15 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="text-base font-medium text-gray-700">
+          <h2 className="text-sm font-medium text-gray-700">
             Service Opportunities
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {filteredOpportunities.length} leads requiring action
+          <p className="text-xs text-gray-400">
+            {filteredOpportunities.length} leads
           </p>
         </div>
         
@@ -102,11 +103,11 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
             <Button 
               variant="ghost" 
               size="sm" 
-              className="gap-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              className="gap-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 h-8 text-xs"
             >
               <Filter className="w-3.5 h-3.5" />
               {selectedPriority ? priorityLabels[selectedPriority] : 'All'}
-              <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+              <ChevronDown className="w-3 h-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-white border-gray-200">
@@ -133,12 +134,13 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
         </DropdownMenu>
       </div>
       
+      {/* Feed */}
       {filteredOpportunities.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-100">
-          <p className="text-gray-400">No opportunities matching this filter</p>
+          <p className="text-gray-400 text-sm">No opportunities matching this filter</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {filteredOpportunities.map(opportunity => (
             <LeadCard 
               key={opportunity.id} 
