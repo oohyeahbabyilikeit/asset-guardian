@@ -19,7 +19,7 @@ interface ServiceHistoryProps {
   sedimentRate: number;
   monthsToFlush: number | null;
   monthsToLockout: number | null;
-  flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout';
+  flushStatus: 'optimal' | 'advisory' | 'due' | 'critical' | 'lockout';
   serviceHistory?: ServiceEvent[];
   autoExpand?: boolean;
   recommendation?: { action: 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS' | 'URGENT' };
@@ -1406,22 +1406,28 @@ export function ServiceHistory({
                         </span>
                       </div>
                     )}
-                    {flushStatus === 'schedule' && monthsToFlush !== null && (
+                    {flushStatus === 'advisory' && monthsToFlush !== null && (
                       <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
-                        <span className="text-amber-400">⚠ Flush recommended in:</span>
+                        <span className="text-amber-400">⚠ Plan flush soon:</span>
                         <span className="font-mono font-medium text-amber-400">{monthsToFlush} mo</span>
                       </div>
                     )}
                     {flushStatus === 'due' && (
                       <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
                         <span className="text-amber-400 font-medium">🔧 Flush now</span>
-                        <span className="font-mono text-amber-400">5-15 lb zone</span>
+                        <span className="font-mono text-amber-400">2-5 lb zone</span>
+                      </div>
+                    )}
+                    {flushStatus === 'critical' && (
+                      <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
+                        <span className="text-orange-400 font-medium">⚠ High Buildup</span>
+                        <span className="font-mono text-orange-400">5-10 lbs</span>
                       </div>
                     )}
                     {flushStatus === 'lockout' && (
                       <div className="flex justify-between pt-2 border-t border-border/30 mt-2">
-                        <span className="text-red-400 font-medium">🚫 Flush unsafe</span>
-                        <span className="font-mono text-red-400">&gt;15 lbs hardened</span>
+                        <span className="text-red-400 font-medium">🚫 Do Not Flush</span>
+                        <span className="font-mono text-red-400">&gt;10 lbs - Pro Assess</span>
                       </div>
                     )}
                   </>

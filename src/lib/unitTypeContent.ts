@@ -484,7 +484,7 @@ export function getMetricsDisplay(fuelType: FuelType) {
 export function getServiceStatus(
   fuelType: FuelType,
   metrics: {
-    flushStatus?: 'optimal' | 'schedule' | 'due' | 'lockout';
+    flushStatus?: 'optimal' | 'advisory' | 'due' | 'critical' | 'lockout';
     monthsToFlush?: number | null;
     // Tankless algorithm produces: 'optimal' | 'due' | 'critical' | 'lockout' | 'impossible'
     descaleStatus?: 'optimal' | 'schedule' | 'due' | 'critical' | 'lockout' | 'impossible';
@@ -528,15 +528,26 @@ export function getServiceStatus(
     };
   }
   
-  // TANK
-  const isOverdue = metrics.flushStatus === 'due' || metrics.flushStatus === 'lockout';
-  const isDueSoon = metrics.flushStatus === 'schedule' || 
+  // TANK - Updated for 5-tier flush status
+  const isOverdue = metrics.flushStatus === 'due' || 
+                    metrics.flushStatus === 'critical' || 
+                    metrics.flushStatus === 'lockout';
+  const isDueSoon = metrics.flushStatus === 'advisory' || 
     (metrics.monthsToFlush !== null && metrics.monthsToFlush !== undefined && metrics.monthsToFlush <= 6 && metrics.monthsToFlush > 0);
-  return { 
-    isOverdue, 
-    isDueSoon, 
-    label: isOverdue ? 'Flush Overdue' : isDueSoon ? 'Flush Due Soon' : 'Maintenance OK' 
-  };
+  
+  // Provide specific labels for 5-tier system
+  let label = 'Maintenance OK';
+  if (metrics.flushStatus === 'lockout') {
+    label = 'Do Not Flush - Pro Assess';
+  } else if (metrics.flushStatus === 'critical') {
+    label = 'High Buildup - Energy Loss';
+  } else if (metrics.flushStatus === 'due') {
+    label = 'Flush Maintenance Due';
+  } else if (isDueSoon) {
+    label = 'Plan Flush Soon';
+  }
+  
+  return { isOverdue, isDueSoon, label };
 }
 
 /**

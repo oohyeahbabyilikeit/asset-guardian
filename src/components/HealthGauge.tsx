@@ -248,11 +248,11 @@ export function HealthGauge({ healthScore, location, riskLevel, primaryStressor,
         return { message: 'Some Stress Detected', severity: 'info' };
       }
       
-      // Maintenance status
-      if (metrics.flushStatus === 'due' || metrics.flushStatus === 'lockout') {
+      // Maintenance status (using 5-tier system)
+      if (metrics.flushStatus === 'due' || metrics.flushStatus === 'critical' || metrics.flushStatus === 'lockout') {
         return { message: 'Maintenance Overdue', severity: 'warning' };
       }
-      if (metrics.flushStatus === 'schedule') {
+      if (metrics.flushStatus === 'advisory') {
         return { message: 'Service Due Soon', severity: 'info' };
       }
       

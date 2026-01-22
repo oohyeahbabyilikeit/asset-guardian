@@ -500,8 +500,9 @@ export function CommandCenter({
   // Simple maintenance tasks based on unit type
   const mapFlushStatus = (status: typeof flushStatus): MaintenanceTask['urgency'] => {
     if (status === 'lockout') return 'overdue';
+    if (status === 'critical') return 'critical';
     if (status === 'due') return 'due';
-    if (status === 'schedule') return 'schedule';
+    if (status === 'advisory') return 'advisory';
     return 'optimal';
   };
 
