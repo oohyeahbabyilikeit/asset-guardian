@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind, Zap, TrendingUp, Award, AlertTriangle, Phone, Bell, Gauge, Clock, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, History, ChevronDown, Droplets, Shield, Flame, Filter, Wrench, Wind, Zap, TrendingUp, Award, AlertTriangle, Phone, Bell, Gauge, Clock, ChevronRight, CheckCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { ForensicInputs, OpterraMetrics, calculateOpterraRisk, failProbToHealthS
 import { ServiceEvent } from '@/types/serviceHistory';
 import { UnifiedMaintenanceCard, UpcomingMaintenanceTask } from './UnifiedMaintenanceCard';
 import { BundledServiceCard } from './BundledServiceCard';
-import { calculateMaintenanceSchedule, getServiceEventTypes, getInfrastructureMaintenanceTasks, MaintenanceTask } from '@/lib/maintenanceCalculations';
+import { calculateMaintenanceSchedule, getServiceEventTypes, getInfrastructureMaintenanceTasks, MaintenanceTask, VerdictAction } from '@/lib/maintenanceCalculations';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HealthRing } from './HealthRing';
 import { CriticalAssessmentPage } from './CriticalAssessmentPage';
@@ -123,16 +123,17 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
   const ageLabel = currentInputs.calendarAge ? `${currentInputs.calendarAge}-Year-Old` : '';
   const capacityLabel = currentInputs.tankCapacity ? `${currentInputs.tankCapacity} Gal` : '';
   
-  // Calculate unit-type-aware maintenance schedule - moved before early return
+  // Calculate unit-type-aware maintenance schedule - now verdict-aware
   const maintenanceSchedule = useMemo(
-    () => calculateMaintenanceSchedule(currentInputs, opterraResult.metrics),
-    [currentInputs, opterraResult.metrics]
+    () => calculateMaintenanceSchedule(currentInputs, opterraResult.metrics, recommendation.action as VerdictAction),
+    [currentInputs, opterraResult.metrics, recommendation.action]
   );
   
-  // Get infrastructure violations (code violations) that need to be fixed first - moved before early return
+  // Get infrastructure violations (code violations) that need to be fixed first
+  // Only show if verdict is MAINTAIN or REPAIR (not PASS)
   const infrastructureTasks = useMemo(
-    () => getInfrastructureMaintenanceTasks(currentInputs, opterraResult.metrics),
-    [currentInputs, opterraResult.metrics]
+    () => recommendation.action === 'PASS' ? [] : getInfrastructureMaintenanceTasks(currentInputs, opterraResult.metrics),
+    [currentInputs, opterraResult.metrics, recommendation.action]
   );
   
   // Situation summary for integrated education - replaces separate EducationPage
@@ -330,6 +331,36 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
       {/* Content - Restored Cards */}
       <div className="max-w-lg mx-auto p-4 space-y-5 pb-24">
         
+        {/* Monitor Only State - when algorithm says PASS */}
+        {maintenanceSchedule.monitorOnly && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center space-y-4"
+          >
+            <div className="flex justify-center">
+              <div className="p-3 rounded-full bg-emerald-500/20">
+                <CheckCircle className="w-8 h-8 text-emerald-500" />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">
+                You're All Caught Up
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {recommendation.title || 'No maintenance recommended at this time.'}
+              </p>
+            </div>
+            
+            {/* Show estimated remaining life */}
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Eye className="w-4 h-4" />
+              <span>We'll be here when you need us.</span>
+            </div>
+          </motion.div>
+        )}
+        
         {/* Code Violations - Full Cards with Actions */}
         {infrastructureTasks.length > 0 && (
           <motion.div
@@ -353,7 +384,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         )}
         
         {/* Primary Service Bundle - Full Card */}
-        {(maintenanceSchedule.primaryTask || maintenanceSchedule.secondaryTask) && (
+        {!maintenanceSchedule.monitorOnly && (maintenanceSchedule.primaryTask || maintenanceSchedule.secondaryTask) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -374,7 +405,7 @@ export function MaintenancePlan({ onBack, onScheduleService, currentInputs, serv
         )}
         
         {/* Additional Tasks - Compact List */}
-        {maintenanceSchedule.additionalTasks.length > 0 && (
+        {!maintenanceSchedule.monitorOnly && maintenanceSchedule.additionalTasks.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

@@ -36,13 +36,15 @@ export interface MaintenanceTask {
 
 export interface MaintenanceSchedule {
   unitType: 'tank' | 'tankless' | 'hybrid';
-  primaryTask: MaintenanceTask;
+  primaryTask: MaintenanceTask | null;  // Nullable for PASS verdicts
   secondaryTask: MaintenanceTask | null;
   additionalTasks: MaintenanceTask[];
   // Bundling for tasks due close together
   isBundled: boolean;
   bundledTasks?: MaintenanceTask[];
   bundleReason?: string;
+  /** When true, algorithm said don't recommend service (PASS verdict) */
+  monitorOnly?: boolean;
 }
 
 // --- TANK WATER HEATER MAINTENANCE ---
@@ -399,10 +401,53 @@ function calculateHybridMaintenance(
 
 // --- MAIN EXPORT ---
 
+/** Verdict action types that control maintenance behavior */
+export type VerdictAction = 'MAINTAIN' | 'REPAIR' | 'REPLACE' | 'PASS' | 'UPGRADE';
+
+/**
+ * Calculate unit-type-aware maintenance schedule
+ * 
+ * The verdictAction parameter aligns maintenance recommendations with the algorithm's verdict:
+ * - PASS: Return empty schedule with monitorOnly=true (algorithm says "don't touch")
+ * - REPLACE: Return empty schedule (skip maintenance, replacing anyway)
+ * - MAINTAIN/REPAIR/UPGRADE: Proceed with normal calculation
+ */
 export function calculateMaintenanceSchedule(
   inputs: ForensicInputs,
-  metrics: OpterraMetrics
+  metrics: OpterraMetrics,
+  verdictAction?: VerdictAction
 ): MaintenanceSchedule {
+  const unitType: MaintenanceSchedule['unitType'] = isTankless(inputs.fuelType) 
+    ? 'tankless' 
+    : inputs.fuelType === 'HYBRID' 
+      ? 'hybrid' 
+      : 'tank';
+  
+  // PASS verdict = algorithm says "don't touch" - no maintenance recommended
+  if (verdictAction === 'PASS') {
+    return {
+      unitType,
+      primaryTask: null,
+      secondaryTask: null,
+      additionalTasks: [],
+      isBundled: false,
+      monitorOnly: true,
+    };
+  }
+  
+  // REPLACE verdict = skip maintenance, replacing anyway
+  if (verdictAction === 'REPLACE') {
+    return {
+      unitType,
+      primaryTask: null,
+      secondaryTask: null,
+      additionalTasks: [],
+      isBundled: false,
+      monitorOnly: false,
+    };
+  }
+  
+  // MAINTAIN/REPAIR/UPGRADE = proceed with normal calculation
   if (isTankless(inputs.fuelType)) {
     return calculateTanklessMaintenance(inputs, metrics);
   }
