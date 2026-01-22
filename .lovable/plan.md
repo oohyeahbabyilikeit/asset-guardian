@@ -1,114 +1,113 @@
 
-
-# Anode Depletion Threshold Redesign
-
-## Status: ✅ COMPLETE
-
-Implementation completed on 2026-01-22.
+# Anode Depletion Transparency: Show Active Burn Rate Factors
 
 ## Problem Statement
 
-The current anode alerting uses a **time-remaining** threshold (`shieldLife <= 1 year`), which doesn't account for:
-1. **Prediction uncertainty** - The math has a margin of error, so 50% calculated could be 70-80% actual
-2. **Non-linear physics** - Mass depletes faster than surface area (50% diameter = 75% mass loss)
-3. **Variable burn rates** - A 1-year threshold means different depletion percentages depending on water conditions
+The anode shows as **DEPLETED (0%)** but the user doesn't understand why because:
+1. There's no water softener present (no 3.0x multiplier)
+2. The UI doesn't display which OTHER factors are accelerating depletion
+3. Users see "DEPLETED" without context, leading to confusion
 
-## Solution: Percentage-Based Thresholds
+## Root Cause Analysis
 
-Switched from time-based to **mass-percentage-based** alerting with explicit safety margins.
+The algorithm applies multiplicative burn rates from multiple sources:
 
----
+| Factor | Multiplier | When Applied |
+|--------|------------|--------------|
+| Water Softener | 3.0x | `hasSoftener: true` |
+| Direct Copper Connection | 2.5x | `connectionType: 'DIRECT_COPPER'` |
+| Recirc Pump | 1.25x | `hasCircPump: true` |
+| Chloramine Water | 1.2x | `sanitizerType: 'CHLORAMINE'` |
 
-## ✅ Phase 1: Add Depletion Percentage to Algorithm Output (COMPLETE)
+**Example**: A 7-year tank with direct copper (2.5x) and recirc pump (1.25x) has:
+- Burn rate: `2.5 × 1.25 = 3.125x`
+- Consumed mass: `7 × 3.125 = 21.875 years`
+- Base mass (6-year warranty): `4.0 years`
+- Result: **100% depleted** (consumed > available)
 
-### Updated `OpterraMetrics` Interface
+## Proposed Solution
 
-Added new metrics in `src/lib/opterraAlgorithm.ts` and `src/lib/opterraTypes.ts`:
+### Phase 1: Add Burn Rate Factors to Algorithm Output
 
+Add to `OpterraMetrics`:
 ```typescript
 interface OpterraMetrics {
   // Existing
-  shieldLife: number; // Years remaining (kept for backward compatibility)
+  anodeDepletionPercent: number;
+  anodeStatus: 'protected' | 'inspect' | 'replace' | 'naked';
   
-  // NEW v9.2: Percentage-based metrics
-  anodeDepletionPercent: number;  // 0-100 (0 = new rod, 100 = depleted)
-  anodeStatus: AnodeStatus;       // 'protected' | 'inspect' | 'replace' | 'naked'
-  anodeMassRemaining: number;     // 0-1 (fraction of original mass)
-}
-
-type AnodeStatus = 'protected' | 'inspect' | 'replace' | 'naked';
-```
-
-### Calculation Logic in `calculateHealth()`
-
-```typescript
-// Implemented after existing shieldLife calculation
-const anodeDepletionPercent = Math.min(100, Math.max(0, (consumedMass / baseMassYears) * 100));
-const anodeMassRemaining = Math.max(0, remainingMass / baseMassYears);
-
-// Three-stage status mapping with safety margins
-let anodeStatus: AnodeStatus;
-if (anodeDepletionPercent <= 40) {
-  anodeStatus = 'protected';     // System healthy
-} else if (anodeDepletionPercent <= 50) {
-  anodeStatus = 'inspect';       // "Upcoming Service" / plan ahead
-} else if (anodeMassRemaining > 0) {
-  anodeStatus = 'replace';       // "Service Due Now"
-} else {
-  anodeStatus = 'naked';         // Tank unprotected - critical
+  // NEW: Transparency fields
+  anodeBurnRate: number;           // Combined multiplier (e.g., 3.125)
+  anodeBurnFactors: {              // Individual active factors
+    softener: boolean;             // 3.0x if true
+    galvanic: boolean;             // 2.5x if direct copper
+    recircPump: boolean;           // 1.25x if true
+    chloramine: boolean;           // 1.2x if true
+  };
 }
 ```
 
----
+### Phase 2: Update ServiceHistory.tsx Anode Display
 
-## ✅ Phase 2: Update Maintenance Trigger Logic (COMPLETE)
+When anode is depleted or in `inspect`/`replace` status, show the active burn factors:
 
-### File: `src/lib/maintenanceCalculations.ts`
-
-Replaced time-based trigger with percentage-based:
-
-**Before:**
-```typescript
-const monthsToAnodeReplacement = shieldLife > 1 
-  ? Math.round((shieldLife - 1) * 12) : 0;
+**Before (confusing):**
+```
+Anode Rod: DEPLETED
+Shield Life: 0 years
 ```
 
-**After:**
-```typescript
-// Trigger based on depletion percentage, not time remaining
-if (anodeDepletionPercent > 50 || anodeStatus === 'replace' || anodeStatus === 'naked') {
-  anodeUrgency = anodeStatus === 'naked' ? 'critical' : 'overdue';
-} else if (anodeDepletionPercent > 40 || anodeStatus === 'inspect') {
-  anodeUrgency = 'schedule';  // "Plan for Service"
-} else {
-  anodeUrgency = 'optimal';   // "Protected"
-}
+**After (transparent):**
+```
+Anode Rod: Replace Needed (100% consumed)
+
+Active Accelerators:
+🔌 Direct Copper Connection (2.5x)
+💨 Recirculation Pump (1.25x)
+
+Combined burn rate: 3.1x normal
 ```
 
-Added `getAnodeExplanation()` helper for context-aware messaging.
+### Phase 3: Add Burn Rate Info to Algorithm Test Harness
 
----
+In the test harness calculation trace, add a dedicated step showing:
+- Base mass years (4.0 / 7.5 / 15)
+- Active multipliers with sources
+- Combined burn rate
+- Consumed vs. remaining mass
 
-## Phase 3-4: UI & Opportunity Detection (Optional - UI already uses algorithm output)
+## Implementation Sequence
 
-The UI components (`ServiceHistory.tsx`) already consume the algorithm's output, which now includes `anodeStatus`. The opportunity detection edge function (`detect-opportunities`) should use these new thresholds when implemented.
+| Step | Task | File |
+|------|------|------|
+| 1 | Add `anodeBurnRate` and `anodeBurnFactors` to `OpterraMetrics` | `opterraTypes.ts`, `opterraAlgorithm.ts` |
+| 2 | Compute and return factors in `calculateHealth()` | `opterraAlgorithm.ts` |
+| 3 | Create `AnodeBurnFactorsDisplay` component | New component |
+| 4 | Update `ServiceHistory.tsx` to show factors when depleted | `ServiceHistory.tsx` |
+| 5 | Update `AlgorithmCalculationTrace.tsx` with burn rate step | `AlgorithmCalculationTrace.tsx` |
 
----
+## UI Preview
 
-## Summary of Threshold Changes
+When anode is depleted, the ServiceHistory card will show:
 
-| Status | Old Logic | New Logic |
-|--------|-----------|-----------|
-| **Protected** | Not explicit | 0-40% depletion |
-| **Inspect/Plan** | shieldLife 1-2 years | 40-50% depletion |
-| **Replace** | shieldLife < 1 year | >50% depletion |
-| **Naked/Critical** | shieldLife ≤ 0 | 100% (no remaining mass) |
+```
+┌─────────────────────────────────────────┐
+│  🛡️ Anode Protection                   │
+│                                         │
+│  Status: Replace Needed                 │
+│  Depletion: 100% (tank unprotected)     │
+│                                         │
+│  ⚡ Why depleted faster than normal?    │
+│  ├─ 🔌 Direct copper connection: 2.5x   │
+│  └─ ♻️ Recirculation pump: 1.25x        │
+│                                         │
+│  Combined wear rate: 3.1x normal        │
+└─────────────────────────────────────────┘
+```
 
-## Files Modified
+## Expected Outcome
 
-- `src/lib/opterraAlgorithm.ts` - Added `AnodeStatus` type and depletion calculation
-- `src/lib/opterraTypes.ts` - Added `AnodeStatus` type and metrics to interface
-- `src/lib/opterraTanklessAlgorithm.ts` - Added N/A anode metrics for tankless units
-- `src/lib/maintenanceCalculations.ts` - Updated urgency logic to use percentage thresholds
-- `docs/types.md` - Updated documentation
-
+Users will understand that:
+1. Anode depletion is a function of **multiple factors**, not just softener
+2. The displayed percentage is a **calculated estimate** based on environmental conditions
+3. **Action is needed** regardless of which factor caused the depletion
