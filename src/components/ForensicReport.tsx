@@ -17,8 +17,12 @@ interface ForensicReportProps {
   inputs: ForensicInputs;
 }
 
-function EvidenceItem({ finding }: { finding: AuditFinding }) {
+function EvidenceItem({ finding, conditionPhotoUrl }: { finding: AuditFinding; conditionPhotoUrl?: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Show actual photo for breach-related findings
+  const isBreachFinding = finding.id === 'VISUAL_RUST' || finding.id === 'LEAK_DETECTED';
+  const photoToShow = isBreachFinding && conditionPhotoUrl ? conditionPhotoUrl : finding.photoUrl;
 
   return (
     <div className="border-b border-border last:border-0">
@@ -60,7 +64,21 @@ function EvidenceItem({ finding }: { finding: AuditFinding }) {
 
       {isExpanded && (
         <div className="px-4 pb-4 animate-fade-in-up">
-          {finding.photoUrl && (
+          {photoToShow ? (
+            <div className="mb-3 rounded-xl overflow-hidden bg-muted aspect-video relative">
+              <img 
+                src={photoToShow} 
+                alt={finding.name}
+                className="w-full h-full object-cover"
+              />
+              {isBreachFinding && conditionPhotoUrl && (
+                <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-white flex items-center gap-1">
+                  <Camera className="w-3 h-3" />
+                  Photo from inspection
+                </div>
+              )}
+            </div>
+          ) : finding.photoUrl === undefined ? null : (
             <div className="mb-3 rounded-xl overflow-hidden bg-muted aspect-video flex items-center justify-center">
               <div className="text-center text-muted-foreground">
                 <Camera className="w-8 h-8 mx-auto mb-2" />
@@ -77,7 +95,7 @@ function EvidenceItem({ finding }: { finding: AuditFinding }) {
   );
 }
 
-function EvidenceLockerSection({ findings }: { findings: AuditFinding[] }) {
+function EvidenceLockerSection({ findings, conditionPhotoUrl }: { findings: AuditFinding[]; conditionPhotoUrl?: string }) {
   return (
     <section className="clean-card mx-4 mb-4">
       <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
@@ -89,7 +107,7 @@ function EvidenceLockerSection({ findings }: { findings: AuditFinding[] }) {
 
       <div className="rounded-2xl border border-border overflow-hidden bg-card">
         {findings.map((finding) => (
-          <EvidenceItem key={finding.id} finding={finding} />
+          <EvidenceItem key={finding.id} finding={finding} conditionPhotoUrl={conditionPhotoUrl} />
         ))}
       </div>
     </section>
@@ -246,7 +264,7 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
           )}
         </section>
         
-        <EvidenceLockerSection findings={auditFindings} />
+        <EvidenceLockerSection findings={auditFindings} conditionPhotoUrl={inputs.photoUrls?.condition} />
         <VerdictSection failProb={failProb} recommendation={recommendation} onDownloadPDF={handleDownloadPDF} />
       </div>
     </div>
