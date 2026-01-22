@@ -20,6 +20,7 @@ import { getInfrastructureIssues } from '@/lib/infrastructureIssues';
 import { usePrefetchFindings } from '@/hooks/useGeneratedFindings';
 import { usePrefetchRationale } from '@/hooks/useRecommendationRationale';
 import { CriticalAssessmentPage } from '@/components/CriticalAssessmentPage';
+import { mockOpportunities } from '@/data/mockContractorData';
 
 type AppScreen = 
   | 'mode-select'
@@ -32,24 +33,45 @@ type AppScreen =
   | 'replacement-options'
   | 'panic-mode'
   | 'maintenance-plan'
-  | 'critical-assessment';
+  | 'critical-assessment'
+  | 'contractor-report';
 
 interface AppState {
   screen: AppScreen;
-  mode: 'technician' | 'demo' | null;
+  mode: 'technician' | 'demo' | 'contractor-report' | null;
   technicianData: TechnicianInspectionData | null;
   onboardingData: OnboardingData | null;
   demoScenario: GeneratedScenario | null;
   showQuoteLoader?: boolean;
+  contractorOpportunityId?: string | null;
 }
 
 const Index = () => {
-  const [state, setState] = useState<AppState>({
-    screen: 'mode-select',
-    mode: null,
-    technicianData: null,
-    onboardingData: null,
-    demoScenario: null,
+  const [state, setState] = useState<AppState>(() => {
+    // Check for contractor-report mode in URL params on initial load
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const opportunityId = urlParams.get('opportunityId');
+    
+    if (mode === 'contractor-report' && opportunityId) {
+      return {
+        screen: 'contractor-report' as AppScreen,
+        mode: 'contractor-report',
+        technicianData: null,
+        onboardingData: null,
+        demoScenario: null,
+        contractorOpportunityId: opportunityId,
+      };
+    }
+    
+    return {
+      screen: 'mode-select',
+      mode: null,
+      technicianData: null,
+      onboardingData: null,
+      demoScenario: null,
+      contractorOpportunityId: null,
+    };
   });
   
   const { prefetch: prefetchFindings } = usePrefetchFindings();
@@ -224,6 +246,13 @@ const Index = () => {
     }));
   }, []);
 
+  // Handle back from contractor report to contractor dashboard
+  const handleBackToContractor = useCallback(() => {
+    // Clear URL params and go back to contractor page
+    window.history.replaceState({}, '', '/');
+    window.location.href = '/contractor';
+  }, []);
+
   // Open the algorithm test harness from the dashboard
   const handleOpenTestHarness = useCallback(() => {
     setState(prev => ({
@@ -271,6 +300,53 @@ const Index = () => {
 
       console.log('[Index] Mapped technician inputs:', inputs);
       console.log('[Index] Mapped technician asset:', asset);
+    } else if (state.mode === 'contractor-report' && state.contractorOpportunityId) {
+      // Contractor report mode: load from mock opportunities
+      const opportunity = mockOpportunities.find(o => o.id === state.contractorOpportunityId);
+      
+      if (opportunity) {
+        inputs = opportunity.forensicInputs;
+        const installDate = new Date(Date.now() - inputs.calendarAge * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        asset = {
+          id: opportunity.asset.serialNumber,
+          type: 'Water Heater',
+          brand: opportunity.asset.brand,
+          model: opportunity.asset.model,
+          serialNumber: opportunity.asset.serialNumber,
+          installDate,
+          paperAge: inputs.calendarAge,
+          biologicalAge: inputs.calendarAge,
+          location: inputs.location,
+          specs: {
+            capacity: `${opportunity.asset.capacity}-Gal`,
+            fuelType: inputs.fuelType,
+            ventType: inputs.ventType || 'N/A',
+            piping: '3/4" Copper',
+          },
+        };
+      } else {
+        // Fallback if opportunity not found
+        const fallback = generateRandomScenario();
+        inputs = fallback.inputs;
+        const installDate = new Date(Date.now() - inputs.calendarAge * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        asset = {
+          id: fallback.serialNumber,
+          type: 'Water Heater',
+          brand: fallback.brand,
+          model: fallback.model,
+          serialNumber: fallback.serialNumber,
+          installDate,
+          paperAge: inputs.calendarAge,
+          biologicalAge: inputs.calendarAge,
+          location: inputs.location,
+          specs: {
+            capacity: inputs.tankCapacity > 0 ? `${inputs.tankCapacity}-Gal` : 'Tankless',
+            fuelType: inputs.fuelType,
+            ventType: inputs.ventType || 'N/A',
+            piping: '3/4" Copper',
+          },
+        };
+      }
     } else if (state.mode === 'demo' && state.demoScenario) {
       // Demo mode: use random scenario as base, merge with onboarding
       const baseInputs = state.demoScenario.inputs;
@@ -358,7 +434,7 @@ const Index = () => {
     }
 
     return { currentInputs: inputs, currentAsset: asset, opterraResult: result };
-  }, [state.mode, state.demoScenario, state.technicianData, state.onboardingData]);
+  }, [state.mode, state.demoScenario, state.technicianData, state.onboardingData, state.contractorOpportunityId]);
 
   // Handle navigation to education page (primary CTA from ActionDock)
   // For RED tier (critical), go directly to CriticalAssessmentPage
@@ -534,6 +610,15 @@ const Index = () => {
           onBack={handleBackToCommandCenter}
           onScheduleService={handleServiceRequest}
           onGetQuote={handleReplacementOptions}
+        />
+      );
+
+    case 'contractor-report':
+      return (
+        <ForensicReport
+          asset={currentAsset}
+          inputs={currentInputs}
+          onBack={handleBackToContractor}
         />
       );
 
