@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info, Bell, MessageSquare, Mail, Droplets, Shield, Loader2 } from 'lucide-react';
 import { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { IssueCategory } from '@/lib/infrastructureIssues';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
+import { calculateMaintenanceSchedule, MaintenanceTask } from '@/lib/maintenanceCalculations';
+import { submitLead, markLeadCaptured, hasLeadBeenCaptured } from '@/lib/leadService';
+import { toast } from 'sonner';
+
 // Local type for verdict action - matches Recommendation interface
 type VerdictAction = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
 
@@ -222,10 +227,17 @@ export function OptionsAssessmentDrawer({
   yearsRemaining = 0,
 }: OptionsAssessmentDrawerProps) {
   const [selectedTopic, setSelectedTopic] = useState<EducationalTopic | null>(null);
+  const [reminderMethod, setReminderMethod] = useState<'sms' | 'email'>('sms');
+  const [contactInfo, setContactInfo] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(() => hasLeadBeenCaptured('maintenance_reminder'));
   
   const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
   const recommendation = getRecommendation(tier);
   const Icon = recommendation.icon;
+  
+  // Calculate maintenance schedule for monitor tier
+  const schedule = tier === 'monitor' ? calculateMaintenanceSchedule(inputs, metrics) : null;
   
   // Use priority findings if available, otherwise fall back to generic content
   const hasPriorityFindings = priorityFindings.length > 0;
@@ -235,6 +247,38 @@ export function OptionsAssessmentDrawer({
     const topic = getEducationalTopic(finding.id);
     if (topic) {
       setSelectedTopic(topic);
+    }
+  };
+  
+  const handleReminderSubmit = async () => {
+    if (!contactInfo.trim()) {
+      toast.error(`Please enter your ${reminderMethod === 'sms' ? 'phone number' : 'email'}`);
+      return;
+    }
+    
+    setIsSubmitting(true);
+    const result = await submitLead({
+      customerName: 'Homeowner',
+      customerPhone: reminderMethod === 'sms' ? contactInfo : '',
+      customerEmail: reminderMethod === 'email' ? contactInfo : undefined,
+      captureSource: 'maintenance_reminder',
+      captureContext: {
+        healthScore,
+        yearsRemaining,
+        nextMaintenanceType: schedule?.primaryTask?.type,
+        monthsUntilDue: schedule?.primaryTask?.monthsUntilDue,
+      },
+      optInAlerts: true,
+      preferredContactMethod: reminderMethod,
+    });
+    
+    setIsSubmitting(false);
+    if (result.success) {
+      setReminderEnabled(true);
+      markLeadCaptured('maintenance_reminder');
+      toast.success(`Reminders enabled! We'll ${reminderMethod === 'sms' ? 'text' : 'email'} you before maintenance is due.`);
+    } else {
+      toast.error('Something went wrong. Please try again.');
     }
   };
   
@@ -252,6 +296,26 @@ export function OptionsAssessmentDrawer({
       onOpenChange(false);
     } else {
       onContinue();
+    }
+  };
+  
+  // Helper to format due date
+  const formatDueDate = (months: number) => {
+    if (months <= 0) return 'Now';
+    if (months === 1) return '1 month';
+    if (months < 12) return `${months} months`;
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+    if (remainingMonths === 0) return `${years} year${years > 1 ? 's' : ''}`;
+    return `${years}.${Math.round(remainingMonths / 1.2)} years`;
+  };
+  
+  // Get icon for task type
+  const getTaskIcon = (type: string) => {
+    switch (type) {
+      case 'flush': return Droplets;
+      case 'anode': return Shield;
+      default: return Wrench;
     }
   };
   
@@ -319,7 +383,7 @@ export function OptionsAssessmentDrawer({
             )}
             
             {/* Fallback: Generic situation summary when no specific findings */}
-            {!hasPriorityFindings && fallbackPoints.length > 0 && (
+            {!hasPriorityFindings && fallbackPoints.length > 0 && tier !== 'monitor' && (
               <div className="space-y-3">
                 <h4 className="font-medium text-foreground">Your Situation</h4>
                 <ul className="space-y-2">
@@ -330,6 +394,132 @@ export function OptionsAssessmentDrawer({
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+            
+            {/* Monitor tier: Personalized maintenance schedule */}
+            {tier === 'monitor' && schedule && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground">Your Maintenance Schedule</h4>
+                <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-2">
+                  {/* Primary task */}
+                  {schedule.primaryTask && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const TaskIcon = getTaskIcon(schedule.primaryTask.type);
+                          return <TaskIcon className="w-4 h-4 text-primary" />;
+                        })()}
+                        <span className="text-sm text-foreground">{schedule.primaryTask.label}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        Due in {formatDueDate(schedule.primaryTask.monthsUntilDue)}
+                      </span>
+                    </div>
+                  )}
+                  {/* Secondary task */}
+                  {schedule.secondaryTask && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const TaskIcon = getTaskIcon(schedule.secondaryTask.type);
+                          return <TaskIcon className="w-4 h-4 text-primary" />;
+                        })()}
+                        <span className="text-sm text-foreground">{schedule.secondaryTask.label}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        Due in {formatDueDate(schedule.secondaryTask.monthsUntilDue)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Monitor tier: SMS/Email Reminder Opt-in */}
+            {tier === 'monitor' && !reminderEnabled && (
+              <div className="space-y-3">
+                <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Bell className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-foreground">Get Maintenance Reminders</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        We'll notify you when service is due
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Method selector */}
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => setReminderMethod('sms')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                        reminderMethod === 'sms' 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Text
+                    </button>
+                    <button
+                      onClick={() => setReminderMethod('email')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                        reminderMethod === 'email' 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </button>
+                  </div>
+                  
+                  {/* Contact input */}
+                  <Input
+                    type={reminderMethod === 'sms' ? 'tel' : 'email'}
+                    placeholder={reminderMethod === 'sms' ? '(555) 123-4567' : 'you@example.com'}
+                    value={contactInfo}
+                    onChange={(e) => setContactInfo(e.target.value)}
+                    className="mb-3"
+                  />
+                  
+                  <Button 
+                    onClick={handleReminderSubmit}
+                    disabled={isSubmitting || !contactInfo.trim()}
+                    className="w-full"
+                    size="sm"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Enabling...
+                      </>
+                    ) : (
+                      'Enable Reminders'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Monitor tier: Success state after enabling reminders */}
+            {tier === 'monitor' && reminderEnabled && (
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10">
+                    <CheckCircle className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-foreground">Reminders Enabled</h4>
+                    <p className="text-xs text-muted-foreground">
+                      We'll notify you before your next maintenance is due
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
             
