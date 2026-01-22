@@ -102,28 +102,44 @@ Physical property addresses.
 ### water_heaters
 Water heater asset records.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID (PK) | |
-| property_id | UUID (FK) | |
-| manufacturer | TEXT | Brand name |
-| model_number | TEXT | Model # |
-| serial_number | TEXT | Serial # |
-| fuel_type | TEXT | GAS, ELECTRIC, PROPANE |
-| tank_capacity_gallons | INTEGER | Tank size |
-| vent_type | TEXT | ATMOSPHERIC, POWER_VENT, DIRECT_VENT |
-| warranty_years | INTEGER | Original warranty |
-| calendar_age_years | INTEGER | Age in years |
-| quality_tier | TEXT | ECONOMY, STANDARD, PROFESSIONAL |
-| has_softener | BOOLEAN | Water softener present |
-| has_exp_tank | BOOLEAN | Expansion tank present |
-| has_prv | BOOLEAN | PRV present |
-| has_circ_pump | BOOLEAN | Circulation pump |
-| is_closed_loop | BOOLEAN | Closed loop system |
-| is_finished_area | BOOLEAN | In finished space |
-| temp_setting | TEXT | LOW, MEDIUM, HIGH, VERY_HIGH |
-| location | TEXT | Garage, Basement, etc. |
-| photo_urls | JSONB | Array of photo URLs |
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| id | UUID (PK) | gen_random_uuid() | |
+| property_id | UUID (FK) | | |
+| manufacturer | TEXT | | Brand name |
+| model_number | TEXT | | Model # |
+| serial_number | TEXT | | Serial # |
+| fuel_type | TEXT | 'GAS' | GAS, ELECTRIC, PROPANE |
+| tank_capacity_gallons | INTEGER | 50 | Tank size (20-120) |
+| vent_type | TEXT | 'ATMOSPHERIC' | ATMOSPHERIC, POWER_VENT, DIRECT_VENT |
+| warranty_years | INTEGER | 6 | Original warranty (1-15) |
+| calendar_age_years | NUMERIC | | Age in years (0-50) |
+| quality_tier | TEXT | 'STANDARD' | BUILDER, STANDARD, PROFESSIONAL, PREMIUM |
+| has_softener | BOOLEAN | false | Water softener present |
+| has_exp_tank | BOOLEAN | false | Expansion tank present |
+| has_prv | BOOLEAN | false | PRV present |
+| has_circ_pump | BOOLEAN | false | Circulation pump |
+| is_closed_loop | BOOLEAN | false | Closed loop system |
+| is_finished_area | BOOLEAN | false | In finished space |
+| temp_setting | TEXT | 'NORMAL' | LOW, NORMAL, HOT |
+| location | TEXT | 'GARAGE' | Garage, Basement, etc. |
+| photo_urls | JSONB | '[]' | Array of photo URLs |
+| house_psi | NUMERIC | 60 | Water pressure (20-150) |
+| anode_count | INTEGER | 1 | Number of anodes (1-2) |
+| visual_rust | BOOLEAN | false | Visible rust present |
+| is_leaking | BOOLEAN | false | Active leak detected |
+| nipple_material | TEXT | | STEEL, STAINLESS_BRASS, FACTORY_PROTECTED |
+| measured_hardness_gpg | NUMERIC | | Test strip hardness (≥0) |
+| street_hardness_gpg | NUMERIC | | Water district hardness (≥0) |
+
+**Validation Constraints**:
+- `warranty_years`: 1-15 (or NULL)
+- `calendar_age_years`: 0-50 (or NULL)
+- `tank_capacity_gallons`: 20-120
+- `house_psi`: 20-150 (or NULL)
+- `anode_count`: 1 or 2 (or NULL)
+- `street_hardness_gpg`: ≥0 (or NULL)
+- `measured_hardness_gpg`: ≥0 (or NULL)
 
 ---
 

@@ -57,6 +57,9 @@ interface InspectionPayload {
     inlet_filter_status?: string;
     error_code_count?: number;
     building_type?: string;
+    // v1.0 Tank Cleanup fields
+    nipple_material?: string;
+    measured_hardness_gpg?: number;
   };
   softener?: {
     capacity_grains?: number;
@@ -206,8 +209,12 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Step 4: Create assessment record
+    // Step 4: Create assessment record with denormalized metrics from opterra_result
     console.log("📊 Creating assessment...");
+    const opterraResult = payload.assessment.opterra_result as Record<string, unknown> | undefined;
+    const metrics = opterraResult?.metrics as Record<string, unknown> | undefined;
+    const verdict = opterraResult?.verdict as Record<string, unknown> | undefined;
+    
     const { data: assessment, error: assessError } = await supabase
       .from("assessments")
       .insert({
@@ -216,9 +223,16 @@ Deno.serve(async (req: Request) => {
         source: "contractor_inspection",
         forensic_inputs: payload.assessment.forensic_inputs,
         photos: payload.assessment.photos || [],
-        opterra_result: payload.assessment.opterra_result,
+        opterra_result: opterraResult,
         inspection_notes: payload.assessment.inspection_notes,
         status: "completed",
+        // Denormalized metrics for queryability (Phase 5)
+        health_score: metrics?.healthScore as number | undefined,
+        bio_age: metrics?.bioAge as number | undefined,
+        fail_probability: metrics?.failProb as number | undefined,
+        risk_level: metrics?.riskLevel as number | undefined,
+        recommendation_action: verdict?.action as string | undefined,
+        recommendation_title: verdict?.title as string | undefined,
       })
       .select("id")
       .single();
