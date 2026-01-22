@@ -834,11 +834,14 @@ export type Database = {
           id: string
           inlet_filter_status: string | null
           install_date: string | null
+          is_annually_maintained: boolean | null
           is_closed_loop: boolean | null
           is_condensate_clear: boolean | null
           is_finished_area: boolean | null
           is_leaking: boolean | null
+          last_anode_replace_years_ago: number | null
           last_descale_years_ago: number | null
+          last_flush_years_ago: number | null
           leak_source: string | null
           location: string | null
           manufacturer: string | null
@@ -846,20 +849,26 @@ export type Database = {
           model_number: string | null
           nipple_material: string | null
           notes: string | null
+          people_count: number | null
           photo_urls: Json | null
           property_id: string
           quality_tier: string | null
           rated_flow_gpm: number | null
           room_volume_type: string | null
+          sanitizer_type: string | null
           serial_number: string | null
+          softener_salt_status: string | null
           street_hardness_gpg: number | null
           tank_capacity_gallons: number
           temp_setting: string | null
           updated_at: string
+          usage_type: string | null
           vent_type: string | null
           venting_scenario: string | null
           visual_rust: boolean | null
           warranty_years: number | null
+          years_without_anode: number | null
+          years_without_softener: number | null
         }
         Insert: {
           air_filter_status?: string | null
@@ -883,11 +892,14 @@ export type Database = {
           id?: string
           inlet_filter_status?: string | null
           install_date?: string | null
+          is_annually_maintained?: boolean | null
           is_closed_loop?: boolean | null
           is_condensate_clear?: boolean | null
           is_finished_area?: boolean | null
           is_leaking?: boolean | null
+          last_anode_replace_years_ago?: number | null
           last_descale_years_ago?: number | null
+          last_flush_years_ago?: number | null
           leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
@@ -895,20 +907,26 @@ export type Database = {
           model_number?: string | null
           nipple_material?: string | null
           notes?: string | null
+          people_count?: number | null
           photo_urls?: Json | null
           property_id: string
           quality_tier?: string | null
           rated_flow_gpm?: number | null
           room_volume_type?: string | null
+          sanitizer_type?: string | null
           serial_number?: string | null
+          softener_salt_status?: string | null
           street_hardness_gpg?: number | null
           tank_capacity_gallons?: number
           temp_setting?: string | null
           updated_at?: string
+          usage_type?: string | null
           vent_type?: string | null
           venting_scenario?: string | null
           visual_rust?: boolean | null
           warranty_years?: number | null
+          years_without_anode?: number | null
+          years_without_softener?: number | null
         }
         Update: {
           air_filter_status?: string | null
@@ -932,11 +950,14 @@ export type Database = {
           id?: string
           inlet_filter_status?: string | null
           install_date?: string | null
+          is_annually_maintained?: boolean | null
           is_closed_loop?: boolean | null
           is_condensate_clear?: boolean | null
           is_finished_area?: boolean | null
           is_leaking?: boolean | null
+          last_anode_replace_years_ago?: number | null
           last_descale_years_ago?: number | null
+          last_flush_years_ago?: number | null
           leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
@@ -944,20 +965,26 @@ export type Database = {
           model_number?: string | null
           nipple_material?: string | null
           notes?: string | null
+          people_count?: number | null
           photo_urls?: Json | null
           property_id?: string
           quality_tier?: string | null
           rated_flow_gpm?: number | null
           room_volume_type?: string | null
+          sanitizer_type?: string | null
           serial_number?: string | null
+          softener_salt_status?: string | null
           street_hardness_gpg?: number | null
           tank_capacity_gallons?: number
           temp_setting?: string | null
           updated_at?: string
+          usage_type?: string | null
           vent_type?: string | null
           venting_scenario?: string | null
           visual_rust?: boolean | null
           warranty_years?: number | null
+          years_without_anode?: number | null
+          years_without_softener?: number | null
         }
         Relationships: [
           {
@@ -1081,11 +1108,14 @@ export type Database = {
           id: string | null
           inlet_filter_status: string | null
           install_date: string | null
+          is_annually_maintained: boolean | null
           is_closed_loop: boolean | null
           is_condensate_clear: boolean | null
           is_finished_area: boolean | null
           is_leaking: boolean | null
+          last_anode_replace_years_ago: number | null
           last_descale_years_ago: number | null
+          last_flush_years_ago: number | null
           leak_source: string | null
           location: string | null
           manufacturer: string | null
@@ -1093,20 +1123,26 @@ export type Database = {
           model_number: string | null
           nipple_material: string | null
           notes: string | null
+          people_count: number | null
           photo_urls: Json | null
           property_id: string | null
           quality_tier: string | null
           rated_flow_gpm: number | null
           room_volume_type: string | null
+          sanitizer_type: string | null
           serial_number: string | null
+          softener_salt_status: string | null
           street_hardness_gpg: number | null
           tank_capacity_gallons: number | null
           temp_setting: string | null
           updated_at: string | null
+          usage_type: string | null
           vent_type: string | null
           venting_scenario: string | null
           visual_rust: boolean | null
           warranty_years: number | null
+          years_without_anode: number | null
+          years_without_softener: number | null
         }
         Insert: {
           air_filter_status?: string | null
@@ -1130,11 +1166,14 @@ export type Database = {
           id?: string | null
           inlet_filter_status?: string | null
           install_date?: string | null
+          is_annually_maintained?: boolean | null
           is_closed_loop?: boolean | null
           is_condensate_clear?: boolean | null
           is_finished_area?: boolean | null
           is_leaking?: boolean | null
+          last_anode_replace_years_ago?: number | null
           last_descale_years_ago?: number | null
+          last_flush_years_ago?: number | null
           leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
@@ -1142,20 +1181,26 @@ export type Database = {
           model_number?: string | null
           nipple_material?: string | null
           notes?: string | null
+          people_count?: number | null
           photo_urls?: Json | null
           property_id?: string | null
           quality_tier?: string | null
           rated_flow_gpm?: number | null
           room_volume_type?: string | null
+          sanitizer_type?: string | null
           serial_number?: string | null
+          softener_salt_status?: string | null
           street_hardness_gpg?: number | null
           tank_capacity_gallons?: number | null
           temp_setting?: string | null
           updated_at?: string | null
+          usage_type?: string | null
           vent_type?: string | null
           venting_scenario?: string | null
           visual_rust?: boolean | null
           warranty_years?: number | null
+          years_without_anode?: number | null
+          years_without_softener?: number | null
         }
         Update: {
           air_filter_status?: string | null
@@ -1179,11 +1224,14 @@ export type Database = {
           id?: string | null
           inlet_filter_status?: string | null
           install_date?: string | null
+          is_annually_maintained?: boolean | null
           is_closed_loop?: boolean | null
           is_condensate_clear?: boolean | null
           is_finished_area?: boolean | null
           is_leaking?: boolean | null
+          last_anode_replace_years_ago?: number | null
           last_descale_years_ago?: number | null
+          last_flush_years_ago?: number | null
           leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
@@ -1191,20 +1239,26 @@ export type Database = {
           model_number?: string | null
           nipple_material?: string | null
           notes?: string | null
+          people_count?: number | null
           photo_urls?: Json | null
           property_id?: string | null
           quality_tier?: string | null
           rated_flow_gpm?: number | null
           room_volume_type?: string | null
+          sanitizer_type?: string | null
           serial_number?: string | null
+          softener_salt_status?: string | null
           street_hardness_gpg?: number | null
           tank_capacity_gallons?: number | null
           temp_setting?: string | null
           updated_at?: string | null
+          usage_type?: string | null
           vent_type?: string | null
           venting_scenario?: string | null
           visual_rust?: boolean | null
           warranty_years?: number | null
+          years_without_anode?: number | null
+          years_without_softener?: number | null
         }
         Relationships: [
           {
