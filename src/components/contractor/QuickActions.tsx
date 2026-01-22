@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ClipboardList, Building2, DollarSign, FileBarChart } from 'lucide-react';
+import { ClipboardList, Building2, FileBarChart, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -8,18 +8,18 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({ compact = false }: QuickActionsProps) {
-  const handlePricingSetup = () => {
-    toast.info('Pricing setup coming soon');
-  };
-
   const handleReports = () => {
     toast.info('Reports coming soon');
+  };
+
+  const handleSchedule = () => {
+    toast.info('Schedule view coming soon');
   };
 
   const actions = [
     { icon: ClipboardList, label: 'Inspect', shortLabel: 'Inspect', to: '/?mode=technician' },
     { icon: Building2, label: 'View Properties', shortLabel: 'Props', onClick: () => toast.info('Properties view coming soon') },
-    { icon: DollarSign, label: 'Pricing Setup', shortLabel: 'Pricing', onClick: handlePricingSetup },
+    { icon: CalendarCheck, label: 'Schedule', shortLabel: 'Schedule', onClick: handleSchedule },
     { icon: FileBarChart, label: 'Reports', shortLabel: 'Reports', onClick: handleReports },
   ];
 
@@ -89,12 +89,12 @@ export function QuickActions({ compact = false }: QuickActionsProps) {
         <Button 
           variant="ghost" 
           className="w-full h-auto py-4 flex flex-col items-center gap-2 border border-gray-100 hover:bg-gray-50 hover:border-gray-200"
-          onClick={handlePricingSetup}
+          onClick={handleSchedule}
         >
           <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-            <DollarSign className="w-5 h-5 text-gray-500" />
+            <CalendarCheck className="w-5 h-5 text-gray-500" />
           </div>
-          <span className="text-xs font-medium text-gray-600">Pricing Setup</span>
+          <span className="text-xs font-medium text-gray-600">Schedule</span>
         </Button>
         
         <Button 
