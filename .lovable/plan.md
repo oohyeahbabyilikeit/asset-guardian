@@ -1,161 +1,112 @@
 
-# Convert "Monitor" Drawer Dead End → Lead Capture via Personalized Maintenance Plan
+# Show Services That Affect Anode Calculations in Service History
 
 ## Problem
-When a unit is perfectly healthy (PASS verdict), the `OptionsAssessmentDrawer` shows "Your Unit Is Stable" with a "Got It" button that just closes the drawer. This is a **dead end for lead capture** — we're losing potential customers who could opt into maintenance reminders.
+The service history shows only `flush`, `anode_replacement`, and `inspection` events - but many other services directly impact the anode life calculation:
+- Softener installation (1.4x decay multiplier)
+- Circulation pump installation (0.5x decay)
+- Expansion tank installation (reduces pressure stress)
+- PRV installation (reduces pressure stress)
+
+When these services happen, they should be logged and visible so users understand why their health projections changed.
 
 ## Solution
-Transform the "monitor" tier experience into a lead capture opportunity by:
-1. Showing the user their **personalized maintenance schedule** (next flush, anode check, etc.)
-2. Offering an **SMS/email reminder opt-in** that captures their contact info as a lead
-3. Adding a new `CaptureSource` type for this flow (`maintenance_reminder`)
 
----
+### 1. Expand ServiceEvent Types
+**File:** `src/types/serviceHistory.ts`
 
-## Implementation Plan
-
-### Step 1: Add New CaptureSource Type
-**File:** `src/lib/leadService.ts`
-
-Add `'maintenance_reminder'` to the `CaptureSource` union type:
+Add new event types that affect algorithm calculations:
 ```typescript
-export type CaptureSource = 
-  | 'service_selection'
-  | 'replacement_quote'
-  | 'handoff_remote'
-  | 'emergency_flow'
-  | 'chat_escalation'
-  | 'maintenance_reminder';  // NEW: From healthy unit reminder opt-in
+export interface ServiceEvent {
+  id: string;
+  type: 
+    | 'flush' 
+    | 'anode_replacement' 
+    | 'inspection' 
+    | 'repair'
+    | 'softener_install'      // NEW: Affects anode decay rate
+    | 'circ_pump_install'     // NEW: Affects anode decay rate
+    | 'exp_tank_install'      // NEW: Affects pressure stress
+    | 'exp_tank_replace'      // NEW: Affects pressure stress
+    | 'prv_install'           // NEW: Affects pressure stress
+    | 'prv_replace'           // NEW: Affects pressure stress
+    | 'descale';              // NEW: For tankless units
+  date: string;
+  // ... rest unchanged
+}
 ```
 
-### Step 2: Update OptionsAssessmentDrawer for Monitor Tier
-**File:** `src/components/OptionsAssessmentDrawer.tsx`
+### 2. Update Service History Display
+**File:** `src/components/ServiceHistory.tsx`
 
-When `tier === 'monitor'`, replace the simple "Got It" experience with:
+Add visual representation for the new event types with appropriate icons and colors:
 
-1. **Personalized Maintenance Preview Section**
-   - Calculate maintenance schedule using existing `calculateMaintenanceSchedule(inputs, metrics)`
-   - Show upcoming tasks with timeframes (e.g., "Tank Flush – Due in 8 months")
-   - Display the `yearsRemaining` estimate if available
+| Event Type | Icon | Color | Label |
+|------------|------|-------|-------|
+| `softener_install` | Droplets | Purple | "Softener Installed" |
+| `circ_pump_install` | Zap | Yellow | "Circ Pump Installed" |
+| `exp_tank_install` | Shield | Blue | "Expansion Tank Installed" |
+| `prv_install` | Gauge | Green | "PRV Installed" |
 
-2. **SMS/Email Reminder Opt-In Card**
-   - Reuse the same UI pattern from `MaintenanceCalendar.tsx` (toggle + form)
-   - Include SMS/email method selector and contact input
-   - On submit: Call `submitLead()` with `captureSource: 'maintenance_reminder'`
-
-3. **Updated CTA Button**
-   - If not opted in: "Get Maintenance Reminders" (primary)
-   - If opted in: "Got It" (outline) — closes drawer with success toast
-
-### Step 3: Pass Required Props to Drawer
-**File:** `src/components/CommandCenter.tsx` (or wherever drawer is opened)
-
-Ensure `inputs` and `metrics` are passed to the drawer so it can calculate the maintenance schedule.
-
----
-
-## UI Mockup (Monitor Tier)
+### 3. Add "Impact Badge" to Service Events
+Show how each service affected the calculation:
 
 ```text
-┌────────────────────────────────────────────────┐
-│ Your Assessment                                 │
-│ Here's what we found based on your condition   │
-├────────────────────────────────────────────────┤
-│ ┌──────────────────────────────────────────┐   │
-│ │ 👁 Your Unit Is Stable                    │   │
-│ │ No service is recommended at this time.  │   │
-│ └──────────────────────────────────────────┘   │
-│                                                 │
-│ Your Maintenance Schedule                       │
-│ ┌──────────────────────────────────────────┐   │
-│ │ 💧 Tank Flush         Due in 8 months    │   │
-│ │ 🛡 Anode Inspection   Due in 14 months   │   │
-│ └──────────────────────────────────────────┘   │
-│                                                 │
-│ ┌──────────────────────────────────────────┐   │
-│ │ 🔔 Get Maintenance Reminders              │   │
-│ │ We'll text you when service is due       │   │
-│ │                                           │   │
-│ │ [Text] [Email]                           │   │
-│ │ ┌────────────────────────────────┐       │   │
-│ │ │ (555) 123-4567                 │       │   │
-│ │ └────────────────────────────────┘       │   │
-│ │         [ Enable Reminders ]             │   │
-│ └──────────────────────────────────────────┘   │
-│                                                 │
-│          [ Got It ]  (outline button)          │
-└────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│ 🛡 Anode Replaced                           │
+│ Jan 15, 2024                                │
+│ ┌─────────────────────────────────────────┐ │
+│ │ ⬆ Shield Life: 0yr → 6yr                │ │
+│ └─────────────────────────────────────────┘ │
+├─────────────────────────────────────────────┤
+│ 💧 Softener Installed                       │
+│ Mar 8, 2023                                 │
+│ ┌─────────────────────────────────────────┐ │
+│ │ ⚠ Anode decay: +1.4x (soft water)       │ │
+│ └─────────────────────────────────────────┘ │
+├─────────────────────────────────────────────┤
+│ 🛡 Expansion Tank Installed                 │
+│ Feb 1, 2023                                 │
+│ ┌─────────────────────────────────────────┐ │
+│ │ ⬆ Pressure stress: 7x → 1x              │ │
+│ └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
 ```
 
----
+### 4. Update the "Add Service" Flow
+When adding a service event, show the expected impact:
+- For anode replacement: "Resets shield life to ~6 years"
+- For softener install: "Note: Soft water accelerates anode wear by 1.4x"
+- For expansion tank: "Reduces aging rate by up to 7x"
 
-## Technical Details
+### 5. Update getServiceEventTypes()
+**File:** `src/lib/maintenanceCalculations.ts`
 
-### New Imports for OptionsAssessmentDrawer
+Include infrastructure services in the list:
 ```typescript
-import { calculateMaintenanceSchedule, MaintenanceTask } from '@/lib/maintenanceCalculations';
-import { submitLead, CaptureSource } from '@/lib/leadService';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { Bell, BellRing, MessageSquare, Mail, Droplets, Shield, Flame } from 'lucide-react';
+// Tank water heaters
+return [
+  { value: 'flush', label: 'Tank Flush' },
+  { value: 'anode_replacement', label: 'Anode Replacement' },
+  { value: 'softener_install', label: 'Softener Installation' },
+  { value: 'circ_pump_install', label: 'Circulation Pump Install' },
+  { value: 'exp_tank_install', label: 'Expansion Tank Install' },
+  { value: 'prv_install', label: 'PRV Install' },
+  { value: 'inspection', label: 'Inspection' },
+  { value: 'repair', label: 'Repair' },
+];
 ```
-
-### State for Reminder Flow
-```typescript
-const [showReminderForm, setShowReminderForm] = useState(false);
-const [reminderMethod, setReminderMethod] = useState<'sms' | 'email'>('sms');
-const [contactInfo, setContactInfo] = useState('');
-const [isSubmitting, setIsSubmitting] = useState(false);
-const [reminderEnabled, setReminderEnabled] = useState(false);
-```
-
-### Lead Submission Handler
-```typescript
-const handleReminderSubmit = async () => {
-  if (!contactInfo.trim()) {
-    toast.error(`Please enter your ${reminderMethod === 'sms' ? 'phone number' : 'email'}`);
-    return;
-  }
-  
-  setIsSubmitting(true);
-  const result = await submitLead({
-    customerName: 'Homeowner',
-    customerPhone: reminderMethod === 'sms' ? contactInfo : '',
-    customerEmail: reminderMethod === 'email' ? contactInfo : undefined,
-    captureSource: 'maintenance_reminder',
-    captureContext: {
-      healthScore,
-      yearsRemaining,
-      nextMaintenanceType: schedule?.primaryTask?.type,
-      monthsUntilDue: schedule?.primaryTask?.monthsUntilDue,
-    },
-    optInAlerts: true,
-    preferredContactMethod: reminderMethod,
-  });
-  
-  setIsSubmitting(false);
-  if (result.success) {
-    setReminderEnabled(true);
-    toast.success(`Reminders enabled! We'll ${reminderMethod === 'sms' ? 'text' : 'email'} you before maintenance is due.`);
-  } else {
-    toast.error('Something went wrong. Please try again.');
-  }
-};
-```
-
----
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/lib/leadService.ts` | Add `'maintenance_reminder'` to `CaptureSource` |
-| `src/components/OptionsAssessmentDrawer.tsx` | Add maintenance schedule display + reminder opt-in form for monitor tier |
+| `src/types/serviceHistory.ts` | Add new event types to `ServiceEvent.type` union |
+| `src/components/ServiceHistory.tsx` | Add icons/colors/labels for new types; add impact badge display |
+| `src/lib/maintenanceCalculations.ts` | Update `getServiceEventTypes()` to include new types |
 
 ## Benefits
-
-1. **Lead Capture**: Every healthy unit now has a path to capture contact info
-2. **Value Exchange**: Users get personalized maintenance reminders in exchange for contact
-3. **Reuses Existing Code**: Uses existing `calculateMaintenanceSchedule`, `submitLead`, and UI patterns
-4. **Non-Intrusive**: Opt-in is optional — "Got It" still closes the drawer
+1. **Transparency**: Users see exactly what services affect their health score
+2. **Education**: Impact badges explain the "why" behind calculation changes
+3. **Trust**: Full audit trail of what affects the algorithm
+4. **Actionable**: Users understand the trade-offs (e.g., softener helps scale but hurts anode)
