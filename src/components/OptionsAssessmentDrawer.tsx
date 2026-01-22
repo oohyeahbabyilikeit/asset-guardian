@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info, Bell, MessageSquare, Mail, Droplets, Shield, Loader2, Sparkles } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronRight, ChevronDown, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info, Bell, MessageSquare, Mail, Droplets, Shield, Loader2, Sparkles, Camera } from 'lucide-react';
 import { ForensicInputs, OpterraMetrics, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import type { IssueCategory } from '@/lib/infrastructureIssues';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
@@ -88,14 +89,14 @@ function getRecommendation(tier: UrgencyTier, verdictAction?: VerdictAction) {
       return {
         headline: isReplacement 
           ? 'Replacement Recommended' 
-          : 'Immediate Attention Recommended',
+          : 'Immediate Attention Needed',
         subheadline: isReplacement
-          ? 'Based on our assessment, your unit has reached the end of its serviceable life.'
-          : 'Our assessment found issues that need prompt professional attention.',
+          ? 'Your water heater has reached the end of its serviceable life.'
+          : 'We found issues that need prompt professional attention.',
         icon: AlertTriangle,
         iconColor: 'text-destructive',
         bgColor: 'bg-destructive/10',
-        borderColor: 'border-destructive/30',
+        borderColor: 'border-destructive/40',
       };
     case 'attention':
       return {
@@ -127,11 +128,11 @@ function getRecommendation(tier: UrgencyTier, verdictAction?: VerdictAction) {
   }
 }
 
-// Get styling for priority finding cards based on category/severity
+// Get styling for priority finding cards based on category/severity - humanized labels
 function getFindingStyle(finding: PriorityFinding) {
   if (finding.category === 'VIOLATION' || finding.severity === 'critical') {
     return {
-      label: 'CODE VIOLATION',
+      label: 'NEEDS ATTENTION',
       bgColor: 'bg-destructive/10',
       borderColor: 'border-destructive/40',
       labelColor: 'text-destructive',
@@ -140,7 +141,7 @@ function getFindingStyle(finding: PriorityFinding) {
   }
   if (finding.category === 'INFRASTRUCTURE' || finding.severity === 'warning') {
     return {
-      label: 'URGENT ACTION',
+      label: 'WORTH ADDRESSING',
       bgColor: 'bg-warning/10',
       borderColor: 'border-warning/40',
       labelColor: 'text-warning',
@@ -199,7 +200,7 @@ function getEducationalTopic(findingId: string): EducationalTopic | null {
   return topicMap[findingId] || null;
 }
 
-// Fallback situation summary for when no priority findings
+// Fallback situation summary - conversational, no technical jargon
 function getFallbackSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tier: UrgencyTier, verdictReason?: string): string[] {
   const points: string[] = [];
   
@@ -207,17 +208,16 @@ function getFallbackSummary(inputs: ForensicInputs, metrics: OpterraMetrics, tie
     points.push(verdictReason);
   }
   
-  const wearLevel = metrics.bioAge > inputs.calendarAge + 5 ? 'high' : metrics.bioAge > inputs.calendarAge + 2 ? 'elevated' : 'normal';
   if (metrics.bioAge >= 12) {
-    points.push(`Your unit is showing ${wearLevel} wear – well past the typical 8-12 year lifespan.`);
+    points.push('Your water heater is older and showing signs of wear.');
   } else if (metrics.bioAge >= 8) {
-    points.push(`Your unit is entering its later years based on wear level.`);
+    points.push('Your unit is entering the age where issues become more common.');
   } else if (tier !== 'monitor') {
-    points.push(`Your unit is still within its prime lifespan.`);
+    points.push('Your unit is still in its prime years.');
   }
   
   if (tier === 'healthy' && points.length < 2) {
-    points.push('Regular maintenance helps prevent unexpected failures and extends equipment life.');
+    points.push('Regular maintenance helps prevent unexpected problems.');
   }
   
   return points.slice(0, 3);
@@ -243,6 +243,7 @@ export function OptionsAssessmentDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(() => hasLeadBeenCaptured('maintenance_reminder'));
   const [showCorrtexChat, setShowCorrtexChat] = useState(false);
+  const [findingsExpanded, setFindingsExpanded] = useState(false);
   
   const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
   const recommendation = getRecommendation(tier, verdictAction);
@@ -373,23 +374,40 @@ export function OptionsAssessmentDrawer({
           </DrawerHeader>
           
           <div className="px-4 space-y-5">
-            {/* Recommendation Banner */}
-            <div className={`rounded-xl p-4 ${recommendation.bgColor} border ${recommendation.borderColor}`}>
-              <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${recommendation.bgColor}`}>
-                  <Icon className={`w-6 h-6 ${recommendation.iconColor}`} />
+            {/* 1. ENLARGED Recommendation Banner - Big, clear verdict */}
+            <div className={`rounded-2xl p-5 ${recommendation.bgColor} border-2 ${recommendation.borderColor}`}>
+              <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-xl ${recommendation.bgColor}`}>
+                  <Icon className={`w-8 h-8 ${recommendation.iconColor}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground">{recommendation.headline}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{recommendation.subheadline}</p>
+                  <h3 className="text-lg font-bold text-foreground">{recommendation.headline}</h3>
+                  <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{recommendation.subheadline}</p>
                 </div>
               </div>
             </div>
             
-            {/* Personalized "Why Replacement" rationale - only for REPLACE verdicts */}
+            {/* 2. Visual Evidence - Show actual inspection photo for REPLACE verdicts */}
+            {verdictAction === 'REPLACE' && inputs.photoUrls?.condition && (
+              <div className="rounded-xl overflow-hidden border border-border">
+                <img 
+                  src={inputs.photoUrls.condition} 
+                  alt="Your water heater condition"
+                  className="w-full h-44 object-cover"
+                />
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/40">
+                  <Camera className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
+                    Photo captured during your inspection
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* 3. ELEVATED "Why We Recommend This" - Primary focus for REPLACE verdicts */}
             {verdictAction === 'REPLACE' && (
               <div className="space-y-3">
-                <h4 className="font-medium text-foreground">Why We Recommend This</h4>
+                <h4 className="text-base font-semibold text-foreground">Here's why this makes sense for you</h4>
                 {rationaleLoading ? (
                   <div className="flex items-center gap-2 p-4 rounded-xl bg-muted/30 border border-border/50 text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -398,8 +416,8 @@ export function OptionsAssessmentDrawer({
                 ) : rationale?.sections && rationale.sections.length > 0 ? (
                   <div className="space-y-3">
                     {rationale.sections.slice(0, 3).map((section, index) => (
-                      <div key={index} className="p-3 rounded-xl bg-muted/30 border border-border/50">
-                        <h5 className="text-sm font-semibold text-foreground mb-1">
+                      <div key={index} className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                        <h5 className="text-sm font-semibold text-foreground mb-1.5">
                           {section.heading}
                         </h5>
                         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -409,48 +427,60 @@ export function OptionsAssessmentDrawer({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground p-3 rounded-xl bg-muted/30 border border-border/50">
-                    Based on the wear patterns and conditions we measured, continuing to repair this unit would likely cost more than it's worth. A new unit provides reliability, efficiency, and peace of mind.
-                  </p>
+                  <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      At this point, repairs would likely cost more than they're worth. A new unit gives you reliability, improved efficiency, and peace of mind with a fresh warranty.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
-            {/* Priority Findings - specific issues detected */}
+            
+            {/* 4. COLLAPSED Priority Findings - Technical details demoted */}
             {hasPriorityFindings && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-foreground">Priority Findings</h4>
-                <div className="space-y-2">
-                  {priorityFindings.map((finding) => {
-                    const style = getFindingStyle(finding);
-                    const FindingIcon = style.icon;
-                    const hasTopic = getEducationalTopic(finding.id) !== null;
-                    return (
-                      <button 
-                        key={finding.id} 
-                        onClick={() => handleFindingClick(finding)}
-                        className={`w-full text-left rounded-lg p-3 ${style.bgColor} border ${style.borderColor} transition-all duration-200 ${hasTopic ? 'hover:scale-[1.01] hover:shadow-md active:scale-[0.99] cursor-pointer' : ''}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <FindingIcon className={`w-5 h-5 ${style.labelColor} flex-shrink-0 mt-0.5`} />
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-xs font-semibold uppercase tracking-wide ${style.labelColor} mb-0.5`}>
-                              {style.label}
+              <Collapsible open={findingsExpanded} onOpenChange={setFindingsExpanded}>
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">What We Found</span>
+                    <span className="text-xs text-muted-foreground">({priorityFindings.length} items)</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${findingsExpanded ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <div className="space-y-2">
+                    {priorityFindings.map((finding) => {
+                      const style = getFindingStyle(finding);
+                      const FindingIcon = style.icon;
+                      const hasTopic = getEducationalTopic(finding.id) !== null;
+                      return (
+                        <button 
+                          key={finding.id} 
+                          onClick={() => handleFindingClick(finding)}
+                          className={`w-full text-left rounded-lg p-3 ${style.bgColor} border ${style.borderColor} transition-all duration-200 ${hasTopic ? 'hover:scale-[1.01] hover:shadow-md active:scale-[0.99] cursor-pointer' : ''}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <FindingIcon className={`w-5 h-5 ${style.labelColor} flex-shrink-0 mt-0.5`} />
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-xs font-semibold uppercase tracking-wide ${style.labelColor} mb-0.5`}>
+                                {style.label}
+                              </div>
+                              <p className="font-medium text-sm text-foreground">{finding.name}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{finding.friendlyName}</p>
                             </div>
-                            <p className="font-medium text-sm text-foreground">{finding.name}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{finding.friendlyName}</p>
+                            {hasTopic && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Info className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Learn</span>
+                              </div>
+                            )}
                           </div>
-                          {hasTopic && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Info className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">Learn</span>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
             
             {/* Fallback: Generic situation summary when no specific findings */}
