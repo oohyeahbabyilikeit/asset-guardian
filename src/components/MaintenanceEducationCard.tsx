@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Clock, Info, Wrench, AlertTriangle, Gauge, Phone } from 'lucide-react';
+import { Calendar, Clock, Info, Wrench, AlertTriangle, Gauge, Phone, CheckCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { calculateMaintenanceSchedule, MaintenanceSchedule, MaintenanceTask, getInfrastructureMaintenanceTasks } from '@/lib/maintenanceCalculations';
+import { calculateMaintenanceSchedule, MaintenanceSchedule, MaintenanceTask, getInfrastructureMaintenanceTasks, VerdictAction } from '@/lib/maintenanceCalculations';
 import { ForensicInputs, OpterraMetrics, isTankless } from '@/lib/opterraAlgorithm';
 import { addMonths } from 'date-fns';
 
@@ -15,6 +15,12 @@ interface MaintenanceEducationCardProps {
   propertyId?: string;
   waterHeaterId?: string;
   onScheduleService?: () => void;
+  /** Algorithm verdict - controls whether maintenance is shown */
+  verdictAction?: VerdictAction;
+  /** Reason for PASS verdict (used for monitor-only messaging) */
+  verdictTitle?: string;
+  /** Estimated years remaining (for PASS verdicts) */
+  yearsRemaining?: number;
 }
 
 interface ScheduledTask extends MaintenanceTask {
@@ -28,6 +34,9 @@ export function MaintenanceEducationCard({
   propertyId,
   waterHeaterId,
   onScheduleService,
+  verdictAction,
+  verdictTitle,
+  yearsRemaining,
 }: MaintenanceEducationCardProps) {
   // Determine unit type
   const unitType = useMemo(() => {
@@ -36,18 +45,23 @@ export function MaintenanceEducationCard({
     return 'tank';
   }, [currentInputs.fuelType]);
 
-  // Calculate maintenance schedule
+  // Calculate maintenance schedule - now verdict-aware
   const maintenanceSchedule: MaintenanceSchedule = useMemo(() => {
-    return calculateMaintenanceSchedule(currentInputs, metrics);
-  }, [currentInputs, metrics]);
+    return calculateMaintenanceSchedule(currentInputs, metrics, verdictAction);
+  }, [currentInputs, metrics, verdictAction]);
 
   // Get infrastructure tasks (critical priority issues like missing expansion tank)
+  // Only show if NOT a PASS verdict (infrastructure issues are still important for REPAIR/MAINTAIN)
   const infrastructureTasks: MaintenanceTask[] = useMemo(() => {
+    if (verdictAction === 'PASS') return [];
     return getInfrastructureMaintenanceTasks(currentInputs, metrics);
-  }, [currentInputs, metrics]);
+  }, [currentInputs, metrics, verdictAction]);
 
   // Build scheduled tasks with due dates (NO PRICES)
   const scheduledTasks: ScheduledTask[] = useMemo(() => {
+    // If monitor-only, no tasks to show
+    if (maintenanceSchedule.monitorOnly) return [];
+    
     const tasks: ScheduledTask[] = [];
     const now = new Date();
 
@@ -88,6 +102,32 @@ export function MaintenanceEducationCard({
       return a.monthsUntilDue - b.monthsUntilDue;
     });
   }, [maintenanceSchedule, infrastructureTasks]);
+  
+  // Get monitor-only message based on verdict title
+  const getMonitorMessage = (): { title: string; subtitle: string } => {
+    if (verdictTitle?.includes('Fused')) {
+      return {
+        title: 'Anode may be fused',
+        subtitle: 'Standard inspection could cause damage. We recommend monitoring.',
+      };
+    }
+    if (verdictTitle?.includes('Fragile')) {
+      return {
+        title: 'Unit is fragile',
+        subtitle: 'Maintenance could cause more harm than good at this stage.',
+      };
+    }
+    if (verdictTitle?.includes('Run to Failure')) {
+      return {
+        title: 'Monitor & plan ahead',
+        subtitle: 'Your unit is stable. Budget for replacement when ready.',
+      };
+    }
+    return {
+      title: 'Your unit is stable',
+      subtitle: 'No maintenance recommended at this time.',
+    };
+  };
 
   // Format months until due
   const formatDueIn = (months: number): string => {
@@ -114,6 +154,51 @@ export function MaintenanceEducationCard({
         return 'bg-muted text-muted-foreground';
     }
   };
+
+  // Handle "All Caught Up" / Monitor Only state
+  if (maintenanceSchedule.monitorOnly) {
+    const { title, subtitle } = getMonitorMessage();
+    
+    return (
+      <Card className="border-emerald-500/20 shadow-md bg-emerald-500/5">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-emerald-500/20">
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <CardTitle className="text-lg text-emerald-700 dark:text-emerald-400">
+                {title}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {subtitle}
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {yearsRemaining !== undefined && yearsRemaining > 0 && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+              <Eye className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Plan for replacement in approximately <strong>{yearsRemaining} year{yearsRemaining === 1 ? '' : 's'}</strong>. 
+                We'll be here when you need us.
+              </p>
+            </div>
+          )}
+          
+          <Button
+            onClick={onScheduleService}
+            variant="outline"
+            className="w-full gap-2"
+          >
+            <Phone className="w-4 h-4" />
+            Questions? Reach Out
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-primary/20 shadow-md">
