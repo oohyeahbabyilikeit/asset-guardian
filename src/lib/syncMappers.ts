@@ -54,6 +54,9 @@ export interface WaterHeaterInsert {
   inlet_filter_status?: string;
   error_code_count?: number;
   building_type?: string;
+  // v1.0 Tank Cleanup fields
+  nipple_material?: string;
+  measured_hardness_gpg?: number;
 }
 
 // Type for water_softeners table insert
@@ -171,6 +174,10 @@ export function mapInspectionToWaterHeater(
     room_volume_type: data.hybrid?.roomVolumeType || undefined,
     air_filter_status: data.hybrid?.airFilterStatus || undefined,
     is_condensate_clear: data.hybrid?.isCondensateClear,
+    
+    // v1.0 Tank Cleanup fields
+    nipple_material: data.equipment.nippleMaterial || undefined,
+    measured_hardness_gpg: data.measurements.measuredHardnessGPG || undefined,
   };
 }
 
