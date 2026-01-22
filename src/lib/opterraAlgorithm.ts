@@ -86,6 +86,32 @@ export function isTankless(fuelType: FuelType): boolean {
   return fuelType === 'TANKLESS_GAS' || fuelType === 'TANKLESS_ELECTRIC';
 }
 
+/**
+ * NEW v9.1: Dynamic Age Calculation
+ * 
+ * Calculates the current age of a water heater from its install date.
+ * Falls back to stored static age if install date is not available.
+ * 
+ * This enables "self-updating" records where age is always current
+ * rather than frozen at inspection time.
+ * 
+ * @param installDate - The date the unit was installed (from DB or serial decode)
+ * @param storedAge - Fallback: the static calendar_age_years from inspection
+ * @returns Current age in years (fractional)
+ */
+export function calculateCurrentAge(installDate: Date | string | null, storedAge?: number): number {
+  if (installDate) {
+    const installDateObj = typeof installDate === 'string' ? new Date(installDate) : installDate;
+    if (!isNaN(installDateObj.getTime())) {
+      const now = new Date();
+      const ageMs = now.getTime() - installDateObj.getTime();
+      const ageYears = ageMs / (365.25 * 24 * 60 * 60 * 1000);
+      return Math.max(0, ageYears); // Never return negative age
+    }
+  }
+  return storedAge ?? 0;
+}
+
 // Softener Salt Status for "Digital-First" hardness detection
 export type SoftenerSaltStatus = 'OK' | 'EMPTY' | 'UNKNOWN';
 
