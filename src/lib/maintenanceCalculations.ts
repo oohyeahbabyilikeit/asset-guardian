@@ -415,37 +415,74 @@ export function calculateMaintenanceSchedule(
 }
 
 // Service event types by unit category
+// Returns all service types that affect algorithm calculations, with category grouping
 export function getServiceEventTypes(fuelType: ForensicInputs['fuelType']): Array<{
   value: string;
   label: string;
+  category?: 'maintenance' | 'infrastructure';
+  impactNote?: string;
 }> {
+  // Infrastructure services apply to all unit types
+  const infrastructureServices = [
+    { value: 'softener_install', label: 'Softener Installation', category: 'infrastructure' as const, impactNote: 'Affects anode decay (+1.4x in soft water)' },
+    { value: 'circ_pump_install', label: 'Circulation Pump Install', category: 'infrastructure' as const, impactNote: 'Affects anode decay (+0.5x)' },
+    { value: 'exp_tank_install', label: 'Expansion Tank Install', category: 'infrastructure' as const, impactNote: 'Reduces aging rate (up to 7x)' },
+    { value: 'exp_tank_replace', label: 'Expansion Tank Replace', category: 'infrastructure' as const, impactNote: 'Restores pressure protection' },
+    { value: 'prv_install', label: 'PRV Install', category: 'infrastructure' as const, impactNote: 'Reduces pressure stress' },
+    { value: 'prv_replace', label: 'PRV Replace', category: 'infrastructure' as const, impactNote: 'Restores pressure regulation' },
+  ];
+
   if (isTankless(fuelType)) {
     return [
-      { value: 'descale', label: 'Descale Service' },
-      { value: 'filter_clean', label: 'Filter Cleaning' },
-      { value: 'valve_install', label: 'Isolation Valve Install' },
-      { value: 'inspection', label: 'Inspection' },
-      { value: 'repair', label: 'Repair' },
+      { value: 'descale', label: 'Descale Service', category: 'maintenance' as const },
+      { value: 'filter_clean', label: 'Filter Cleaning', category: 'maintenance' as const },
+      { value: 'valve_install', label: 'Isolation Valve Install', category: 'infrastructure' as const, impactNote: 'Enables descaling maintenance' },
+      { value: 'inspection', label: 'Inspection', category: 'maintenance' as const },
+      { value: 'repair', label: 'Repair', category: 'maintenance' as const },
+      ...infrastructureServices,
     ];
   }
   
   if (fuelType === 'HYBRID') {
     return [
-      { value: 'air_filter', label: 'Air Filter Service' },
-      { value: 'condensate', label: 'Condensate Drain Clear' },
-      { value: 'flush', label: 'Tank Flush' },
-      { value: 'inspection', label: 'Inspection' },
-      { value: 'repair', label: 'Repair' },
+      { value: 'air_filter', label: 'Air Filter Service', category: 'maintenance' as const },
+      { value: 'condensate', label: 'Condensate Drain Clear', category: 'maintenance' as const },
+      { value: 'flush', label: 'Tank Flush', category: 'maintenance' as const },
+      { value: 'inspection', label: 'Inspection', category: 'maintenance' as const },
+      { value: 'repair', label: 'Repair', category: 'maintenance' as const },
+      ...infrastructureServices,
     ];
   }
   
   // Tank water heaters
   return [
-    { value: 'flush', label: 'Tank Flush' },
-    { value: 'anode_replacement', label: 'Anode Replacement' },
-    { value: 'inspection', label: 'Inspection' },
-    { value: 'repair', label: 'Repair' },
+    { value: 'flush', label: 'Tank Flush', category: 'maintenance' as const, impactNote: 'Removes sediment buildup' },
+    { value: 'anode_replacement', label: 'Anode Replacement', category: 'maintenance' as const, impactNote: 'Resets shield life (~6 years)' },
+    { value: 'inspection', label: 'Inspection', category: 'maintenance' as const },
+    { value: 'repair', label: 'Repair', category: 'maintenance' as const },
+    ...infrastructureServices,
   ];
+}
+
+/**
+ * Get the impact description for a service event type
+ * Used to show users how a service affected their unit's calculations
+ */
+export function getServiceImpactDescription(eventType: string): string | null {
+  const impactMap: Record<string, string> = {
+    'anode_replacement': 'Resets shield life to ~6 years',
+    'flush': 'Removes sediment, restores efficiency',
+    'softener_install': 'Anode decay +1.4x (soft water is more conductive)',
+    'circ_pump_install': 'Anode decay +0.5x (erosion/amperage effects)',
+    'exp_tank_install': 'Aging rate reduced (absorbs thermal expansion)',
+    'exp_tank_replace': 'Restores thermal expansion protection',
+    'prv_install': 'Reduces pressure stress on equipment',
+    'prv_replace': 'Restores pressure regulation',
+    'descale': 'Removes scale buildup from heat exchanger',
+    'filter_clean': 'Restores water flow capacity',
+    'valve_install': 'Enables future descaling maintenance',
+  };
+  return impactMap[eventType] || null;
 }
 
 /**

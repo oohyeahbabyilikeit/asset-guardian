@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Wrench, Droplets, Shield, Plus, Calendar, AlertTriangle, Wind, Cpu, Flame, Zap, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Wrench, Droplets, Shield, Plus, Calendar, AlertTriangle, Wind, Cpu, Flame, Zap, Info, Gauge, ArrowUp, ArrowDown } from 'lucide-react';
 import { EducationalDrawer, type EducationalTopic } from '@/components/EducationalDrawer';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { ServiceEvent } from '@/types/serviceHistory';
+import { ServiceEvent, ServiceEventType } from '@/types/serviceHistory';
 import type { FuelType, AirFilterStatus, InletFilterStatus, FlameRodStatus, VentStatus } from '@/lib/opterraAlgorithm';
 import { isTankless } from '@/lib/opterraAlgorithm';
 import { TanklessDiagram } from './TanklessDiagram';
-
+import { getServiceImpactDescription } from '@/lib/maintenanceCalculations';
 interface ServiceHistoryProps {
   calendarAge: number;
   sedimentLbs: number;
@@ -873,8 +873,120 @@ function WaterHeaterDiagram({
     </svg>
   );
 }
+// Helper function to get display properties for service event types
+function getServiceEventDisplay(type: ServiceEventType): {
+  icon: React.ReactNode;
+  bgColor: string;
+  textColor: string;
+  label: string;
+} {
+  const displayMap: Record<ServiceEventType, { icon: React.ReactNode; bgColor: string; textColor: string; label: string }> = {
+    // Core maintenance
+    flush: { 
+      icon: <Droplets className="w-4 h-4 text-amber-400" />, 
+      bgColor: 'bg-amber-500/15 border-amber-500/25', 
+      textColor: 'text-amber-400',
+      label: 'Tank Flushed' 
+    },
+    anode_replacement: { 
+      icon: <Shield className="w-4 h-4 text-blue-400" />, 
+      bgColor: 'bg-blue-500/15 border-blue-500/25', 
+      textColor: 'text-blue-400',
+      label: 'Anode Replaced' 
+    },
+    inspection: { 
+      icon: <Wrench className="w-4 h-4 text-emerald-400" />, 
+      bgColor: 'bg-emerald-500/15 border-emerald-500/25', 
+      textColor: 'text-emerald-400',
+      label: 'Inspection' 
+    },
+    repair: { 
+      icon: <Wrench className="w-4 h-4 text-emerald-400" />, 
+      bgColor: 'bg-emerald-500/15 border-emerald-500/25', 
+      textColor: 'text-emerald-400',
+      label: 'Repair' 
+    },
+    // Infrastructure - affects anode decay / aging
+    softener_install: { 
+      icon: <Droplets className="w-4 h-4 text-purple-400" />, 
+      bgColor: 'bg-purple-500/15 border-purple-500/25', 
+      textColor: 'text-purple-400',
+      label: 'Softener Installed' 
+    },
+    circ_pump_install: { 
+      icon: <Zap className="w-4 h-4 text-yellow-400" />, 
+      bgColor: 'bg-yellow-500/15 border-yellow-500/25', 
+      textColor: 'text-yellow-400',
+      label: 'Circ Pump Installed' 
+    },
+    exp_tank_install: { 
+      icon: <Shield className="w-4 h-4 text-sky-400" />, 
+      bgColor: 'bg-sky-500/15 border-sky-500/25', 
+      textColor: 'text-sky-400',
+      label: 'Expansion Tank Installed' 
+    },
+    exp_tank_replace: { 
+      icon: <Shield className="w-4 h-4 text-sky-400" />, 
+      bgColor: 'bg-sky-500/15 border-sky-500/25', 
+      textColor: 'text-sky-400',
+      label: 'Expansion Tank Replaced' 
+    },
+    prv_install: { 
+      icon: <Gauge className="w-4 h-4 text-green-400" />, 
+      bgColor: 'bg-green-500/15 border-green-500/25', 
+      textColor: 'text-green-400',
+      label: 'PRV Installed' 
+    },
+    prv_replace: { 
+      icon: <Gauge className="w-4 h-4 text-green-400" />, 
+      bgColor: 'bg-green-500/15 border-green-500/25', 
+      textColor: 'text-green-400',
+      label: 'PRV Replaced' 
+    },
+    // Tankless maintenance
+    descale: { 
+      icon: <Flame className="w-4 h-4 text-orange-400" />, 
+      bgColor: 'bg-orange-500/15 border-orange-500/25', 
+      textColor: 'text-orange-400',
+      label: 'Descaled' 
+    },
+    filter_clean: { 
+      icon: <Wind className="w-4 h-4 text-teal-400" />, 
+      bgColor: 'bg-teal-500/15 border-teal-500/25', 
+      textColor: 'text-teal-400',
+      label: 'Filter Cleaned' 
+    },
+    valve_install: { 
+      icon: <Wrench className="w-4 h-4 text-indigo-400" />, 
+      bgColor: 'bg-indigo-500/15 border-indigo-500/25', 
+      textColor: 'text-indigo-400',
+      label: 'Isolation Valves Installed' 
+    },
+  };
+  
+  return displayMap[type] || displayMap.inspection;
+}
 
-export function ServiceHistory({ 
+// Helper function to get impact icon based on service type
+function getImpactIcon(type: ServiceEventType): React.ReactNode {
+  // Positive impacts (reduces aging, restores protection)
+  const positiveImpact = [
+    'anode_replacement', 'flush', 'exp_tank_install', 'exp_tank_replace', 
+    'prv_install', 'prv_replace', 'descale', 'filter_clean', 'valve_install'
+  ];
+  // Neutral/trade-off impacts
+  const tradeoffImpact = ['softener_install', 'circ_pump_install'];
+  
+  if (positiveImpact.includes(type)) {
+    return <ArrowUp className="w-3 h-3 text-emerald-400" />;
+  }
+  if (tradeoffImpact.includes(type)) {
+    return <AlertTriangle className="w-3 h-3 text-amber-400" />;
+  }
+  return <Info className="w-3 h-3 text-muted-foreground" />;
+}
+
+export function ServiceHistory({
   calendarAge, 
   sedimentLbs, 
   shieldLife, 
@@ -1329,30 +1441,45 @@ export function ServiceHistory({
               
               {serviceHistory.length > 0 ? (
                 <div className="space-y-2">
-                  {serviceHistory.map((event) => (
-                    <div key={event.id} className="flex items-center gap-3 p-3 rounded-xl data-display">
-                      <div className={cn(
-                        "w-9 h-9 rounded-lg flex items-center justify-center border",
-                        event.type === 'anode_replacement' ? 'bg-blue-500/15 border-blue-500/25' : 
-                        event.type === 'flush' ? 'bg-amber-500/15 border-amber-500/25' : 'bg-emerald-500/15 border-emerald-500/25'
-                      )}>
-                        {event.type === 'anode_replacement' ? (
-                          <Shield className="w-4 h-4 text-blue-400" />
-                        ) : event.type === 'flush' ? (
-                          <Droplets className="w-4 h-4 text-amber-400" />
-                        ) : (
-                          <Wrench className="w-4 h-4 text-emerald-400" />
+                  {serviceHistory.map((event) => {
+                    const { icon, bgColor, textColor, label } = getServiceEventDisplay(event.type);
+                    const impactDescription = event.impactDescription || getServiceImpactDescription(event.type);
+                    const isInfrastructure = [
+                      'softener_install', 'circ_pump_install', 'exp_tank_install', 
+                      'exp_tank_replace', 'prv_install', 'prv_replace', 'valve_install'
+                    ].includes(event.type);
+                    
+                    return (
+                      <div key={event.id} className="p-3 rounded-xl data-display">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-9 h-9 rounded-lg flex items-center justify-center border",
+                            bgColor
+                          )}>
+                            {icon}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{label}</p>
+                            <p className="text-[10px] text-muted-foreground font-medium">{event.date}</p>
+                          </div>
+                          {isInfrastructure && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-medium uppercase tracking-wide">
+                              Infra
+                            </span>
+                          )}
+                        </div>
+                        {/* Impact Badge - shows how this service affected calculations */}
+                        {impactDescription && (
+                          <div className="mt-2 ml-12 p-2 rounded-lg bg-secondary/50 border border-border/30">
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              {getImpactIcon(event.type)}
+                              <span className="text-muted-foreground">{impactDescription}</span>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">
-                          {event.type === 'anode_replacement' ? 'Anode Replaced' :
-                           event.type === 'flush' ? 'Tank Flushed' : 'Inspection'}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground font-medium">{event.date}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-6 data-display rounded-xl">
