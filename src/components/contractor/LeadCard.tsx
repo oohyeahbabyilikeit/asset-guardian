@@ -17,16 +17,16 @@ interface LeadCardProps {
 
 const priorityConfig = {
   critical: {
-    dot: 'bg-rose-400',
+    dot: 'bg-rose-500/60',
   },
   high: {
-    dot: 'bg-orange-400',
+    dot: 'bg-orange-500/60',
   },
   medium: {
-    dot: 'bg-amber-400',
+    dot: 'bg-amber-500/60',
   },
   low: {
-    dot: 'bg-emerald-400',
+    dot: 'bg-emerald-500/60',
   },
 };
 
@@ -66,10 +66,10 @@ export function LeadCard({
         <div className={cn(
           'text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0',
           opportunity.healthScore <= 30 
-            ? 'bg-destructive/20 text-red-400' 
+            ? 'bg-red-500/10 text-red-300' 
             : opportunity.healthScore <= 50 
-              ? 'bg-amber-500/20 text-amber-400'
-              : 'bg-emerald-500/20 text-emerald-400'
+              ? 'bg-amber-500/10 text-amber-300'
+              : 'bg-emerald-500/10 text-emerald-300'
         )}>
           {opportunity.healthScore}
         </div>
@@ -87,6 +87,7 @@ export function LeadCard({
       <div className="flex items-center gap-2">
         <Button 
           size="sm" 
+          variant="secondary"
           onClick={onCall}
           className="gap-1 h-7 px-2.5 text-xs"
         >

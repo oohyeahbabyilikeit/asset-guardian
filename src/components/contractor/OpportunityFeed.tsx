@@ -113,24 +113,24 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
               <ChevronDown className="w-3 h-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-background border-border">
+          <DropdownMenuContent align="end" className="bg-popover border-border">
             <DropdownMenuItem onClick={() => onPriorityChange(null)}>
               All Priorities
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('critical')}>
-              <span className="w-2 h-2 rounded-full bg-rose-400 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-rose-500/60 mr-2" />
               Critical
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('high')}>
-              <span className="w-2 h-2 rounded-full bg-orange-400 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-orange-500/60 mr-2" />
               High
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('medium')}>
-              <span className="w-2 h-2 rounded-full bg-amber-400 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-amber-500/60 mr-2" />
               Medium
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('low')}>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500/60 mr-2" />
               Low
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -139,7 +139,7 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
       
       {/* Feed */}
       {filteredOpportunities.length === 0 ? (
-        <div className="text-center py-12 bg-background rounded-lg border border-border">
+        <div className="text-center py-12 bg-card rounded-lg border border-border">
           <p className="text-muted-foreground text-sm">No opportunities matching this filter</p>
         </div>
       ) : (

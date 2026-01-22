@@ -28,27 +28,27 @@ export default function Contractor() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/80 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200/60">
+      <header className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <Link 
             to="/" 
-            className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm hidden sm:inline">Back</span>
           </Link>
           
           <div className="flex items-center gap-2">
-            <LayoutDashboard className="w-5 h-5 text-gray-400" />
-            <h1 className="text-lg font-medium text-gray-700">Dashboard</h1>
+            <LayoutDashboard className="w-5 h-5 text-muted-foreground" />
+            <h1 className="text-lg font-medium text-foreground">Dashboard</h1>
           </div>
           
-          <Button variant="ghost" size="icon" className="relative text-gray-400 hover:text-gray-600 hover:bg-gray-100/50">
+          <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-secondary">
             <Bell className="w-5 h-5" />
             {counts.critical > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-400 text-[10px] text-white rounded-full flex items-center justify-center font-medium">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500/80 text-[10px] text-white rounded-full flex items-center justify-center font-medium">
                 {counts.critical}
               </span>
             )}
@@ -56,14 +56,14 @@ export default function Contractor() {
         </div>
         
         {/* Mobile Tab Bar */}
-        <div className="lg:hidden flex border-t border-gray-100">
+        <div className="lg:hidden flex border-t border-border">
           <button
             onClick={() => setMobileTab('overview')}
             className={cn(
               'flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors',
               mobileTab === 'overview' 
-                ? 'text-gray-800 border-b-2 border-gray-800' 
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-foreground border-b-2 border-primary' 
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <PieChart className="w-4 h-4" />
@@ -74,13 +74,13 @@ export default function Contractor() {
             className={cn(
               'flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors',
               mobileTab === 'leads' 
-                ? 'text-gray-800 border-b-2 border-gray-800' 
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-foreground border-b-2 border-primary' 
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <ListFilter className="w-4 h-4" />
             Leads
-            <span className="bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded-full">
+            <span className="bg-secondary text-muted-foreground text-xs px-1.5 py-0.5 rounded-full">
               {activeOpportunities.length}
             </span>
           </button>
@@ -90,7 +90,7 @@ export default function Contractor() {
       {/* Main Content - Two Column on Desktop */}
       <div className="flex-1 flex">
         {/* Left Sidebar - Overview Panel (Desktop only) */}
-        <aside className="hidden lg:flex w-80 flex-col border-r border-gray-200/60 bg-white p-4 gap-4 overflow-y-auto">
+        <aside className="hidden lg:flex w-80 flex-col border-r border-border bg-card p-4 gap-4 overflow-y-auto">
           <TodaysSummary 
             counts={counts} 
             selectedPriority={selectedPriority}
