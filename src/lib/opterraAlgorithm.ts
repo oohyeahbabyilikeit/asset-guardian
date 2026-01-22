@@ -1458,7 +1458,7 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
 // Priority: Safety → Economic → Service → Pass
 // Units that pass Tiers 1 & 2 are SAVEABLE
 
-function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
+export function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation {
   
   // ============================================
   // TIER 0: IMMEDIATE EXPLOSION HAZARD
@@ -1971,7 +1971,7 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
  * Applies physical responsibility checks instead of economic calculations.
  * This focuses on whether repairs are technically sound, not whether they're "worth it".
  */
-function optimizeTechnicalNecessity(
+export function optimizeTechnicalNecessity(
   rec: Recommendation, 
   data: ForensicInputs, 
   metrics: OpterraMetrics
@@ -2197,7 +2197,7 @@ function calculateTierCost(profile: TierProfile, data: ForensicInputs): number {
  * 
  * The stressed tank owner must save money twice as fast!
  */
-function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetrics): FinancialForecast {
+export function calculateFinancialForecast(data: ForensicInputs, metrics: OpterraMetrics): FinancialForecast {
   
   // 1. Establish Financial Targets
   // We plan for replacement at year 13 (typical end of financial life, not 25-year physics max)
@@ -2526,7 +2526,7 @@ export function calculateHardWaterTax(
  * Generates a "Plumber Handshake" - a technical briefing for plumbers
  * that replaces dollar-based financial forecasts with actionable scripts.
  */
-function generatePlumberHandshake(
+export function generatePlumberHandshake(
   data: ForensicInputs, 
   metrics: OpterraMetrics,
   verdict: Recommendation
@@ -2636,8 +2636,27 @@ import {
   getTanklessFinancials 
 } from './opterraTanklessAlgorithm';
 
-// --- MAIN ENTRY POINT ---
+// --- MAIN ENTRY POINTS ---
 
+/**
+ * Standard Tank Heater Risk Calculation (GAS and ELECTRIC only)
+ * This is the isolated tank engine for shipping.
+ */
+export function calculateOpterraTankRisk(data: ForensicInputs): OpterraResult {
+  const metrics = calculateHealth(data);
+  const rawVerdict = getRawRecommendation(metrics, data);
+  const verdict = optimizeTechnicalNecessity(rawVerdict, data, metrics);
+  const financial = calculateFinancialForecast(data, metrics);
+  const hardWaterTax = calculateHardWaterTax(data, metrics);
+  const handshake = generatePlumberHandshake(data, metrics, verdict);
+  
+  return { metrics, verdict, handshake, hardWaterTax, financial };
+}
+
+/**
+ * Main Entry Point (routes to appropriate engine)
+ * Kept for backwards compatibility - use calculateOpterraTankRisk directly for tank-only work.
+ */
 export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
   // ROUTING LOGIC: Direct tankless units to tankless algorithm
   const isTanklessUnit = data.fuelType === 'TANKLESS_GAS' || data.fuelType === 'TANKLESS_ELECTRIC';
@@ -2651,16 +2670,16 @@ export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
     
     return { metrics, verdict, handshake, hardWaterTax, financial };
   }
-
-  // Standard tank heater logic
-  const metrics = calculateHealth(data);
-  const rawVerdict = getRawRecommendation(metrics, data);
-  const verdict = optimizeTechnicalNecessity(rawVerdict, data, metrics);
-  const financial = calculateFinancialForecast(data, metrics);
-  const hardWaterTax = calculateHardWaterTax(data, metrics);
-  const handshake = generatePlumberHandshake(data, metrics, verdict);
   
-  return { metrics, verdict, handshake, hardWaterTax, financial };
+  // v9.2: Route HYBRID to hybrid engine
+  if (data.fuelType === 'HYBRID') {
+    // Note: Hybrid algorithm is imported dynamically to avoid circular deps
+    // For now, fall through to tank logic (hybrid has tank-like failure modes)
+    // The router (opterraRouter.ts) will handle proper routing
+  }
+
+  // Standard tank heater logic (GAS, ELECTRIC)
+  return calculateOpterraTankRisk(data);
 }
 
 

@@ -18,10 +18,13 @@ import {
   FinancialForecast, 
   TierProfile,
   VentType,
+  RiskLevel,
+  OpterraResult,
   failProbToHealthScore,
   resolveHardness,
-  RiskLevel
-} from './opterraAlgorithm';
+} from './opterraTypes';
+
+import { calculateHardWaterTax, generatePlumberHandshake } from './opterraAlgorithm';
 
 // --- CONSTANTS ---
 
@@ -422,4 +425,20 @@ export function getTanklessFinancials(metrics: OpterraMetrics, data: ForensicInp
     likeForLikeCost: baseCost,
     upgradeCost: 0
   };
+}
+
+// --- MAIN ENTRY POINT ---
+
+/**
+ * Calculate Opterra risk for Tankless water heaters.
+ * This is the isolated tankless engine entry point.
+ */
+export function calculateOpterraTanklessRisk(data: ForensicInputs): OpterraResult {
+  const metrics = calculateTanklessHealth(data);
+  const verdict = getTanklessRecommendation(metrics, data);
+  const financial = getTanklessFinancials(metrics, data);
+  const hardWaterTax = calculateHardWaterTax(data, metrics);
+  const handshake = generatePlumberHandshake(data, metrics, verdict);
+  
+  return { metrics, verdict, handshake, hardWaterTax, financial };
 }
