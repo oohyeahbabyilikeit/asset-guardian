@@ -13,45 +13,53 @@ export function QuickActions() {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h3 className="font-semibold text-slate-800 mb-4">Quick Actions</h3>
       
       <div className="grid grid-cols-2 gap-3">
         <Link to="/?mode=technician">
           <Button 
             variant="outline" 
-            className="w-full h-auto py-4 flex flex-col items-center gap-2"
+            className="w-full h-auto py-4 flex flex-col items-center gap-2 border-slate-200 hover:bg-slate-50 hover:border-blue-300"
           >
-            <ClipboardList className="w-5 h-5 text-primary" />
-            <span className="text-xs">Start Inspection</span>
+            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-blue-600" />
+            </div>
+            <span className="text-xs font-medium text-slate-700">Start Inspection</span>
           </Button>
         </Link>
         
         <Button 
           variant="outline" 
-          className="w-full h-auto py-4 flex flex-col items-center gap-2"
+          className="w-full h-auto py-4 flex flex-col items-center gap-2 border-slate-200 hover:bg-slate-50 hover:border-blue-300"
           onClick={() => toast.info('Properties view coming soon')}
         >
-          <Building2 className="w-5 h-5 text-primary" />
-          <span className="text-xs">View Properties</span>
+          <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-emerald-600" />
+          </div>
+          <span className="text-xs font-medium text-slate-700">View Properties</span>
         </Button>
         
         <Button 
           variant="outline" 
-          className="w-full h-auto py-4 flex flex-col items-center gap-2"
+          className="w-full h-auto py-4 flex flex-col items-center gap-2 border-slate-200 hover:bg-slate-50 hover:border-blue-300"
           onClick={handlePricingSetup}
         >
-          <DollarSign className="w-5 h-5 text-primary" />
-          <span className="text-xs">Pricing Setup</span>
+          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-amber-600" />
+          </div>
+          <span className="text-xs font-medium text-slate-700">Pricing Setup</span>
         </Button>
         
         <Button 
           variant="outline" 
-          className="w-full h-auto py-4 flex flex-col items-center gap-2"
+          className="w-full h-auto py-4 flex flex-col items-center gap-2 border-slate-200 hover:bg-slate-50 hover:border-blue-300"
           onClick={handleReports}
         >
-          <FileBarChart className="w-5 h-5 text-primary" />
-          <span className="text-xs">Reports</span>
+          <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+            <FileBarChart className="w-5 h-5 text-purple-600" />
+          </div>
+          <span className="text-xs font-medium text-slate-700">Reports</span>
         </Button>
       </div>
     </div>

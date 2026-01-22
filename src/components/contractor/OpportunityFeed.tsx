@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Filter } from 'lucide-react';
+import { Filter, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -88,43 +88,54 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">
-          Service Opportunities
-          <span className="text-sm font-normal text-muted-foreground ml-2">
-            ({filteredOpportunities.length})
-          </span>
-        </h2>
+        <div>
+          <h2 className="text-base font-semibold text-slate-800">
+            Service Opportunities
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {filteredOpportunities.length} leads requiring action
+          </p>
+        </div>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="w-4 h-4" />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              <Filter className="w-3.5 h-3.5" />
               {selectedPriority ? priorityLabels[selectedPriority] : 'All'}
+              <ChevronDown className="w-3.5 h-3.5 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="bg-white border-slate-200">
             <DropdownMenuItem onClick={() => onPriorityChange(null)}>
               All Priorities
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('critical')}>
-              🔴 Critical
+              <span className="w-2 h-2 rounded-full bg-red-500 mr-2" />
+              Critical
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('high')}>
-              🟠 High
+              <span className="w-2 h-2 rounded-full bg-orange-500 mr-2" />
+              High
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('medium')}>
-              🟡 Medium
+              <span className="w-2 h-2 rounded-full bg-amber-500 mr-2" />
+              Medium
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('low')}>
-              🟢 Low
+              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+              Low
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       
       {filteredOpportunities.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>No opportunities matching this filter</p>
+        <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
+          <p className="text-slate-500">No opportunities matching this filter</p>
         </div>
       ) : (
         <div className="space-y-3">
