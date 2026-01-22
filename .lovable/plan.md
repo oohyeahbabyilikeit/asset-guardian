@@ -1,119 +1,137 @@
 
+
 ## Goal
-Ensure Sales Coach uses **real data from the database** by:
-1. Seeding demo data into the database (profiles, properties, water heaters, assessments, and opportunity notifications)
-2. Wiring up the `OpportunityFeed` to fetch from the database instead of mock data
-3. Ensuring the Sales Coach edge function receives complete, real data
+Wire the contractor views to fetch real data from the `demo_opportunities` database table instead of using hardcoded mock data.
 
 ---
 
-## Current State (the problem)
+## Current Problem
 
-**Data flow today:**
-1. `OpportunityFeed` imports `mockOpportunities` from `src/data/mockContractorData.ts` (hardcoded fake data)
-2. User clicks "Sales Coach" → `SalesCoachDrawer` receives the mock object
-3. `SalesCoachDrawer` sends the mock object to the `sales-coach` edge function
-4. Edge function builds a prompt from whatever it receives (trusts client blindly)
+**What we have (database):**
+- `demo_opportunities` table with 12 detailed records containing:
+  - Customer info (name, phone, email)
+  - Property address (full with city, state, zip)
+  - Asset specs (brand, model, serial, age, capacity, fuel type, vent type)
+  - **Forensic inputs (JSONB)** with housePsi, hardnessGPG, isLeaking, hasSoftener, etc.
+  - **Opterra metrics:** health_score, bio_age, fail_probability, shield_life, risk_level
+  - **Verdict:** verdict_action (REPLACE/MONITOR/MAINTAIN), verdict_title
+  - Inspection notes and photo URLs
 
-**Database state:**
-- 0 rows in `opportunity_notifications`
-- 0 rows in `assessments`
-- 0 rows in `water_heaters`
-- 0 rows in `properties`
-- 0 rows in `profiles`
-
-**The mock data contains 12 detailed opportunities** with full forensic inputs, asset details, and opterra results. We'll seed equivalent data into the database.
+**What's broken (frontend):**
+- `OpportunityFeed.tsx` imports `mockOpportunities` from static file (line 14)
+- `useState` initializes with mock data (line 26)
+- All contractor views (`LeadCard`, `PropertyReportDrawer`, `SalesCoachDrawer`) receive mock objects
+- **No database fetch hook exists** - `useContractorOpportunities.ts` was never created
+- **No data mapper exists** - `opportunityMapper.ts` was never created
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Create seed data migration
+### Phase 1: Create Data Mapper (`src/lib/opportunityMapper.ts`)
 
-Create a database migration that inserts demo data matching the current mock records:
-
-**Insert sequence (respecting foreign keys):**
-1. `profiles` → Create a contractor profile and homeowner profiles
-2. `user_roles` → Assign contractor role
-3. `properties` → Create properties for each opportunity address
-4. `water_heaters` → Create water heater records with all forensic inputs
-5. `assessments` → Create assessment records with opterra results
-6. `opportunity_notifications` → Create opportunity records linked to contractor
-
-**Data mapping from mock to database:**
-- `MockOpportunity.customerName` → `profiles.full_name`
-- `MockOpportunity.customerPhone` → `profiles.phone`
-- `MockOpportunity.propertyAddress` → `properties.address_line1, city, state, zip_code`
-- `MockOpportunity.asset.*` → `water_heaters.*`
-- `MockOpportunity.forensicInputs.*` → `water_heaters.*` columns
-- `MockOpportunity.opterraResult.*` → `assessments.opterra_result` (JSONB) + denormalized fields
-- `MockOpportunity.inspectionNotes` → `assessments.inspection_notes`
-- Opportunity metadata → `opportunity_notifications.*`
-
-### Phase 2: Create opportunity fetching hook
-
-Create `src/hooks/useContractorOpportunities.ts`:
+Create a transformation layer that converts database rows to the `MockOpportunity` type:
 
 ```text
-Hook responsibilities:
-- Fetch from opportunity_notifications joined with water_heaters, properties, profiles, and assessments
-- Transform database rows into the MockOpportunity shape (for minimal UI changes)
-- Handle loading and error states
-- Support priority filtering
+Functions needed:
+- mapDemoRowToMockOpportunity(row: DemoOpportunityRow): MockOpportunity
+  - Maps flat DB columns → nested TankAsset object
+  - Parses forensic_inputs JSONB → ForensicInputs type
+  - Constructs opterraResult from denormalized metrics
+  - Handles date parsing (created_at → Date)
+  - Combines address fields into propertyAddress string
+
+- Priority is lowercase in UI but the DB stores uppercase (CRITICAL → critical)
 ```
 
-**Query structure:**
-```sql
-SELECT 
-  opp.*, 
-  wh.* (forensic data becomes forensicInputs),
-  p.address_line1, p.city, p.state, p.zip_code (becomes propertyAddress),
-  pr.full_name, pr.phone, pr.email (becomes customerName, customerPhone, customerEmail),
-  a.opterra_result, a.inspection_notes, a.photos (becomes opterraResult, inspectionNotes, photoUrls)
-FROM opportunity_notifications opp
-JOIN water_heaters wh ON opp.water_heater_id = wh.id
-JOIN properties p ON wh.property_id = p.id
-LEFT JOIN profiles pr ON p.owner_id = pr.id
-LEFT JOIN assessments a ON a.water_heater_id = wh.id
-WHERE opp.contractor_id = $currentUserId
-  AND opp.status IN ('pending', 'viewed', 'contacted')
-ORDER BY priority_order, created_at
+**Mapping table:**
+
+| Database Column | MockOpportunity Field |
+|-----------------|----------------------|
+| `customer_name` | `customerName` |
+| `customer_phone` | `customerPhone` |
+| `property_address, property_city, property_state, property_zip` | `propertyAddress` (combined string) |
+| `asset_brand` | `asset.brand` |
+| `asset_model` | `asset.model` |
+| `asset_serial` | `asset.serialNumber` |
+| `asset_age_years` | `asset.calendarAge` |
+| `asset_capacity` | `asset.capacity` |
+| `asset_fuel_type` | `asset.fuelType` |
+| `asset_vent_type` | `asset.ventType` |
+| `asset_warranty_years` | `asset.warrantyYears` |
+| `asset_location` | `asset.location` |
+| `forensic_inputs` (JSONB) | `forensicInputs` (typed) |
+| `health_score` | `healthScore` |
+| `bio_age` | `opterraResult.bioAge` |
+| `fail_probability` | `failProbability` + `opterraResult.failProb` |
+| `shield_life` | `opterraResult.shieldLife` |
+| `risk_level` | `opterraResult.riskLevel` |
+| `verdict_action` | `opterraResult.verdictAction` |
+| `verdict_title` | `opterraResult.verdictTitle` |
+| `anode_remaining` | `opterraResult.anodeRemaining` |
+| `inspection_notes` | `inspectionNotes` |
+| `photo_urls` (JSONB) | `photoUrls` (string[]) |
+| `context_description` | `context` |
+| `job_complexity` | `jobComplexity` |
+| `priority` | `priority` (lowercase) |
+| `status` | `status` |
+| `created_at` | `createdAt` (Date) |
+
+### Phase 2: Create Database Fetch Hook (`src/hooks/useContractorOpportunities.ts`)
+
+Create a React Query hook to fetch opportunities from the database:
+
+```text
+Exports:
+- useContractorOpportunities(): { data: MockOpportunity[], isLoading, error }
+- useOpportunityById(id: string): { data: MockOpportunity | null, isLoading }
+
+Query details:
+- Fetch from demo_opportunities table
+- Order by priority (critical first), then by created_at
+- Transform each row using mapDemoRowToMockOpportunity()
+- Cache with React Query for performance
 ```
 
-### Phase 3: Update OpportunityFeed to use real data
+### Phase 3: Update OpportunityFeed Component
 
 **File: `src/components/contractor/OpportunityFeed.tsx`**
 
 Changes:
-1. Remove `import { mockOpportunities } from '@/data/mockContractorData'`
-2. Add `import { useContractorOpportunities } from '@/hooks/useContractorOpportunities'`
-3. Replace `const [opportunities, setOpportunities] = useState(mockOpportunities)` with hook call
-4. Add loading skeleton while fetching
-5. Add empty state when no opportunities exist
-
-### Phase 4: Create data transformation layer
-
-Create `src/lib/opportunityMapper.ts`:
+1. Remove import of `mockOpportunities` from static file
+2. Import and use `useContractorOpportunities` hook
+3. Replace `useState` initialization with hook data
+4. Add loading state UI (skeleton cards)
+5. Add error handling UI
+6. Keep local state management for status changes (view/dismiss/remind)
 
 ```text
-Functions:
-- mapDbRowToOpportunity(row): MockOpportunity
-- mapForensicInputsFromWaterHeater(wh): ForensicInputs
-- mapOpterraResultFromAssessment(a): OpterraResultSummary
-- formatPropertyAddress(p): string
+Before:
+  import { mockOpportunities } from '@/data/mockContractorData';
+  const [opportunities, setOpportunities] = useState<MockOpportunity[]>(mockOpportunities);
+
+After:
+  import { useContractorOpportunities } from '@/hooks/useContractorOpportunities';
+  const { data: dbOpportunities, isLoading } = useContractorOpportunities();
+  const [localStatusChanges, setLocalStatusChanges] = useState<Record<string, string>>({});
+  // Merge DB data with local status overrides
 ```
 
-This keeps the transformation logic centralized and testable.
+### Phase 4: Update Contractor Page Priority Counts
 
-### Phase 5: Verify Sales Coach data flow
+**File: `src/pages/Contractor.tsx`**
 
-The `SalesCoachDrawer` already sends the opportunity object to the edge function. Once we're using real data, the edge function will receive:
-- Real customer name and address
-- Real forensic inputs from inspection
-- Real opterra diagnostic results
-- Real technician notes
+Changes:
+1. Import `useContractorOpportunities` hook
+2. Replace mock data usage in priority count calculation
+3. Derive counts from real database data
 
-No changes needed to the edge function - it already accepts the right structure.
+### Phase 5: Verify Data Flow Through Components
+
+All child components already accept `MockOpportunity` as props - no changes needed:
+- `LeadCard` - receives opportunity, displays healthScore, asset, forensicInputs ✓
+- `PropertyReportDrawer` - receives opportunity, displays full report with forensics ✓
+- `SalesCoachDrawer` - receives opportunity, sends to edge function ✓
 
 ---
 
@@ -121,67 +139,50 @@ No changes needed to the edge function - it already accepts the right structure.
 
 | File | Action | Description |
 |------|--------|-------------|
-| (migration) | CREATE | Seed demo data matching mock opportunities |
-| `src/hooks/useContractorOpportunities.ts` | CREATE | Hook to fetch opportunities from database |
-| `src/lib/opportunityMapper.ts` | CREATE | Transform database rows to UI types |
-| `src/components/contractor/OpportunityFeed.tsx` | MODIFY | Use hook instead of mock data |
-
----
-
-## Demo Data Summary (12 opportunities)
-
-| Priority | Customer | Address | Unit | Health |
-|----------|----------|---------|------|--------|
-| CRITICAL | Johnson Family | 1847 Sunset Dr, Phoenix | Rheem 50g Gas | 24 |
-| CRITICAL | Williams Residence | 2301 E Camelback Rd, Phoenix | Bradford White 50g Electric | 18 |
-| HIGH | Martinez Residence | 456 Oak Ave, Scottsdale | A.O. Smith 50g Gas | 62 |
-| HIGH | Chen Family | 789 Mesquite Ln, Tempe | State Select 50g Gas | 45 |
-| HIGH | Thompson Home | 1122 Palm Desert Way, Gilbert | Bradford White 40g Gas | 52 |
-| MEDIUM | Rodriguez Family | 3344 Saguaro Blvd, Mesa | Rheem 40g Gas | 71 |
-| MEDIUM | Patel Residence | 5566 Ironwood Dr, Chandler | A.O. Smith 40g Gas | 78 |
-| MEDIUM | Anderson Home | 9900 Cactus Wren Ln, Peoria | Bradford White 40g Electric | 68 |
-| MEDIUM | Davis Residence | 2233 Quail Run, Scottsdale | State Select 40g Gas | 74 |
-| LOW | Miller Family | 4455 Dove Valley Rd, Cave Creek | Rheem 50g Gas | 92 |
-| LOW | Taylor Home | 6677 Desert Sage Way, Fountain Hills | A.O. Smith 50g Electric | 88 |
-| LOW | Garcia Residence | 8899 Prickly Pear Trail, Sun City | Rheem 50g Gas | 85 |
-
----
-
-## Contractor Access Pattern
-
-Since database tables use RLS, we need:
-1. A logged-in user with the `contractor` role
-2. Active `contractor_property_relationships` linking the contractor to each property
-3. OR - for demo purposes, we can use a service role / bypass RLS for the seed data
-
-The seed migration will create a demo contractor profile and establish all necessary relationships.
+| `src/lib/opportunityMapper.ts` | **CREATE** | Transform DB rows to MockOpportunity type |
+| `src/hooks/useContractorOpportunities.ts` | **CREATE** | React Query hook to fetch from demo_opportunities |
+| `src/components/contractor/OpportunityFeed.tsx` | **MODIFY** | Use hook instead of mock import |
+| `src/pages/Contractor.tsx` | **MODIFY** | Use hook for priority counts |
 
 ---
 
 ## Technical Notes
 
-**RLS considerations:**
-- The seed migration will use the service role context to bypass RLS during seeding
-- The frontend fetch will work because we'll establish contractor_property_relationships
-- If no user is logged in, the hook returns empty (expected behavior)
+**JSONB field mapping:**
+The `forensic_inputs` column stores keys in camelCase (matching the TypeScript interface), so minimal transformation is needed:
+```json
+{
+  "calendarAge": 12,
+  "housePsi": 95,
+  "hardnessGPG": 18,
+  "isLeaking": true,
+  "hasSoftener": false
+  // etc.
+}
+```
 
 **Type safety:**
-- The `useContractorOpportunities` hook will return `MockOpportunity[]` to minimize UI changes
-- Internal typing uses database row types from `@/integrations/supabase/types`
+- Use `Tables<'demo_opportunities'>` from Supabase types for the DB row
+- Cast/transform to `MockOpportunity` for UI consistency
+- The mapper ensures all required fields have defaults
 
-**Performance:**
-- Single query with JOINs is more efficient than multiple queries
-- Results cached via React Query
+**Local state for optimistic updates:**
+Status changes (viewed/contacted/dismissed) will be tracked locally since `demo_opportunities` is read-only for demos. In production, this would update the real `opportunity_notifications` table.
 
 ---
 
 ## Verification Steps
 
 After implementation:
-1. Log in as the demo contractor
-2. Go to `/contractor`
-3. Verify 12 opportunities appear (matching the mock data)
-4. Click "Details" on any opportunity
-5. Click "Sales Coach"
-6. Verify the briefing references real data (customer name, address, PSI readings, health score, etc.)
-7. Check that follow-up questions also reflect real data context
+1. Navigate to `/contractor`
+2. Verify 12 opportunities load from database (not mock)
+3. Check that health scores, addresses, and asset details match DB values
+4. Click "Details" on any opportunity → PropertyReportDrawer shows:
+   - Correct customer name and address from DB
+   - Real forensic data (PSI, hardness, leak status)
+   - Real opterra metrics (bio age, shield life, risk level)
+   - Inspection notes from technician
+5. Click "Sales Coach" → AI briefing references real data
+6. Filter by priority → Filter works with DB data
+7. Call/Dismiss actions work with local state
+
