@@ -10,17 +10,17 @@ const complexityConfig = {
   STANDARD: {
     label: 'Standard',
     icon: Wrench,
-    className: 'bg-slate-100 text-slate-600 border-slate-200',
+    className: 'text-gray-500',
   },
   ELEVATED: {
     label: 'Elevated',
     icon: AlertTriangle,
-    className: 'bg-amber-50 text-amber-700 border-amber-200',
+    className: 'text-amber-600',
   },
   COMPLEX: {
     label: 'Complex',
     icon: Construction,
-    className: 'bg-red-50 text-red-700 border-red-200',
+    className: 'text-rose-600',
   },
 };
 
@@ -30,11 +30,11 @@ export function JobComplexityBadge({ complexity }: JobComplexityBadgeProps) {
   
   return (
     <div className={cn(
-      'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border',
+      'inline-flex items-center gap-1 text-xs',
       config.className
     )}>
       <Icon className="w-3 h-3" />
-      {config.label}
+      <span>{config.label}</span>
     </div>
   );
 }

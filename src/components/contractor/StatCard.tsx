@@ -10,36 +10,32 @@ interface StatCardProps {
 
 const colorClasses = {
   red: {
-    bg: 'bg-white',
-    border: 'border-slate-200',
-    text: 'text-red-600',
-    dot: 'bg-red-500',
-    selectedBg: 'bg-red-50',
-    selectedBorder: 'border-red-300',
+    bg: 'bg-rose-50/50',
+    text: 'text-rose-600/80',
+    dot: 'bg-rose-400',
+    selectedBg: 'bg-rose-50',
+    selectedBorder: 'border-rose-200',
   },
   orange: {
-    bg: 'bg-white',
-    border: 'border-slate-200',
-    text: 'text-orange-600',
-    dot: 'bg-orange-500',
+    bg: 'bg-orange-50/50',
+    text: 'text-orange-600/80',
+    dot: 'bg-orange-400',
     selectedBg: 'bg-orange-50',
-    selectedBorder: 'border-orange-300',
+    selectedBorder: 'border-orange-200',
   },
   yellow: {
-    bg: 'bg-white',
-    border: 'border-slate-200',
-    text: 'text-amber-600',
-    dot: 'bg-amber-500',
+    bg: 'bg-amber-50/50',
+    text: 'text-amber-600/80',
+    dot: 'bg-amber-400',
     selectedBg: 'bg-amber-50',
-    selectedBorder: 'border-amber-300',
+    selectedBorder: 'border-amber-200',
   },
   green: {
-    bg: 'bg-white',
-    border: 'border-slate-200',
-    text: 'text-emerald-600',
-    dot: 'bg-emerald-500',
+    bg: 'bg-emerald-50/50',
+    text: 'text-emerald-600/80',
+    dot: 'bg-emerald-400',
     selectedBg: 'bg-emerald-50',
-    selectedBorder: 'border-emerald-300',
+    selectedBorder: 'border-emerald-200',
   },
 };
 
@@ -50,20 +46,20 @@ export function StatCard({ label, count, color, onClick, isSelected }: StatCardP
     <button
       onClick={onClick}
       className={cn(
-        'rounded-lg border p-3 text-center transition-all duration-200 shadow-sm',
-        'hover:shadow-md active:scale-95',
+        'rounded-lg border p-3 text-center transition-all duration-200',
+        'hover:shadow-sm active:scale-[0.98]',
         isSelected 
           ? `${colors.selectedBg} ${colors.selectedBorder}` 
-          : `${colors.bg} ${colors.border} hover:border-slate-300`,
+          : `${colors.bg} border-transparent hover:border-gray-200/50`,
         onClick && 'cursor-pointer'
       )}
     >
-      <div className={cn('text-2xl font-bold', colors.text)}>
+      <div className={cn('text-xl font-semibold', colors.text)}>
         {count}
       </div>
       <div className="flex items-center justify-center gap-1.5 mt-1">
-        <div className={cn('w-1.5 h-1.5 rounded-full', colors.dot)} />
-        <span className="text-xs text-slate-600 font-medium">{label}</span>
+        <div className={cn('w-1.5 h-1.5 rounded-full opacity-60', colors.dot)} />
+        <span className="text-xs text-gray-500">{label}</span>
       </div>
     </button>
   );
