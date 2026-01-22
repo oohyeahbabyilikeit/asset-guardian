@@ -622,18 +622,7 @@ export function OptionsAssessmentDrawer({
               </div>
             )}
             
-            {/* Monitor tier: show planning info */}
-            {tier === 'monitor' && yearsRemaining > 0 && yearsRemaining <= 3 && inputs.calendarAge >= 6 && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-foreground">Plan Ahead</h4>
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-sm text-muted-foreground">
-                    With approximately {yearsRemaining} year{yearsRemaining === 1 ? '' : 's'} of typical life remaining, 
-                    now is a good time to start budgeting for eventual replacement. We're here when you need us.
-                  </p>
-                </div>
-              </div>
-            )}
+            
             
             {/* CTA */}
             <Button 
