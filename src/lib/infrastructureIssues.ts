@@ -63,6 +63,21 @@ export function getInfrastructureIssues(
     });
   }
 
+  // Non-functional expansion tank in closed loop system (waterlogged)
+  if (inputs.hasExpTank && inputs.expTankStatus === 'WATERLOGGED' && isActuallyClosed) {
+    issues.push({
+      id: 'exp_tank_failed',
+      name: 'Expansion Tank Replacement',
+      friendlyName: 'Thermal expansion protection (failed)',
+      remediationLabel: 'Replace Failed Expansion Tank',
+      category: 'VIOLATION',
+      costMin: 250,
+      costMax: 400,
+      description: 'Existing expansion tank has failed - replacement required for code compliance',
+      includedInTiers: TIER_CATEGORY_MAP.VIOLATION,
+    });
+  }
+
   // PRV has failed (pressure > 80 PSI with PRV already installed)
   if (inputs.hasPrv && inputs.housePsi > 80) {
     issues.push({
@@ -127,8 +142,10 @@ export function getInfrastructureIssues(
     });
   }
 
-  // Existing expansion tank may be waterlogged (has tank but still seeing pressure issues)
-  if (inputs.hasExpTank && isActuallyClosed && metrics.stressFactors.loop > 1.2) {
+  // Existing expansion tank may be waterlogged (has tank, not explicitly failed, but still seeing pressure issues)
+  // Skip if already flagged as a VIOLATION (exp_tank_failed)
+  const alreadyFlaggedExpTank = issues.some(i => i.id === 'exp_tank_failed');
+  if (inputs.hasExpTank && isActuallyClosed && metrics.stressFactors.loop > 1.2 && !alreadyFlaggedExpTank) {
     issues.push({
       id: 'exp_tank_replace',
       name: 'Expansion Tank Replacement',
