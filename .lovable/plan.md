@@ -1,99 +1,161 @@
 
+# Convert "Monitor" Drawer Dead End → Lead Capture via Personalized Maintenance Plan
 
-# Fix: Young Tank Replacement Recommendation Bug
-
-## Problem Summary
-A **2-year-old unit** missing only an expansion tank is incorrectly being recommended for **replacement**. The algorithm correctly returns `REPAIR` (install expansion tank), but downstream components override this verdict based on flawed heuristics.
-
-## Root Cause
-Three components use hardcoded `bioAge >= 10` checks that **bypass the algorithm's decision**:
-
-| Location | Bug | Impact |
-|----------|-----|--------|
-| `Index.tsx:357` | `bioAge >= 10` → `REPLACE_SOON` | AI prefetch uses wrong recommendation type |
-| `FindingsSummaryPage.tsx:1252` | `bioAge >= 10` → `REPLACE_SOON` | Customer sees "Start Planning Replacement" |
-| `HealthGauge.tsx:260` | `bioAge >= 10` → "Wear Catching Up" | Misleading status message |
-
-### Why This Happens
-A 2-year-old tank in a closed-loop system **without an expansion tank** experiences:
-- Pressure spikes to ~120 PSI during heating cycles
-- This causes elevated stress factors in the algorithm
-- The `bioAge` can spike to 10+ even on a young tank
-
-But this is **correctable damage** — install the expansion tank, and the stress disappears. The algorithm knows this and returns `REPAIR`, but the UI ignores it.
+## Problem
+When a unit is perfectly healthy (PASS verdict), the `OptionsAssessmentDrawer` shows "Your Unit Is Stable" with a "Got It" button that just closes the drawer. This is a **dead end for lead capture** — we're losing potential customers who could opt into maintenance reminders.
 
 ## Solution
+Transform the "monitor" tier experience into a lead capture opportunity by:
+1. Showing the user their **personalized maintenance schedule** (next flush, anode check, etc.)
+2. Offering an **SMS/email reminder opt-in** that captures their contact info as a lead
+3. Adding a new `CaptureSource` type for this flow (`maintenance_reminder`)
 
-### Step 1: Fix `Index.tsx` (Prefetch Logic)
-Replace the flawed recommendation type logic with the correct pattern from `CommandCenter.tsx`:
+---
 
+## Implementation Plan
+
+### Step 1: Add New CaptureSource Type
+**File:** `src/lib/leadService.ts`
+
+Add `'maintenance_reminder'` to the `CaptureSource` union type:
 ```typescript
-// BEFORE (buggy)
-if (verdict.action === 'REPLACE' || urgency === 'IMMEDIATE') {
-  recommendationType = 'REPLACE_NOW';
-} else if (urgency === 'HIGH' || opterraResult.metrics.bioAge >= 10) {
-  recommendationType = 'REPLACE_SOON';  // ❌ Ignores REPAIR verdict!
-} else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
-  recommendationType = 'MAINTAIN';
-}
-
-// AFTER (correct)
-if (verdict.action === 'REPLACE') {
-  recommendationType = verdict.urgent ? 'REPLACE_NOW' : 'REPLACE_SOON';
-} else if (verdict.action === 'REPAIR' || verdict.action === 'MAINTAIN') {
-  recommendationType = 'MAINTAIN';
-} else if (verdict.action === 'UPGRADE') {
-  recommendationType = 'MONITOR';
-}
-// PASS stays as MONITOR
+export type CaptureSource = 
+  | 'service_selection'
+  | 'replacement_quote'
+  | 'handoff_remote'
+  | 'emergency_flow'
+  | 'chat_escalation'
+  | 'maintenance_reminder';  // NEW: From healthy unit reminder opt-in
 ```
 
-### Step 2: Fix `FindingsSummaryPage.tsx` (Bottom Line Logic)
-The `getBottomLine()` function needs the same fix. It should respect the algorithm's verdict:
+### Step 2: Update OptionsAssessmentDrawer for Monitor Tier
+**File:** `src/components/OptionsAssessmentDrawer.tsx`
 
-- If `verdict.action === 'REPLACE'` → Return replacement recommendation
-- If `verdict.action === 'REPAIR'` or `MAINTAIN` → Return maintenance recommendation
-- Remove the `bioAge >= 10` override entirely
+When `tier === 'monitor'`, replace the simple "Got It" experience with:
 
-### Step 3: Fix `HealthGauge.tsx` (Status Messaging)
-Update the status message logic to compare `bioAge` relative to `calendarAge` instead of using an absolute threshold:
+1. **Personalized Maintenance Preview Section**
+   - Calculate maintenance schedule using existing `calculateMaintenanceSchedule(inputs, metrics)`
+   - Show upcoming tasks with timeframes (e.g., "Tank Flush – Due in 8 months")
+   - Display the `yearsRemaining` estimate if available
 
-```typescript
-// BEFORE (misleading)
-if (metrics.bioAge >= 10) {
-  return { message: 'Wear Catching Up', severity: 'info' };
-}
+2. **SMS/Email Reminder Opt-In Card**
+   - Reuse the same UI pattern from `MaintenanceCalendar.tsx` (toggle + form)
+   - Include SMS/email method selector and contact input
+   - On submit: Call `submitLead()` with `captureSource: 'maintenance_reminder'`
 
-// AFTER (context-aware)
-const ageRatio = metrics.bioAge / Math.max(inputs.calendarAge, 1);
-if (ageRatio > 1.5 && inputs.calendarAge >= 5) {
-  return { message: 'Wear Catching Up', severity: 'info' };
-}
+3. **Updated CTA Button**
+   - If not opted in: "Get Maintenance Reminders" (primary)
+   - If opted in: "Got It" (outline) — closes drawer with success toast
+
+### Step 3: Pass Required Props to Drawer
+**File:** `src/components/CommandCenter.tsx` (or wherever drawer is opened)
+
+Ensure `inputs` and `metrics` are passed to the drawer so it can calculate the maintenance schedule.
+
+---
+
+## UI Mockup (Monitor Tier)
+
+```text
+┌────────────────────────────────────────────────┐
+│ Your Assessment                                 │
+│ Here's what we found based on your condition   │
+├────────────────────────────────────────────────┤
+│ ┌──────────────────────────────────────────┐   │
+│ │ 👁 Your Unit Is Stable                    │   │
+│ │ No service is recommended at this time.  │   │
+│ └──────────────────────────────────────────┘   │
+│                                                 │
+│ Your Maintenance Schedule                       │
+│ ┌──────────────────────────────────────────┐   │
+│ │ 💧 Tank Flush         Due in 8 months    │   │
+│ │ 🛡 Anode Inspection   Due in 14 months   │   │
+│ └──────────────────────────────────────────┘   │
+│                                                 │
+│ ┌──────────────────────────────────────────┐   │
+│ │ 🔔 Get Maintenance Reminders              │   │
+│ │ We'll text you when service is due       │   │
+│ │                                           │   │
+│ │ [Text] [Email]                           │   │
+│ │ ┌────────────────────────────────┐       │   │
+│ │ │ (555) 123-4567                 │       │   │
+│ │ └────────────────────────────────┘       │   │
+│ │         [ Enable Reminders ]             │   │
+│ └──────────────────────────────────────────┘   │
+│                                                 │
+│          [ Got It ]  (outline button)          │
+└────────────────────────────────────────────────┘
 ```
 
-This ensures a 2-year-old tank with `bioAge: 10` (due to stress) isn't flagged the same as a 10-year-old tank with `bioAge: 10` (normal wear).
+---
+
+## Technical Details
+
+### New Imports for OptionsAssessmentDrawer
+```typescript
+import { calculateMaintenanceSchedule, MaintenanceTask } from '@/lib/maintenanceCalculations';
+import { submitLead, CaptureSource } from '@/lib/leadService';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { Bell, BellRing, MessageSquare, Mail, Droplets, Shield, Flame } from 'lucide-react';
+```
+
+### State for Reminder Flow
+```typescript
+const [showReminderForm, setShowReminderForm] = useState(false);
+const [reminderMethod, setReminderMethod] = useState<'sms' | 'email'>('sms');
+const [contactInfo, setContactInfo] = useState('');
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [reminderEnabled, setReminderEnabled] = useState(false);
+```
+
+### Lead Submission Handler
+```typescript
+const handleReminderSubmit = async () => {
+  if (!contactInfo.trim()) {
+    toast.error(`Please enter your ${reminderMethod === 'sms' ? 'phone number' : 'email'}`);
+    return;
+  }
+  
+  setIsSubmitting(true);
+  const result = await submitLead({
+    customerName: 'Homeowner',
+    customerPhone: reminderMethod === 'sms' ? contactInfo : '',
+    customerEmail: reminderMethod === 'email' ? contactInfo : undefined,
+    captureSource: 'maintenance_reminder',
+    captureContext: {
+      healthScore,
+      yearsRemaining,
+      nextMaintenanceType: schedule?.primaryTask?.type,
+      monthsUntilDue: schedule?.primaryTask?.monthsUntilDue,
+    },
+    optInAlerts: true,
+    preferredContactMethod: reminderMethod,
+  });
+  
+  setIsSubmitting(false);
+  if (result.success) {
+    setReminderEnabled(true);
+    toast.success(`Reminders enabled! We'll ${reminderMethod === 'sms' ? 'text' : 'email'} you before maintenance is due.`);
+  } else {
+    toast.error('Something went wrong. Please try again.');
+  }
+};
+```
+
+---
 
 ## Files to Modify
 
-1. **`src/pages/Index.tsx`** — Lines 355-361
-2. **`src/components/FindingsSummaryPage.tsx`** — Lines 1252-1270 (the `getBottomLine` function)
-3. **`src/components/HealthGauge.tsx`** — Lines 260-262
+| File | Changes |
+|------|---------|
+| `src/lib/leadService.ts` | Add `'maintenance_reminder'` to `CaptureSource` |
+| `src/components/OptionsAssessmentDrawer.tsx` | Add maintenance schedule display + reminder opt-in form for monitor tier |
 
-## Alignment with Existing Architecture
+## Benefits
 
-This fix aligns with the documented business logic:
-
-- **Infrastructure First Gate**: Young tanks (<8 years) with correctable issues should get REPAIR/MAINTAIN verdicts
-- **Technical Necessity**: The algorithm is the single source of truth for verdicts
-- **Young Tank Recommendation Gate**: Replacement recommendations on young tanks are gated
-
-## Testing Scenarios
-
-After the fix, verify these scenarios:
-
-| Scenario | Calendar Age | bioAge | Missing Exp Tank | Expected Result |
-|----------|-------------|--------|------------------|-----------------|
-| Young tank, missing expansion | 2 | 10+ | Yes | `REPAIR` (install tank) |
-| Old tank, missing expansion | 12 | 15+ | Yes | `REPLACE` (too fragile) |
-| Young tank, healthy | 3 | 3.5 | No | `PASS` (no issues) |
-
+1. **Lead Capture**: Every healthy unit now has a path to capture contact info
+2. **Value Exchange**: Users get personalized maintenance reminders in exchange for contact
+3. **Reuses Existing Code**: Uses existing `calculateMaintenanceSchedule`, `submitLead`, and UI patterns
+4. **Non-Intrusive**: Opt-in is optional — "Got It" still closes the drawer
