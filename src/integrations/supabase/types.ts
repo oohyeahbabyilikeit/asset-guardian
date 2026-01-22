@@ -230,6 +230,120 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_opportunities: {
+        Row: {
+          anode_remaining: number | null
+          asset_age_years: number
+          asset_brand: string
+          asset_capacity: number
+          asset_fuel_type: string
+          asset_location: string | null
+          asset_model: string | null
+          asset_serial: string | null
+          asset_vent_type: string | null
+          asset_warranty_years: number
+          bio_age: number | null
+          context_description: string | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          fail_probability: number | null
+          forensic_inputs: Json
+          health_score: number | null
+          id: string
+          inspection_notes: string | null
+          job_complexity: string
+          opportunity_type: string
+          photo_urls: Json | null
+          priority: string
+          property_address: string
+          property_city: string
+          property_state: string
+          property_zip: string
+          risk_level: number | null
+          shield_life: number | null
+          status: string
+          updated_at: string
+          verdict_action: string | null
+          verdict_title: string | null
+        }
+        Insert: {
+          anode_remaining?: number | null
+          asset_age_years: number
+          asset_brand: string
+          asset_capacity?: number
+          asset_fuel_type?: string
+          asset_location?: string | null
+          asset_model?: string | null
+          asset_serial?: string | null
+          asset_vent_type?: string | null
+          asset_warranty_years?: number
+          bio_age?: number | null
+          context_description?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          fail_probability?: number | null
+          forensic_inputs?: Json
+          health_score?: number | null
+          id?: string
+          inspection_notes?: string | null
+          job_complexity?: string
+          opportunity_type: string
+          photo_urls?: Json | null
+          priority: string
+          property_address: string
+          property_city: string
+          property_state?: string
+          property_zip: string
+          risk_level?: number | null
+          shield_life?: number | null
+          status?: string
+          updated_at?: string
+          verdict_action?: string | null
+          verdict_title?: string | null
+        }
+        Update: {
+          anode_remaining?: number | null
+          asset_age_years?: number
+          asset_brand?: string
+          asset_capacity?: number
+          asset_fuel_type?: string
+          asset_location?: string | null
+          asset_model?: string | null
+          asset_serial?: string | null
+          asset_vent_type?: string | null
+          asset_warranty_years?: number
+          bio_age?: number | null
+          context_description?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          fail_probability?: number | null
+          forensic_inputs?: Json
+          health_score?: number | null
+          id?: string
+          inspection_notes?: string | null
+          job_complexity?: string
+          opportunity_type?: string
+          photo_urls?: Json | null
+          priority?: string
+          property_address?: string
+          property_city?: string
+          property_state?: string
+          property_zip?: string
+          risk_level?: number | null
+          shield_life?: number | null
+          status?: string
+          updated_at?: string
+          verdict_action?: string | null
+          verdict_title?: string | null
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           capture_context: Json | null
