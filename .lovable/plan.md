@@ -1,163 +1,113 @@
 
-
-# Remove Dollar Tracking - Implement Service-Based Closes
+# Load Real Tank Water Heater Assets into Contractor Dashboard
 
 ## Summary
 
-Replace the revenue-focused pipeline metrics with service completion tracking. "Closes" will be counted by actual technician actions recorded through the technician app, categorized into three main buckets:
-
-1. **Maintenance** - flush, anode_replacement, descale, filter_clean, inspection
-2. **Code Violation Fixes** - exp_tank_install, exp_tank_replace, prv_install, prv_replace, softener_install
-3. **Replacements** - replacement (full unit replacement)
+Create a fully functional asset management system for the contractor dashboard with:
+1. Rich mock tank water heater data (only tanks for now - no hybrids/tankless)
+2. Complete `ForensicInputs` + `AssetData` for each record
+3. A slide-out detail drawer when clicking "Details" on any lead
+4. Full unit profile display with equipment, specs, health score, and service context
 
 ---
 
-## Data Model Changes
+## Current State
 
-### Update `mockContractorData.ts`
+- `mockContractorData.ts` has 13 opportunities but they're lightweight (no full `ForensicInputs`)
+- Clicking "Details" only shows a toast notification
+- Tank data in `mockAsset.ts` has 10 detailed tank scenarios with complete forensic inputs
+- No drawer/sheet component wired to display asset details
 
-Replace revenue-based pipeline with service-close metrics:
+---
 
-**Before:**
+## Implementation Plan
+
+### 1. Update Mock Data Structure (`mockContractorData.ts`)
+
+Replace the current `MockOpportunity` with enriched tank-only data that includes full forensic inputs and asset details.
+
+**New Interface:**
 ```typescript
-interface PipelineStage {
-  name: string;
-  count: number;
-  revenue: number;  // ❌ Remove
+export interface TankAsset {
+  id: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  calendarAge: number;
+  location: string;
+  capacity: number;
+  fuelType: 'GAS' | 'ELECTRIC';
+  ventType: string;
 }
 
-interface MockPipeline {
-  stages: PipelineStage[];
-  conversionRate: number;
-  totalRevenue: number;  // ❌ Remove
+export interface MockOpportunity {
+  id: string;
+  propertyAddress: string;
+  customerName?: string;
+  customerPhone?: string;
+  opportunityType: OpportunityType;
+  priority: Priority;
+  healthScore: number;
+  failProbability: number;
+  jobComplexity: JobComplexity;
+  context: string;
+  createdAt: Date;
+  status: 'pending' | 'viewed' | 'contacted' | 'converted' | 'dismissed';
+  
+  // NEW: Full asset data
+  asset: TankAsset;
+  forensicInputs: ForensicInputs;
 }
 ```
 
-**After:**
+**Tank-Only Data (12 realistic scenarios):**
+- Remove hybrids/tankless from opportunities
+- Keep only `GAS` and `ELECTRIC` fuel types
+- Include complete `ForensicInputs` for each unit
+- Realistic Arizona addresses, customer names, and contexts
+
+### 2. Create Asset Detail Drawer (`AssetDetailDrawer.tsx`)
+
+New component using the `Sheet` primitive to display full asset information when clicking "Details":
+
+**Content sections:**
+1. **Header**: Customer name, address, priority badge
+2. **Unit Profile**: Brand, model, serial, age, location, capacity
+3. **Health Summary**: Health score ring, fail probability, risk level
+4. **Equipment Checklist**: PRV, Expansion Tank, Softener, Circ Pump (with present/absent indicators)
+5. **Key Metrics**: House PSI, water hardness, temp setting
+6. **Issue Context**: Why this opportunity was flagged (context from algorithm)
+7. **Action Buttons**: Call customer, Start inspection
+
+### 3. Wire Up Detail View (`OpportunityFeed.tsx`)
+
+Update `handleViewDetails` to open the drawer instead of showing a toast:
 ```typescript
-export type CloseCategory = 'maintenance' | 'code_fixes' | 'replacements';
+const [selectedOpportunity, setSelectedOpportunity] = useState<MockOpportunity | null>(null);
 
-interface ServiceCloseMetrics {
-  maintenance: {
-    total: number;
-    breakdown: { flush: number; anode: number; descale: number; inspection: number };
-  };
-  codeFixes: {
-    total: number;
-    breakdown: { expTank: number; prv: number; softener: number };
-  };
-  replacements: {
-    total: number;
-  };
-  thisMonth: number;
-  lastMonth: number;
-  trend: 'up' | 'down' | 'flat';
-}
-
-interface MockPipeline {
-  stages: { name: string; count: number }[];  // No revenue
-  conversionRate: number;
-  closes: ServiceCloseMetrics;  // New: tracks actual service completions
-}
-```
-
-### New Mock Data
-
-```typescript
-export const mockPipeline: MockPipeline = {
-  stages: [
-    { name: 'New', count: 8 },
-    { name: 'Contacted', count: 4 },
-    { name: 'Scheduled', count: 2 },  // Renamed from "Quoted"
-    { name: 'Completed', count: 12 }, // Renamed from "Closed"
-  ],
-  conversionRate: 46,
-  closes: {
-    maintenance: {
-      total: 8,
-      breakdown: { flush: 4, anode: 2, descale: 1, inspection: 1 }
-    },
-    codeFixes: {
-      total: 3,
-      breakdown: { expTank: 1, prv: 1, softener: 1 }
-    },
-    replacements: {
-      total: 1,
-    },
-    thisMonth: 12,
-    lastMonth: 9,
-    trend: 'up',
-  }
+const handleViewDetails = (opportunity: MockOpportunity) => {
+  setSelectedOpportunity(opportunity);
+  // Mark as viewed
+  setOpportunities(prev => 
+    prev.map(o => o.id === opportunity.id && o.status === 'pending' 
+      ? { ...o, status: 'viewed' as const } : o)
+  );
 };
+
+// In render:
+<AssetDetailDrawer 
+  opportunity={selectedOpportunity}
+  open={!!selectedOpportunity}
+  onClose={() => setSelectedOpportunity(null)}
+/>
 ```
 
----
+### 4. Update LeadCard Display
 
-## Component Changes
-
-### 1. `PipelineOverview.tsx` - Remove All Dollar References
-
-**Changes:**
-- Remove `DollarSign` icon import
-- Remove `formatCurrency` function
-- Remove `totalRevenue` usage
-- Remove per-stage revenue display
-- Add service close summary instead
-
-**New Design:**
-
-```text
-┌────────────────────────────────────────────────────┐
-│  Pipeline                        12 completed ↑    │
-├────────────────────────────────────────────────────┤
-│   8  →  4  →  2  →  12                             │
-│  New  Contact  Sched  Done                         │
-├────────────────────────────────────────────────────┤
-│  ██████████████████░░░░░░░░░  46% conversion       │
-└────────────────────────────────────────────────────┘
-```
-
-Compact version:
-```text
-Pipeline              12 done ↑
-8 → 4 → 2 → 12
-[========    ] 46%
-```
-
-### 2. New Component: `ClosesBreakdown.tsx`
-
-A new card showing service completion breakdown by category:
-
-```text
-┌────────────────────────────────────────────────────┐
-│  This Month's Closes                    12 total   │
-├────────────────────────────────────────────────────┤
-│  🔧 Maintenance        8                           │
-│     4 Flush · 2 Anode · 1 Descale · 1 Inspection   │
-│                                                     │
-│  ⚠️ Code Fixes         3                           │
-│     1 Exp Tank · 1 PRV · 1 Softener                │
-│                                                     │
-│  🔄 Replacements       1                           │
-├────────────────────────────────────────────────────┤
-│  ↑ 33% vs last month (9)                           │
-└────────────────────────────────────────────────────┘
-```
-
-### 3. `TodaysSummary.tsx` - Add Closes Summary
-
-Add a small footer showing today's/this week's completed services:
-
-```text
-┌─────────────────────────────────────────┐
-│  Today's Actions            27 total    │
-│  ⚠️ 5 urgent actions needed             │
-│                                          │
-│  [2 Crit] [3 High] [5 Med] [3 Low]      │
-│                                          │
-│  ───────────────────────────────────    │
-│  ✓ 3 completed today                    │
-└─────────────────────────────────────────┘
+Derive `unitSummary` from actual asset data:
+```typescript
+// In LeadCard or OpportunityFeed
+const unitSummary = `${asset.calendarAge}yr ${asset.brand} ${asset.fuelType === 'GAS' ? 'Gas' : 'Electric'} Tank in ${asset.location}`;
 ```
 
 ---
@@ -166,158 +116,94 @@ Add a small footer showing today's/this week's completed services:
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/data/mockContractorData.ts` | **Modify** | Remove `revenue`/`totalRevenue`, add `ServiceCloseMetrics` type and mock close data |
-| `src/components/contractor/PipelineOverview.tsx` | **Modify** | Remove all dollar formatting, replace with completion count + trend arrow |
-| `src/components/contractor/ClosesBreakdown.tsx` | **Create** | New component showing categorized service completions |
-| `src/pages/Contractor.tsx` | **Modify** | Add `ClosesBreakdown` to the sidebar overview panel |
+| `src/data/mockContractorData.ts` | **Rewrite** | Add `TankAsset` interface, embed full `ForensicInputs` in each opportunity, tank-only data (12 records) |
+| `src/components/contractor/AssetDetailDrawer.tsx` | **Create** | Slide-out sheet with full unit profile, health metrics, equipment list, and action buttons |
+| `src/components/contractor/OpportunityFeed.tsx` | **Modify** | Add state for selected opportunity, wire up drawer on "Details" click |
+| `src/components/contractor/LeadCard.tsx` | **Modify** | Accept full opportunity with asset, derive summary from actual data |
 
 ---
 
-## Technical Details
+## Mock Data: 12 Tank Water Heaters
 
-### Type Definitions (mockContractorData.ts)
+All TANK units only (GAS or ELECTRIC):
 
-```typescript
-export type CloseCategory = 'maintenance' | 'code_fixes' | 'replacements';
+| Customer | Address | Brand | Age | Fuel | Health | Priority | Context |
+|----------|---------|-------|-----|------|--------|----------|---------|
+| Johnson Family | 1847 Sunset Dr, Phoenix | Rheem | 12yr | GAS | 24 | Critical | Active leak detected |
+| Williams Residence | 2301 E Camelback Rd | Bradford White | 15yr | ELECTRIC | 18 | Critical | Severe corrosion + T&P weeping |
+| Martinez Residence | 456 Oak Ave, Scottsdale | A.O. Smith | 5yr | GAS | 62 | High | Warranty expires in 6 months |
+| Chen Family | 789 Mesquite Ln, Tempe | State Select | 10yr | GAS | 45 | High | Anode depleted, high sediment |
+| Rodriguez Family | 3344 Saguaro Blvd, Mesa | Rheem | 6yr | GAS | 71 | Medium | Anode replacement due |
+| Patel Residence | 5566 Ironwood Dr, Chandler | A.O. Smith | 4yr | GAS | 78 | Medium | Annual flush due (18 GPG) |
+| Anderson Home | 9900 Cactus Wren Ln, Peoria | Bradford White | 7yr | ELECTRIC | 68 | Medium | Flush overdue 18 months |
+| Davis Residence | 2233 Quail Run, Scottsdale | State Select | 5yr | GAS | 74 | Medium | Anode inspection needed |
+| Miller Family | 4455 Dove Valley Rd, Cave Creek | Rheem | 2yr | GAS | 92 | Low | Annual checkup |
+| Taylor Home | 6677 Desert Sage Way, Fountain Hills | A.O. Smith | 3yr | ELECTRIC | 88 | Low | Annual inspection |
+| Garcia Residence | 8899 Thunderbird Rd, Surprise | Whirlpool | 4yr | ELECTRIC | 85 | Low | Routine check |
+| Thompson Home | 1122 Palm Desert Way, Gilbert | Bradford White | 8yr | GAS | 52 | High | Pressure issue, no PRV |
 
-export interface MaintenanceBreakdown {
-  flush: number;
-  anode: number;
-  descale: number;
-  inspection: number;
-}
+---
 
-export interface CodeFixBreakdown {
-  expTank: number;
-  prv: number;
-  softener: number;
-}
+## Asset Detail Drawer Layout
 
-export interface ServiceCloseMetrics {
-  maintenance: {
-    total: number;
-    breakdown: MaintenanceBreakdown;
-  };
-  codeFixes: {
-    total: number;
-    breakdown: CodeFixBreakdown;
-  };
-  replacements: {
-    total: number;
-  };
-  thisMonth: number;
-  lastMonth: number;
-  trend: 'up' | 'down' | 'flat';
-}
-
-export interface PipelineStage {
-  name: string;
-  count: number;
-  // revenue removed
-}
-
-export interface MockPipeline {
-  stages: PipelineStage[];
-  conversionRate: number;
-  closes: ServiceCloseMetrics;
-  // totalRevenue removed
-}
-```
-
-### PipelineOverview Changes
-
-```typescript
-// Before
-<div className="flex items-center gap-1.5 text-xs text-gray-400">
-  <DollarSign className="w-3 h-3" />
-  <span className="text-gray-600">{formatCurrency(totalRevenue)}</span>
-  <span>potential</span>
-</div>
-
-// After
-<div className="flex items-center gap-1.5 text-xs">
-  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-  <span className="text-gray-600 font-medium">{closes.thisMonth}</span>
-  <span className="text-gray-400">completed</span>
-  {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
-  {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-500" />}
-</div>
-```
-
-### ClosesBreakdown Component
-
-```typescript
-interface ClosesBreakdownProps {
-  closes: ServiceCloseMetrics;
-  compact?: boolean;
-}
-
-export function ClosesBreakdown({ closes, compact = false }: ClosesBreakdownProps) {
-  const percentChange = closes.lastMonth > 0 
-    ? Math.round(((closes.thisMonth - closes.lastMonth) / closes.lastMonth) * 100)
-    : 0;
-  
-  return (
-    <div className="bg-white rounded-lg border border-gray-100 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-700">Completed Services</h3>
-        <span className="text-sm text-gray-600 font-medium">{closes.thisMonth}</span>
-      </div>
-      
-      {/* Category rows */}
-      <div className="space-y-2">
-        <CategoryRow 
-          icon={<Wrench />} 
-          label="Maintenance" 
-          count={closes.maintenance.total}
-          detail={`${closes.maintenance.breakdown.flush} flush · ${closes.maintenance.breakdown.anode} anode`}
-        />
-        <CategoryRow 
-          icon={<AlertTriangle />} 
-          label="Code Fixes" 
-          count={closes.codeFixes.total}
-          detail={`${closes.codeFixes.breakdown.expTank} exp tank · ${closes.codeFixes.breakdown.prv} PRV`}
-        />
-        <CategoryRow 
-          icon={<RefreshCw />} 
-          label="Replacements" 
-          count={closes.replacements.total}
-        />
-      </div>
-      
-      {/* Trend footer */}
-      <div className="mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
-        {closes.trend === 'up' && <TrendingUp className="inline w-3 h-3 text-emerald-500 mr-1" />}
-        {percentChange > 0 ? '+' : ''}{percentChange}% vs last month
-      </div>
-    </div>
-  );
-}
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  ← Asset Details                                      [X]   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Johnson Family                           ⚠️ CRITICAL       │
+│  1847 Sunset Dr, Phoenix AZ                                  │
+│  (602) 555-0142                                              │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│  UNIT PROFILE                                                │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Rheem Performance Plus                                  ││
+│  │ 50-Gal Gas Tank · 12 years old · Attic                  ││
+│  │                                                         ││
+│  │ Serial: RH-2012-5567-P    Model: PROG50-36N-RH67       ││
+│  │ Warranty: EXPIRED (6yr)   Vent: Atmospheric             ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│  HEALTH STATUS                                               │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │    [████░░░░░░]                                         ││
+│  │         24/100                                          ││
+│  │    78% failure probability                              ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│  INSTALLED EQUIPMENT                                         │
+│  ✓ PRV (Pressure Reducing Valve)                            │
+│  ✗ Expansion Tank (Required - closed loop)                  │
+│  ✗ Water Softener                                           │
+│  ✗ Recirculation Pump                                       │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│  KEY READINGS                                                │
+│  House PSI: 95 (HIGH)       Hardness: 18 GPG                │
+│  Temp Setting: Normal       Closed Loop: Yes                 │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│  WHY FLAGGED                                                 │
+│  Active leak detected during routine inspection.             │
+│  Tank is 12 years old with no anode service history.        │
+│  High pressure (95 PSI) without PRV increases stress.       │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  [📞 Call Customer]    [🔧 Start Inspection]                │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Visual Outcome
+## Technical Notes
 
-**Before (Revenue-focused):**
-```
-Pipeline                    $88.3K potential
-8 → 4 → 2 → 12
-$24.5K  $12.8K  $8.4K  $42.6K
-```
-
-**After (Service-focused):**
-```
-Pipeline                    12 completed ↑
-8 → 4 → 2 → 12
-New  Contact  Sched  Done
-────────────────────────────
-Completed Services          12
-🔧 Maintenance      8   (4 flush, 2 anode...)
-⚠️ Code Fixes       3   (1 exp tank, 1 PRV...)
-🔄 Replacements     1
-+33% vs last month
-```
-
-This shifts the focus from hypothetical revenue to actual work completed through the technician app, making the metrics directly trackable via `service_events` table entries.
-
+- Remove tankless/hybrid entries from mock data (IDs 5, 6, 8, 12, 13 reference non-tank units)
+- Each `ForensicInputs` object will have complete data for the Opterra algorithm
+- The drawer pulls directly from `opportunity.forensicInputs` and `opportunity.asset`
+- "Start Inspection" button navigates to `/?mode=technician` with pre-filled asset context
+- Equipment checklist is derived from `forensicInputs.hasPrv`, `.hasExpTank`, `.hasSoftener`, `.hasCircPump`
