@@ -58,11 +58,32 @@ export interface ServiceCloseMetrics {
   trend: 'up' | 'down' | 'flat';
 }
 
+export interface ServiceHistoryEntry {
+  id: string;
+  eventType: 'flush' | 'anode_replace' | 'inspection' | 'repair' | 'install';
+  eventDate: Date;
+  notes?: string;
+  cost?: number;
+  performedBy?: string;
+}
+
+export interface OpterraResultSummary {
+  healthScore: number;
+  bioAge: number;
+  failProb: number;
+  shieldLife: number;
+  riskLevel: number;
+  verdictAction: 'MAINTAIN' | 'MONITOR' | 'REPLACE';
+  verdictTitle: string;
+  anodeRemaining?: number;
+}
+
 export interface MockOpportunity {
   id: string;
   propertyAddress: string;
   customerName?: string;
   customerPhone?: string;
+  customerEmail?: string;
   opportunityType: OpportunityType;
   priority: Priority;
   healthScore: number;
@@ -70,9 +91,15 @@ export interface MockOpportunity {
   jobComplexity: JobComplexity;
   context: string;
   createdAt: Date;
+  lastInspectionDate?: Date;
   status: 'pending' | 'viewed' | 'contacted' | 'converted' | 'dismissed';
   asset: TankAsset;
   forensicInputs: ForensicInputs;
+  // Enhanced data for report view
+  photoUrls?: string[];
+  serviceHistory?: ServiceHistoryEntry[];
+  opterraResult?: OpterraResultSummary;
+  inspectionNotes?: string;
 }
 
 export interface PipelineStage {
@@ -89,12 +116,13 @@ export interface MockPipeline {
 // ============ Mock Data - Tank Water Heaters Only ============
 
 export const mockOpportunities: MockOpportunity[] = [
-  // CRITICAL - Active Issues
+// CRITICAL - Active Issues
   {
     id: 'opp-001',
     propertyAddress: '1847 Sunset Dr, Phoenix, AZ 85001',
     customerName: 'Johnson Family',
     customerPhone: '(602) 555-0142',
+    customerEmail: 'johnson.family@email.com',
     opportunityType: 'replacement_urgent',
     priority: 'critical',
     healthScore: 24,
@@ -102,7 +130,27 @@ export const mockOpportunities: MockOpportunity[] = [
     jobComplexity: 'COMPLEX',
     context: 'Active leak detected at base. Tank is 12 years old with no anode service history. High pressure system.',
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    lastInspectionDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
     status: 'pending',
+    photoUrls: [
+      'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=800&q=80',
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+      'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&q=80',
+    ],
+    serviceHistory: [
+      { id: 'sh-001', eventType: 'install', eventDate: new Date('2012-03-15'), notes: 'Original installation' },
+    ],
+    opterraResult: {
+      healthScore: 24,
+      bioAge: 18.2,
+      failProb: 0.78,
+      shieldLife: 0,
+      riskLevel: 4,
+      verdictAction: 'REPLACE',
+      verdictTitle: 'Replacement Required',
+      anodeRemaining: 0,
+    },
+    inspectionNotes: 'Active leak at tank base with visible rust staining. T&P valve discharging intermittently. Tank in unconditioned attic - major flood risk. Recommend immediate replacement with relocation to garage if possible.',
     asset: {
       id: 'asset-001',
       brand: 'Rheem',
@@ -147,6 +195,7 @@ export const mockOpportunities: MockOpportunity[] = [
     propertyAddress: '2301 E Camelback Rd, Phoenix, AZ 85016',
     customerName: 'Williams Residence',
     customerPhone: '(602) 555-0298',
+    customerEmail: 'williams.r@email.com',
     opportunityType: 'replacement_urgent',
     priority: 'critical',
     healthScore: 18,
@@ -154,7 +203,27 @@ export const mockOpportunities: MockOpportunity[] = [
     jobComplexity: 'ELEVATED',
     context: 'Severe corrosion on tank exterior. T&P valve weeping. Electric unit in garage - 15 years old.',
     createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+    lastInspectionDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
     status: 'pending',
+    photoUrls: [
+      'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&q=80',
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+    ],
+    serviceHistory: [
+      { id: 'sh-002', eventType: 'install', eventDate: new Date('2009-08-20'), notes: 'Original installation' },
+      { id: 'sh-003', eventType: 'flush', eventDate: new Date('2015-06-10'), cost: 150, notes: 'Sediment flush performed' },
+    ],
+    opterraResult: {
+      healthScore: 18,
+      bioAge: 22.5,
+      failProb: 0.85,
+      shieldLife: 0,
+      riskLevel: 4,
+      verdictAction: 'REPLACE',
+      verdictTitle: 'Critical - Replace Immediately',
+      anodeRemaining: 0,
+    },
+    inspectionNotes: 'Tank exterior shows severe corrosion around seams. T&P valve weeping - indicates internal pressure issues. No anode maintenance records found. Unit has exceeded expected lifespan.',
     asset: {
       id: 'asset-002',
       brand: 'Bradford White',

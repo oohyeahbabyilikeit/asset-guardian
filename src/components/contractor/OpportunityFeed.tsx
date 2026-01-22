@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LeadCard } from './LeadCard';
-import { AssetDetailDrawer } from './AssetDetailDrawer';
+import { PropertyReportDrawer } from './PropertyReportDrawer';
 import { 
   mockOpportunities, 
   type Priority,
@@ -157,24 +157,14 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
         </div>
       )}
       
-      {/* Asset Detail Drawer */}
-      <AssetDetailDrawer
+      {/* Property Report Drawer */}
+      <PropertyReportDrawer
         opportunity={selectedOpportunity}
         open={!!selectedOpportunity}
         onClose={() => setSelectedOpportunity(null)}
         onCall={() => {
           if (selectedOpportunity) {
             handleCall(selectedOpportunity);
-          }
-        }}
-        onViewReport={() => {
-          if (selectedOpportunity) {
-            // Navigate to main app with contractor-report mode
-            const params = new URLSearchParams({
-              mode: 'contractor-report',
-              opportunityId: selectedOpportunity.id
-            });
-            window.location.href = `/?${params.toString()}`;
           }
         }}
       />
