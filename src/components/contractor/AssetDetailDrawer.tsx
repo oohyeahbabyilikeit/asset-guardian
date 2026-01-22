@@ -1,4 +1,4 @@
-import { Phone, Wrench, X, Check, AlertTriangle, Droplets, Gauge, Thermometer, Building2 } from 'lucide-react';
+import { Phone, FileText, X, Check, AlertTriangle, Droplets, Gauge, Thermometer, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,7 +15,7 @@ interface AssetDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   onCall?: () => void;
-  onStartInspection?: () => void;
+  onViewReport?: () => void;
 }
 
 const priorityConfig = {
@@ -104,7 +104,7 @@ export function AssetDetailDrawer({
   open, 
   onClose, 
   onCall,
-  onStartInspection 
+  onViewReport 
 }: AssetDetailDrawerProps) {
   if (!opportunity) return null;
   
@@ -323,13 +323,10 @@ export function AssetDetailDrawer({
           </Button>
           <Button 
             className="flex-1 gap-2"
-            onClick={() => {
-              window.location.href = '/?mode=technician';
-              onStartInspection?.();
-            }}
+            onClick={onViewReport}
           >
-            <Wrench className="w-4 h-4" />
-            Start Inspection
+            <FileText className="w-4 h-4" />
+            View Report
           </Button>
         </div>
       </SheetContent>

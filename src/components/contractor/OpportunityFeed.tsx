@@ -167,6 +167,16 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
             handleCall(selectedOpportunity);
           }
         }}
+        onViewReport={() => {
+          if (selectedOpportunity) {
+            // Navigate to main app with contractor-report mode
+            const params = new URLSearchParams({
+              mode: 'contractor-report',
+              opportunityId: selectedOpportunity.id
+            });
+            window.location.href = `/?${params.toString()}`;
+          }
+        }}
       />
     </div>
   );
