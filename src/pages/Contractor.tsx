@@ -8,11 +8,8 @@ import { PipelineOverview } from '@/components/contractor/PipelineOverview';
 import { ClosesBreakdown } from '@/components/contractor/ClosesBreakdown';
 import { QuickActions } from '@/components/contractor/QuickActions';
 import { cn } from '@/lib/utils';
-import { 
-  mockOpportunities, 
-  getOpportunityCountsByPriority,
-  type Priority 
-} from '@/data/mockContractorData';
+import { useContractorOpportunities, getOpportunityCountsByPriority } from '@/hooks/useContractorOpportunities';
+import type { Priority } from '@/data/mockContractorData';
 
 type MobileTab = 'overview' | 'leads';
 
@@ -20,7 +17,11 @@ export default function Contractor() {
   const [selectedPriority, setSelectedPriority] = useState<Priority | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>('leads');
   
-  const activeOpportunities = mockOpportunities.filter(o => o.status !== 'dismissed' && o.status !== 'converted');
+  // Fetch opportunities from database
+  const { data: opportunities = [] } = useContractorOpportunities();
+  
+  // Calculate counts from real data
+  const activeOpportunities = opportunities.filter(o => o.status !== 'dismissed' && o.status !== 'converted');
   const counts = getOpportunityCountsByPriority(activeOpportunities);
   
   const handlePriorityClick = (priority: Priority) => {
