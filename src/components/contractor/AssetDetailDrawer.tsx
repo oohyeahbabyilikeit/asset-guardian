@@ -118,7 +118,7 @@ export function AssetDetailDrawer({
       ? 'warning' 
       : 'normal';
       
-  const hardnessStatus = (forensicInputs.measuredHardness || forensicInputs.streetHardness || 0) > 15
+  const hardnessStatus = (forensicInputs.measuredHardnessGPG || forensicInputs.streetHardnessGPG || forensicInputs.hardnessGPG || 0) > 15
     ? 'warning'
     : 'normal';
   
@@ -247,7 +247,7 @@ export function AssetDetailDrawer({
               <EquipmentItem 
                 label="Water Softener" 
                 present={forensicInputs.hasSoftener || false}
-                warning={(forensicInputs.measuredHardness || forensicInputs.streetHardness || 0) > 15 ? 'Recommended' : undefined}
+                warning={(forensicInputs.measuredHardnessGPG || forensicInputs.streetHardnessGPG || forensicInputs.hardnessGPG || 0) > 15 ? 'Recommended' : undefined}
               />
               <EquipmentItem 
                 label="Recirculation Pump" 
@@ -271,11 +271,13 @@ export function AssetDetailDrawer({
               <MetricItem 
                 icon={Droplets}
                 label="Water Hardness"
-                value={forensicInputs.measuredHardness 
-                  ? `${forensicInputs.measuredHardness} GPG` 
-                  : forensicInputs.streetHardness 
-                    ? `~${forensicInputs.streetHardness} GPG (est.)` 
-                    : 'Unknown'}
+                value={forensicInputs.measuredHardnessGPG 
+                  ? `${forensicInputs.measuredHardnessGPG} GPG` 
+                  : forensicInputs.streetHardnessGPG 
+                    ? `~${forensicInputs.streetHardnessGPG} GPG (est.)` 
+                    : forensicInputs.hardnessGPG
+                      ? `${forensicInputs.hardnessGPG} GPG`
+                      : 'Unknown'}
                 status={hardnessStatus}
               />
               <MetricItem 
