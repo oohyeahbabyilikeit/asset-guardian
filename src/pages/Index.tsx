@@ -332,6 +332,31 @@ const Index = () => {
     // Calculate algorithm result once
     const result = calculateOpterraRisk(inputs);
 
+    // DEV: Validate scenario on load
+    if (process.env.NODE_ENV === 'development') {
+      const scenarioName = state.mode === 'demo' 
+        ? state.demoScenario?.name ?? 'Random'
+        : 'Technician Assessment';
+      
+      console.log('[VALIDATION] Scenario:', scenarioName);
+      console.log('[VALIDATION] Result:', result.verdict.action, '-', result.verdict.title);
+      console.log('[VALIDATION] Badge:', result.verdict.badge);
+      console.log('[VALIDATION] Metrics:', {
+        bioAge: result.metrics.bioAge.toFixed(1),
+        failProb: result.metrics.failProb.toFixed(1) + '%',
+        healthScore: result.metrics.healthScore,
+        hasHighBioAge: result.metrics.bioAge > inputs.calendarAge * 1.8,
+      });
+      
+      // Warn on potentially incorrect recommendations
+      if (inputs.calendarAge <= 6 && result.verdict.action === 'REPLACE') {
+        console.warn('[VALIDATION] ⚠️ Young tank (<6 years) got REPLACE - verify this is correct');
+      }
+      if (inputs.calendarAge >= 10 && result.verdict.action === 'PASS') {
+        console.warn('[VALIDATION] ⚠️ Old tank (10+ years) got PASS - verify maintenance is current');
+      }
+    }
+
     return { currentInputs: inputs, currentAsset: asset, opterraResult: result };
   }, [state.mode, state.demoScenario, state.technicianData, state.onboardingData]);
 
