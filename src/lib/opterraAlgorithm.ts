@@ -1533,6 +1533,50 @@ function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Re
   const isAnodeDepleted = metrics.shieldLife < 1;
   const hasHighBioAge = metrics.bioAge > data.calendarAge * 1.8;
 
+  // v8.5: "Infrastructure First" Gate for Young Tanks
+  // Young tanks with high bio-age due to CORRECTABLE stress (missing infra)
+  // can be saved with infrastructure upgrades, even if anode is depleted
+  const YOUNG_TANK_THRESHOLD = 6; // Years - within this range, infrastructure fixes are worthwhile
+  const isYoungTank = data.calendarAge <= YOUNG_TANK_THRESHOLD;
+  const hasCorrectableStress = 
+    (data.isClosedLoop && !data.hasExpTank) ||  // Missing expansion tank in closed loop
+    (data.housePsi > 80 && !data.hasPrv);       // Missing PRV with high pressure
+
+  // Young tank with high stress that can be reduced via infrastructure
+  if (isYoungTank && hasHighBioAge && hasCorrectableStress && metrics.failProb < 50) {
+    // Calculate projected life WITH infrastructure fixes
+    const wouldExtendLife = metrics.yearsLeftOptimized > metrics.yearsLeftCurrent + 2;
+    
+    if (wouldExtendLife) {
+      return {
+        action: 'REPAIR',
+        title: 'Protect Your Investment',
+        reason: `Tank is ${data.calendarAge} years old with elevated stress. Installing code-required infrastructure will reduce wear rate and extend useful life.`,
+        urgent: true,
+        badgeColor: 'orange',
+        badge: 'SERVICE',
+        note: 'Unit has some wear but is worth protecting with infrastructure upgrades.'
+      };
+    }
+  }
+
+  // v8.5: "Managed Decline" for Low-Risk Young Tanks with Depleted Anodes
+  // Young tanks in low-risk locations can run to failure if infrastructure is OK
+  const isLowRiskLocation = metrics.riskLevel <= 2; // Garage, Basement, Utility
+  const hasInfrastructureOk = data.hasExpTank || (!data.isClosedLoop && !data.hasCircPump);
+
+  if (isYoungTank && isAnodeDepleted && isLowRiskLocation && hasInfrastructureOk && !hasCorrectableStress) {
+    return {
+      action: 'PASS',
+      title: 'Run to Failure OK',
+      reason: `Anode is depleted but tank is young (${data.calendarAge} yrs) in a protected location. Safe to monitor and budget for replacement.`,
+      urgent: false,
+      badgeColor: 'blue',
+      badge: 'MONITOR',
+      note: `Estimated ${Math.round(metrics.yearsLeftCurrent)} years remaining. No structural risk from location.`
+    };
+  }
+
   if ((isEconomicallyFragile || (isAnodeDepleted && data.calendarAge >= 8) || (hasHighBioAge && data.calendarAge >= 8)) 
       && metrics.failProb > 25) {
     return {
@@ -1801,7 +1845,13 @@ function optimizeTechnicalNecessity(
 
   // RULE 1: The "Naked" Rule (Liability Protection)
   // If the tank has no anode protection, repairs are professionally irresponsible
-  if (metrics.shieldLife <= 0 && rec.action === 'MAINTAIN') {
+  // v8.5 Exception: Young tanks can still benefit from infrastructure fixes
+  const isYoungEnoughToSave = data.calendarAge <= 6;
+  const hasInfrastructureRepair = rec.action === 'REPAIR' && 
+    (rec.title.includes('Expansion') || rec.title.includes('PRV') || 
+     rec.title.includes('Pressure') || rec.title.includes('Investment'));
+
+  if (metrics.shieldLife <= 0 && rec.action === 'MAINTAIN' && !isYoungEnoughToSave) {
     return {
       action: 'REPLACE',
       title: 'End of Service Life',
@@ -1810,6 +1860,12 @@ function optimizeTechnicalNecessity(
       badgeColor: 'red',
       badge: 'CRITICAL'
     };
+  }
+
+  // v8.5: Allow infrastructure repairs to proceed for young naked tanks
+  if (metrics.shieldLife <= 0 && hasInfrastructureRepair && isYoungEnoughToSave) {
+    rec.note = (rec.note || '') + ' Anode protection is depleted. Infrastructure fix will extend remaining life but monitor closely.';
+    // Don't override - let the REPAIR recommendation through
   }
 
   // RULE 2: The "Code Trap" (Complexity Protection)

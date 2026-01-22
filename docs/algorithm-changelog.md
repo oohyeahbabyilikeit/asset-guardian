@@ -4,6 +4,31 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v8.5 (Young Tank Infrastructure Gate)
+
+**New Decision Paths:**
+- **"Infrastructure First" Gate**: Young tanks (≤6 years) with high bio-age due to correctable stress (missing expansion tank or PRV) now get REPAIR recommendations instead of REPLACE
+  - Condition: Young tank + high bio-age + correctable stress + failProb < 50%
+  - Returns "Protect Your Investment" with urgent SERVICE badge
+  - Allows homeowners to install code-required infrastructure and run to failure
+
+- **"Managed Decline" Path**: Young tanks with depleted anodes in low-risk locations (garage, basement) can "Run to Failure OK"
+  - Condition: Young tank + depleted anode + low-risk location + infrastructure OK
+  - Returns PASS with MONITOR badge and estimated years remaining
+  - Honest messaging about running to failure with reduced stress
+
+- **"Naked Rule" Exception**: Modified to allow infrastructure repairs on young tanks (≤6 years)
+  - Previously: All naked tanks with MAINTAIN → forced REPLACE
+  - Now: Young tanks with infrastructure repairs (expansion tank, PRV) allowed through
+  - Note added: "Anode protection is depleted. Infrastructure fix will extend remaining life but monitor closely."
+
+**Philosophy:**
+- Distinguishes between **correctable stress** (missing infrastructure) and **irreversible damage** (years of naked exposure)
+- Creates service opportunities (expansion tank install) instead of "replace or nothing"
+- Location-aware: High-risk locations still push toward replacement
+
+---
+
 ## v8.4 (Actuarial Restructure - Gemini Review)
 
 **Critical Bug Fix:**
