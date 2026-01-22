@@ -238,6 +238,19 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}) {
                 inlet_filter_status: waterHeaterData.inlet_filter_status,
                 error_code_count: waterHeaterData.error_code_count,
                 building_type: waterHeaterData.building_type,
+                // v1.0 Tank Cleanup fields
+                nipple_material: waterHeaterData.nipple_material,
+                measured_hardness_gpg: waterHeaterData.measured_hardness_gpg,
+                // v1.1 Algorithm Fields
+                people_count: waterHeaterData.people_count,
+                usage_type: waterHeaterData.usage_type,
+                last_anode_replace_years_ago: waterHeaterData.last_anode_replace_years_ago,
+                last_flush_years_ago: waterHeaterData.last_flush_years_ago,
+                is_annually_maintained: waterHeaterData.is_annually_maintained,
+                years_without_anode: waterHeaterData.years_without_anode,
+                years_without_softener: waterHeaterData.years_without_softener,
+                softener_salt_status: waterHeaterData.softener_salt_status,
+                sanitizer_type: waterHeaterData.sanitizer_type,
               },
               softener: softenerData ? {
                 capacity_grains: softenerData.capacity_grains,

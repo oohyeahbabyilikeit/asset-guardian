@@ -60,6 +60,16 @@ interface InspectionPayload {
     // v1.0 Tank Cleanup fields
     nipple_material?: string;
     measured_hardness_gpg?: number;
+    // v1.1 Algorithm Fields
+    people_count?: number;
+    usage_type?: string;
+    last_anode_replace_years_ago?: number;
+    last_flush_years_ago?: number;
+    is_annually_maintained?: boolean;
+    years_without_anode?: number;
+    years_without_softener?: number;
+    softener_salt_status?: string;
+    sanitizer_type?: string;
   };
   softener?: {
     capacity_grains?: number;
