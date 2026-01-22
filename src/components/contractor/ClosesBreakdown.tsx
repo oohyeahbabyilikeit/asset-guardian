@@ -1,5 +1,5 @@
 import { Wrench, AlertTriangle, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
-import { mockPipeline, type ServiceCloseMetrics } from '@/data/mockContractorData';
+import { mockPipeline } from '@/data/mockContractorData';
 
 interface CategoryRowProps {
   icon: React.ReactNode;
@@ -11,14 +11,14 @@ interface CategoryRowProps {
 function CategoryRow({ icon, label, count, detail }: CategoryRowProps) {
   return (
     <div className="flex items-start gap-2">
-      <div className="text-gray-400 mt-0.5">{icon}</div>
+      <div className="text-muted-foreground mt-0.5">{icon}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">{label}</span>
-          <span className="text-sm font-medium text-gray-600">{count}</span>
+          <span className="text-sm text-foreground">{label}</span>
+          <span className="text-sm font-medium text-foreground">{count}</span>
         </div>
         {detail && (
-          <p className="text-[11px] text-gray-400 truncate">{detail}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{detail}</p>
         )}
       </div>
     </div>
@@ -38,13 +38,13 @@ export function ClosesBreakdown({ compact = false }: ClosesBreakdownProps) {
 
   if (compact) {
     return (
-      <div className="bg-white rounded-lg border border-gray-100 p-4">
+      <div className="bg-card rounded-lg border border-border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-700">Completed</h3>
-          <span className="text-sm text-gray-600 font-medium">{closes.thisMonth}</span>
+          <h3 className="text-sm font-medium text-foreground">Completed</h3>
+          <span className="text-sm text-foreground font-medium">{closes.thisMonth}</span>
         </div>
         
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <Wrench className="w-3 h-3" />
@@ -60,9 +60,9 @@ export function ClosesBreakdown({ compact = false }: ClosesBreakdownProps) {
             </span>
           </div>
           <div className="flex items-center gap-1">
-            {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
-            {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-500" />}
-            <span className={closes.trend === 'up' ? 'text-emerald-600' : closes.trend === 'down' ? 'text-rose-600' : ''}>
+            {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-400" />}
+            {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-400" />}
+            <span className={closes.trend === 'up' ? 'text-emerald-300' : closes.trend === 'down' ? 'text-rose-300' : ''}>
               {percentChange > 0 ? '+' : ''}{percentChange}%
             </span>
           </div>
@@ -72,10 +72,10 @@ export function ClosesBreakdown({ compact = false }: ClosesBreakdownProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-100 p-4">
+    <div className="bg-card rounded-lg border border-border p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-700">Completed Services</h3>
-        <span className="text-sm text-gray-600 font-medium">{closes.thisMonth} total</span>
+        <h3 className="text-sm font-medium text-foreground">Completed Services</h3>
+        <span className="text-sm text-foreground font-medium">{closes.thisMonth} total</span>
       </div>
       
       {/* Category rows */}
@@ -100,10 +100,10 @@ export function ClosesBreakdown({ compact = false }: ClosesBreakdownProps) {
       </div>
       
       {/* Trend footer */}
-      <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-1 text-xs text-gray-500">
-        {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
-        {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-500" />}
-        <span className={closes.trend === 'up' ? 'text-emerald-600' : closes.trend === 'down' ? 'text-rose-600' : ''}>
+      <div className="mt-3 pt-2 border-t border-border flex items-center gap-1 text-xs text-muted-foreground">
+        {closes.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-400" />}
+        {closes.trend === 'down' && <TrendingDown className="w-3 h-3 text-rose-400" />}
+        <span className={closes.trend === 'up' ? 'text-emerald-300' : closes.trend === 'down' ? 'text-rose-300' : ''}>
           {percentChange > 0 ? '+' : ''}{percentChange}%
         </span>
         <span>vs last month ({closes.lastMonth})</span>
