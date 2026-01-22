@@ -4,6 +4,28 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.1.1 (Closed-Loop Detection Alignment)
+
+**Problem Solved:**
+The v9.1 Young Tank Override gate used a narrower definition of "closed loop" than the UI's infrastructure detector. Tanks with PRVs or recirc pumps (which CREATE closed-loop conditions) were slipping through to "End of Service Life" replacement.
+
+**Root Cause:**
+The algorithm only checked `data.isClosedLoop`, but PRVs and recirc pumps create closed-loop conditions even when `isClosedLoop` is explicitly `false`. The UI correctly identified these as code violations, but the algorithm didn't protect them.
+
+**Solution:**
+1. **Unified Closed-Loop Detection**: Updated `needsInfrastructure` check to use `isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump`
+2. **Safety Net Gate**: Added catch-all before Tier 2A - young tanks (≤6 years) with high failProb but no identified cause now get `MAINTAIN` ("Elevated Wear Detected") instead of `REPLACE`
+
+**Expected Behavior:**
+| Scenario | Before v9.1.1 | After v9.1.1 |
+|----------|---------------|--------------|
+| 4yr tank, PRV creates closed loop, no exp tank | REPLACE (End of Service Life) | REPAIR (Infrastructure Required) |
+| 4yr tank, recirc pump, no exp tank | REPLACE | REPAIR (Infrastructure Required) |
+| 4yr tank, high failProb, no identified cause | REPLACE | MAINTAIN (needs inspection) |
+| 8yr tank, same issues | REPLACE (correctly) | REPLACE (correctly) |
+
+---
+
 ## v9.1 (Young Tank Override Gate)
 
 **Problem Solved:**
