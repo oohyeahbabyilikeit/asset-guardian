@@ -1,97 +1,84 @@
 
 
-# Make Maintenance Schedule Tasks Clickable for Service Information
+# Fix Conflicting Replacement vs. Maintenance Messaging
 
-## What We're Building
+## The Problem
 
-The "Tank Flush Due in Now" item (and other maintenance tasks) in the `OptionsAssessmentDrawer` should be clickable, opening the `EducationalDrawer` with relevant information about that service.
+The screenshot shows a clear UX contradiction:
+- **VerdictCard** (top): "Replace Your Water Heater"
+- **Drawer Banner**: "Proactive Maintenance Recommended" (amber)
 
-## Current State
+This happens because the urgency tier logic prioritizes finding severity over the algorithm's verdict action. When a replacement is recommended but the finding has `warning` severity, it incorrectly shows maintenance messaging.
 
-- The drawer already has `EducationalDrawer` integrated with state management (`selectedTopic`)
-- Priority Findings are already clickable and map to educational topics
-- The maintenance schedule items (lines 404-435) are currently **static divs** - not interactive
+## Root Cause
 
-## Implementation Plan
-
-### Step 1: Add Task-to-Topic Mapping Function
-
-Add a new helper function that maps maintenance task types to educational topics:
+In `getUrgencyTier()` (lines 57-77):
 
 ```typescript
-function getTaskEducationalTopic(taskType: string, metrics?: OpterraMetrics): EducationalTopic | null {
-  // Context-aware mapping (like ServiceHistory does)
-  const isSedimentRisky = metrics?.sedimentLbs && metrics.sedimentLbs > 10;
-  const isAnodeFused = metrics?.anodeStatus === 'fused';
+// Current logic - findings checked FIRST
+const hasWarningFinding = priorityFindings.some(f => f.severity === 'warning');
+if (hasWarningFinding) return 'attention';  // <-- Maintenance messaging
+
+// Algorithm verdict checked SECOND
+if (verdictAction === 'REPLACE') return 'critical';  // <-- Never reached!
+```
+
+## Solution
+
+Prioritize the algorithm's REPLACE verdict over finding severity to ensure consistent messaging:
+
+```typescript
+function getUrgencyTier(...) {
+  // REPLACE verdict always takes priority - the algorithm has spoken
+  if (verdictAction === 'REPLACE') return 'critical';
   
-  const topicMap: Record<string, EducationalTopic> = {
-    'flush': isSedimentRisky ? 'sediment-risky' : 'sediment',
-    'anode': isAnodeFused ? 'anode-rod-fused' : 'anode-rod',
-    'descale': 'scale-tankless',
-    'filter_clean': 'heat-exchanger',
-    'exp_tank_install': 'thermal-expansion',
-    'exp_tank_replace': 'thermal-expansion',
-    'prv_install': 'prv',
-    'prv_replace': 'prv',
-  };
-  return topicMap[taskType] || null;
+  // Then check findings for PASS verdicts with violations
+  const hasCriticalFinding = priorityFindings.some(f => f.severity === 'critical');
+  const hasWarningFinding = priorityFindings.some(f => f.severity === 'warning');
+  
+  if (hasCriticalFinding) return 'critical';
+  if (hasWarningFinding) return 'attention';
+  
+  if (isPassVerdict) return 'monitor';
+  
+  if (healthScore < 40) return 'critical';
+  if (healthScore < 70 || verdictAction === 'REPAIR') return 'attention';
+  return 'healthy';
 }
 ```
 
-### Step 2: Convert Task Items to Clickable Buttons
+Additionally, update the `'critical'` tier messaging to be replacement-aware:
 
-Transform the maintenance task items from static `<div>` to interactive `<button>` elements:
-
-**Current (lines 406-418):**
-```tsx
-<div className="flex items-center justify-between">
-  <div className="flex items-center gap-2">
-    {/* icon + label */}
-  </div>
-  <span>Due in {formatDueDate(...)}</span>
-</div>
+```typescript
+case 'critical':
+  // If it's a replacement, use replacement-specific language
+  const isReplacement = verdictAction === 'REPLACE';
+  return {
+    headline: isReplacement 
+      ? 'Replacement Recommended' 
+      : 'Immediate Attention Recommended',
+    subheadline: isReplacement
+      ? 'Based on our assessment, your unit has reached the end of its serviceable life.'
+      : 'Our assessment found issues that need prompt professional attention.',
+    icon: AlertTriangle,
+    iconColor: 'text-destructive',
+    bgColor: 'bg-destructive/10',
+    borderColor: 'border-destructive/30',
+  };
 ```
-
-**Updated:**
-```tsx
-<button 
-  onClick={() => {
-    const topic = getTaskEducationalTopic(schedule.primaryTask.type, metrics);
-    if (topic) setSelectedTopic(topic);
-  }}
-  className="w-full flex items-center justify-between hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors cursor-pointer"
->
-  <div className="flex items-center gap-2">
-    {/* icon + label */}
-  </div>
-  <div className="flex items-center gap-1.5">
-    <span className="text-xs text-muted-foreground">
-      Due in {formatDueDate(...)}
-    </span>
-    <Info className="w-3.5 h-3.5 text-muted-foreground" />
-  </div>
-</button>
-```
-
-### Step 3: Visual Feedback
-
-Add visual cues to indicate interactivity:
-- Hover state with subtle background change
-- Info icon on the right side (consistent with ServiceHistory pattern)
-- Cursor pointer
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/OptionsAssessmentDrawer.tsx` | Add `getTaskEducationalTopic` function, convert primary/secondary task divs to buttons |
+| `src/components/OptionsAssessmentDrawer.tsx` | Reorder `getUrgencyTier()` logic to check REPLACE first; update `getRecommendation()` for replacement-aware messaging |
 
 ## Expected Result
 
-Users can tap on "Tank Flush Due in Now" (or any maintenance task) and see educational content explaining:
-- What the service is
-- Why it's important
-- What happens if ignored
+When the algorithm recommends replacement:
+- **VerdictCard**: "Replace Your Water Heater" 
+- **Drawer Banner**: "Replacement Recommended" (red, not amber)
+- **Priority Finding**: "URGENT ACTION - Replacement Consultation"
 
-This follows the existing UX pattern from `ServiceHistory.tsx` where Anode and Sediment indicators are already clickable for education.
+All messaging will be aligned and consistent.
 
