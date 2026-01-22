@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, RefreshCw, Send, Copy, Check, Target, MessageSquare, Package, Shield, Clapperboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import type { MockOpportunity } from '@/data/mockContractorData';
@@ -264,10 +264,10 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-xl"
+        className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden"
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm border-b border-border">
+        <div className="flex-shrink-0 bg-card/80 backdrop-blur-sm border-b border-border">
           <div className="flex items-center justify-between p-4">
             <Button
               variant="ghost"
@@ -306,8 +306,8 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
           </div>
         </div>
 
-        {/* Content */}
-        <ScrollArea className="h-[calc(100vh-180px)]" ref={scrollRef}>
+        {/* Content - scrollable middle section */}
+        <div className="flex-1 overflow-y-auto" ref={scrollRef}>
           <div className="p-4 pb-32 max-w-3xl mx-auto">
             {/* Loading State */}
             {isLoading && !briefing && (
@@ -413,10 +413,10 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        {/* Input Area */}
-        <div className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t border-border p-4">
+        {/* Input Area - fixed at bottom */}
+        <div className="flex-shrink-0 bg-card/80 backdrop-blur-sm border-t border-border p-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();
