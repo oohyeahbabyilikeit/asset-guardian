@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LeadCard } from './LeadCard';
+import { AssetDetailDrawer } from './AssetDetailDrawer';
 import { 
   mockOpportunities, 
   type Priority,
@@ -22,6 +23,7 @@ interface OpportunityFeedProps {
 
 export function OpportunityFeed({ selectedPriority, onPriorityChange }: OpportunityFeedProps) {
   const [opportunities, setOpportunities] = useState<MockOpportunity[]>(mockOpportunities);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<MockOpportunity | null>(null);
   
   // Filter and sort opportunities
   const filteredOpportunities = useMemo(() => {
@@ -62,7 +64,8 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
     setOpportunities(prev => 
       prev.map(o => o.id === opportunity.id && o.status === 'pending' ? { ...o, status: 'viewed' as const } : o)
     );
-    toast.info('Opening details...', { description: opportunity.propertyAddress });
+    // Open detail drawer
+    setSelectedOpportunity(opportunity);
   };
 
   const handleDismiss = (opportunity: MockOpportunity) => {
@@ -90,10 +93,10 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="text-sm font-medium text-gray-700">
+          <h2 className="text-sm font-medium text-foreground">
             Service Opportunities
           </h2>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             {filteredOpportunities.length} leads
           </p>
         </div>
@@ -103,14 +106,14 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
             <Button 
               variant="ghost" 
               size="sm" 
-              className="gap-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 h-8 text-xs"
+              className="gap-1.5 text-muted-foreground hover:text-foreground h-8 text-xs"
             >
               <Filter className="w-3.5 h-3.5" />
               {selectedPriority ? priorityLabels[selectedPriority] : 'All'}
               <ChevronDown className="w-3 h-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-white border-gray-200">
+          <DropdownMenuContent align="end" className="bg-background border-border">
             <DropdownMenuItem onClick={() => onPriorityChange(null)}>
               All Priorities
             </DropdownMenuItem>
@@ -136,8 +139,8 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
       
       {/* Feed */}
       {filteredOpportunities.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-100">
-          <p className="text-gray-400 text-sm">No opportunities matching this filter</p>
+        <div className="text-center py-12 bg-background rounded-lg border border-border">
+          <p className="text-muted-foreground text-sm">No opportunities matching this filter</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -153,6 +156,18 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
           ))}
         </div>
       )}
+      
+      {/* Asset Detail Drawer */}
+      <AssetDetailDrawer
+        opportunity={selectedOpportunity}
+        open={!!selectedOpportunity}
+        onClose={() => setSelectedOpportunity(null)}
+        onCall={() => {
+          if (selectedOpportunity) {
+            handleCall(selectedOpportunity);
+          }
+        }}
+      />
     </div>
   );
 }
