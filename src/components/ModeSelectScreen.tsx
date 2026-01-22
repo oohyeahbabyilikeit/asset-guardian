@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { 
   Wrench, 
@@ -7,7 +8,8 @@ import {
   Timer,
   ChevronRight,
   Shield,
-  Sparkles
+  Sparkles,
+  HardHat
 } from 'lucide-react';
 
 interface ModeSelectScreenProps {
@@ -130,6 +132,16 @@ export function ModeSelectScreen({ onSelectMode, onQuickRandom, onTestYoungTank 
         <p className="text-xs text-center text-muted-foreground/70 max-w-sm mx-auto">
           Technician mode collects real measurements for the most accurate risk assessment and maintenance recommendations.
         </p>
+        
+        {/* Contractor Portal Link */}
+        <Link 
+          to="/contractor"
+          className="w-full max-w-md mx-auto flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors text-sm font-medium"
+        >
+          <HardHat className="h-4 w-4" />
+          Contractor Portal
+          <ChevronRight className="h-4 w-4" />
+        </Link>
       </div>
     </div>
   );
