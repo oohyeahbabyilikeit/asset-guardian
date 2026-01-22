@@ -53,7 +53,7 @@ function calculateTankMaintenance(
   inputs: ForensicInputs,
   metrics: OpterraMetrics
 ): MaintenanceSchedule {
-  const { monthsToFlush, flushStatus, shieldLife, sedimentLbs } = metrics;
+  const { monthsToFlush, flushStatus, sedimentLbs, anodeDepletionPercent, anodeStatus } = metrics;
   
   // Calculate months to flush
   const isFlushDueNow = flushStatus === 'due' || flushStatus === 'lockout';
@@ -61,8 +61,32 @@ function calculateTankMaintenance(
     ? 0 
     : Math.min(Math.max(0, monthsToFlush ?? 6), 36);
   
-  // Calculate months to anode replacement
-  const monthsToAnodeReplacement = shieldLife > 1 ? Math.round((shieldLife - 1) * 12) : 0;
+  // NEW v9.2: Calculate months to anode service using percentage-based thresholds
+  // Instead of shieldLife time-remaining, use depletion percentage with 50% threshold
+  // This accounts for prediction uncertainty and provides a safety buffer
+  let monthsToAnodeReplacement: number;
+  let anodeUrgency: MaintenanceTask['urgency'];
+  
+  if (anodeDepletionPercent > 50 || anodeStatus === 'replace' || anodeStatus === 'naked') {
+    // Service Due Now - past 50% threshold
+    monthsToAnodeReplacement = 0;
+    anodeUrgency = anodeStatus === 'naked' ? 'critical' : 'overdue';
+  } else if (anodeDepletionPercent > 40 || anodeStatus === 'inspect') {
+    // Plan for Service - in 40-50% "knee of the curve" zone
+    // Estimate months to 50% threshold
+    const burnRatePerYear = anodeDepletionPercent / Math.max(1, inputs.calendarAge);
+    const percentRemaining = 50 - anodeDepletionPercent;
+    monthsToAnodeReplacement = Math.round((percentRemaining / burnRatePerYear) * 12);
+    anodeUrgency = 'schedule';
+  } else {
+    // Protected - under 40% depletion
+    // Estimate months to 50% threshold (generous planning window)
+    const burnRatePerYear = Math.max(5, anodeDepletionPercent) / Math.max(1, inputs.calendarAge);
+    const percentRemaining = 50 - anodeDepletionPercent;
+    monthsToAnodeReplacement = Math.min(36, Math.round((percentRemaining / burnRatePerYear) * 12));
+    anodeUrgency = 'optimal';
+  }
+  
   const cappedMonthsToAnode = Math.min(Math.max(0, monthsToAnodeReplacement), 36);
   
   // Map 5-tier flushStatus to task urgency
@@ -87,14 +111,21 @@ function calculateTankMaintenance(
     icon: 'droplets',
   };
   
+  // NEW v9.2: Enhanced anode task with depletion percentage context
   const anodeTask: MaintenanceTask = {
     type: 'anode',
     label: 'Anode Rod Inspection',
-    description: 'Check sacrificial anode for corrosion protection',
+    description: anodeStatus === 'naked' 
+      ? 'CRITICAL: Tank is unprotected - anode depleted'
+      : anodeStatus === 'replace'
+        ? 'Anode rod has passed service threshold'
+        : 'Check sacrificial anode for corrosion protection',
     monthsUntilDue: cappedMonthsToAnode,
-    urgency: cappedMonthsToAnode <= 0 ? 'due' : cappedMonthsToAnode <= 6 ? 'schedule' : 'optimal',
-    benefit: 'Prevent tank corrosion',
-    whyExplanation: 'The sacrificial anode rod protects your tank from rust. Inspection ensures it\'s still providing protection before corrosion can develop.',
+    urgency: anodeUrgency,
+    benefit: anodeStatus === 'naked' || anodeStatus === 'replace'
+      ? 'Restore tank corrosion protection'
+      : 'Prevent tank corrosion',
+    whyExplanation: getAnodeExplanation(anodeDepletionPercent, anodeStatus),
     icon: 'shield',
   };
   
@@ -143,6 +174,23 @@ function getFlushExplanation(sedimentLbs: number, hardnessGPG: number, usageType
     return 'Higher hot water demand increases sediment accumulation. Routine flushing maintains optimal performance.';
   }
   return 'Periodic flushing removes mineral deposits that reduce heating efficiency and can cause premature tank failure.';
+}
+
+/**
+ * NEW v9.2: Generate context-aware explanation for anode service
+ * Uses percentage-based depletion status for messaging
+ */
+function getAnodeExplanation(depletionPercent: number, status: 'protected' | 'inspect' | 'replace' | 'naked'): string {
+  if (status === 'naked') {
+    return `The sacrificial anode rod is completely depleted (${Math.round(depletionPercent)}%). Your tank is currently unprotected from corrosion. Immediate inspection and replacement is critical to prevent tank failure.`;
+  }
+  if (status === 'replace') {
+    return `The anode rod has passed the 50% service threshold (currently ${Math.round(depletionPercent)}% depleted). Replacement now provides a safety buffer before the tank becomes unprotected.`;
+  }
+  if (status === 'inspect') {
+    return `The anode rod is approaching the service window (${Math.round(depletionPercent)}% depleted). Planning inspection now allows time to schedule replacement before protection is compromised.`;
+  }
+  return 'The sacrificial anode rod protects your tank from rust. Regular inspection ensures protection is maintained before corrosion can develop.';
 }
 
 // --- TANKLESS WATER HEATER MAINTENANCE ---

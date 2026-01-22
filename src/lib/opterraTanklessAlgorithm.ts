@@ -204,12 +204,17 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
   }
 
   // MVP Metrics Return (Simplified)
+  // NOTE: Tankless units don't have anodes - these fields are set to N/A values
   return {
     bioAge: data.calendarAge,
     failProb: parseFloat(failProb.toFixed(1)),
     healthScore,
     sedimentLbs: 0,
     shieldLife: 0,
+    // Tankless units have no anode rod - set to N/A values
+    anodeDepletionPercent: 0,
+    anodeStatus: 'protected' as const,  // N/A for tankless
+    anodeMassRemaining: 1,               // N/A for tankless
     effectivePsi: data.housePsi,
     isTransientPressure: false, // Tankless units don't have same thermal expansion concern
     scaleBuildupScore: parseFloat(scaleBuildupScore.toFixed(1)),

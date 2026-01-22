@@ -185,12 +185,21 @@ export interface ForensicInputs {
 
 // --- OPTERRA METRICS (OUTPUT) ---
 
+// Anode Status type for percentage-based alerting
+export type AnodeStatus = 'protected' | 'inspect' | 'replace' | 'naked';
+
 export interface OpterraMetrics {
   bioAge: number;
   failProb: number;
   healthScore: number;
   sedimentLbs: number;
   shieldLife: number;
+  
+  // NEW v9.2: Percentage-based anode metrics (replaces time-based thresholds)
+  // These provide more predictable alerting with built-in safety margins
+  anodeDepletionPercent: number;  // 0-100 (0 = new rod, 100 = depleted)
+  anodeStatus: AnodeStatus;       // Three-stage status: protected/inspect/replace/naked
+  anodeMassRemaining: number;     // 0-1 (fraction of original mass)
   
   effectivePsi: number;
   isTransientPressure: boolean;
