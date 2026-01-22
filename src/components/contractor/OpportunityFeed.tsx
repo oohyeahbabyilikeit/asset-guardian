@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Filter, ChevronDown } from 'lucide-react';
+import { Filter, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,8 +10,8 @@ import {
 import { LeadCard } from './LeadCard';
 import { PropertyReportDrawer } from './PropertyReportDrawer';
 import { SalesCoachDrawer } from './SalesCoachDrawer';
+import { useContractorOpportunities } from '@/hooks/useContractorOpportunities';
 import { 
-  mockOpportunities, 
   type Priority,
   type MockOpportunity 
 } from '@/data/mockContractorData';
@@ -23,7 +23,20 @@ interface OpportunityFeedProps {
 }
 
 export function OpportunityFeed({ selectedPriority, onPriorityChange }: OpportunityFeedProps) {
-  const [opportunities, setOpportunities] = useState<MockOpportunity[]>(mockOpportunities);
+  // Fetch from database
+  const { data: dbOpportunities, isLoading, error } = useContractorOpportunities();
+  
+  // Local state for status changes (optimistic updates for demo)
+  const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, MockOpportunity['status']>>({});
+  
+  // Merge DB data with local status overrides
+  const opportunities = useMemo(() => {
+    if (!dbOpportunities) return [];
+    return dbOpportunities.map(opp => ({
+      ...opp,
+      status: localStatusOverrides[opp.id] || opp.status,
+    }));
+  }, [dbOpportunities, localStatusOverrides]);
   
   // State for Property Report
   const [reportOpportunityId, setReportOpportunityId] = useState<string | null>(null);
@@ -72,18 +85,22 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
     if (opportunity.customerPhone) {
       window.location.href = `tel:${opportunity.customerPhone}`;
     }
-    // Mark as contacted
-    setOpportunities(prev => 
-      prev.map(o => o.id === opportunity.id ? { ...o, status: 'contacted' as const } : o)
-    );
+    // Mark as contacted (local optimistic update)
+    setLocalStatusOverrides(prev => ({
+      ...prev,
+      [opportunity.id]: 'contacted',
+    }));
     toast.success(`Calling ${opportunity.customerName}...`);
   };
 
   const handleViewDetails = (opportunity: MockOpportunity) => {
-    // Mark as viewed
-    setOpportunities(prev => 
-      prev.map(o => o.id === opportunity.id && o.status === 'pending' ? { ...o, status: 'viewed' as const } : o)
-    );
+    // Mark as viewed (local optimistic update)
+    if (opportunity.status === 'pending') {
+      setLocalStatusOverrides(prev => ({
+        ...prev,
+        [opportunity.id]: 'viewed',
+      }));
+    }
     // Open report drawer
     setReportOpportunityId(opportunity.id);
   };
@@ -112,9 +129,11 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
   };
 
   const handleDismiss = (opportunity: MockOpportunity) => {
-    setOpportunities(prev => 
-      prev.map(o => o.id === opportunity.id ? { ...o, status: 'dismissed' as const } : o)
-    );
+    // Mark as dismissed (local optimistic update)
+    setLocalStatusOverrides(prev => ({
+      ...prev,
+      [opportunity.id]: 'dismissed',
+    }));
     toast.success('Lead dismissed');
   };
 
@@ -181,7 +200,16 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
       </div>
       
       {/* Feed */}
-      {filteredOpportunities.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12 bg-card rounded-lg border border-border">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground text-sm">Loading opportunities...</span>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 bg-card rounded-lg border border-border">
+          <p className="text-destructive text-sm">Failed to load opportunities</p>
+        </div>
+      ) : filteredOpportunities.length === 0 ? (
         <div className="text-center py-12 bg-card rounded-lg border border-border">
           <p className="text-muted-foreground text-sm">No opportunities matching this filter</p>
         </div>
