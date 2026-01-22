@@ -68,10 +68,29 @@ Algorithm output metrics.
 interface OpterraMetrics {
   healthScore: number;              // 0-100 (higher = healthier)
   bioAge: number;                   // Effective age accounting for wear
-  failProbability: number;          // 0-1 probability of near-term failure
-  monthsToAction: number;           // Estimated months until service/replacement needed
-  riskLevel: 1 | 2 | 3 | 4 | 5;    // 1 = lowest risk
+  failProb: number;                 // 0-100 probability of near-term failure
+  shieldLife: number;               // Years of anode protection remaining
+  sedimentLbs: number;              // Estimated sediment accumulation
+  riskLevel: 1 | 2 | 3 | 4;         // 1 = lowest risk, 4 = extreme
+  
+  // NEW v9.2: Percentage-based anode metrics
+  // These replace time-based thresholds for more predictable alerting
+  anodeDepletionPercent: number;    // 0-100 (0 = new rod, 100 = depleted)
+  anodeStatus: AnodeStatus;         // 'protected' | 'inspect' | 'replace' | 'naked'
+  anodeMassRemaining: number;       // 0-1 (fraction of original mass)
+  
+  // Maintenance projections
+  monthsToFlush: number | null;     // Months until flush threshold
+  monthsToLockout: number | null;   // Months until lockout threshold
+  flushStatus: 'optimal' | 'advisory' | 'due' | 'critical' | 'lockout';
 }
+
+// Three-stage anode alerting with safety margins
+// - 0-40% depletion: 'protected' (system healthy)
+// - 40-50% depletion: 'inspect' (plan for service)
+// - 50-100% depletion: 'replace' (service due now)
+// - 100%+ depletion: 'naked' (tank unprotected - critical)
+type AnodeStatus = 'protected' | 'inspect' | 'replace' | 'naked';
 
 interface OpterraVitals {
   ageStatus: StatusLevel;

@@ -237,12 +237,21 @@ export interface ForensicInputs {
   anodeCount?: 1 | 2;
 }
 
+// Anode Status type for percentage-based alerting
+export type AnodeStatus = 'protected' | 'inspect' | 'replace' | 'naked';
+
 export interface OpterraMetrics {
   bioAge: number;          
   failProb: number;        
   healthScore: number;     
   sedimentLbs: number;     
   shieldLife: number;      
+  
+  // NEW v9.2: Percentage-based anode metrics (replaces time-based thresholds)
+  // These provide more predictable alerting with built-in safety margins
+  anodeDepletionPercent: number;  // 0-100 (0 = new rod, 100 = depleted)
+  anodeStatus: AnodeStatus;       // Three-stage status: protected/inspect/replace/naked
+  anodeMassRemaining: number;     // 0-1 (fraction of original mass)
   
   // NEW: The calculated max pressure the tank actually experiences
   effectivePsi: number;
@@ -1437,12 +1446,36 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   const rawHealthScore = failProbToHealthScore(failProb);
   const cappedHealthScore = Math.min(rawHealthScore, healthScoreCap);
   
+  // NEW v9.2: Calculate anode depletion percentage and status
+  // Uses mass-percentage-based thresholds for predictive maintenance alerting
+  // - 0-40% depletion: "protected" (system healthy)
+  // - 40-50% depletion: "inspect" (upcoming service / plan ahead)
+  // - 50-100% depletion: "replace" (service due now)
+  // - 100%+ depletion: "naked" (tank unprotected)
+  const anodeDepletionPercent = Math.min(100, Math.max(0, (consumedMass / baseMassYears) * 100));
+  const anodeMassRemaining = Math.max(0, remainingMass / baseMassYears);
+  
+  let anodeStatus: 'protected' | 'inspect' | 'replace' | 'naked';
+  if (anodeDepletionPercent <= 40) {
+    anodeStatus = 'protected';
+  } else if (anodeDepletionPercent <= 50) {
+    anodeStatus = 'inspect';  // "Upcoming Service" / "Plan for Service"
+  } else if (anodeMassRemaining > 0) {
+    anodeStatus = 'replace';  // "Service Due Now"
+  } else {
+    anodeStatus = 'naked';    // Tank unprotected - critical
+  }
+  
   return {
     bioAge: parseFloat(bioAge.toFixed(1)),
     failProb: parseFloat(failProb.toFixed(1)),
     healthScore: cappedHealthScore,
     sedimentLbs: parseFloat(sedimentLbs.toFixed(1)),
     shieldLife: parseFloat(shieldLife.toFixed(1)),
+    // NEW v9.2: Percentage-based anode metrics
+    anodeDepletionPercent: parseFloat(anodeDepletionPercent.toFixed(1)),
+    anodeStatus,
+    anodeMassRemaining: parseFloat(anodeMassRemaining.toFixed(2)),
     effectivePsi: parseFloat(effectivePsi.toFixed(1)), // Derived PSI
     isTransientPressure: isTransient, // True if cycling between normal and spike
     stressFactors: {
