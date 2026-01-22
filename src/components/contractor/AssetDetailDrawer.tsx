@@ -21,19 +21,19 @@ interface AssetDetailDrawerProps {
 const priorityConfig = {
   critical: {
     label: 'CRITICAL',
-    className: 'bg-destructive/10 text-destructive border-destructive/20',
+    className: 'bg-red-500/20 text-red-400 border-red-500/30',
   },
   high: {
     label: 'HIGH',
-    className: 'bg-orange-100 text-orange-700 border-orange-200',
+    className: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   },
   medium: {
     label: 'MEDIUM',
-    className: 'bg-amber-100 text-amber-700 border-amber-200',
+    className: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   },
   low: {
     label: 'LOW',
-    className: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   },
 };
 
@@ -51,10 +51,10 @@ function EquipmentItem({
       <span className="text-sm text-foreground">{label}</span>
       <div className="flex items-center gap-2">
         {warning && !present && (
-          <span className="text-xs text-amber-600">{warning}</span>
+          <span className="text-xs text-amber-400">{warning}</span>
         )}
         {present ? (
-          <span className="flex items-center gap-1 text-emerald-600">
+          <span className="flex items-center gap-1 text-emerald-400">
             <Check className="w-4 h-4" />
             <span className="text-xs font-medium">Installed</span>
           </span>
@@ -82,8 +82,8 @@ function MetricItem({
 }) {
   const statusColors = {
     normal: 'text-foreground',
-    warning: 'text-amber-600',
-    critical: 'text-destructive',
+    warning: 'text-amber-400',
+    critical: 'text-red-400',
   };
   
   return (
@@ -125,18 +125,18 @@ export function AssetDetailDrawer({
   // Check if warranty is expired
   const warrantyExpired = asset.calendarAge > asset.warrantyYears;
   
-  // Health score color
+  // Health score color - dark mode optimized
   const healthColor = opportunity.healthScore <= 40 
-    ? 'text-destructive' 
+    ? 'text-red-400' 
     : opportunity.healthScore <= 69 
-      ? 'text-amber-600' 
-      : 'text-emerald-600';
+      ? 'text-amber-400' 
+      : 'text-emerald-400';
   
   const healthBg = opportunity.healthScore <= 40 
-    ? 'bg-destructive/10' 
+    ? 'bg-red-500/10' 
     : opportunity.healthScore <= 69 
-      ? 'bg-amber-50' 
-      : 'bg-emerald-50';
+      ? 'bg-amber-500/10' 
+      : 'bg-emerald-500/10';
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -220,7 +220,7 @@ export function AssetDetailDrawer({
                 Health Score
               </p>
               {opportunity.healthScore < 50 && (
-                <div className="flex items-center justify-center gap-1.5 mt-2 text-amber-700">
+                <div className="flex items-center justify-center gap-1.5 mt-2 text-amber-400">
                   <AlertTriangle className="w-4 h-4" />
                   <span className="text-xs font-medium">Elevated Failure Risk</span>
                 </div>
@@ -298,7 +298,7 @@ export function AssetDetailDrawer({
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
               Why Flagged
             </h3>
-            <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
               <p className="text-sm text-foreground leading-relaxed">
                 {opportunity.context}
               </p>
