@@ -71,6 +71,14 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
     isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < threshold;
   };
 
+  // If the user scrolls up with the wheel/trackpad, immediately disable auto-scroll.
+  // This prevents “feels like it can’t scroll” while the response is streaming.
+  const handleWheelCapture = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY < 0) {
+      isNearBottomRef.current = false;
+    }
+  };
+
   const generateBriefing = async () => {
     setIsLoading(true);
     setBriefing('');
@@ -315,7 +323,12 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
         </div>
 
         {/* Content - scrollable middle section */}
-        <div className="flex-1 min-h-0 overflow-y-auto" ref={scrollRef} onScroll={handleScroll}>
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          ref={scrollRef}
+          onScroll={handleScroll}
+          onWheelCapture={handleWheelCapture}
+        >
           <div className="p-4 pb-32 max-w-3xl mx-auto">
             {/* Loading State */}
             {isLoading && !briefing && (
