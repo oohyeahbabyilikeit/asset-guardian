@@ -64,12 +64,12 @@ export function LeadCard({
         
         {/* Health Score - Inline */}
         <div className={cn(
-          'text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0',
+          'text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0',
           opportunity.healthScore <= 30 
-            ? 'bg-destructive/10 text-destructive' 
+            ? 'bg-destructive/20 text-red-400' 
             : opportunity.healthScore <= 50 
-              ? 'bg-amber-50 text-amber-600'
-              : 'bg-muted text-muted-foreground'
+              ? 'bg-amber-500/20 text-amber-400'
+              : 'bg-emerald-500/20 text-emerald-400'
         )}>
           {opportunity.healthScore}
         </div>
