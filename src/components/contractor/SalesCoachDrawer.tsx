@@ -37,6 +37,7 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isNearBottomRef = useRef(true);
 
   const priority = priorityConfig[opportunity.priority] || priorityConfig.medium;
 
@@ -56,12 +57,19 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
     }
   }, [open]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom only if user is near bottom
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [briefing, messages]);
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const threshold = 100;
+    isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < threshold;
+  };
 
   const generateBriefing = async () => {
     setIsLoading(true);
@@ -307,7 +315,7 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
         </div>
 
         {/* Content - scrollable middle section */}
-        <div className="flex-1 overflow-y-auto" ref={scrollRef}>
+        <div className="flex-1 min-h-0 overflow-y-auto" ref={scrollRef} onScroll={handleScroll}>
           <div className="p-4 pb-32 max-w-3xl mx-auto">
             {/* Loading State */}
             {isLoading && !briefing && (
