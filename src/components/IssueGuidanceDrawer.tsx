@@ -163,7 +163,7 @@ export function IssueGuidanceDrawer({
                   <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
                   <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">Location</div>
-                    <div className="text-sm font-semibold truncate">{formatLocation(inputs.location)}</div>
+                    <div className="text-sm font-semibold">{formatLocation(inputs.location)}</div>
                   </div>
                 </div>
               </div>
