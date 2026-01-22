@@ -203,7 +203,8 @@ export const MOCK_ASSET_SCENARIOS: ValidatedScenario[] = [
       visualRust: false, tempSetting: 'NORMAL',
       peopleCount: 3, usageType: 'normal', tankCapacity: 50,
     },
-    expected: { action: 'PASS', actionAlternatives: ['MAINTAIN'] },
+    // v9.0: 4yr tank at 4yr baseline = near anode depletion, expect MAINTAIN
+    expected: { action: 'MAINTAIN', actionAlternatives: ['PASS', 'REPAIR'] },
   },
   {
     name: 'The Low-Risk Rental',
@@ -227,7 +228,8 @@ export const MOCK_ASSET_SCENARIOS: ValidatedScenario[] = [
       visualRust: false, tempSetting: 'NORMAL',
       peopleCount: 4, usageType: 'heavy', tankCapacity: 50,
     },
-    expected: { action: 'REPAIR', actionAlternatives: ['MAINTAIN'], titleContains: 'flush' },
+    // v9.0: 6yr tank at 4yr baseline = naked tank + sediment, expect REPAIR or REPLACE
+    expected: { action: 'REPAIR', actionAlternatives: ['MAINTAIN', 'REPLACE'] },
   },
   
   // === MAINTENANCE / REPAIR SCENARIOS ===

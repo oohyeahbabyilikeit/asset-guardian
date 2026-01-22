@@ -4,6 +4,40 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.0 (Anode Shield Life Physics Correction)
+
+**Critical Algorithm Fixes:**
+- **FIX "Marketing Math"**: Reduced anode baseline from 6→4 years per rod. Industry standard is inspect at 2-4 years. The "6-year warranty" is designed so the rod dies at Year 4 and the steel tank survives Years 4-6 naked.
+- **FIX "Hard Water Penalty"**: REMOVED penalty for hard water on anode life. Calcium carbonate scale (passivation) actually PROTECTS the anode by coating the rod and tank wall, slowing electrochemical reactions.
+- **FIX "Time Machine Bug"**: History-aware burn rate using `yearsWithoutSoftener`. Old logic applied current decay rate to entire past life, generating false alarms when new softener was installed on old tank.
+- **CHANGE Decay Math**: Switched from additive penalties to multiplicative burn rate. Softener (3.0×) + Galvanic (2.5×) + Recirc (1.25×) now compound correctly.
+
+**Physics Model Changes:**
+| Factor | v8.x (Wrong) | v9.0 (Correct) |
+|--------|--------------|----------------|
+| Base Single Rod | 6.0 years | **4.0 years** |
+| Base Dual Rods | 12.0 years | **7.5 years** (parallel surface area) |
+| Hard Water | +0.02× per GPG penalty | **No penalty** (passivation protects) |
+| Softener | +1.4 additive | **3.0× multiplier** |
+| Recirc Pump | +0.5 additive | **1.25× multiplier** |
+| Math | Additive | **Multiplicative** |
+| History | Current rate × entire age | **Split: (normal years × historical) + (softener years × current)** |
+
+**Validation Scenarios (Before → After):**
+| Scenario | v8.x Result | v9.0 Result |
+|----------|-------------|-------------|
+| 5yr tank, no issues | ~1yr remaining | ~0 (naked - triggers anode warning) |
+| 3yr tank + new softener (installed today) | Negative (false alarm) | ~1yr remaining (correct) |
+| 4yr tank, dual anode, 20 GPG hard water | ~0 (hard water killed it) | ~3.5yr remaining (correct) |
+| 2yr tank + softener since Day 1 | ~2yr remaining | ~0 (3× burn = 6 effective years) |
+
+**Physics References:**
+- NACE International SP0169: Cathodic protection standards
+- AWWA Research Foundation: Water heater anode rod studies
+- Bradford White Technical Bulletin: 2-4 year inspection recommendation
+
+---
+
 ## v8.5 (Young Tank Infrastructure Gate)
 
 **New Decision Paths:**
