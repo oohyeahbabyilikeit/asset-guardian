@@ -102,6 +102,13 @@ export type Database = {
             foreignKeyName: "assessments_water_heater_id_fkey"
             columns: ["water_heater_id"]
             isOneToOne: false
+            referencedRelation: "tank_water_heaters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessments_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
             referencedRelation: "water_heaters"
             referencedColumns: ["id"]
           },
@@ -288,6 +295,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
+            referencedRelation: "tank_water_heaters"
             referencedColumns: ["id"]
           },
           {
@@ -581,6 +595,13 @@ export type Database = {
             foreignKeyName: "quotes_water_heater_id_fkey"
             columns: ["water_heater_id"]
             isOneToOne: false
+            referencedRelation: "tank_water_heaters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
             referencedRelation: "water_heaters"
             referencedColumns: ["id"]
           },
@@ -632,6 +653,13 @@ export type Database = {
             columns: ["performed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_events_water_heater_id_fkey"
+            columns: ["water_heater_id"]
+            isOneToOne: false
+            referencedRelation: "tank_water_heaters"
             referencedColumns: ["id"]
           },
           {
@@ -785,7 +813,9 @@ export type Database = {
           leak_source: string | null
           location: string | null
           manufacturer: string | null
+          measured_hardness_gpg: number | null
           model_number: string | null
+          nipple_material: string | null
           notes: string | null
           photo_urls: Json | null
           property_id: string
@@ -832,7 +862,9 @@ export type Database = {
           leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
+          measured_hardness_gpg?: number | null
           model_number?: string | null
+          nipple_material?: string | null
           notes?: string | null
           photo_urls?: Json | null
           property_id: string
@@ -879,7 +911,9 @@ export type Database = {
           leak_source?: string | null
           location?: string | null
           manufacturer?: string | null
+          measured_hardness_gpg?: number | null
           model_number?: string | null
+          nipple_material?: string | null
           notes?: string | null
           photo_urls?: Json | null
           property_id?: string
@@ -995,7 +1029,171 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      tank_water_heaters: {
+        Row: {
+          air_filter_status: string | null
+          anode_count: number | null
+          building_type: string | null
+          calendar_age_years: number | null
+          connection_type: string | null
+          created_at: string | null
+          created_by: string | null
+          error_code_count: number | null
+          exp_tank_status: string | null
+          flame_rod_status: string | null
+          fuel_type: string | null
+          gas_line_size: string | null
+          has_circ_pump: boolean | null
+          has_drain_pan: boolean | null
+          has_exp_tank: boolean | null
+          has_prv: boolean | null
+          has_softener: boolean | null
+          house_psi: number | null
+          id: string | null
+          inlet_filter_status: string | null
+          install_date: string | null
+          is_closed_loop: boolean | null
+          is_condensate_clear: boolean | null
+          is_finished_area: boolean | null
+          is_leaking: boolean | null
+          last_descale_years_ago: number | null
+          leak_source: string | null
+          location: string | null
+          manufacturer: string | null
+          measured_hardness_gpg: number | null
+          model_number: string | null
+          nipple_material: string | null
+          notes: string | null
+          photo_urls: Json | null
+          property_id: string | null
+          quality_tier: string | null
+          rated_flow_gpm: number | null
+          room_volume_type: string | null
+          serial_number: string | null
+          street_hardness_gpg: number | null
+          tank_capacity_gallons: number | null
+          temp_setting: string | null
+          updated_at: string | null
+          vent_type: string | null
+          venting_scenario: string | null
+          visual_rust: boolean | null
+          warranty_years: number | null
+        }
+        Insert: {
+          air_filter_status?: string | null
+          anode_count?: number | null
+          building_type?: string | null
+          calendar_age_years?: number | null
+          connection_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_code_count?: number | null
+          exp_tank_status?: string | null
+          flame_rod_status?: string | null
+          fuel_type?: string | null
+          gas_line_size?: string | null
+          has_circ_pump?: boolean | null
+          has_drain_pan?: boolean | null
+          has_exp_tank?: boolean | null
+          has_prv?: boolean | null
+          has_softener?: boolean | null
+          house_psi?: number | null
+          id?: string | null
+          inlet_filter_status?: string | null
+          install_date?: string | null
+          is_closed_loop?: boolean | null
+          is_condensate_clear?: boolean | null
+          is_finished_area?: boolean | null
+          is_leaking?: boolean | null
+          last_descale_years_ago?: number | null
+          leak_source?: string | null
+          location?: string | null
+          manufacturer?: string | null
+          measured_hardness_gpg?: number | null
+          model_number?: string | null
+          nipple_material?: string | null
+          notes?: string | null
+          photo_urls?: Json | null
+          property_id?: string | null
+          quality_tier?: string | null
+          rated_flow_gpm?: number | null
+          room_volume_type?: string | null
+          serial_number?: string | null
+          street_hardness_gpg?: number | null
+          tank_capacity_gallons?: number | null
+          temp_setting?: string | null
+          updated_at?: string | null
+          vent_type?: string | null
+          venting_scenario?: string | null
+          visual_rust?: boolean | null
+          warranty_years?: number | null
+        }
+        Update: {
+          air_filter_status?: string | null
+          anode_count?: number | null
+          building_type?: string | null
+          calendar_age_years?: number | null
+          connection_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_code_count?: number | null
+          exp_tank_status?: string | null
+          flame_rod_status?: string | null
+          fuel_type?: string | null
+          gas_line_size?: string | null
+          has_circ_pump?: boolean | null
+          has_drain_pan?: boolean | null
+          has_exp_tank?: boolean | null
+          has_prv?: boolean | null
+          has_softener?: boolean | null
+          house_psi?: number | null
+          id?: string | null
+          inlet_filter_status?: string | null
+          install_date?: string | null
+          is_closed_loop?: boolean | null
+          is_condensate_clear?: boolean | null
+          is_finished_area?: boolean | null
+          is_leaking?: boolean | null
+          last_descale_years_ago?: number | null
+          leak_source?: string | null
+          location?: string | null
+          manufacturer?: string | null
+          measured_hardness_gpg?: number | null
+          model_number?: string | null
+          nipple_material?: string | null
+          notes?: string | null
+          photo_urls?: Json | null
+          property_id?: string | null
+          quality_tier?: string | null
+          rated_flow_gpm?: number | null
+          room_volume_type?: string | null
+          serial_number?: string | null
+          street_hardness_gpg?: number | null
+          tank_capacity_gallons?: number | null
+          temp_setting?: string | null
+          updated_at?: string | null
+          vent_type?: string | null
+          venting_scenario?: string | null
+          visual_rust?: boolean | null
+          warranty_years?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "water_heaters_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "water_heaters_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       contractor_has_relationship: {
