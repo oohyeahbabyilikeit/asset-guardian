@@ -1,131 +1,109 @@
 
-# Fix: Maintenance Recommendation Alignment with Algorithm Verdict
+# Fix: Young Tank Override Logic Gap (v9.1.1)
 
-## Problem Summary
-The maintenance calculation logic operates independently from the algorithm's verdict, creating conflicting recommendations:
-- Algorithm returns **PASS** (e.g., "Run to Failure OK", "Anode Possibly Fused") meaning "no service recommended"
-- But maintenance cards still display "Anode Rod Inspection - Due Now" because `shieldLife < 1`
+## Problem Identified
+The Young Tank Override gate uses a **narrower definition** of infrastructure issues than the UI's infrastructure detector, allowing young tanks to slip through to replacement.
 
-This is confusing to users and undermines trust in the recommendations.
+### The Gap
+
+**Infrastructure Issue Detection (line 51)** - Used for UI badges:
+```typescript
+const isActuallyClosed = inputs.isClosedLoop || inputs.hasPrv || inputs.hasCircPump;
+```
+
+**Young Tank Override (line 1573-1575)** - Algorithm gate:
+```typescript
+const needsInfrastructure = 
+  (data.isClosedLoop && !data.hasExpTank) || 
+  (data.housePsi > 80 && !data.hasPrv);
+```
+
+### Failure Scenario
+A 4-year-old tank with:
+- `isClosedLoop = false`
+- `hasPrv = true` (this CREATES a closed loop!)
+- `hasExpTank = false`
+- `housePsi = 75` (no PRV issue triggered)
+
+Result:
+- UI shows "CODE ISSUE: Thermal expansion protection"
+- But algorithm returns "End of Service Life" REPLACE
 
 ## Root Cause
+The PRV and recirc pump create closed-loop conditions even when `isClosedLoop` is explicitly `false`. The Young Tank Override doesn't account for this.
 
-### 1. Maintenance Calculation Doesn't Know About Verdict
-`maintenanceCalculations.ts` calculates task urgency based purely on metrics:
-```typescript
-// Line 63: If shieldLife <= 1, it's "due now"
-const monthsToAnodeReplacement = shieldLife > 1 ? Math.round((shieldLife - 1) * 12) : 0;
-```
+## Solution
+Align the Young Tank Override's infrastructure check with the infrastructure detector's logic.
 
-But it has no knowledge of whether the algorithm said:
-- **MAINTAIN** → "Yes, do this maintenance"
-- **PASS** → "Don't touch it, monitoring only"
-- **REPLACE** → "Skip maintenance, replacing anyway"
+### Implementation
 
-### 2. UI Components Don't Check Verdict
-- `MaintenanceEducationCard` always calculates and shows tasks
-- `CommandCenter` correctly filters tasks for PASS verdicts
-- `ServiceSelectionDrawer` has "Monitor Only" state but relies on receiving empty arrays
+**Step 1: Add unified closed-loop detection in algorithm**
 
-## Proposed Solution
-
-### Option A: Filter at the Source (Recommended)
-Pass the verdict action to `calculateMaintenanceSchedule` and return empty/reduced tasks for PASS verdicts:
+In `src/lib/opterraAlgorithm.ts`, update the Young Tank Override gate:
 
 ```typescript
-// maintenanceCalculations.ts
-export function calculateMaintenanceSchedule(
-  inputs: ForensicInputs,
-  metrics: OpterraMetrics,
-  verdictAction?: 'MAINTAIN' | 'REPAIR' | 'REPLACE' | 'PASS'
-): MaintenanceSchedule {
-  // PASS verdict = no maintenance recommended
-  if (verdictAction === 'PASS') {
-    return {
-      unitType: getUnitType(inputs.fuelType),
-      primaryTask: null,
-      secondaryTask: null,
-      additionalTasks: [],
-      isBundled: false,
-      monitorOnly: true,
-    };
-  }
+// TIER 1.9: YOUNG TANK OVERRIDE (v9.1)
+const YOUNG_TANK_ABSOLUTE_THRESHOLD = 6;
+const isPhysicalBreach = data.visualRust || isTankBodyLeak;
+
+if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
+  const isAnodeDepletedYoung = metrics.shieldLife <= 0;
   
-  // REPLACE verdict = only show replacement consultation
-  if (verdictAction === 'REPLACE') {
-    // Return replacement task only, no maintenance
-  }
+  // v9.1.1 FIX: Use same closed-loop logic as infrastructureIssues.ts
+  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
+  const needsExpansionTank = isActuallyClosed && !data.hasExpTank;
+  const needsPrv = data.housePsi > 80 && !data.hasPrv;
+  const needsInfrastructure = needsExpansionTank || needsPrv;
   
-  // MAINTAIN/REPAIR = proceed with normal calculation
-  ...
+  if (isAnodeDepletedYoung || needsInfrastructure) {
+    // ... return REPAIR verdict
+  }
 }
 ```
 
-### Option B: Filter at Each Component (Alternative)
-Add `verdictAction` prop to `MaintenanceEducationCard`, `MaintenancePlan`, etc. and conditionally render "Monitor Only" states.
+**Step 2: Add "Catch-All" for young tanks with ANY code violations**
 
-## Implementation Plan
+Even if no specific infrastructure issue is detected by the narrow check, young tanks should never hit "End of Service Life" - they should get a REPAIR or MAINTAIN verdict:
 
-### Step 1: Update MaintenanceSchedule Interface
-Add `monitorOnly` flag to indicate no tasks should be shown:
 ```typescript
-export interface MaintenanceSchedule {
-  unitType: 'tank' | 'tankless' | 'hybrid';
-  primaryTask: MaintenanceTask | null;  // Now nullable
-  secondaryTask: MaintenanceTask | null;
-  additionalTasks: MaintenanceTask[];
-  isBundled: boolean;
-  bundledTasks?: MaintenanceTask[];
-  bundleReason?: string;
-  monitorOnly?: boolean;  // NEW: Algorithm said don't recommend service
+// After the specific infrastructure check, add catch-all for young tanks
+if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
+  // If we reach here, young tank has high failProb but no specific issue identified
+  // This should NOT hit "End of Service Life" - default to MAINTAIN
+  // The algorithm will re-evaluate at next tier
 }
 ```
 
-### Step 2: Add Verdict Parameter to calculateMaintenanceSchedule
+Actually, the cleanest fix is a **final safety gate** before Tier 2A:
+
 ```typescript
-export function calculateMaintenanceSchedule(
-  inputs: ForensicInputs,
-  metrics: OpterraMetrics,
-  verdictAction?: 'MAINTAIN' | 'REPAIR' | 'REPLACE' | 'PASS'
-): MaintenanceSchedule
+// RIGHT BEFORE line 1607 (Tier 2A)
+// v9.1.1 SAFETY NET: Young tanks cannot hit "End of Service Life"
+// If they have high failProb, something is wrong - redirect to MAINTAIN
+if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
+  return {
+    action: 'MAINTAIN',
+    title: 'Elevated Wear Detected',
+    reason: `Your ${data.calendarAge}-year-old tank is showing higher-than-expected wear. Professional inspection recommended to identify the root cause.`,
+    urgent: true,
+    badgeColor: 'orange',
+    badge: 'SERVICE'
+  };
+}
 ```
-
-### Step 3: Handle PASS Verdict
-Return empty schedule with `monitorOnly: true` for PASS verdicts.
-
-### Step 4: Update All Callers
-Pass the verdict action from:
-- `CommandCenter.tsx`
-- `MaintenancePlan.tsx`
-- `MaintenanceEducationCard.tsx`
-
-### Step 5: Update UI to Show "All Caught Up" State
-When `monitorOnly` is true, show a positive message instead of maintenance tasks.
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/lib/maintenanceCalculations.ts` | Add `verdictAction` param, handle PASS/REPLACE cases |
-| `src/components/MaintenanceEducationCard.tsx` | Accept verdict prop, show "All Caught Up" for monitor-only |
-| `src/components/MaintenancePlan.tsx` | Pass verdict to calculation |
-| `src/components/CommandCenter.tsx` | Already handles this, but can be simplified |
+| `src/lib/opterraAlgorithm.ts` | Fix `needsInfrastructure` logic to match `infrastructureIssues.ts` |
+| `docs/algorithm-changelog.md` | Document v9.1.1 fix |
 
 ## Expected Behavior After Fix
 
-| Verdict | Maintenance Display |
-|---------|---------------------|
-| MAINTAIN | Show all due tasks normally |
-| REPAIR | Show tasks + infrastructure |
-| REPLACE | Show only "Replacement Consultation" |
-| PASS | Show "All Caught Up" - no tasks |
-
-## UI Design for "Monitor Only" State
-
-When algorithm returns PASS, instead of maintenance tasks, show:
-- Icon: Green checkmark or eye
-- Title: "Your Unit Is Stable"  
-- Message: Based on verdict title (Fused, Fragile, No Issues, etc.)
-- CTA: "We'll be here when you need us" (soft lead capture)
-
-This matches the existing `ServiceSelectionDrawer` "Monitor Only" state but applies it to all maintenance displays.
+| Scenario | Before | After |
+|----------|--------|-------|
+| 4yr tank, PRV creates closed loop, no exp tank | REPLACE (End of Service Life) | REPAIR (Infrastructure Required) |
+| 4yr tank, recirc pump, no exp tank | REPLACE | REPAIR |
+| 4yr tank, high failProb, no identified cause | REPLACE | MAINTAIN (needs inspection) |
+| 8yr tank, same issues | REPLACE (correctly - too old) | REPLACE |
