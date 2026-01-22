@@ -1,14 +1,13 @@
 import { cn } from '@/lib/utils';
-import { Phone, FileText, X, Clock, MapPin } from 'lucide-react';
+import { Phone, Clock, MapPin, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { JobComplexityBadge } from './JobComplexityBadge';
-import { HealthScoreBadge } from './HealthScoreBadge';
 import { 
   type MockOpportunity, 
   formatTimeAgo, 
   getOpportunityTypeLabel 
 } from '@/data/mockContractorData';
+import { HealthScoreBadge } from './HealthScoreBadge';
+import { JobComplexityBadge } from './JobComplexityBadge';
 
 interface LeadCardProps {
   opportunity: MockOpportunity;
@@ -20,24 +19,20 @@ interface LeadCardProps {
 
 const priorityConfig = {
   critical: {
-    border: 'border-l-red-500',
-    bg: 'bg-white',
-    badge: 'bg-red-100 text-red-700 border-red-200',
+    border: 'border-l-rose-400',
+    label: 'text-rose-600',
   },
   high: {
-    border: 'border-l-orange-500',
-    bg: 'bg-white',
-    badge: 'bg-orange-100 text-orange-700 border-orange-200',
+    border: 'border-l-orange-400',
+    label: 'text-orange-600',
   },
   medium: {
     border: 'border-l-amber-400',
-    bg: 'bg-white',
-    badge: 'bg-amber-100 text-amber-700 border-amber-200',
+    label: 'text-amber-600',
   },
   low: {
-    border: 'border-l-emerald-500',
-    bg: 'bg-white',
-    badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    border: 'border-l-emerald-400',
+    label: 'text-emerald-600',
   },
 };
 
@@ -45,40 +40,36 @@ export function LeadCard({
   opportunity, 
   onCall, 
   onViewDetails, 
-  onDismiss,
+  onDismiss, 
   onRemindLater 
 }: LeadCardProps) {
   const config = priorityConfig[opportunity.priority];
+  const typeLabel = getOpportunityTypeLabel(opportunity.opportunityType);
   
   return (
     <div className={cn(
-      'rounded-lg border-l-4 border border-slate-200 p-4 transition-all duration-200 shadow-sm',
-      'hover:shadow-md',
-      config.border,
-      config.bg
+      'rounded-lg border-l-2 border border-gray-100 bg-white p-4 transition-all duration-200',
+      'hover:shadow-sm',
+      config.border
     )}>
-      {/* Header: Priority badge + Address + Health Score */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge 
-              variant="outline" 
-              className={cn('text-[10px] uppercase font-semibold', config.badge)}
-            >
-              {opportunity.priority}
-            </Badge>
-            <span className="text-xs text-slate-500">
-              {getOpportunityTypeLabel(opportunity.opportunityType)}
+          <div className="flex items-center gap-2 mb-1">
+            <span className={cn('text-xs font-medium uppercase tracking-wide', config.label)}>
+              {typeLabel}
             </span>
           </div>
           
-          <h3 className="font-semibold text-slate-800 mt-1.5 truncate">
-            {opportunity.customerName || 'Unknown Customer'}
-          </h3>
+          {opportunity.customerName && (
+            <h3 className="font-medium text-gray-800 truncate">
+              {opportunity.customerName}
+            </h3>
+          )}
           
-          <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-            <MapPin className="w-3 h-3" />
-            <span className="truncate">{opportunity.propertyAddress}</span>
+          <div className="flex items-center gap-1 text-gray-500 mt-0.5">
+            <MapPin className="w-3 h-3 flex-shrink-0" />
+            <span className="text-sm truncate">{opportunity.propertyAddress}</span>
           </div>
         </div>
         
@@ -86,12 +77,12 @@ export function LeadCard({
       </div>
       
       {/* Unit Summary */}
-      <p className="text-sm text-slate-600 mt-3">
+      <p className="text-sm text-gray-600 mt-3 leading-relaxed">
         {opportunity.unitSummary}
       </p>
       
-      {/* Context / Opportunity Reason */}
-      <p className="text-sm text-slate-700 mt-2 font-medium">
+      {/* Context */}
+      <p className="text-sm text-gray-500 mt-2 italic">
         {opportunity.context}
       </p>
       
@@ -99,24 +90,24 @@ export function LeadCard({
       <div className="flex items-center gap-3 mt-3 flex-wrap">
         <JobComplexityBadge complexity={opportunity.jobComplexity} />
         
-        <div className="flex items-center gap-1 text-xs text-slate-500">
+        <div className="flex items-center gap-1 text-gray-400 text-xs">
           <Clock className="w-3 h-3" />
-          {formatTimeAgo(opportunity.createdAt)}
+          <span>{formatTimeAgo(opportunity.createdAt)}</span>
         </div>
         
-        {opportunity.failProbability > 30 && (
-          <span className="text-xs font-medium text-red-600">
+        {opportunity.failProbability > 50 && (
+          <span className="text-xs text-gray-500">
             {opportunity.failProbability}% fail risk
           </span>
         )}
       </div>
       
       {/* Actions */}
-      <div className="flex items-center gap-2 mt-4 flex-wrap">
+      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
         <Button 
           size="sm" 
           onClick={onCall}
-          className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+          className="gap-1.5 bg-gray-800 hover:bg-gray-700 text-white"
         >
           <Phone className="w-3.5 h-3.5" />
           Call
@@ -124,31 +115,32 @@ export function LeadCard({
         
         <Button 
           size="sm" 
-          variant="outline"
+          variant="ghost" 
           onClick={onViewDetails}
-          className="gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-50"
+          className="gap-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
         >
-          <FileText className="w-3.5 h-3.5" />
           Details
+          <ChevronRight className="w-3.5 h-3.5" />
         </Button>
+        
+        <div className="flex-1" />
         
         {opportunity.priority !== 'critical' && (
           <Button 
             size="sm" 
-            variant="ghost"
+            variant="ghost" 
             onClick={onRemindLater}
-            className="gap-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-50 text-xs"
           >
-            <Clock className="w-3.5 h-3.5" />
             Later
           </Button>
         )}
         
         <Button 
           size="sm" 
-          variant="ghost"
+          variant="ghost" 
           onClick={onDismiss}
-          className="gap-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 ml-auto"
+          className="text-gray-400 hover:text-gray-600 hover:bg-gray-50"
         >
           <X className="w-3.5 h-3.5" />
         </Button>

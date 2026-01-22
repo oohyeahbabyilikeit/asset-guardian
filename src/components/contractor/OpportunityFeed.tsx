@@ -89,10 +89,10 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-slate-800">
+          <h2 className="text-base font-medium text-gray-700">
             Service Opportunities
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             {filteredOpportunities.length} leads requiring action
           </p>
         </div>
@@ -100,33 +100,33 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm" 
-              className="gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
+              className="gap-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
             >
               <Filter className="w-3.5 h-3.5" />
               {selectedPriority ? priorityLabels[selectedPriority] : 'All'}
               <ChevronDown className="w-3.5 h-3.5 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-white border-slate-200">
+          <DropdownMenuContent align="end" className="bg-white border-gray-200">
             <DropdownMenuItem onClick={() => onPriorityChange(null)}>
               All Priorities
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('critical')}>
-              <span className="w-2 h-2 rounded-full bg-red-500 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-rose-400 mr-2" />
               Critical
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('high')}>
-              <span className="w-2 h-2 rounded-full bg-orange-500 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-orange-400 mr-2" />
               High
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('medium')}>
-              <span className="w-2 h-2 rounded-full bg-amber-500 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-amber-400 mr-2" />
               Medium
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onPriorityChange('low')}>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2" />
               Low
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -134,8 +134,8 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
       </div>
       
       {filteredOpportunities.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-          <p className="text-slate-500">No opportunities matching this filter</p>
+        <div className="text-center py-12 bg-white rounded-lg border border-gray-100">
+          <p className="text-gray-400">No opportunities matching this filter</p>
         </div>
       ) : (
         <div className="space-y-3">
