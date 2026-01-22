@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Phone, 
   Mail, 
@@ -20,6 +20,7 @@ import {
   ChevronRight,
   MapPin,
   User,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 import { type MockOpportunity, getUnitSummary, type ServiceHistoryEntry } from '@/data/mockContractorData';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { SalesCoachDrawer } from './SalesCoachDrawer';
 
 interface PropertyReportDrawerProps {
   opportunity: MockOpportunity | null;
@@ -356,6 +358,8 @@ export function PropertyReportDrawer({
   onCall,
   onEmail,
 }: PropertyReportDrawerProps) {
+  const [showSalesCoach, setShowSalesCoach] = useState(false);
+
   if (!opportunity) return null;
   
   const { asset, forensicInputs, priority } = opportunity;
@@ -639,16 +643,20 @@ export function PropertyReportDrawer({
           </Button>
           <Button 
             className="flex-1 gap-2"
-            onClick={() => {
-              // Could navigate to full report or generate PDF
-              console.log('View full report for', opportunity.id);
-            }}
+            onClick={() => setShowSalesCoach(true)}
           >
-            <FileText className="w-4 h-4" />
-            Full Report
+            <Sparkles className="w-4 h-4" />
+            Sales Coach
           </Button>
         </div>
       </SheetContent>
+
+      {/* Sales Coach Overlay */}
+      <SalesCoachDrawer
+        open={showSalesCoach}
+        onClose={() => setShowSalesCoach(false)}
+        opportunity={opportunity}
+      />
     </Sheet>
   );
 }
