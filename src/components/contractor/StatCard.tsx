@@ -10,32 +10,36 @@ interface StatCardProps {
 
 const colorClasses = {
   red: {
-    bg: 'bg-red-500/10',
-    border: 'border-red-500/30',
-    text: 'text-red-400',
-    selectedBg: 'bg-red-500/20',
-    selectedBorder: 'border-red-500',
+    bg: 'bg-white',
+    border: 'border-slate-200',
+    text: 'text-red-600',
+    dot: 'bg-red-500',
+    selectedBg: 'bg-red-50',
+    selectedBorder: 'border-red-300',
   },
   orange: {
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/30',
-    text: 'text-orange-400',
-    selectedBg: 'bg-orange-500/20',
-    selectedBorder: 'border-orange-500',
+    bg: 'bg-white',
+    border: 'border-slate-200',
+    text: 'text-orange-600',
+    dot: 'bg-orange-500',
+    selectedBg: 'bg-orange-50',
+    selectedBorder: 'border-orange-300',
   },
   yellow: {
-    bg: 'bg-yellow-500/10',
-    border: 'border-yellow-500/30',
-    text: 'text-yellow-400',
-    selectedBg: 'bg-yellow-500/20',
-    selectedBorder: 'border-yellow-500',
+    bg: 'bg-white',
+    border: 'border-slate-200',
+    text: 'text-amber-600',
+    dot: 'bg-amber-500',
+    selectedBg: 'bg-amber-50',
+    selectedBorder: 'border-amber-300',
   },
   green: {
-    bg: 'bg-green-500/10',
-    border: 'border-green-500/30',
-    text: 'text-green-400',
-    selectedBg: 'bg-green-500/20',
-    selectedBorder: 'border-green-500',
+    bg: 'bg-white',
+    border: 'border-slate-200',
+    text: 'text-emerald-600',
+    dot: 'bg-emerald-500',
+    selectedBg: 'bg-emerald-50',
+    selectedBorder: 'border-emerald-300',
   },
 };
 
@@ -46,19 +50,20 @@ export function StatCard({ label, count, color, onClick, isSelected }: StatCardP
     <button
       onClick={onClick}
       className={cn(
-        'rounded-lg border p-3 text-center transition-all duration-200',
-        'hover:scale-105 active:scale-95',
+        'rounded-lg border p-3 text-center transition-all duration-200 shadow-sm',
+        'hover:shadow-md active:scale-95',
         isSelected 
           ? `${colors.selectedBg} ${colors.selectedBorder}` 
-          : `${colors.bg} ${colors.border}`,
+          : `${colors.bg} ${colors.border} hover:border-slate-300`,
         onClick && 'cursor-pointer'
       )}
     >
       <div className={cn('text-2xl font-bold', colors.text)}>
         {count}
       </div>
-      <div className="text-xs text-muted-foreground mt-1">
-        {label}
+      <div className="flex items-center justify-center gap-1.5 mt-1">
+        <div className={cn('w-1.5 h-1.5 rounded-full', colors.dot)} />
+        <span className="text-xs text-slate-600 font-medium">{label}</span>
       </div>
     </button>
   );

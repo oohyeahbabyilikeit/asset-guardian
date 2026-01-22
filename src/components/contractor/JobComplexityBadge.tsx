@@ -10,17 +10,17 @@ const complexityConfig = {
   STANDARD: {
     label: 'Standard',
     icon: Wrench,
-    className: 'bg-green-500/10 text-green-400 border-green-500/30',
+    className: 'bg-slate-100 text-slate-600 border-slate-200',
   },
   ELEVATED: {
     label: 'Elevated',
     icon: AlertTriangle,
-    className: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+    className: 'bg-amber-50 text-amber-700 border-amber-200',
   },
   COMPLEX: {
     label: 'Complex',
     icon: Construction,
-    className: 'bg-red-500/10 text-red-400 border-red-500/30',
+    className: 'bg-red-50 text-red-700 border-red-200',
   },
 };
 

@@ -7,10 +7,10 @@ interface HealthScoreBadgeProps {
 }
 
 function getScoreColor(score: number) {
-  if (score >= 80) return 'text-green-400 bg-green-500/10 border-green-500/30';
-  if (score >= 60) return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30';
-  if (score >= 40) return 'text-orange-400 bg-orange-500/10 border-orange-500/30';
-  return 'text-red-400 bg-red-500/10 border-red-500/30';
+  if (score >= 80) return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+  if (score >= 60) return 'text-amber-700 bg-amber-50 border-amber-200';
+  if (score >= 40) return 'text-orange-700 bg-orange-50 border-orange-200';
+  return 'text-red-700 bg-red-50 border-red-200';
 }
 
 export function HealthScoreBadge({ score, showLabel = true }: HealthScoreBadgeProps) {
@@ -21,7 +21,7 @@ export function HealthScoreBadge({ score, showLabel = true }: HealthScoreBadgePr
     )}>
       <Activity className="w-3 h-3" />
       <span className="font-bold">{score}</span>
-      {showLabel && <span className="opacity-70">/100</span>}
+      {showLabel && <span className="opacity-60">/100</span>}
     </div>
   );
 }
