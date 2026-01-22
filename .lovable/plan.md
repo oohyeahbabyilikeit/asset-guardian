@@ -1,173 +1,136 @@
 
-
 ## Goal
-Wire the contractor views to fetch real data from the `demo_opportunities` database table instead of using hardcoded mock data.
+Wire the **Pipeline** and **Completed** sidebar widgets to use real data from the `demo_opportunities` database table, eliminating the last remaining mock data imports in the contractor dashboard.
 
 ---
 
-## Current Problem
+## Current State
 
-**What we have (database):**
-- `demo_opportunities` table with 12 detailed records containing:
-  - Customer info (name, phone, email)
-  - Property address (full with city, state, zip)
-  - Asset specs (brand, model, serial, age, capacity, fuel type, vent type)
-  - **Forensic inputs (JSONB)** with housePsi, hardnessGPG, isLeaking, hasSoftener, etc.
-  - **Opterra metrics:** health_score, bio_age, fail_probability, shield_life, risk_level
-  - **Verdict:** verdict_action (REPLACE/MONITOR/MAINTAIN), verdict_title
-  - Inspection notes and photo URLs
+**Already Using Real Data:**
+- Today's Actions (priority counts) - derived from `useContractorOpportunities()`
+- Service Opportunities Feed - fetched from `demo_opportunities` table
+- PropertyReportDrawer / SalesCoachDrawer - receive real opportunity data
 
-**What's broken (frontend):**
-- `OpportunityFeed.tsx` imports `mockOpportunities` from static file (line 14)
-- `useState` initializes with mock data (line 26)
-- All contractor views (`LeadCard`, `PropertyReportDrawer`, `SalesCoachDrawer`) receive mock objects
-- **No database fetch hook exists** - `useContractorOpportunities.ts` was never created
-- **No data mapper exists** - `opportunityMapper.ts` was never created
+**Still Using Mock Data:**
+- `PipelineOverview.tsx` (line 2): `import { mockPipeline } from '@/data/mockContractorData'`
+- `ClosesBreakdown.tsx` (line 2): `import { mockPipeline } from '@/data/mockContractorData'`
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Create Data Mapper (`src/lib/opportunityMapper.ts`)
+### Phase 1: Extend the Contractor Opportunities Hook
 
-Create a transformation layer that converts database rows to the `MockOpportunity` type:
+Add functions to derive pipeline and service metrics from the `demo_opportunities` data:
 
-```text
-Functions needed:
-- mapDemoRowToMockOpportunity(row: DemoOpportunityRow): MockOpportunity
-  - Maps flat DB columns → nested TankAsset object
-  - Parses forensic_inputs JSONB → ForensicInputs type
-  - Constructs opterraResult from denormalized metrics
-  - Handles date parsing (created_at → Date)
-  - Combines address fields into propertyAddress string
-
-- Priority is lowercase in UI but the DB stores uppercase (CRITICAL → critical)
-```
-
-**Mapping table:**
-
-| Database Column | MockOpportunity Field |
-|-----------------|----------------------|
-| `customer_name` | `customerName` |
-| `customer_phone` | `customerPhone` |
-| `property_address, property_city, property_state, property_zip` | `propertyAddress` (combined string) |
-| `asset_brand` | `asset.brand` |
-| `asset_model` | `asset.model` |
-| `asset_serial` | `asset.serialNumber` |
-| `asset_age_years` | `asset.calendarAge` |
-| `asset_capacity` | `asset.capacity` |
-| `asset_fuel_type` | `asset.fuelType` |
-| `asset_vent_type` | `asset.ventType` |
-| `asset_warranty_years` | `asset.warrantyYears` |
-| `asset_location` | `asset.location` |
-| `forensic_inputs` (JSONB) | `forensicInputs` (typed) |
-| `health_score` | `healthScore` |
-| `bio_age` | `opterraResult.bioAge` |
-| `fail_probability` | `failProbability` + `opterraResult.failProb` |
-| `shield_life` | `opterraResult.shieldLife` |
-| `risk_level` | `opterraResult.riskLevel` |
-| `verdict_action` | `opterraResult.verdictAction` |
-| `verdict_title` | `opterraResult.verdictTitle` |
-| `anode_remaining` | `opterraResult.anodeRemaining` |
-| `inspection_notes` | `inspectionNotes` |
-| `photo_urls` (JSONB) | `photoUrls` (string[]) |
-| `context_description` | `context` |
-| `job_complexity` | `jobComplexity` |
-| `priority` | `priority` (lowercase) |
-| `status` | `status` |
-| `created_at` | `createdAt` (Date) |
-
-### Phase 2: Create Database Fetch Hook (`src/hooks/useContractorOpportunities.ts`)
-
-Create a React Query hook to fetch opportunities from the database:
+**New exports in `useContractorOpportunities.ts`:**
 
 ```text
-Exports:
-- useContractorOpportunities(): { data: MockOpportunity[], isLoading, error }
-- useOpportunityById(id: string): { data: MockOpportunity | null, isLoading }
+getPipelineMetrics(opportunities):
+  - NEW: opportunities where status = 'pending'
+  - CONTACTED: opportunities where status = 'contacted' or 'viewed'
+  - SCHEDULED: opportunities where status = 'converted' (approximation)
+  - COMPLETED: count from opportunity_type that indicate completed work
 
-Query details:
-- Fetch from demo_opportunities table
-- Order by priority (critical first), then by created_at
-- Transform each row using mapDemoRowToMockOpportunity()
-- Cache with React Query for performance
+getClosesMetrics(opportunities):
+  - Maintenance: count where opportunity_type in ['flush_due', 'anode_due', 'descale_due', 'annual_checkup']
+  - Code Fixes: derive from forensicInputs (missing PRV, exp tank, softener)
+  - Replacements: count where opportunity_type in ['replacement_urgent', 'replacement_recommended']
+  - Calculate thisMonth vs lastMonth trend
 ```
 
-### Phase 3: Update OpportunityFeed Component
+### Phase 2: Update PipelineOverview Component
 
-**File: `src/components/contractor/OpportunityFeed.tsx`**
+**File: `src/components/contractor/PipelineOverview.tsx`**
 
 Changes:
-1. Remove import of `mockOpportunities` from static file
-2. Import and use `useContractorOpportunities` hook
-3. Replace `useState` initialization with hook data
-4. Add loading state UI (skeleton cards)
-5. Add error handling UI
-6. Keep local state management for status changes (view/dismiss/remind)
+1. Remove `import { mockPipeline }` from mock data
+2. Accept `opportunities` as a prop from `Contractor.tsx`
+3. Derive pipeline stages from opportunity status counts
+4. Calculate conversion rate from real data
 
+**Props change:**
 ```text
-Before:
-  import { mockOpportunities } from '@/data/mockContractorData';
-  const [opportunities, setOpportunities] = useState<MockOpportunity[]>(mockOpportunities);
-
-After:
-  import { useContractorOpportunities } from '@/hooks/useContractorOpportunities';
-  const { data: dbOpportunities, isLoading } = useContractorOpportunities();
-  const [localStatusChanges, setLocalStatusChanges] = useState<Record<string, string>>({});
-  // Merge DB data with local status overrides
+Before: { compact?: boolean }
+After:  { compact?: boolean; opportunities: MockOpportunity[] }
 ```
 
-### Phase 4: Update Contractor Page Priority Counts
+### Phase 3: Update ClosesBreakdown Component
+
+**File: `src/components/contractor/ClosesBreakdown.tsx`**
+
+Changes:
+1. Remove `import { mockPipeline }` from mock data
+2. Accept `opportunities` as a prop from `Contractor.tsx`
+3. Derive service close counts from opportunity types and forensicInputs
+4. Calculate maintenance/codeFixes/replacements breakdown
+
+**Props change:**
+```text
+Before: { compact?: boolean }
+After:  { compact?: boolean; opportunities: MockOpportunity[] }
+```
+
+### Phase 4: Update Contractor Page
 
 **File: `src/pages/Contractor.tsx`**
 
 Changes:
-1. Import `useContractorOpportunities` hook
-2. Replace mock data usage in priority count calculation
-3. Derive counts from real database data
-
-### Phase 5: Verify Data Flow Through Components
-
-All child components already accept `MockOpportunity` as props - no changes needed:
-- `LeadCard` - receives opportunity, displays healthScore, asset, forensicInputs ✓
-- `PropertyReportDrawer` - receives opportunity, displays full report with forensics ✓
-- `SalesCoachDrawer` - receives opportunity, sends to edge function ✓
+1. Pass the fetched `opportunities` array to `PipelineOverview`
+2. Pass the fetched `opportunities` array to `ClosesBreakdown`
 
 ---
 
-## Files to Create/Modify
+## Data Derivation Logic
+
+### Pipeline Stages (from opportunity status)
+| Stage | Filter Criteria |
+|-------|-----------------|
+| New | `status === 'pending'` |
+| Contacted | `status === 'viewed' \|\| status === 'contacted'` |
+| Scheduled | (reserved for future status) |
+| Completed | `status === 'converted' \|\| status === 'dismissed'` |
+
+### Closes Categories (from opportunity_type + forensicInputs)
+| Category | Criteria |
+|----------|----------|
+| Maintenance - Flush | `opportunity_type === 'flush_due'` |
+| Maintenance - Anode | `opportunity_type === 'anode_due'` |
+| Maintenance - Descale | `opportunity_type === 'descale_due'` |
+| Maintenance - Inspection | `opportunity_type === 'annual_checkup'` |
+| Code Fixes - Exp Tank | `!forensicInputs.hasExpTank && forensicInputs.isClosedLoop` |
+| Code Fixes - PRV | `!forensicInputs.hasPrv && forensicInputs.housePsi > 80` |
+| Code Fixes - Softener | `!forensicInputs.hasSoftener && forensicInputs.hardnessGPG > 15` |
+| Replacements | `opportunity_type in ['replacement_urgent', 'replacement_recommended']` |
+
+### Conversion Rate
+```text
+conversionRate = (contacted + scheduled + completed) / total * 100
+```
+
+---
+
+## Files to Modify
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/opportunityMapper.ts` | **CREATE** | Transform DB rows to MockOpportunity type |
-| `src/hooks/useContractorOpportunities.ts` | **CREATE** | React Query hook to fetch from demo_opportunities |
-| `src/components/contractor/OpportunityFeed.tsx` | **MODIFY** | Use hook instead of mock import |
-| `src/pages/Contractor.tsx` | **MODIFY** | Use hook for priority counts |
+| `src/hooks/useContractorOpportunities.ts` | **MODIFY** | Add helper functions for pipeline/closes metrics |
+| `src/components/contractor/PipelineOverview.tsx` | **MODIFY** | Remove mock import, derive data from props |
+| `src/components/contractor/ClosesBreakdown.tsx` | **MODIFY** | Remove mock import, derive data from props |
+| `src/pages/Contractor.tsx` | **MODIFY** | Pass opportunities to PipelineOverview and ClosesBreakdown |
 
 ---
 
 ## Technical Notes
 
-**JSONB field mapping:**
-The `forensic_inputs` column stores keys in camelCase (matching the TypeScript interface), so minimal transformation is needed:
-```json
-{
-  "calendarAge": 12,
-  "housePsi": 95,
-  "hardnessGPG": 18,
-  "isLeaking": true,
-  "hasSoftener": false
-  // etc.
-}
-```
+**Why derive from demo_opportunities:**
+- The `service_events` and `leads` tables are empty (0 records)
+- The `demo_opportunities` table contains 12 seeded records with rich data
+- For demo purposes, we can infer pipeline status from the opportunity `status` field
+- Service type breakdowns can be derived from `opportunity_type` and `forensicInputs`
 
-**Type safety:**
-- Use `Tables<'demo_opportunities'>` from Supabase types for the DB row
-- Cast/transform to `MockOpportunity` for UI consistency
-- The mapper ensures all required fields have defaults
-
-**Local state for optimistic updates:**
-Status changes (viewed/contacted/dismissed) will be tracked locally since `demo_opportunities` is read-only for demos. In production, this would update the real `opportunity_notifications` table.
+**Fallback for empty data:**
+If no opportunities exist, display zeros gracefully rather than breaking the UI.
 
 ---
 
@@ -175,14 +138,12 @@ Status changes (viewed/contacted/dismissed) will be tracked locally since `demo_
 
 After implementation:
 1. Navigate to `/contractor`
-2. Verify 12 opportunities load from database (not mock)
-3. Check that health scores, addresses, and asset details match DB values
-4. Click "Details" on any opportunity → PropertyReportDrawer shows:
-   - Correct customer name and address from DB
-   - Real forensic data (PSI, hardness, leak status)
-   - Real opterra metrics (bio age, shield life, risk level)
-   - Inspection notes from technician
-5. Click "Sales Coach" → AI briefing references real data
-6. Filter by priority → Filter works with DB data
-7. Call/Dismiss actions work with local state
-
+2. Verify Pipeline shows real counts derived from opportunity statuses:
+   - NEW count matches `status === 'pending'` opportunities
+   - CONT count matches `status === 'viewed' || 'contacted'` opportunities
+3. Verify Completed shows real service type breakdown:
+   - Maintenance count based on maintenance-type opportunities
+   - Code Fixes count based on infrastructure issues in forensicInputs
+   - Replacements count based on replacement-type opportunities
+4. Verify no hardcoded numbers from mockPipeline are displayed
+5. Confirm trend calculation uses real data comparisons
