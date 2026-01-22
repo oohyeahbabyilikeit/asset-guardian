@@ -188,14 +188,16 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
     }
   }
 
-  // Determine flush status from descale status
-  let flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout' = 'optimal';
+  // Determine flush status from descale status (mapped to 5-tier system)
+  let flushStatus: 'optimal' | 'advisory' | 'due' | 'critical' | 'lockout' = 'optimal';
   if (descaleStatus === 'lockout' || descaleStatus === 'run_to_failure') {
     flushStatus = 'lockout';
   } else if (descaleStatus === 'critical') {
-    flushStatus = 'due';
+    flushStatus = 'critical';
   } else if (descaleStatus === 'due') {
-    flushStatus = 'schedule';
+    flushStatus = 'due';
+  } else if (descaleStatus === 'optimal') {
+    flushStatus = 'optimal';
   }
 
   // MVP Metrics Return (Simplified)

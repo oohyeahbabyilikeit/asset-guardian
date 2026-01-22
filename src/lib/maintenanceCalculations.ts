@@ -24,7 +24,7 @@ export interface MaintenanceTask {
   label: string;
   description: string;
   monthsUntilDue: number;
-  urgency: 'optimal' | 'schedule' | 'due' | 'overdue' | 'impossible';
+  urgency: 'optimal' | 'advisory' | 'schedule' | 'due' | 'critical' | 'overdue' | 'impossible';
   benefit: string;
   whyExplanation: string;
   icon: 'droplets' | 'shield' | 'flame' | 'filter' | 'valve' | 'wind' | 'wrench' | 'gauge' | 'alert' | 'lightbulb';
@@ -65,12 +65,21 @@ function calculateTankMaintenance(
   const monthsToAnodeReplacement = shieldLife > 1 ? Math.round((shieldLife - 1) * 12) : 0;
   const cappedMonthsToAnode = Math.min(Math.max(0, monthsToAnodeReplacement), 36);
   
+  // Map 5-tier flushStatus to task urgency
+  const mapFlushStatusToUrgency = (status: typeof flushStatus): MaintenanceTask['urgency'] => {
+    if (status === 'lockout') return 'overdue';
+    if (status === 'critical') return 'critical';
+    if (status === 'due') return 'due';
+    if (status === 'advisory') return 'advisory';
+    return 'optimal';
+  };
+  
   const flushTask: MaintenanceTask = {
     type: 'flush',
     label: 'Tank Flush',
     description: 'Drain sediment from tank bottom',
     monthsUntilDue: cappedMonthsToFlush,
-    urgency: flushStatus === 'lockout' ? 'overdue' : flushStatus,
+    urgency: mapFlushStatusToUrgency(flushStatus),
     benefit: sedimentLbs > 0 
       ? `Restore up to ${Math.round(sedimentLbs * 3)}% efficiency`
       : 'Maintain peak efficiency',
@@ -339,12 +348,21 @@ function calculateHybridMaintenance(
     ? 0 
     : Math.min(Math.max(0, monthsToFlush ?? 12), 36);
     
+  // Map 5-tier flushStatus to task urgency (same logic as tank)
+  const mapFlushStatusToUrgency = (status: typeof flushStatus): MaintenanceTask['urgency'] => {
+    if (status === 'lockout') return 'overdue';
+    if (status === 'critical') return 'critical';
+    if (status === 'due') return 'due';
+    if (status === 'advisory') return 'advisory';
+    return 'optimal';
+  };
+  
   const flushTask: MaintenanceTask = {
     type: 'flush',
     label: 'Tank Flush',
     description: 'Drain sediment from tank bottom',
     monthsUntilDue: cappedMonthsToFlush,
-    urgency: flushStatus === 'lockout' ? 'overdue' : flushStatus,
+    urgency: mapFlushStatusToUrgency(flushStatus),
     benefit: sedimentLbs > 0 
       ? `Remove ${sedimentLbs.toFixed(1)} lbs sediment`
       : 'Maintain tank health',

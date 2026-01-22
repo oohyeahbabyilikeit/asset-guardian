@@ -241,11 +241,17 @@ export interface OpterraMetrics {
   };
   riskLevel: RiskLevel;
   
-  // Sediment Projection metrics
+  // Sediment Projection metrics (v9.1 Pro-Grade 5-Tier System)
   sedimentRate: number;        
   monthsToFlush: number | null; 
   monthsToLockout: number | null; 
-  flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout'; 
+  // NEW v9.1: Pro-Grade 5-Tier Flush Status
+  // - optimal: 0-0.5 lbs (ideal efficiency range)
+  // - advisory: 0.5-2.0 lbs (plan flush soon)
+  // - due: 2.0-5.0 lbs (maintenance trigger - flush while loose)
+  // - critical: 5.0-10.0 lbs (performance degradation, drain valve likely clogged)
+  // - lockout: >10 lbs (do not flush - vac or replace required)
+  flushStatus: 'optimal' | 'advisory' | 'due' | 'critical' | 'lockout';
   
   // Aging Speedometer metrics
   agingRate: number;           
@@ -473,6 +479,12 @@ const CONSTANTS = {
   FLUSH_EFFICIENCY: 0.5,  // 50% sediment removal per flush (conservative estimate)
   FLUSH_EFFICIENCY_HARDITE: 0.05,  // NEW v7.9: Calcified sediment (>5 years) is nearly permanent
   
+  // NEW v9.1: Temperature Multipliers for Sediment Accumulation
+  // Scale precipitation is exponential - 140°F precipitates 2-3x faster than 120°F
+  TEMP_SEDIMENT_MULTIPLIER_LOW: 0.8,    // <120°F - slower precipitation
+  TEMP_SEDIMENT_MULTIPLIER_NORMAL: 1.0, // 120°F baseline
+  TEMP_SEDIMENT_MULTIPLIER_HOT: 1.75,   // 140°F+ - accelerated precipitation
+  
   // Limits
   MAX_STRESS_CAP: 12.0,    
   MAX_BIO_AGE: 50,         // FIX v8.1: Raised from 25 to allow Weibull to reach STATISTICAL_CAP (85%)
@@ -483,8 +495,16 @@ const CONSTANTS = {
   LIMIT_PSI_CRITICAL: 100, 
   LIMIT_PSI_EXPLOSION: 150, // T&P Rating (Safety Limit)
   
-  LIMIT_SEDIMENT_LOCKOUT: 15, 
-  LIMIT_SEDIMENT_FLUSH: 5,     
+  // NEW v9.1: Pro-Grade 5-Tier Sediment Thresholds
+  // Shifted from "wait until full" to "keep it clean"
+  LIMIT_SEDIMENT_OPTIMAL: 0.5,    // Max lbs for "System Healthy" status
+  LIMIT_SEDIMENT_ADVISORY: 2.0,   // Max lbs before "Plan Flush Soon"
+  LIMIT_SEDIMENT_DUE: 5.0,        // Max lbs before "Maintenance Due" (was LIMIT_SEDIMENT_FLUSH)
+  LIMIT_SEDIMENT_CRITICAL: 10.0,  // Max lbs before "High Buildup / Energy Loss"
+  LIMIT_SEDIMENT_LOCKOUT: 10.0,   // Do Not Flush threshold (was 15)
+  
+  // DEPRECATED: kept for backwards compat
+  LIMIT_SEDIMENT_FLUSH: 2.0,      // UPDATED v9.1: Trigger now at 2 lbs (was 5)
   LIMIT_AGE_FRAGILE: 10,       // CHANGED v6.2: Was 12, now 10
   LIMIT_FAILPROB_FRAGILE: 60,  
   LIMIT_AGE_MAX: 20,       // Hard cap for service life (Fixes Highlander Bug)
@@ -1016,26 +1036,53 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     }
   }
   
-  // Sediment rate (lbs per year based on EFFECTIVE water hardness AND volume factor)
-  // Guard against division by zero - use minimum rate of 0.1 lbs/year
-  const sedimentRate = Math.max(0.1, effectiveHardness * sedFactor * volumeFactor);
+  // NEW v9.1: Temperature multiplier for sediment accumulation
+  // Scale precipitation is exponential - higher temps accelerate mineral dropout
+  let tempSedimentMultiplier: number;
+  switch (data.tempSetting) {
+    case 'LOW':
+      tempSedimentMultiplier = CONSTANTS.TEMP_SEDIMENT_MULTIPLIER_LOW;    // 0.8x
+      break;
+    case 'HOT':
+      tempSedimentMultiplier = CONSTANTS.TEMP_SEDIMENT_MULTIPLIER_HOT;    // 1.75x
+      break;
+    default: // NORMAL
+      tempSedimentMultiplier = CONSTANTS.TEMP_SEDIMENT_MULTIPLIER_NORMAL; // 1.0x
+  }
   
-  // Calculate months until flush threshold (5 lbs) and lockout threshold (15 lbs)
-  const lbsToFlush = CONSTANTS.LIMIT_SEDIMENT_FLUSH - sedimentLbs;
+  // Sediment rate (lbs per year based on EFFECTIVE water hardness, volume, AND temperature)
+  // Guard against division by zero - use minimum rate of 0.1 lbs/year
+  const sedimentRate = Math.max(0.1, effectiveHardness * sedFactor * volumeFactor * tempSedimentMultiplier);
+  
+  // NEW v9.1: Pro-Grade 5-Tier Thresholds
+  // Calculate months until maintenance thresholds
+  const lbsToAdvisory = CONSTANTS.LIMIT_SEDIMENT_ADVISORY - sedimentLbs;
+  const lbsToFlush = CONSTANTS.LIMIT_SEDIMENT_DUE - sedimentLbs;
+  const lbsToCritical = CONSTANTS.LIMIT_SEDIMENT_CRITICAL - sedimentLbs;
   const lbsToLockout = CONSTANTS.LIMIT_SEDIMENT_LOCKOUT - sedimentLbs;
+  
+  // monthsToFlush = time until DUE threshold (2.0 lbs)
   const monthsToFlush = lbsToFlush > 0 ? Math.ceil((lbsToFlush / sedimentRate) * 12) : null;
   const monthsToLockout = lbsToLockout > 0 ? Math.ceil((lbsToLockout / sedimentRate) * 12) : null;
   
-  // Determine flush status based on sediment level (5-15 lb sweet spot)
-  let flushStatus: 'optimal' | 'schedule' | 'due' | 'lockout';
+  // NEW v9.1: Pro-Grade 5-Tier Flush Status Determination
+  // Shifted from "wait until full" to "keep it clean"
+  let flushStatus: 'optimal' | 'advisory' | 'due' | 'critical' | 'lockout';
   if (sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_LOCKOUT) {
-    flushStatus = 'lockout'; // Too late, sediment hardened
-  } else if (sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_FLUSH) {
-    flushStatus = 'due'; // In the sweet spot (5-15 lbs), flush now
-  } else if (monthsToFlush !== null && monthsToFlush <= 12) {
-    flushStatus = 'schedule'; // Will reach 5 lbs within a year
+    // >10 lbs: Risk of failure - sediment may be sealing rust. Do NOT standard flush.
+    flushStatus = 'lockout';
+  } else if (sedimentLbs > CONSTANTS.LIMIT_SEDIMENT_CRITICAL) {
+    // 5-10 lbs: Performance degradation, drain valve likely clogged
+    flushStatus = 'critical';
+  } else if (sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_DUE) {
+    // 2-5 lbs: Flush while sediment is still loose (sludge), before it hardens (scale)
+    flushStatus = 'due';
+  } else if (sedimentLbs >= CONSTANTS.LIMIT_SEDIMENT_ADVISORY) {
+    // 0.5-2 lbs: Accumulation usually speeds up here as surface area grows
+    flushStatus = 'advisory';
   } else {
-    flushStatus = 'optimal'; // Clean, no action needed
+    // 0-0.5 lbs: Ideal efficiency range
+    flushStatus = 'optimal';
   }
 
   // 3. STRESS FACTORS (Split into MECHANICAL vs. CHEMICAL)
