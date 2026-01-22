@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Phone, 
   Mail, 
@@ -29,11 +29,11 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { type MockOpportunity, getUnitSummary, type ServiceHistoryEntry } from '@/data/mockContractorData';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SalesCoachDrawer } from './SalesCoachDrawer';
 
 interface PropertyReportDrawerProps {
   opportunity: MockOpportunity | null;
@@ -41,6 +41,7 @@ interface PropertyReportDrawerProps {
   onClose: () => void;
   onCall?: () => void;
   onEmail?: () => void;
+  onOpenSalesCoach?: (opportunityId: string) => void;
 }
 
 const priorityConfig = {
@@ -357,16 +358,8 @@ export function PropertyReportDrawer({
   onClose, 
   onCall,
   onEmail,
+  onOpenSalesCoach,
 }: PropertyReportDrawerProps) {
-  const [showSalesCoach, setShowSalesCoach] = useState(false);
-
-  // Reset Sales Coach state when drawer closes or opportunity changes
-  useEffect(() => {
-    if (!open) {
-      setShowSalesCoach(false);
-    }
-  }, [open, opportunity?.id]);
-
   if (!opportunity) return null;
   
   const { asset, forensicInputs, priority } = opportunity;
@@ -387,7 +380,6 @@ export function PropertyReportDrawer({
   const warrantyExpired = asset.calendarAge > asset.warrantyYears;
 
   return (
-    <>
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
         <SheetHeader className="sticky top-0 bg-card z-10 p-4 border-b border-border">
@@ -396,10 +388,10 @@ export function PropertyReportDrawer({
               <SheetTitle className="text-base font-semibold text-foreground truncate">
                 {opportunity.customerName || 'Unknown Customer'}
               </SheetTitle>
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
+              <SheetDescription className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
                 <MapPin className="w-3 h-3" />
                 <span className="truncate">{opportunity.propertyAddress}</span>
-              </div>
+              </SheetDescription>
             </div>
             <Badge variant="outline" className={cn('flex-shrink-0', config.className)}>
               {config.label}
@@ -651,7 +643,7 @@ export function PropertyReportDrawer({
           </Button>
           <Button 
             className="flex-1 gap-2"
-            onClick={() => setShowSalesCoach(true)}
+            onClick={() => onOpenSalesCoach?.(opportunity.id)}
           >
             <Sparkles className="w-4 h-4" />
             Sales Coach
@@ -659,13 +651,5 @@ export function PropertyReportDrawer({
         </div>
       </SheetContent>
     </Sheet>
-
-    {/* Sales Coach Overlay - rendered outside Sheet for proper z-index */}
-    <SalesCoachDrawer
-      open={showSalesCoach}
-      onClose={() => setShowSalesCoach(false)}
-      opportunity={opportunity}
-    />
-    </>
   );
 }
