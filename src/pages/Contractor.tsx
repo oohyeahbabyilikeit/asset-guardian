@@ -97,8 +97,8 @@ export default function Contractor() {
             selectedPriority={selectedPriority}
             onPriorityClick={handlePriorityClick} 
           />
-          <PipelineOverview compact />
-          <ClosesBreakdown compact />
+          <PipelineOverview compact opportunities={opportunities} />
+          <ClosesBreakdown compact opportunities={opportunities} />
           <QuickActions compact />
         </aside>
         
@@ -111,8 +111,8 @@ export default function Contractor() {
                 selectedPriority={selectedPriority}
                 onPriorityClick={handlePriorityClick} 
               />
-              <PipelineOverview />
-              <ClosesBreakdown />
+              <PipelineOverview opportunities={opportunities} />
+              <ClosesBreakdown opportunities={opportunities} />
               <QuickActions />
             </div>
           ) : (
