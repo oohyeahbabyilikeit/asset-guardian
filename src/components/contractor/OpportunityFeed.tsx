@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LeadCard } from './LeadCard';
 import { PropertyReportDrawer } from './PropertyReportDrawer';
+import { SalesCoachDrawer } from './SalesCoachDrawer';
 import { 
   mockOpportunities, 
   type Priority,
@@ -23,7 +24,26 @@ interface OpportunityFeedProps {
 
 export function OpportunityFeed({ selectedPriority, onPriorityChange }: OpportunityFeedProps) {
   const [opportunities, setOpportunities] = useState<MockOpportunity[]>(mockOpportunities);
-  const [selectedOpportunity, setSelectedOpportunity] = useState<MockOpportunity | null>(null);
+  
+  // State for Property Report
+  const [reportOpportunityId, setReportOpportunityId] = useState<string | null>(null);
+  
+  // State for Sales Coach - separate from report
+  const [salesCoachOpportunityId, setSalesCoachOpportunityId] = useState<string | null>(null);
+  
+  // Track which opportunity to return to after closing Sales Coach
+  const [returnToReportId, setReturnToReportId] = useState<string | null>(null);
+  
+  // Derive selected opportunities from IDs
+  const reportOpportunity = useMemo(() => 
+    opportunities.find(o => o.id === reportOpportunityId) || null,
+    [opportunities, reportOpportunityId]
+  );
+  
+  const salesCoachOpportunity = useMemo(() =>
+    opportunities.find(o => o.id === salesCoachOpportunityId) || null,
+    [opportunities, salesCoachOpportunityId]
+  );
   
   // Filter and sort opportunities
   const filteredOpportunities = useMemo(() => {
@@ -64,8 +84,31 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
     setOpportunities(prev => 
       prev.map(o => o.id === opportunity.id && o.status === 'pending' ? { ...o, status: 'viewed' as const } : o)
     );
-    // Open detail drawer
-    setSelectedOpportunity(opportunity);
+    // Open report drawer
+    setReportOpportunityId(opportunity.id);
+  };
+
+  const handleCloseReport = () => {
+    setReportOpportunityId(null);
+  };
+
+  const handleOpenSalesCoach = (opportunityId: string) => {
+    // 1) Store current report ID so we can return to it
+    setReturnToReportId(opportunityId);
+    // 2) Close the report drawer (removes scroll lock)
+    setReportOpportunityId(null);
+    // 3) Open Sales Coach
+    setSalesCoachOpportunityId(opportunityId);
+  };
+
+  const handleCloseSalesCoach = () => {
+    // 1) Close Sales Coach
+    setSalesCoachOpportunityId(null);
+    // 2) Reopen the report we came from
+    if (returnToReportId) {
+      setReportOpportunityId(returnToReportId);
+      setReturnToReportId(null);
+    }
   };
 
   const handleDismiss = (opportunity: MockOpportunity) => {
@@ -157,17 +200,27 @@ export function OpportunityFeed({ selectedPriority, onPriorityChange }: Opportun
         </div>
       )}
       
-      {/* Property Report Drawer */}
+      {/* Property Report Drawer - no Sales Coach inside */}
       <PropertyReportDrawer
-        opportunity={selectedOpportunity}
-        open={!!selectedOpportunity}
-        onClose={() => setSelectedOpportunity(null)}
+        opportunity={reportOpportunity}
+        open={!!reportOpportunity}
+        onClose={handleCloseReport}
         onCall={() => {
-          if (selectedOpportunity) {
-            handleCall(selectedOpportunity);
+          if (reportOpportunity) {
+            handleCall(reportOpportunity);
           }
         }}
+        onOpenSalesCoach={handleOpenSalesCoach}
       />
+      
+      {/* Sales Coach Drawer - rendered at top level, not inside PropertyReportDrawer */}
+      {salesCoachOpportunity && (
+        <SalesCoachDrawer
+          open={!!salesCoachOpportunity}
+          onClose={handleCloseSalesCoach}
+          opportunity={salesCoachOpportunity}
+        />
+      )}
     </div>
   );
 }

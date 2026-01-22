@@ -71,14 +71,6 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
     isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < threshold;
   };
 
-  // If the user scrolls up with the wheel/trackpad, immediately disable auto-scroll.
-  // This prevents “feels like it can’t scroll” while the response is streaming.
-  const handleWheelCapture = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.deltaY < 0) {
-      isNearBottomRef.current = false;
-    }
-  };
-
   const generateBriefing = async () => {
     setIsLoading(true);
     setBriefing('');
@@ -280,10 +272,10 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden"
+        className="fixed inset-0 z-[60] bg-background flex flex-col"
       >
         {/* Header */}
-        <div className="flex-shrink-0 bg-card/80 backdrop-blur-sm border-b border-border">
+        <div className="flex-shrink-0 bg-card border-b border-border">
           <div className="flex items-center justify-between p-4">
             <Button
               variant="ghost"
@@ -324,10 +316,9 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
 
         {/* Content - scrollable middle section */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          className="flex-1 min-h-0 overflow-y-auto"
           ref={scrollRef}
           onScroll={handleScroll}
-          onWheelCapture={handleWheelCapture}
         >
           <div className="p-4 pb-32 max-w-3xl mx-auto">
             {/* Loading State */}
@@ -381,10 +372,18 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
                       <div className="prose prose-invert prose-sm max-w-none">
                         <ReactMarkdown
                           components={{
-                            p: ({ children }) => <p className="text-muted-foreground leading-relaxed mb-2">{children}</p>,
-                            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 text-muted-foreground">{children}</ul>,
-                            li: ({ children }) => <li className="text-muted-foreground">{children}</li>,
-                            strong: ({ children }) => <strong className="text-foreground font-medium">{children}</strong>,
+                            p: ({ node, children, ...props }) => (
+                              <p {...props} className="text-muted-foreground leading-relaxed mb-2">{children}</p>
+                            ),
+                            ul: ({ node, children, ...props }) => (
+                              <ul {...props} className="list-disc list-inside space-y-1 text-muted-foreground">{children}</ul>
+                            ),
+                            li: ({ node, children, ...props }) => (
+                              <li {...props} className="text-muted-foreground">{children}</li>
+                            ),
+                            strong: ({ node, children, ...props }) => (
+                              <strong {...props} className="text-foreground font-medium">{children}</strong>
+                            ),
                           }}
                         >
                           {content}
@@ -418,8 +417,12 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
                         <div className="prose prose-invert prose-sm max-w-none">
                           <ReactMarkdown
                             components={{
-                              p: ({ children }) => <p className="text-muted-foreground leading-relaxed mb-2 last:mb-0">{children}</p>,
-                              strong: ({ children }) => <strong className="text-foreground">{children}</strong>,
+                              p: ({ node, children, ...props }) => (
+                                <p {...props} className="text-muted-foreground leading-relaxed mb-2 last:mb-0">{children}</p>
+                              ),
+                              strong: ({ node, children, ...props }) => (
+                                <strong {...props} className="text-foreground">{children}</strong>
+                              ),
                             }}
                           >
                             {message.content}
@@ -437,7 +440,7 @@ export function SalesCoachDrawer({ open, onClose, opportunity }: SalesCoachDrawe
         </div>
 
         {/* Input Area - fixed at bottom */}
-        <div className="flex-shrink-0 bg-card/80 backdrop-blur-sm border-t border-border p-4">
+        <div className="flex-shrink-0 bg-card border-t border-border p-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();
