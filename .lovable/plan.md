@@ -1,113 +1,40 @@
 
-# Anode Depletion Transparency: Show Active Burn Rate Factors
 
-## Problem Statement
+# Fix: Revert Banner to Dark Theme Diagnostic Styling
 
-The anode shows as **DEPLETED (0%)** but the user doesn't understand why because:
-1. There's no water softener present (no 3.0x multiplier)
-2. The UI doesn't display which OTHER factors are accelerating depletion
-3. Users see "DEPLETED" without context, leading to confusion
+## What Went Wrong
 
-## Root Cause Analysis
+The recent change applied **bright light-mode colors** (`bg-amber-100`, `text-amber-600`) to a banner that sits on a **dark diagnostic terminal theme**. This created a jarring, washed-out appearance that breaks the design language.
 
-The algorithm applies multiplicative burn rates from multiple sources:
+## The Fix
 
-| Factor | Multiplier | When Applied |
-|--------|------------|--------------|
-| Water Softener | 3.0x | `hasSoftener: true` |
-| Direct Copper Connection | 2.5x | `connectionType: 'DIRECT_COPPER'` |
-| Recirc Pump | 1.25x | `hasCircPump: true` |
-| Chloramine Water | 1.2x | `sanitizerType: 'CHLORAMINE'` |
+Revert the `attention` case styling to use the project's established dark-theme amber palette:
 
-**Example**: A 7-year tank with direct copper (2.5x) and recirc pump (1.25x) has:
-- Burn rate: `2.5 × 1.25 = 3.125x`
-- Consumed mass: `7 × 3.125 = 21.875 years`
-- Base mass (6-year warranty): `4.0 years`
-- Result: **100% depleted** (consumed > available)
-
-## Proposed Solution
-
-### Phase 1: Add Burn Rate Factors to Algorithm Output
-
-Add to `OpterraMetrics`:
+### Current (Broken)
 ```typescript
-interface OpterraMetrics {
-  // Existing
-  anodeDepletionPercent: number;
-  anodeStatus: 'protected' | 'inspect' | 'replace' | 'naked';
-  
-  // NEW: Transparency fields
-  anodeBurnRate: number;           // Combined multiplier (e.g., 3.125)
-  anodeBurnFactors: {              // Individual active factors
-    softener: boolean;             // 3.0x if true
-    galvanic: boolean;             // 2.5x if direct copper
-    recircPump: boolean;           // 1.25x if true
-    chloramine: boolean;           // 1.2x if true
-  };
-}
+iconColor: 'text-amber-600 dark:text-amber-400',
+bgColor: 'bg-amber-100 dark:bg-amber-900/40',
+borderColor: 'border-amber-300 dark:border-amber-600/50',
 ```
 
-### Phase 2: Update ServiceHistory.tsx Anode Display
-
-When anode is depleted or in `inspect`/`replace` status, show the active burn factors:
-
-**Before (confusing):**
-```
-Anode Rod: DEPLETED
-Shield Life: 0 years
+### Corrected (Dark Theme Diagnostic Style)
+```typescript
+iconColor: 'text-amber-400',
+bgColor: 'bg-amber-950/40',
+borderColor: 'border-amber-800/30',
 ```
 
-**After (transparent):**
-```
-Anode Rod: Replace Needed (100% consumed)
+This matches the existing diagnostic utility classes already defined in your CSS:
+- `.status-badge-warning` uses `bg-amber-950/40 text-amber-400 border-amber-800/30`
+- `.status-icon-warning` uses the same palette
 
-Active Accelerators:
-🔌 Direct Copper Connection (2.5x)
-💨 Recirculation Pump (1.25x)
+## File to Edit
 
-Combined burn rate: 3.1x normal
-```
+**`src/components/OptionsAssessmentDrawer.tsx`** (lines 94-96)
 
-### Phase 3: Add Burn Rate Info to Algorithm Test Harness
+Replace the 3 color lines in the `attention` case with the dark-theme-consistent values above.
 
-In the test harness calculation trace, add a dedicated step showing:
-- Base mass years (4.0 / 7.5 / 15)
-- Active multipliers with sources
-- Combined burn rate
-- Consumed vs. remaining mass
+## Expected Result
 
-## Implementation Sequence
+The "Proactive Maintenance Recommended" banner will have a subtle, professional amber glow that matches the rest of the diagnostic UI rather than looking like a bright warning sticker.
 
-| Step | Task | File |
-|------|------|------|
-| 1 | Add `anodeBurnRate` and `anodeBurnFactors` to `OpterraMetrics` | `opterraTypes.ts`, `opterraAlgorithm.ts` |
-| 2 | Compute and return factors in `calculateHealth()` | `opterraAlgorithm.ts` |
-| 3 | Create `AnodeBurnFactorsDisplay` component | New component |
-| 4 | Update `ServiceHistory.tsx` to show factors when depleted | `ServiceHistory.tsx` |
-| 5 | Update `AlgorithmCalculationTrace.tsx` with burn rate step | `AlgorithmCalculationTrace.tsx` |
-
-## UI Preview
-
-When anode is depleted, the ServiceHistory card will show:
-
-```
-┌─────────────────────────────────────────┐
-│  🛡️ Anode Protection                   │
-│                                         │
-│  Status: Replace Needed                 │
-│  Depletion: 100% (tank unprotected)     │
-│                                         │
-│  ⚡ Why depleted faster than normal?    │
-│  ├─ 🔌 Direct copper connection: 2.5x   │
-│  └─ ♻️ Recirculation pump: 1.25x        │
-│                                         │
-│  Combined wear rate: 3.1x normal        │
-└─────────────────────────────────────────┘
-```
-
-## Expected Outcome
-
-Users will understand that:
-1. Anode depletion is a function of **multiple factors**, not just softener
-2. The displayed percentage is a **calculated estimate** based on environmental conditions
-3. **Action is needed** regardless of which factor caused the depletion
