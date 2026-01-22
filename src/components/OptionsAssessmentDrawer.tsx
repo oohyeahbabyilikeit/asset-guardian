@@ -91,9 +91,9 @@ function getRecommendation(tier: UrgencyTier) {
         headline: 'Proactive Maintenance Recommended',
         subheadline: 'Your unit is showing signs that warrant attention to prevent future issues.',
         icon: Clock,
-        iconColor: 'text-warning',
-        bgColor: 'bg-warning/10',
-        borderColor: 'border-warning/30',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        bgColor: 'bg-amber-100 dark:bg-amber-900/40',
+        borderColor: 'border-amber-300 dark:border-amber-600/50',
       };
     case 'monitor':
       return {
