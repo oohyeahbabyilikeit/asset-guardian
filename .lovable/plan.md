@@ -1,245 +1,189 @@
 
 
-# Automatic Contractor Opportunity Notification System
+# Anode Depletion Threshold Redesign
 
-## Overview
+## Problem Statement
 
-Build a system that automatically scans water heater records nightly and notifies contractors (plumbing business owners) of maintenance and replacement opportunities for their connected properties.
+The current anode alerting uses a **time-remaining** threshold (`shieldLife <= 1 year`), which doesn't account for:
+1. **Prediction uncertainty** - The math has a margin of error, so 50% calculated could be 70-80% actual
+2. **Non-linear physics** - Mass depletes faster than surface area (50% diameter = 75% mass loss)
+3. **Variable burn rates** - A 1-year threshold means different depletion percentages depending on water conditions
 
----
+## Solution: Percentage-Based Thresholds
 
-## Phase 1: Dynamic Age Calculation
-
-### Problem
-Currently `calendar_age_years` is a static snapshot from inspection time. A unit inspected 6 months ago still shows the same age.
-
-### Solution
-Calculate age dynamically from `install_date` whenever the algorithm runs.
-
-### Changes
-
-**Database**: Add `manufacture_date` column (already have `install_date` which serves this purpose)
-
-**Algorithm Helper** (`src/lib/opterraAlgorithm.ts`):
-```typescript
-export function calculateCurrentAge(installDate: Date | null, storedAge?: number): number {
-  if (installDate) {
-    const now = new Date();
-    return (now.getTime() - installDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-  }
-  return storedAge ?? 0;
-}
-```
-
-**Usage Pattern**: When loading a water heater for algorithm calculation, compute current age:
-```typescript
-const currentAge = calculateCurrentAge(waterHeater.install_date, waterHeater.calendar_age_years);
-const inputs: ForensicInputs = { calendarAge: currentAge, ... };
-```
+Switch from time-based to **mass-percentage-based** alerting with explicit safety margins.
 
 ---
 
-## Phase 2: Opportunity Detection Engine
+## Phase 1: Add Depletion Percentage to Algorithm Output
 
-### New Edge Function: `detect-opportunities`
+### Update `OpterraMetrics` Interface
 
-Runs nightly via `pg_cron`. Scans all water heaters and identifies actionable opportunities.
-
-### Opportunity Types
-
-| Type | Detection Logic | Priority |
-|------|-----------------|----------|
-| `warranty_ending` | Warranty expires within 90 days | HIGH |
-| `flush_due` | `monthsToFlush <= 0` or `flushStatus = 'due'/'critical'` | MEDIUM |
-| `anode_due` | `shieldLife <= 1 year` | MEDIUM |
-| `descale_due` | Tankless: `descaleStatus = 'due'/'critical'` | MEDIUM |
-| `replacement_recommended` | `failProb >= 0.4` or `healthScore <= 50` | HIGH |
-| `replacement_urgent` | `failProb >= 0.6` or leaking | CRITICAL |
-| `infrastructure_missing` | No PRV/expansion tank in closed loop | MEDIUM |
-| `annual_checkup` | 12+ months since last service event | LOW |
-
-### New Database Table: `opportunity_notifications`
-
-```sql
-CREATE TABLE opportunity_notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  water_heater_id UUID NOT NULL REFERENCES water_heaters(id),
-  contractor_id UUID NOT NULL REFERENCES profiles(id),
-  opportunity_type TEXT NOT NULL,
-  priority TEXT DEFAULT 'medium', -- low, medium, high, critical
-  health_score INTEGER,
-  fail_probability NUMERIC,
-  calculated_age NUMERIC,
-  opportunity_context JSONB DEFAULT '{}',
-  status TEXT DEFAULT 'pending', -- pending, sent, viewed, converted, dismissed
-  created_at TIMESTAMPTZ DEFAULT now(),
-  sent_at TIMESTAMPTZ,
-  expires_at TIMESTAMPTZ DEFAULT (now() + INTERVAL '30 days')
-);
-
--- Index for fast contractor lookup
-CREATE INDEX idx_opp_contractor_status ON opportunity_notifications(contractor_id, status);
-```
-
----
-
-## Phase 3: Edge Function Implementation
-
-### `supabase/functions/detect-opportunities/index.ts`
+Add new metrics alongside `shieldLife`:
 
 ```typescript
-// Pseudocode structure
-async function detectOpportunities() {
-  // 1. Fetch all water heaters with contractor relationships
-  const waterHeaters = await fetchWaterHeatersWithContractors();
+interface OpterraMetrics {
+  // Existing
+  shieldLife: number; // Years remaining (keep for backward compatibility)
   
-  // 2. For each water heater, calculate current age and run algorithm
-  for (const wh of waterHeaters) {
-    const currentAge = calculateCurrentAge(wh.install_date, wh.calendar_age_years);
-    const inputs = buildForensicInputs(wh, currentAge);
-    const result = calculateOpterraRisk(inputs);
-    
-    // 3. Detect opportunities based on thresholds
-    const opportunities = detectThresholdBreaches(wh, result);
-    
-    // 4. Check for existing pending notifications (avoid duplicates)
-    // 5. Insert new opportunities
-  }
+  // NEW: Percentage-based metrics
+  anodeDepletionPercent: number;  // 0-100 (0 = new rod, 100 = depleted)
+  anodeStatus: 'protected' | 'inspect' | 'replace' | 'naked';
+  anodeMassRemaining: number;     // 0-1 (fraction of original mass)
 }
 ```
 
-### Deduplication Logic
-- Don't create duplicate notifications for same water heater + opportunity type within 30 days
-- Mark existing as "superseded" if priority increases
+### Calculation Logic in `calculateHealth()`
+
+```typescript
+// After existing shieldLife calculation
+const depletionPercent = (consumedMass / baseMassYears) * 100;
+const massRemaining = Math.max(0, remainingMass / baseMassYears);
+
+// Three-stage status mapping
+let anodeStatus: 'protected' | 'inspect' | 'replace' | 'naked';
+if (depletionPercent <= 40) {
+  anodeStatus = 'protected';
+} else if (depletionPercent <= 50) {
+  anodeStatus = 'inspect';      // "Upcoming Service"
+} else if (remainingMass > 0) {
+  anodeStatus = 'replace';      // "Service Due Now"
+} else {
+  anodeStatus = 'naked';        // Tank unprotected
+}
+```
 
 ---
 
-## Phase 4: Notification Delivery
+## Phase 2: Update Maintenance Trigger Logic
 
-### Email Delivery via Resend
+### File: `src/lib/maintenanceCalculations.ts`
 
-New edge function: `send-opportunity-notifications`
+Replace time-based trigger:
 
-**Email Template Content**:
-```
-Subject: {count} Maintenance Opportunities in Your Service Area
-
-Hi {contractorName},
-
-We've identified {count} opportunities for your connected properties:
-
-🔴 CRITICAL (1):
-  - {address}: Water heater replacement recommended (Health: 35/100)
-
-🟡 HIGH (2):
-  - {address}: Warranty expiring in 45 days
-  - {address}: Anode rod due for inspection
-
-🟢 MEDIUM (3):
-  - {address}: Annual flush due
-  ...
-
-[View Opportunities Dashboard →]
+**Before:**
+```typescript
+const monthsToAnodeReplacement = shieldLife > 1 
+  ? Math.round((shieldLife - 1) * 12) : 0;
 ```
 
-### Delivery Schedule
-- Run daily at 7 AM local time (contractor's timezone)
-- Batch notifications per contractor (don't send 10 emails for 10 properties)
-- Respect `preferred_contact_method` from profiles table
+**After:**
+```typescript
+// Trigger based on depletion percentage, not time remaining
+const anodeDepletionPercent = metrics.anodeDepletionPercent;
+
+let anodeUrgency: MaintenanceTask['urgency'];
+if (anodeDepletionPercent > 50) {
+  anodeUrgency = 'overdue';      // "Service Due Now"
+} else if (anodeDepletionPercent > 40) {
+  anodeUrgency = 'due_soon';     // "Plan for Service"
+} else {
+  anodeUrgency = 'upcoming';     // "Protected"
+}
+
+// Estimate months to 50% threshold for scheduling
+const monthsToThreshold = anodeDepletionPercent < 50
+  ? Math.round(((50 - anodeDepletionPercent) / 100) * baseMassYears * 12 / currentBurnRate)
+  : 0;
+```
 
 ---
 
-## Phase 5: Contractor Dashboard
+## Phase 3: Update UI Status Mapping
 
-### New Route: `/contractor/opportunities`
+### File: `src/components/ServiceHistory.tsx`
 
-Display pending opportunities with:
-- Filter by priority/type/property
-- One-click "Schedule Service" → creates lead
-- "Dismiss" with reason → updates status
-- "Already Serviced" → creates service event
+Replace hardcoded thresholds with algorithm output:
+
+**Before:**
+```typescript
+const anodeStatus = anodeDepleted 
+  ? 'critical' 
+  : anodeDepletionPercent > 70 
+    ? 'warning' 
+    : 'good';
+```
+
+**After:**
+```typescript
+// Use algorithm-provided status
+const anodeStatusColor = {
+  'protected': 'good',
+  'inspect': 'warning',
+  'replace': 'critical',
+  'naked': 'critical'
+}[metrics.anodeStatus];
+```
 
 ---
 
-## Data Flow Diagram
+## Phase 4: Update Opportunity Detection
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                         NIGHTLY CRON                            │
-│                    (pg_cron @ 2 AM UTC)                         │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              EDGE FUNCTION: detect-opportunities                │
-│  1. Fetch water_heaters with contractor relationships           │
-│  2. Calculate CURRENT age from install_date                     │
-│  3. Run Opterra algorithm for each unit                         │
-│  4. Detect threshold breaches (warranty, flush, replacement)    │
-│  5. Insert into opportunity_notifications (deduped)             │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              EDGE FUNCTION: send-opportunity-notifications      │
-│                        (Runs @ 7 AM)                            │
-│  1. Group pending notifications by contractor                   │
-│  2. Build digest email with priority sections                   │
-│  3. Send via Resend API                                         │
-│  4. Mark as 'sent' with timestamp                               │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    CONTRACTOR DASHBOARD                         │
-│  - View pending opportunities                                   │
-│  - Filter/sort by priority                                      │
-│  - Convert to lead or service event                             │
-│  - Dismiss with reason                                          │
-└─────────────────────────────────────────────────────────────────┘
+### File: `supabase/functions/detect-opportunities/index.ts`
+
+Use the new percentage thresholds:
+
+```typescript
+// Anode opportunity detection
+if (result.metrics.anodeStatus === 'replace' || result.metrics.anodeStatus === 'naked') {
+  opportunities.push({
+    type: 'anode_due',
+    priority: result.metrics.anodeStatus === 'naked' ? 'critical' : 'high',
+    context: {
+      depletionPercent: result.metrics.anodeDepletionPercent,
+      massRemaining: result.metrics.anodeMassRemaining
+    }
+  });
+} else if (result.metrics.anodeStatus === 'inspect') {
+  opportunities.push({
+    type: 'anode_inspection',
+    priority: 'medium',
+    context: { depletionPercent: result.metrics.anodeDepletionPercent }
+  });
+}
 ```
+
+---
+
+## The Physics Consideration (Future Enhancement)
+
+You noted that diameter loss and mass loss are non-linear:
+
+| Diameter Remaining | Mass Remaining |
+|-------------------|----------------|
+| 100% | 100% |
+| 75% | 56% |
+| 50% | 25% |
+| 25% | 6% |
+
+The current algorithm models anode as a linear "fuel tank" (mass-years consumed linearly). A more accurate model would account for:
+
+1. **Surface Area Decay**: As diameter shrinks, current density increases (accelerating consumption)
+2. **Electrochemical Efficiency**: Below ~30% mass, the rod becomes too small to maintain protective potential
+
+**Recommendation**: For v1, the 50% mass threshold with linear burn rate is a solid, conservative choice. The physics refinement (non-linear decay curve) could be Phase 2 after validating the model against field data.
 
 ---
 
 ## Implementation Sequence
 
-| Step | Task | Dependency |
-|------|------|------------|
-| 1 | Add `calculateCurrentAge()` helper | None |
-| 2 | Create `opportunity_notifications` table | None |
-| 3 | Build `detect-opportunities` edge function | Steps 1-2 |
-| 4 | Set up pg_cron job for detection | Step 3 |
-| 5 | Add RESEND_API_KEY secret | None |
-| 6 | Build `send-opportunity-notifications` edge function | Step 5 |
-| 7 | Set up pg_cron job for sending | Step 6 |
-| 8 | Build contractor opportunities dashboard | Steps 1-4 |
+| Step | Task | Effort |
+|------|------|--------|
+| 1 | Add `anodeDepletionPercent`, `anodeStatus`, `anodeMassRemaining` to `OpterraMetrics` | Small |
+| 2 | Update `calculateHealth()` to compute new metrics | Small |
+| 3 | Update `calculateTankMaintenance()` to use percentage-based thresholds | Medium |
+| 4 | Update `ServiceHistory.tsx` UI to use algorithm-provided status | Small |
+| 5 | Update `detect-opportunities` to use new threshold logic | Small |
+| 6 | Update `AlgorithmTestHarness` and `AlgorithmCalculationTrace` to display new metrics | Medium |
 
 ---
 
-## Required Secrets
+## Summary of Threshold Changes
 
-| Secret | Purpose |
-|--------|---------|
-| `RESEND_API_KEY` | Email delivery via Resend |
-
----
-
-## Existing Assets to Leverage
-
-| Asset | How It's Used |
-|-------|---------------|
-| `contractor_property_relationships` | Links contractors to properties |
-| `leads` table | Convert opportunity → lead |
-| `service_events` table | Log completed maintenance |
-| `maintenanceCalculations.ts` | Threshold detection logic |
-| `calculateOpterraRisk()` | Health/failure scoring |
-
----
-
-## Success Metrics
-
-1. **Opportunity Detection Rate**: % of due maintenance items flagged
-2. **Email Open Rate**: Track via Resend analytics
-3. **Conversion Rate**: Opportunities → Leads → Service Events
-4. **Time to Action**: Hours between notification and contractor response
+| Status | Current Logic | New Logic |
+|--------|---------------|-----------|
+| **Protected** | Not explicit | 0-40% depletion |
+| **Inspect/Plan** | shieldLife 1-2 years | 40-50% depletion |
+| **Replace** | shieldLife < 1 year | >50% depletion |
+| **Naked/Critical** | shieldLife ≤ 0 | 100% (no remaining mass) |
 
