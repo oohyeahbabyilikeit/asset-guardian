@@ -1,139 +1,134 @@
 
-# Demo Scenario Algorithm Validation Audit
+
+# Anode Shield Life Algorithm Fix (v9.0)
 
 ## Overview
-This plan creates a comprehensive validation system to ensure all demo scenarios produce the correct algorithm recommendations based on the v8.5 algorithm logic.
+Correct the physics model and time-history logic for anode rod life estimation to align with forensic engineering reality rather than manufacturer marketing.
 
-## Current Demo Scenario Inventory
+## Issues to Fix
 
-### Location 1: `src/data/mockAsset.ts` (17 scenarios)
-| Scenario Name | Age | Key Stress Factors | Expected Recommendation |
-|--------------|-----|-------------------|------------------------|
-| The Perfect Install | 2 | All equipment present, low hardness | PASS (Monitor) |
-| The Garage Sleeper | 4 | Has exp tank, has PRV, moderate hardness | PASS or MAINTAIN |
-| The Low-Risk Rental | 3 | No exp tank, no PRV, not closed-loop | PASS or MAINTAIN |
-| The Sediment Builder | 6 | 20 GPG hardness, no exp tank | REPAIR (Flush) or infra |
-| The Pressure Cooker | 5 | 95 PSI, no PRV, in finished area | REPAIR (PRV required) |
-| The Missing Tank | 4 | Closed-loop, no exp tank, finished area | REPAIR (Expansion Tank) |
-| The Softener Accelerator | 7 | Softener + attic location | REPLACE or REPAIR (location risk) |
-| The Basement Time Bomb | 11 | 82 PSI, 22 GPG, visual rust, hot temp | REPLACE (multiple factors) |
-| The Double Whammy | 9 | Attic, visual rust, no exp tank, closed loop | REPLACE (Attic Liability) |
-| The Zombie Tank | 12 | 88 PSI, no exp tank, hot temp | REPLACE (age + pressure) |
-| The Efficient Hybrid | 2 | Hybrid, all equipment, clean filter | PASS |
-| The Clogged Hybrid | 3 | Hybrid, clogged filter, condensate blocked | REPAIR (filter/condensate) |
-| The Dusty Hybrid | 3 | Hybrid, dirty filter, missing exp tank | REPAIR (filter + infra) |
-| The Efficient Tankless | 2 | Tankless, clean, has isolation valves | PASS |
-| The Hard Water Warrior | 5 | Tankless, 22 GPG, scale buildup, no PRV | REPAIR (descale) |
-| The Igniter Issue | 6 | Tankless, 45% igniter, no isolation valves | REPLACE or REPAIR (valve install first) |
-| The Electric Instant | 3 | Electric tankless, healthy | PASS |
-| The Scaled Tankless (No Valves) | 6 | Critical scale, no isolation valves | REPAIR (install valves) |
-| The Descale Due Tankless | 4 | Moderate scale, has isolation valves | REPAIR (descale) |
+### 1. Over-Optimistic Baseline (Marketing Math)
+| Current | Proposed |
+|---------|----------|
+| 6 years per rod | **4 years per rod** |
+| 2 rods = 12 years | **2 rods = 7.5 years** (parallel surface area reduces effectiveness) |
+| Powered = 12 years | **Powered = 15+ years** (actively regenerates) |
 
-### Location 2: `src/lib/generateRandomScenario.ts` (11 archetypes + 1 test scenario)
-| Archetype | Age Range | Condition | Expected Recommendation Range |
-|-----------|-----------|-----------|------------------------------|
-| The Perfect Install | 1-3 | Excellent | PASS |
-| The Healthy Veteran | 4-7 | Good | PASS or MAINTAIN |
-| The Pressure Cooker | 3-8 | Stressed + high pressure | REPAIR (PRV/expansion) |
-| The Sediment Bomb | 5-10 | Neglected + high hardness | REPAIR or REPLACE (age-dependent) |
-| The Zombie Tank | 8-14 | Critical | REPLACE |
-| The Attic Bomb | 6-12 | Risky + Attic | REPLACE (Attic Liability) |
-| The Hard Water Victim | 4-9 | Extreme hardness | REPAIR or REPLACE (age-dependent) |
-| The Frat House | 3-7 | Extreme usage | MAINTAIN or REPAIR |
-| The Grandma Special | 8-15 | Minimal usage | REPLACE (age) |
-| The Ticking Clock | 10-14 | Expiring | REPLACE |
-| The Leaker | 6-12 | Leaking | REPLACE (tank body) or REPAIR (fitting) |
+**Rationale**: Industry standard is inspect at 2-4 years. The "6-year warranty" is designed so the rod dies at Year 4 and the steel tank survives Years 4-6 naked.
 
-### Location 3: `src/components/AlgorithmTestHarness.tsx` (10 scenarios)
-| Scenario Name | Key Stress | Expected Recommendation |
-|--------------|-----------|------------------------|
-| Attic Time Bomb | 12yr, attic, no pan, closed loop | REPLACE (Attic Liability) |
-| Zombie Expansion Tank | 8yr, waterlogged exp tank, 90 PSI | REPAIR (Waterlogged Expansion Tank) |
-| Gas Starvation | Tankless, undersized gas line | REPAIR (gas line) |
-| Chloramine + Hard Water | 22 GPG, chloramine, hot temp | REPLACE or REPAIR (chemistry) |
-| Orphaned Flue | Orphaned flue backdraft risk | REPLACE (venting) |
-| Galvanic Nightmare | Direct copper, fitting leak, rust | REPLACE (Too Fragile to Service) |
-| Hybrid Suffocation | Hybrid, sealed closet, clogged filter | REPAIR (airflow) |
-| Tankless Scale Crisis | Tankless, never descaled, no valves | REPAIR (install valves first) |
-| Legionella Risk | Low temp, light usage, 80 gal | MAINTAIN (temp increase) |
-| Perfect Unit | All equipment, well-maintained | PASS |
+### 2. Hard Water Physics Inversion
+| Current (Wrong) | Proposed (Correct) |
+|-----------------|-------------------|
+| Hard water **penalizes** anode life (+0.02x per GPG) | Hard water has **no penalty** (passivation protects) |
+| Soft water has no modifier | Soft water **penalizes** anode life (3.0x decay rate) |
 
----
+**Physics**: Calcium carbonate scale coats the anode and tank wall, slowing electrochemical reactions. Soft water (especially from salt-based softeners) is highly conductive and aggressively dissolves the sacrificial metal.
 
-## Identified Issues/Concerns
+### 3. "Time Machine" Bug (History-Aware Burn Rate)
+| Current (Wrong) | Proposed (Correct) |
+|-----------------|-------------------|
+| Current decay rate × entire anode age | Split: (Normal years × historical rate) + (Softener years × current rate) |
+| 10yr tank + new softener = "dead anode" | 10yr tank + new softener = "healthy anode with accelerated future burn" |
 
-### Issue 1: "The Missing Tank" (mockAsset.ts)
-- **Scenario**: 4-year-old, closed-loop, no expansion tank, finished area
-- **Current inputs**: `isClosedLoop: true`, `hasExpTank: false`, `location: 'MAIN_LIVING'`
-- **Expected**: Should hit Tier 3A "Missing Thermal Expansion" → REPAIR
-- **Concern**: Verify `hasHighBioAge` is false so it doesn't falsely trigger v8.5 gate
-
-### Issue 2: "The Pressure Cooker" (mockAsset.ts)
-- **Scenario**: 5yr, 95 PSI, has exp tank but no PRV, finished area
-- **Current inputs**: `housePsi: 95`, `hasPrv: false`, `hasExpTank: true`
-- **Expected**: Should hit Tier 3B "Critical Pressure Violation" → REPAIR (PRV)
-- **Concern**: At 95 PSI it's above 80 PSI code limit, should return "High House Pressure" or "Critical Pressure Violation"
-
-### Issue 3: "The Softener Accelerator" (mockAsset.ts)
-- **Scenario**: 7yr, attic location, softener (accelerates anode decay)
-- **Current inputs**: `location: 'ATTIC'`, `hasSoftener: true`, `calendarAge: 7`
-- **Expected**: Check if failProb > 15% triggers "Attic Liability" REPLACE
-- **Concern**: Softener + 7 years may push bio-age high enough to trigger replacement
-
-### Issue 4: Random Scenario Generator Constraints
-- **Issue**: Random generator only produces GAS or ELECTRIC tanks (lines 138-144)
-- **Problem**: This means "The Zombie Tank" archetype could generate a tank with missing expansion tank that should be saveable under v8.5 if young, but the age range is 8-14 which bypasses young tank protection
-- **Status**: Correctly configured - old tanks should not benefit from young tank gate
-
-### Issue 5: Test Harness "Galvanic Nightmare"
-- **Scenario**: 7yr, direct copper, fitting leak, visual rust
-- **Current inputs**: `visualRust: true`, `isLeaking: true`, `leakSource: 'FITTING_VALVE'`
-- **Expected**: Should hit Tier 1A "Containment Breach" → REPLACE (visual rust)
-- **Concern**: Verify that visual rust takes priority over fitting leak repair
+**Logic**: We already have `yearsWithoutSoftener` in `ForensicInputs`. Use it to calculate historical vs. current consumption separately.
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Create Algorithm Validation Test Suite
-Create a new file `src/lib/__tests__/scenarioValidation.ts` that:
-1. Imports all scenarios from all three locations
-2. Runs each scenario through `calculateOpterraRisk()`
-3. Compares output to expected recommendation
-4. Logs discrepancies
+### Step 1: Update Constants
+In `src/lib/opterraAlgorithm.ts`, update the anode baseline constants:
 
-### Step 2: Add Expected Outcomes to Each Scenario
-Modify scenario definitions to include expected algorithm output:
 ```typescript
-interface ValidatedScenario {
-  name: string;
-  inputs: ForensicInputs;
-  expected: {
-    action: 'REPLACE' | 'REPAIR' | 'MAINTAIN' | 'PASS' | 'UPGRADE';
-    titleContains?: string; // Partial match for recommendation title
-    badgeExpected?: string;
-  };
+const ANODE_CONSTANTS = {
+  BASE_LIFE_SINGLE: 4.0,      // Years for single Mg rod (was 6.0)
+  BASE_LIFE_DUAL: 7.5,        // Years for dual rods (not 12.0)
+  BASE_LIFE_POWERED: 15,      // Powered anode (indefinite with maintenance)
+  SOFTENER_MULTIPLIER: 3.0,   // Soft water = 3x consumption (was 1.4 additive)
+  GALVANIC_MULTIPLIER: 2.5,   // Direct copper + steel nipple
+  RECIRC_MULTIPLIER: 1.25,    // Turbulence prevents passivation (was 0.5 additive)
+  MAX_DECAY_RATE: 8.0,        // Cap for compound effects
+};
+```
+
+### Step 2: Remove Hard Water Penalty
+Delete or comment out lines 863-864:
+```typescript
+// REMOVED v9.0: Hard water protects via passivation, not penalizes
+// const hardnessAboveBaseline = Math.max(0, effectiveHardness - 5);
+// anodeDecayRate += hardnessAboveBaseline * 0.02;
+```
+
+### Step 3: Change Decay Math from Additive to Multiplicative
+```typescript
+// Before (wrong - additive):
+if (data.hasSoftener) anodeDecayRate += 1.4;
+if (data.hasCircPump) anodeDecayRate += 0.5;
+
+// After (correct - multiplicative):
+const softenerFactor = data.hasSoftener ? 3.0 : 1.0;
+const recircFactor = data.hasCircPump ? 1.25 : 1.0;
+const galvanicFactor = (data.connectionType === 'DIRECT_COPPER' && 
+                        data.nippleMaterial === 'STEEL') ? 2.5 : 1.0;
+const currentBurnRate = softenerFactor * galvanicFactor * recircFactor;
+```
+
+### Step 4: Implement History-Aware Shield Life
+Replace the simple calculation with split-history logic:
+
+```typescript
+function calculateShieldLife(data: ForensicInputs): number {
+  // 1. ESTABLISH MASS (The "Fuel Tank")
+  let baseMassYears = 4.0; // Standard single rod
+  if (data.anodeCount === 2 || data.warrantyYears >= 12) {
+    baseMassYears = 7.5; // Two rods working in parallel
+  }
+  
+  // 2. DEFINE BURN RATES (Multiplicative)
+  const softenerFactor = data.hasSoftener ? 3.0 : 1.0;
+  const galvanicFactor = getGalvanicFactor(data);
+  const recircFactor = data.hasCircPump ? 1.25 : 1.0;
+  
+  const currentBurnRate = softenerFactor * galvanicFactor * recircFactor;
+  const historicalBurnRate = 1.0 * galvanicFactor * recircFactor; // No softener historically
+  
+  // 3. CALCULATE FUEL CONSUMED (History-Aware)
+  const age = data.lastAnodeReplaceYearsAgo ?? data.calendarAge;
+  
+  // How long has the softener been active?
+  const yearsWithSoftener = data.yearsWithoutSoftener !== undefined
+    ? Math.max(0, age - data.yearsWithoutSoftener)
+    : (data.hasSoftener ? age : 0); // If unknown, assume worst case
+    
+  const yearsNormal = age - yearsWithSoftener;
+  
+  // Total "Anode Years" burned
+  const consumedMass = (yearsNormal * historicalBurnRate) + 
+                       (yearsWithSoftener * currentBurnRate);
+  
+  // 4. PREDICT REMAINING LIFE
+  const remainingMass = baseMassYears - consumedMass;
+  
+  if (remainingMass <= 0) return 0; // Naked Tank
+  
+  // Divide remaining mass by CURRENT burn rate
+  return Math.max(0.5, remainingMass / currentBurnRate);
 }
 ```
 
-### Step 3: Fix Identified Discrepancies
-Based on validation results, update scenarios where:
-- Expected output doesn't match algorithm output
-- Scenario description doesn't match its inputs
-- v8.5 young tank gate should/shouldn't apply
+### Step 5: Update Algorithm Calculation Trace UI
+In `src/components/AlgorithmCalculationTrace.tsx`, update the "Shield Life" step to show:
+- Base anode capacity (4.0 or 7.5 years)
+- Current burn rate (multiplicative factors)
+- Historical consumption split
+- Remaining protection time
 
-### Step 4: Add Console Validation on Demo Load
-In `Index.tsx`, add a development-mode check that:
-1. Runs the loaded scenario through the algorithm
-2. Console.logs the recommendation details
-3. Warns if recommendation seems inconsistent with scenario name
-
-### Step 5: Update Scenario Documentation
-Create `docs/demo-scenarios.md` with:
-- Full list of all scenarios
-- Expected recommendation for each
-- Key stress factors that trigger the recommendation
-- Test coverage notes
+### Step 6: Update Documentation
+In `docs/algorithm-changelog.md`, add v9.0 entry:
+- "FIX Shield Life Baseline": 6→4 years (forensic reality vs. marketing)
+- "FIX Hard Water Physics": Removed penalty (passivation protects anode)
+- "FIX Time Machine Bug": History-aware burn rate using `yearsWithoutSoftener`
+- Changed decay math from additive to multiplicative
 
 ---
 
@@ -141,42 +136,30 @@ Create `docs/demo-scenarios.md` with:
 
 | File | Changes |
 |------|---------|
-| `src/lib/__tests__/scenarioValidation.ts` | Create new test file for automated validation |
-| `src/data/mockAsset.ts` | Add `expected` field to scenario interface |
-| `src/lib/generateRandomScenario.ts` | Add expected outcome to archetypes |
-| `src/pages/Index.tsx` | Add dev-mode scenario validation logging |
-| `docs/demo-scenarios.md` | Create documentation for all scenarios |
+| `src/lib/opterraAlgorithm.ts` | Update constants, fix shield life calculation, remove hard water penalty, change to multiplicative math |
+| `src/components/AlgorithmCalculationTrace.tsx` | Update trace output to show new calculation steps |
+| `docs/algorithm-changelog.md` | Document v9.0 changes |
+| `src/lib/__tests__/scenarioValidation.ts` | Update expected outcomes for scenarios affected by tighter baseline |
 
 ---
 
-## Validation Script (Quick Check)
+## Validation Scenarios
 
-To manually verify scenarios now, we can add temporary logging:
+After implementing, these scenarios should show different results:
 
-```typescript
-// In Index.tsx, add after computing opterraResult:
-if (process.env.NODE_ENV === 'development') {
-  console.log('[VALIDATION] Scenario:', currentAsset?.model || 'Unknown');
-  console.log('[VALIDATION] Result:', opterraResult.verdict);
-  console.log('[VALIDATION] Metrics:', {
-    bioAge: opterraResult.metrics.bioAge,
-    failProb: opterraResult.metrics.failProb,
-    shieldLife: opterraResult.metrics.shieldLife,
-    hasHighBioAge: opterraResult.metrics.bioAge > currentInputs.calendarAge * 1.8
-  });
-}
-```
+| Scenario | Before (v8.x) | After (v9.0) |
+|----------|--------------|--------------|
+| 5yr tank, no softener, no issues | ~1yr shield life remaining | ~0 (naked - should trigger anode service warning) |
+| 3yr tank + new softener (installed today) | Negative shield life (false alarm) | ~1yr remaining (correct: only recent burn) |
+| 4yr tank, dual anode, hard water (20 GPG) | ~0 (hard water penalty killed it) | ~3.5yr remaining (hard water doesn't hurt anode) |
+| 2yr tank + softener since Day 1 | ~2yr remaining | ~0 (softener burns 3x = 6 effective years consumed) |
 
 ---
 
-## Test Matrix Summary
+## Physics References
 
-| Category | Count | Expected PASS | Expected REPAIR | Expected REPLACE |
-|----------|-------|---------------|-----------------|------------------|
-| mockAsset Tank Scenarios | 10 | 3 | 4 | 3 |
-| mockAsset Hybrid Scenarios | 3 | 1 | 2 | 0 |
-| mockAsset Tankless Scenarios | 6 | 2 | 4 | 0 |
-| Random Archetypes | 11 | 2 | 4 | 5 |
-| Test Harness Scenarios | 10 | 1 | 5 | 4 |
-| **Total** | **40** | **9** | **19** | **12** |
+For documentation and defensibility:
+- NACE International SP0169: Cathodic protection standards
+- AWWA Research Foundation: Water heater anode rod studies
+- Bradford White Technical Bulletin: Anode rod inspection guidelines (2-4 year recommendation)
 
