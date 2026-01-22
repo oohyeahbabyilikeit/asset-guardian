@@ -1,109 +1,145 @@
 
-# Fix: Young Tank Override Logic Gap (v9.1.1)
 
-## Problem Identified
-The Young Tank Override gate uses a **narrower definition** of infrastructure issues than the UI's infrastructure detector, allowing young tanks to slip through to replacement.
+# Algorithm Isolation Plan: Ship Tank Heaters Fast
 
-### The Gap
+## Goal
+Create a clean separation between Standard Tank, Tankless, and Hybrid algorithms so you can ship the tank heater logic independently without risk of hybrid code causing regressions.
 
-**Infrastructure Issue Detection (line 51)** - Used for UI badges:
-```typescript
-const isActuallyClosed = inputs.isClosedLoop || inputs.hasPrv || inputs.hasCircPump;
+---
+
+## Architecture After Isolation
+
+```text
+src/lib/
+├── opterraAlgorithm.ts        # Standard Tank ONLY (GAS/ELECTRIC) - Clean for shipping
+├── opterraTanklessAlgorithm.ts # Tankless only (already done)
+├── opterraHybridAlgorithm.ts   # NEW: Hybrid/Heat Pump only
+├── opterraRouter.ts            # NEW: Entry point that routes by fuel type
+└── opterraTypes.ts             # NEW: Shared types/interfaces/constants
 ```
 
-**Young Tank Override (line 1573-1575)** - Algorithm gate:
+---
+
+## Implementation Steps
+
+### Step 1: Extract Shared Types (opterraTypes.ts)
+Create a new file with all shared types, interfaces, and constants that are used across all three algorithms:
+- `ForensicInputs`, `OpterraMetrics`, `Recommendation`, `FinancialForecast`
+- `TierProfile`, `FuelType`, `QualityTier`, etc.
+- Shared helper functions: `resolveHardness()`, `failProbToHealthScore()`, `isTankless()`
+- `CONSTANTS` object
+
+This prevents circular dependencies and allows each algorithm to import cleanly.
+
+### Step 2: Create opterraHybridAlgorithm.ts
+Extract all hybrid-specific logic into a new file modeled after tankless:
 ```typescript
-const needsInfrastructure = 
-  (data.isClosedLoop && !data.hasExpTank) || 
-  (data.housePsi > 80 && !data.hasPrv);
+export function calculateHybridHealth(data: ForensicInputs): OpterraMetrics { ... }
+export function getHybridRecommendation(metrics: OpterraMetrics, data: ForensicInputs): Recommendation { ... }
+export function getHybridFinancials(metrics: OpterraMetrics, data: ForensicInputs): FinancialForecast { ... }
 ```
 
-### Failure Scenario
-A 4-year-old tank with:
-- `isClosedLoop = false`
-- `hasPrv = true` (this CREATES a closed loop!)
-- `hasExpTank = false`
-- `housePsi = 75` (no PRV issue triggered)
+Hybrid-specific logic to move:
+| Current Location | Logic |
+|------------------|-------|
+| Lines 162-167 | Input fields: `airFilterStatus`, `isCondensateClear`, `compressorHealth` |
+| Lines 1478-1503 | Tier 0.5: Filter clog, condensate blockage failure modes |
+| Lines 2429-2433 | Element burnout risk (instead of sediment efficiency loss) |
+| Lines 2145-2146 | Hybrid pricing (`baseCostHybrid`) |
+| Scattered | All `if (data.fuelType === 'HYBRID')` checks |
 
-Result:
-- UI shows "CODE ISSUE: Thermal expansion protection"
-- But algorithm returns "End of Service Life" REPLACE
+### Step 3: Clean opterraAlgorithm.ts (Tank-Only)
+Remove all hybrid-specific branches from the main algorithm:
+- Delete `TIER 0.5: HYBRID-SPECIFIC FAILURE MODES` block
+- Remove `if (data.fuelType === 'HYBRID')` conditionals
+- Remove hybrid pricing logic
+- Keep only `GAS` and `ELECTRIC` fuel types
 
-## Root Cause
-The PRV and recirc pump create closed-loop conditions even when `isClosedLoop` is explicitly `false`. The Young Tank Override doesn't account for this.
-
-## Solution
-Align the Young Tank Override's infrastructure check with the infrastructure detector's logic.
-
-### Implementation
-
-**Step 1: Add unified closed-loop detection in algorithm**
-
-In `src/lib/opterraAlgorithm.ts`, update the Young Tank Override gate:
-
+Rename the file header to clarify scope:
 ```typescript
-// TIER 1.9: YOUNG TANK OVERRIDE (v9.1)
-const YOUNG_TANK_ABSOLUTE_THRESHOLD = 6;
-const isPhysicalBreach = data.visualRust || isTankBodyLeak;
+/**
+ * OPTERRA TANK ENGINE (v9.2)
+ * Standard Tank Water Heaters: GAS and ELECTRIC only
+ */
+```
 
-if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
-  const isAnodeDepletedYoung = metrics.shieldLife <= 0;
-  
-  // v9.1.1 FIX: Use same closed-loop logic as infrastructureIssues.ts
-  const isActuallyClosed = data.isClosedLoop || data.hasPrv || data.hasCircPump;
-  const needsExpansionTank = isActuallyClosed && !data.hasExpTank;
-  const needsPrv = data.housePsi > 80 && !data.hasPrv;
-  const needsInfrastructure = needsExpansionTank || needsPrv;
-  
-  if (isAnodeDepletedYoung || needsInfrastructure) {
-    // ... return REPAIR verdict
+### Step 4: Create opterraRouter.ts (Entry Point)
+Create a clean entry point that routes by fuel type:
+```typescript
+import { calculateOpterraTankRisk } from './opterraAlgorithm';
+import { calculateOpterraTanklessRisk } from './opterraTanklessAlgorithm';
+import { calculateOpterraHybridRisk } from './opterraHybridAlgorithm';
+
+export function calculateOpterraRisk(data: ForensicInputs): OpterraResult {
+  switch (data.fuelType) {
+    case 'TANKLESS_GAS':
+    case 'TANKLESS_ELECTRIC':
+      return calculateOpterraTanklessRisk(data);
+      
+    case 'HYBRID':
+      return calculateOpterraHybridRisk(data);
+      
+    case 'GAS':
+    case 'ELECTRIC':
+    default:
+      return calculateOpterraTankRisk(data);
   }
 }
 ```
 
-**Step 2: Add "Catch-All" for young tanks with ANY code violations**
+### Step 5: Update Imports Across Codebase
+Update all files that import from `opterraAlgorithm.ts`:
+- Components should import from `opterraRouter.ts` for `calculateOpterraRisk()`
+- Components can import types from `opterraTypes.ts`
 
-Even if no specific infrastructure issue is detected by the narrow check, young tanks should never hit "End of Service Life" - they should get a REPAIR or MAINTAIN verdict:
+---
 
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/opterraTypes.ts` | CREATE | Shared types, interfaces, constants |
+| `src/lib/opterraHybridAlgorithm.ts` | CREATE | Hybrid-specific health, recommendation, financial logic |
+| `src/lib/opterraRouter.ts` | CREATE | Entry point with fuel-type routing |
+| `src/lib/opterraAlgorithm.ts` | MODIFY | Remove all hybrid branches, rename to Tank Engine |
+| `src/lib/opterraTanklessAlgorithm.ts` | MODIFY | Import types from opterraTypes.ts |
+| `src/components/*.tsx` | MODIFY | Update imports to use router |
+| `src/data/repairOptions.ts` | KEEP | Already unit-type aware |
+
+---
+
+## Hybrid Algorithm Stub (Ship Tank First)
+
+If you want to ship tank logic IMMEDIATELY without fully implementing hybrid:
 ```typescript
-// After the specific infrastructure check, add catch-all for young tanks
-if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
-  // If we reach here, young tank has high failProb but no specific issue identified
-  // This should NOT hit "End of Service Life" - default to MAINTAIN
-  // The algorithm will re-evaluate at next tier
+// opterraHybridAlgorithm.ts (MVP Stub)
+export function calculateOpterraHybridRisk(data: ForensicInputs): OpterraResult {
+  // v1.0: Reuse tank logic with hybrid-specific overrides
+  // This allows shipping without full hybrid implementation
+  console.warn('Hybrid algorithm using tank fallback - full implementation pending');
+  return calculateOpterraTankRisk(data);
 }
 ```
 
-Actually, the cleanest fix is a **final safety gate** before Tier 2A:
+This way, hybrid units still work (using tank logic as baseline), but the codebase is cleanly separated for future hybrid-specific development.
 
-```typescript
-// RIGHT BEFORE line 1607 (Tier 2A)
-// v9.1.1 SAFETY NET: Young tanks cannot hit "End of Service Life"
-// If they have high failProb, something is wrong - redirect to MAINTAIN
-if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach) {
-  return {
-    action: 'MAINTAIN',
-    title: 'Elevated Wear Detected',
-    reason: `Your ${data.calendarAge}-year-old tank is showing higher-than-expected wear. Professional inspection recommended to identify the root cause.`,
-    urgent: true,
-    badgeColor: 'orange',
-    badge: 'SERVICE'
-  };
-}
-```
+---
 
-## Files to Modify
+## Validation After Isolation
 
-| File | Changes |
-|------|---------|
-| `src/lib/opterraAlgorithm.ts` | Fix `needsInfrastructure` logic to match `infrastructureIssues.ts` |
-| `docs/algorithm-changelog.md` | Document v9.1.1 fix |
+1. Run Algorithm Validation Suite to ensure all tank scenarios pass
+2. Verify demo mode generates correct recommendations for GAS/ELECTRIC
+3. Test Young Tank Override gate (v9.1.1) still works correctly
+4. Confirm tankless routing still works (already isolated)
 
-## Expected Behavior After Fix
+---
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| 4yr tank, PRV creates closed loop, no exp tank | REPLACE (End of Service Life) | REPAIR (Infrastructure Required) |
-| 4yr tank, recirc pump, no exp tank | REPLACE | REPAIR |
-| 4yr tank, high failProb, no identified cause | REPLACE | MAINTAIN (needs inspection) |
-| 8yr tank, same issues | REPLACE (correctly - too old) | REPLACE |
+## Benefits
+
+| Before | After |
+|--------|-------|
+| 2,666 line monolith with mixed logic | Clean ~1,800 line tank algorithm |
+| Hybrid bugs can break tank logic | Isolated: changes don't cross-contaminate |
+| Hard to test tank-specific scenarios | Easy to unit test tank algorithm in isolation |
+| Risky to ship partial features | Ship tank confidently, iterate on hybrid separately |
+
