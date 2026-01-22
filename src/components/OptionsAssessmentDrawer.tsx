@@ -3,13 +3,14 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info, Bell, MessageSquare, Mail, Droplets, Shield, Loader2, Sparkles } from 'lucide-react';
-import { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
+import { ForensicInputs, OpterraMetrics, calculateOpterraRisk } from '@/lib/opterraAlgorithm';
 import type { IssueCategory } from '@/lib/infrastructureIssues';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
 import { CorrtexChatOverlay } from '@/components/CorrtexChatOverlay';
 import { calculateMaintenanceSchedule, MaintenanceTask } from '@/lib/maintenanceCalculations';
 import { submitLead, markLeadCaptured, hasLeadBeenCaptured } from '@/lib/leadService';
 import { toast } from 'sonner';
+import { useReplacementRationale } from '@/hooks/useReplacementRationale';
 
 // Local type for verdict action - matches Recommendation interface
 type VerdictAction = 'REPLACE' | 'REPAIR' | 'UPGRADE' | 'MAINTAIN' | 'PASS';
@@ -247,6 +248,16 @@ export function OptionsAssessmentDrawer({
   const recommendation = getRecommendation(tier, verdictAction);
   const Icon = recommendation.icon;
   
+  // Get the full opterra result for rationale generation
+  const opterraResult = verdictAction === 'REPLACE' ? calculateOpterraRisk(inputs) : null;
+  
+  // Fetch personalized rationale for replacement recommendations
+  const { rationale, isLoading: rationaleLoading } = useReplacementRationale(
+    verdictAction === 'REPLACE' ? inputs : null,
+    opterraResult,
+    opterraResult?.verdict.urgent ? 'REPLACE_NOW' : 'REPLACE_SOON'
+  );
+  
   // Calculate maintenance schedule for monitor tier
   const schedule = tier === 'monitor' ? calculateMaintenanceSchedule(inputs, metrics) : null;
   
@@ -375,6 +386,35 @@ export function OptionsAssessmentDrawer({
               </div>
             </div>
             
+            {/* Personalized "Why Replacement" rationale - only for REPLACE verdicts */}
+            {verdictAction === 'REPLACE' && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground">Why We Recommend This</h4>
+                {rationaleLoading ? (
+                  <div className="flex items-center gap-2 p-4 rounded-xl bg-muted/30 border border-border/50 text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Analyzing your situation...</span>
+                  </div>
+                ) : rationale?.sections && rationale.sections.length > 0 ? (
+                  <div className="space-y-3">
+                    {rationale.sections.slice(0, 3).map((section, index) => (
+                      <div key={index} className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                        <h5 className="text-sm font-semibold text-foreground mb-1">
+                          {section.heading}
+                        </h5>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {section.content}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground p-3 rounded-xl bg-muted/30 border border-border/50">
+                    Based on the wear patterns and conditions we measured, continuing to repair this unit would likely cost more than it's worth. A new unit provides reliability, efficiency, and peace of mind.
+                  </p>
+                )}
+              </div>
+            )}
             {/* Priority Findings - specific issues detected */}
             {hasPriorityFindings && (
               <div className="space-y-3">
