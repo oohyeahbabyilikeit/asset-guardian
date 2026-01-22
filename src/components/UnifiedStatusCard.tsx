@@ -227,11 +227,17 @@ export function UnifiedStatusCard({
           {isBreach && (
             <div className="relative rounded-lg overflow-hidden border border-red-500/30 bg-red-500/5">
               <img
-                src={containmentBreachImg}
-                alt="Evidence of tank breach"
+                src={inputs.photoUrls?.condition || containmentBreachImg}
+                alt={inputs.photoUrls?.condition ? "Documented breach evidence" : "Example of breach evidence"}
                 className="w-full h-28 object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-red-900/40 to-transparent pointer-events-none" />
+              {inputs.photoUrls?.condition && (
+                <div className="absolute bottom-1 left-2 text-[10px] text-red-200/80 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                  Photo from your inspection
+                </div>
+              )}
             </div>
           )}
 

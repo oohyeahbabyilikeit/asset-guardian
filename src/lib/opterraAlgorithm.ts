@@ -235,6 +235,14 @@ export interface ForensicInputs {
   // NEW v7.9: Anode Count ("Sticker Slap" Fix)
   // A 12-year tank is often the same steel vessel as a 6-year with an extra anode rod
   anodeCount?: 1 | 2;
+  
+  // NEW v9.4: Inspection Photo URLs
+  // URLs from uploaded inspection photos for visual evidence display
+  photoUrls?: {
+    condition?: string;   // Photo of unit condition (rust, leak evidence)
+    dataplate?: string;   // Photo of data plate
+    pressure?: string;    // Photo of pressure gauge reading
+  };
 }
 
 // Anode Status type for percentage-based alerting

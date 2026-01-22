@@ -181,6 +181,13 @@ export interface ForensicInputs {
   
   // Anode Count
   anodeCount?: 1 | 2;
+  
+  // Inspection Photo URLs (v9.4)
+  photoUrls?: {
+    condition?: string;   // Photo of unit condition (rust, leak evidence)
+    dataplate?: string;   // Photo of data plate
+    pressure?: string;    // Photo of pressure gauge reading
+  };
 }
 
 // --- OPTERRA METRICS (OUTPUT) ---

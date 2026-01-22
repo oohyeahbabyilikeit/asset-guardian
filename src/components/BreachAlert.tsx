@@ -8,6 +8,8 @@ interface BreachAlertProps {
   leakSource?: string;
   onLearnMore?: () => void;
   className?: string;
+  /** Actual inspection photo URL - if provided, shown instead of stock image */
+  conditionPhotoUrl?: string;
 }
 
 /**
@@ -22,7 +24,8 @@ export function BreachAlert({
   visualRust, 
   leakSource,
   onLearnMore,
-  className 
+  className,
+  conditionPhotoUrl
 }: BreachAlertProps) {
   // Don't render if no breach condition
   if (!isLeaking && !visualRust) return null;
@@ -161,14 +164,14 @@ export function BreachAlert({
         {isCritical && (
           <div className="mt-4 relative rounded-lg overflow-hidden border border-red-500/30">
             <img 
-              src={containmentBreachImg} 
-              alt="Evidence of tank breach" 
+              src={conditionPhotoUrl || containmentBreachImg} 
+              alt={conditionPhotoUrl ? "Documented evidence of tank failure" : "Example of breach evidence"} 
               className="w-full h-32 object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-red-950/80 via-transparent to-transparent" />
             <div className="absolute bottom-2 left-2 flex items-center gap-1.5 text-xs text-red-200/80">
               <Camera className="w-3 h-3" />
-              <span>Example of breach evidence</span>
+              <span>{conditionPhotoUrl ? "Photo from your inspection" : "Example of breach evidence"}</span>
             </div>
           </div>
         )}
