@@ -68,11 +68,19 @@ export function mapTechnicianToForensicInputs(
     // NEW v7.9: Anode Count ("Sticker Slap" Fix)
     anodeCount: tech.asset.anodeCount,
     
-    // Usage defaults (will be overwritten by homeowner)
-    peopleCount: 3,
-    usageType: 'normal',
-    lastFlushYearsAgo: undefined,
-    lastAnodeReplaceYearsAgo: undefined,
+    // Usage (from homeowner context or defaults)
+    peopleCount: tech.homeownerContext?.peopleCount ?? 3,
+    usageType: tech.homeownerContext?.usageType ?? 'normal',
+    
+    // Service history (from service history context)
+    lastFlushYearsAgo: tech.serviceHistory?.lastFlushYearsAgo,
+    lastAnodeReplaceYearsAgo: tech.serviceHistory?.lastAnodeReplaceYearsAgo,
+    isAnnuallyMaintained: tech.serviceHistory?.isAnnuallyMaintained ?? false,
+    yearsWithoutAnode: tech.serviceHistory?.yearsWithoutAnode,
+    yearsWithoutSoftener: tech.serviceHistory?.yearsWithoutSoftener,
+    
+    // Water chemistry (sanitizer from water district)
+    sanitizerType: tech.sanitizerType ?? 'UNKNOWN',
     
     // Hybrid-specific
     airFilterStatus: tech.hybrid?.airFilterStatus,
