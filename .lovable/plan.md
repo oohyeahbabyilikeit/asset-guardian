@@ -1,209 +1,116 @@
 
-# Load Real Tank Water Heater Assets into Contractor Dashboard
 
-## Summary
+# Fix Asset Detail Drawer for Sales AE Use Case
 
-Create a fully functional asset management system for the contractor dashboard with:
-1. Rich mock tank water heater data (only tanks for now - no hybrids/tankless)
-2. Complete `ForensicInputs` + `AssetData` for each record
-3. A slide-out detail drawer when clicking "Details" on any lead
-4. Full unit profile display with equipment, specs, health score, and service context
+## Problem
 
----
+1. **Wrong Action**: "Start Inspection" doesn't fit the contractor role - they're sales AEs doing outreach, not field technicians
+2. **Missing Report Access**: Contractors need to view the same forensic report that homeowners see, so they can reference it during outreach calls
+3. **Color Changes**: Unintended color scheme changes were made to the drawer
 
-## Current State
+## Solution
 
-- `mockContractorData.ts` has 13 opportunities but they're lightweight (no full `ForensicInputs`)
-- Clicking "Details" only shows a toast notification
-- Tank data in `mockAsset.ts` has 10 detailed tank scenarios with complete forensic inputs
-- No drawer/sheet component wired to display asset details
+Replace the "Start Inspection" action with "View Report" that opens the ForensicReport component with the asset's data. This lets the sales AE reference the health analysis, risk metrics, and recommendation during their outreach call.
 
 ---
 
-## Implementation Plan
+## Changes
 
-### 1. Update Mock Data Structure (`mockContractorData.ts`)
+### 1. Update `AssetDetailDrawer.tsx`
 
-Replace the current `MockOpportunity` with enriched tank-only data that includes full forensic inputs and asset details.
+**Remove:**
+- `Wrench` icon import
+- `onStartInspection` prop
+- "Start Inspection" button
 
-**New Interface:**
+**Add:**
+- `FileText` icon for "View Report"
+- `onViewReport` callback prop
+- "View Report" button that triggers navigation to the ForensicReport
+
 ```typescript
-export interface TankAsset {
-  id: string;
-  brand: string;
-  model: string;
-  serialNumber: string;
-  calendarAge: number;
-  location: string;
-  capacity: number;
-  fuelType: 'GAS' | 'ELECTRIC';
-  ventType: string;
+// Props change
+interface AssetDetailDrawerProps {
+  opportunity: MockOpportunity | null;
+  open: boolean;
+  onClose: () => void;
+  onCall?: () => void;
+  onViewReport?: () => void;  // NEW: replaces onStartInspection
 }
 
-export interface MockOpportunity {
-  id: string;
-  propertyAddress: string;
-  customerName?: string;
-  customerPhone?: string;
-  opportunityType: OpportunityType;
-  priority: Priority;
-  healthScore: number;
-  failProbability: number;
-  jobComplexity: JobComplexity;
-  context: string;
-  createdAt: Date;
-  status: 'pending' | 'viewed' | 'contacted' | 'converted' | 'dismissed';
-  
-  // NEW: Full asset data
-  asset: TankAsset;
-  forensicInputs: ForensicInputs;
-}
+// Button change
+<Button 
+  className="flex-1 gap-2"
+  onClick={() => onViewReport?.()}
+>
+  <FileText className="w-4 h-4" />
+  View Report
+</Button>
 ```
 
-**Tank-Only Data (12 realistic scenarios):**
-- Remove hybrids/tankless from opportunities
-- Keep only `GAS` and `ELECTRIC` fuel types
-- Include complete `ForensicInputs` for each unit
-- Realistic Arizona addresses, customer names, and contexts
+### 2. Update `OpportunityFeed.tsx`
 
-### 2. Create Asset Detail Drawer (`AssetDetailDrawer.tsx`)
+Wire up the "View Report" action to navigate to ForensicReport with the opportunity's forensic data:
 
-New component using the `Sheet` primitive to display full asset information when clicking "Details":
-
-**Content sections:**
-1. **Header**: Customer name, address, priority badge
-2. **Unit Profile**: Brand, model, serial, age, location, capacity
-3. **Health Summary**: Health score ring, fail probability, risk level
-4. **Equipment Checklist**: PRV, Expansion Tank, Softener, Circ Pump (with present/absent indicators)
-5. **Key Metrics**: House PSI, water hardness, temp setting
-6. **Issue Context**: Why this opportunity was flagged (context from algorithm)
-7. **Action Buttons**: Call customer, Start inspection
-
-### 3. Wire Up Detail View (`OpportunityFeed.tsx`)
-
-Update `handleViewDetails` to open the drawer instead of showing a toast:
 ```typescript
-const [selectedOpportunity, setSelectedOpportunity] = useState<MockOpportunity | null>(null);
-
-const handleViewDetails = (opportunity: MockOpportunity) => {
-  setSelectedOpportunity(opportunity);
-  // Mark as viewed
-  setOpportunities(prev => 
-    prev.map(o => o.id === opportunity.id && o.status === 'pending' 
-      ? { ...o, status: 'viewed' as const } : o)
-  );
+const handleViewReport = (opportunity: MockOpportunity) => {
+  // Navigate to the main app with the opportunity's forensic data
+  // This will show the full ForensicReport for the asset
+  const params = new URLSearchParams({
+    mode: 'contractor-report',
+    opportunityId: opportunity.id
+  });
+  window.location.href = `/?${params.toString()}`;
 };
 
-// In render:
-<AssetDetailDrawer 
+// In AssetDetailDrawer usage:
+<AssetDetailDrawer
   opportunity={selectedOpportunity}
   open={!!selectedOpportunity}
   onClose={() => setSelectedOpportunity(null)}
+  onCall={() => handleCall(selectedOpportunity!)}
+  onViewReport={() => handleViewReport(selectedOpportunity!)}
 />
 ```
 
-### 4. Update LeadCard Display
+### 3. Handle Contractor Report Mode in `Index.tsx`
 
-Derive `unitSummary` from actual asset data:
+Add a new flow that accepts `mode=contractor-report` + `opportunityId` from URL params, looks up the opportunity from mock data, and renders the ForensicReport with that data:
+
 ```typescript
-// In LeadCard or OpportunityFeed
-const unitSummary = `${asset.calendarAge}yr ${asset.brand} ${asset.fuelType === 'GAS' ? 'Gas' : 'Electric'} Tank in ${asset.location}`;
+// In Index.tsx useEffect or initialization
+const urlParams = new URLSearchParams(window.location.search);
+const mode = urlParams.get('mode');
+const opportunityId = urlParams.get('opportunityId');
+
+if (mode === 'contractor-report' && opportunityId) {
+  // Load opportunity from mockContractorData
+  // Set up state to show ForensicReport with that data
+}
 ```
 
 ---
 
-## File Changes
+## File Summary
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/data/mockContractorData.ts` | **Rewrite** | Add `TankAsset` interface, embed full `ForensicInputs` in each opportunity, tank-only data (12 records) |
-| `src/components/contractor/AssetDetailDrawer.tsx` | **Create** | Slide-out sheet with full unit profile, health metrics, equipment list, and action buttons |
-| `src/components/contractor/OpportunityFeed.tsx` | **Modify** | Add state for selected opportunity, wire up drawer on "Details" click |
-| `src/components/contractor/LeadCard.tsx` | **Modify** | Accept full opportunity with asset, derive summary from actual data |
-
----
-
-## Mock Data: 12 Tank Water Heaters
-
-All TANK units only (GAS or ELECTRIC):
-
-| Customer | Address | Brand | Age | Fuel | Health | Priority | Context |
-|----------|---------|-------|-----|------|--------|----------|---------|
-| Johnson Family | 1847 Sunset Dr, Phoenix | Rheem | 12yr | GAS | 24 | Critical | Active leak detected |
-| Williams Residence | 2301 E Camelback Rd | Bradford White | 15yr | ELECTRIC | 18 | Critical | Severe corrosion + T&P weeping |
-| Martinez Residence | 456 Oak Ave, Scottsdale | A.O. Smith | 5yr | GAS | 62 | High | Warranty expires in 6 months |
-| Chen Family | 789 Mesquite Ln, Tempe | State Select | 10yr | GAS | 45 | High | Anode depleted, high sediment |
-| Rodriguez Family | 3344 Saguaro Blvd, Mesa | Rheem | 6yr | GAS | 71 | Medium | Anode replacement due |
-| Patel Residence | 5566 Ironwood Dr, Chandler | A.O. Smith | 4yr | GAS | 78 | Medium | Annual flush due (18 GPG) |
-| Anderson Home | 9900 Cactus Wren Ln, Peoria | Bradford White | 7yr | ELECTRIC | 68 | Medium | Flush overdue 18 months |
-| Davis Residence | 2233 Quail Run, Scottsdale | State Select | 5yr | GAS | 74 | Medium | Anode inspection needed |
-| Miller Family | 4455 Dove Valley Rd, Cave Creek | Rheem | 2yr | GAS | 92 | Low | Annual checkup |
-| Taylor Home | 6677 Desert Sage Way, Fountain Hills | A.O. Smith | 3yr | ELECTRIC | 88 | Low | Annual inspection |
-| Garcia Residence | 8899 Thunderbird Rd, Surprise | Whirlpool | 4yr | ELECTRIC | 85 | Low | Routine check |
-| Thompson Home | 1122 Palm Desert Way, Gilbert | Bradford White | 8yr | GAS | 52 | High | Pressure issue, no PRV |
+| File | Change |
+|------|--------|
+| `src/components/contractor/AssetDetailDrawer.tsx` | Replace "Start Inspection" with "View Report", update props |
+| `src/components/contractor/OpportunityFeed.tsx` | Add `handleViewReport` that navigates with opportunity data |
+| `src/pages/Index.tsx` | Handle `contractor-report` mode to show ForensicReport for opportunity |
 
 ---
 
-## Asset Detail Drawer Layout
+## Technical Detail
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  ← Asset Details                                      [X]   │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Johnson Family                           ⚠️ CRITICAL       │
-│  1847 Sunset Dr, Phoenix AZ                                  │
-│  (602) 555-0142                                              │
-│                                                              │
-├─────────────────────────────────────────────────────────────┤
-│  UNIT PROFILE                                                │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ Rheem Performance Plus                                  ││
-│  │ 50-Gal Gas Tank · 12 years old · Attic                  ││
-│  │                                                         ││
-│  │ Serial: RH-2012-5567-P    Model: PROG50-36N-RH67       ││
-│  │ Warranty: EXPIRED (6yr)   Vent: Atmospheric             ││
-│  └─────────────────────────────────────────────────────────┘│
-│                                                              │
-├─────────────────────────────────────────────────────────────┤
-│  HEALTH STATUS                                               │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │    [████░░░░░░]                                         ││
-│  │         24/100                                          ││
-│  │    78% failure probability                              ││
-│  └─────────────────────────────────────────────────────────┘│
-│                                                              │
-├─────────────────────────────────────────────────────────────┤
-│  INSTALLED EQUIPMENT                                         │
-│  ✓ PRV (Pressure Reducing Valve)                            │
-│  ✗ Expansion Tank (Required - closed loop)                  │
-│  ✗ Water Softener                                           │
-│  ✗ Recirculation Pump                                       │
-│                                                              │
-├─────────────────────────────────────────────────────────────┤
-│  KEY READINGS                                                │
-│  House PSI: 95 (HIGH)       Hardness: 18 GPG                │
-│  Temp Setting: Normal       Closed Loop: Yes                 │
-│                                                              │
-├─────────────────────────────────────────────────────────────┤
-│  WHY FLAGGED                                                 │
-│  Active leak detected during routine inspection.             │
-│  Tank is 12 years old with no anode service history.        │
-│  High pressure (95 PSI) without PRV increases stress.       │
-│                                                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  [📞 Call Customer]    [🔧 Start Inspection]                │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+The ForensicReport requires:
+- `asset: AssetData` - unit profile (brand, model, age, location, etc.)
+- `inputs: ForensicInputs` - full forensic data for algorithm calculation
+- `onBack: () => void` - navigation callback
 
----
+The `MockOpportunity` already contains:
+- `opportunity.asset` - maps to AssetData (needs minor field mapping)
+- `opportunity.forensicInputs` - full ForensicInputs for the algorithm
 
-## Technical Notes
+The drawer's "View Report" button will pass this data to the Index page which renders ForensicReport with the opportunity's complete inspection data.
 
-- Remove tankless/hybrid entries from mock data (IDs 5, 6, 8, 12, 13 reference non-tank units)
-- Each `ForensicInputs` object will have complete data for the Opterra algorithm
-- The drawer pulls directly from `opportunity.forensicInputs` and `opportunity.asset`
-- "Start Inspection" button navigates to `/?mode=technician` with pre-filled asset context
-- Equipment checklist is derived from `forensicInputs.hasPrv`, `.hasExpTank`, `.hasSoftener`, `.hasCircPump`
