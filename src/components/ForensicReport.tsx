@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight, X, Check, Download, Camera } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, X, Check, Download, Camera, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
@@ -8,8 +8,9 @@ import {
   type AssetData
 } from '@/data/mockAsset';
 import { generatePDF } from '@/lib/pdfGenerator';
-import { calculateOpterraRisk, type ForensicInputs, isTankless } from '@/lib/opterraAlgorithm';
+import { calculateOpterraRisk, type ForensicInputs, isTankless, type OpterraResult } from '@/lib/opterraAlgorithm';
 import { RecommendationBadge } from './RecommendationBadge';
+import { useReplacementRationale, type RationaleSection } from '@/hooks/useReplacementRationale';
 
 interface ForensicReportProps {
   onBack: () => void;
@@ -32,24 +33,24 @@ function EvidenceItem({ finding, conditionPhotoUrl }: { finding: AuditFinding; c
       >
         <div className="flex items-center gap-3">
           {finding.passed ? (
-            <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center">
-              <Check className="w-4 h-4 text-green-600" />
+            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <Check className="w-4 h-4 text-emerald-600" />
             </div>
           ) : (
-            <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-              <X className="w-4 h-4 text-red-600" />
+            <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center">
+              <X className="w-4 h-4 text-destructive" />
             </div>
           )}
           <div className="text-left">
             <span className={cn(
               "text-sm font-medium",
-              finding.passed ? "text-foreground" : "text-red-600"
+              finding.passed ? "text-foreground" : "text-destructive"
             )}>
               {finding.name}
             </span>
             <p className={cn(
               "text-xs",
-              finding.passed ? "text-green-600" : "text-red-600"
+              finding.passed ? "text-emerald-600" : "text-destructive"
             )}>
               {finding.value}
             </p>
@@ -114,6 +115,52 @@ function EvidenceLockerSection({ findings, conditionPhotoUrl }: { findings: Audi
   );
 }
 
+// Personalized rationale section for "Why Replacement" messaging
+function RationaleSection({ 
+  sections, 
+  isLoading, 
+  verdictAction 
+}: { 
+  sections: RationaleSection[] | null; 
+  isLoading: boolean; 
+  verdictAction: string;
+}) {
+  // Only show for replacement recommendations
+  if (verdictAction !== 'REPLACE') return null;
+
+  return (
+    <section className="clean-card mx-4 mb-4">
+      <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+        Why We Recommend Replacement
+      </h3>
+      
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8 text-muted-foreground">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          <span className="text-sm">Analyzing your situation...</span>
+        </div>
+      ) : sections && sections.length > 0 ? (
+        <div className="space-y-4">
+          {sections.map((section, index) => (
+            <div key={index} className="p-4 rounded-xl bg-muted/30 border border-border/50">
+              <h4 className="text-sm font-semibold text-foreground mb-2">
+                {section.heading}
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {section.content}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground py-4 italic">
+          Based on our assessment, replacement is the most cost-effective path forward for your unit.
+        </p>
+      )}
+    </section>
+  );
+}
+
 
 function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
   failProb: number; 
@@ -130,7 +177,7 @@ function VerdictSection({ failProb, recommendation, onDownloadPDF }: {
         <p className="text-xs text-muted-foreground mb-1">
           Statistical Failure Rate
         </p>
-        <p className="text-5xl font-black text-red-600">
+        <p className="text-5xl font-black text-destructive">
           {failProb.toFixed(0)}%
         </p>
         <p className="text-[10px] text-muted-foreground mt-2">
@@ -162,6 +209,17 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
   const financial = opterraResult.financial;
   
   const isTanklessUnit = isTankless(inputs.fuelType);
+  
+  // Determine recommendation type for rationale generation
+  const isUrgentReplace = recommendation.action === 'REPLACE' && recommendation.urgent;
+  const recommendationType = isUrgentReplace ? 'REPLACE_NOW' : 'REPLACE_SOON';
+  
+  // Fetch personalized rationale for replacement recommendations
+  const { rationale, isLoading: rationaleLoading } = useReplacementRationale(
+    recommendation.action === 'REPLACE' ? inputs : null,
+    recommendation.action === 'REPLACE' ? opterraResult : null,
+    recommendationType
+  );
 
   // Generate dynamic audit findings based on current inputs
   const auditFindings = generateAuditFindings(inputs, { sedimentLbs, shieldLife, bioAge, stressFactors });
@@ -265,6 +323,14 @@ export function ForensicReport({ onBack, asset, inputs }: ForensicReportProps) {
         </section>
         
         <EvidenceLockerSection findings={auditFindings} conditionPhotoUrl={inputs.photoUrls?.condition} />
+        
+        {/* Personalized "Why Replacement" section - only shown for REPLACE verdicts */}
+        <RationaleSection 
+          sections={rationale?.sections ?? null} 
+          isLoading={rationaleLoading} 
+          verdictAction={recommendation.action} 
+        />
+        
         <VerdictSection failProb={failProb} recommendation={recommendation} onDownloadPDF={handleDownloadPDF} />
       </div>
     </div>
