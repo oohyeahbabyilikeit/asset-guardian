@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info, Bell, MessageSquare, Mail, Droplets, Shield, Loader2 } from 'lucide-react';
+import { ChevronRight, AlertTriangle, CheckCircle, Clock, Eye, CircleAlert, Wrench, Lightbulb, Info, Bell, MessageSquare, Mail, Droplets, Shield, Loader2, Sparkles } from 'lucide-react';
 import { ForensicInputs, OpterraMetrics } from '@/lib/opterraAlgorithm';
 import type { IssueCategory } from '@/lib/infrastructureIssues';
 import { EducationalDrawer, EducationalTopic } from '@/components/EducationalDrawer';
+import { CorrtexChatOverlay } from '@/components/CorrtexChatOverlay';
 import { calculateMaintenanceSchedule, MaintenanceTask } from '@/lib/maintenanceCalculations';
 import { submitLead, markLeadCaptured, hasLeadBeenCaptured } from '@/lib/leadService';
 import { toast } from 'sonner';
@@ -231,6 +232,7 @@ export function OptionsAssessmentDrawer({
   const [contactInfo, setContactInfo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(() => hasLeadBeenCaptured('maintenance_reminder'));
+  const [showCorrtexChat, setShowCorrtexChat] = useState(false);
   
   const tier = getUrgencyTier(healthScore, verdictAction, isPassVerdict, priorityFindings);
   const recommendation = getRecommendation(tier);
@@ -624,6 +626,19 @@ export function OptionsAssessmentDrawer({
             
             
             
+            {/* Chat with Corrtex button */}
+            <Button 
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                setShowCorrtexChat(true);
+              }}
+              className="w-full gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Chat with Corrtex AI
+            </Button>
+            
             {/* CTA */}
             <Button 
               onClick={handleCTA}
@@ -646,6 +661,32 @@ export function OptionsAssessmentDrawer({
           onClose={() => setSelectedTopic(null)}
         />
       )}
+      
+      {/* Corrtex Chat Overlay */}
+      <CorrtexChatOverlay
+        open={showCorrtexChat}
+        onClose={() => setShowCorrtexChat(false)}
+        inputs={inputs}
+        metrics={metrics}
+        healthScore={healthScore}
+        recommendation={{
+          action: verdictAction,
+          badge: tier === 'critical' ? 'Critical' : tier === 'attention' ? 'Attention' : 'Stable',
+          title: tier === 'critical' ? 'Immediate Attention' : tier === 'attention' ? 'Proactive Maintenance' : 'Monitor',
+          description: verdictReason,
+        }}
+        violations={[]}
+        recommendations={[]}
+        maintenanceTasks={schedule ? [schedule.primaryTask, schedule.secondaryTask].filter(Boolean) as MaintenanceTask[] : []}
+        addOns={[]}
+        priorityFindings={priorityFindings.map(f => ({
+          id: f.id,
+          name: f.name,
+          friendlyName: f.friendlyName,
+          description: f.description,
+          severity: f.severity,
+        }))}
+      />
     </Drawer>
   );
 }
