@@ -1,133 +1,139 @@
 
-# Add "Run to Failure with Code Upgrades" Path for Young Tanks
+# Demo Scenario Algorithm Validation Audit
 
-## Problem
-A 4-year-old tank with depleted anode + missing expansion tank is being recommended for replacement because:
-1. `hasHighBioAge` (bioAge > calendarAge × 1.8) triggers the "Repair Not Economical" gate
-2. The algorithm doesn't distinguish between **correctable stress** (missing infrastructure) and **irreversible damage** (years of naked exposure)
+## Overview
+This plan creates a comprehensive validation system to ensure all demo scenarios produce the correct algorithm recommendations based on the v8.5 algorithm logic.
 
-For a young tank (under 6-8 years), it may still make sense to:
-- Install the expansion tank (code compliance)
-- Accept the depleted anode
-- Run to failure with reduced stress
+## Current Demo Scenario Inventory
 
-## Proposed Solution
+### Location 1: `src/data/mockAsset.ts` (17 scenarios)
+| Scenario Name | Age | Key Stress Factors | Expected Recommendation |
+|--------------|-----|-------------------|------------------------|
+| The Perfect Install | 2 | All equipment present, low hardness | PASS (Monitor) |
+| The Garage Sleeper | 4 | Has exp tank, has PRV, moderate hardness | PASS or MAINTAIN |
+| The Low-Risk Rental | 3 | No exp tank, no PRV, not closed-loop | PASS or MAINTAIN |
+| The Sediment Builder | 6 | 20 GPG hardness, no exp tank | REPAIR (Flush) or infra |
+| The Pressure Cooker | 5 | 95 PSI, no PRV, in finished area | REPAIR (PRV required) |
+| The Missing Tank | 4 | Closed-loop, no exp tank, finished area | REPAIR (Expansion Tank) |
+| The Softener Accelerator | 7 | Softener + attic location | REPLACE or REPAIR (location risk) |
+| The Basement Time Bomb | 11 | 82 PSI, 22 GPG, visual rust, hot temp | REPLACE (multiple factors) |
+| The Double Whammy | 9 | Attic, visual rust, no exp tank, closed loop | REPLACE (Attic Liability) |
+| The Zombie Tank | 12 | 88 PSI, no exp tank, hot temp | REPLACE (age + pressure) |
+| The Efficient Hybrid | 2 | Hybrid, all equipment, clean filter | PASS |
+| The Clogged Hybrid | 3 | Hybrid, clogged filter, condensate blocked | REPAIR (filter/condensate) |
+| The Dusty Hybrid | 3 | Hybrid, dirty filter, missing exp tank | REPAIR (filter + infra) |
+| The Efficient Tankless | 2 | Tankless, clean, has isolation valves | PASS |
+| The Hard Water Warrior | 5 | Tankless, 22 GPG, scale buildup, no PRV | REPAIR (descale) |
+| The Igniter Issue | 6 | Tankless, 45% igniter, no isolation valves | REPLACE or REPAIR (valve install first) |
+| The Electric Instant | 3 | Electric tankless, healthy | PASS |
+| The Scaled Tankless (No Valves) | 6 | Critical scale, no isolation valves | REPAIR (install valves) |
+| The Descale Due Tankless | 4 | Moderate scale, has isolation valves | REPAIR (descale) |
 
-### Add "Infrastructure First" Gate for Young Tanks
+### Location 2: `src/lib/generateRandomScenario.ts` (11 archetypes + 1 test scenario)
+| Archetype | Age Range | Condition | Expected Recommendation Range |
+|-----------|-----------|-----------|------------------------------|
+| The Perfect Install | 1-3 | Excellent | PASS |
+| The Healthy Veteran | 4-7 | Good | PASS or MAINTAIN |
+| The Pressure Cooker | 3-8 | Stressed + high pressure | REPAIR (PRV/expansion) |
+| The Sediment Bomb | 5-10 | Neglected + high hardness | REPAIR or REPLACE (age-dependent) |
+| The Zombie Tank | 8-14 | Critical | REPLACE |
+| The Attic Bomb | 6-12 | Risky + Attic | REPLACE (Attic Liability) |
+| The Hard Water Victim | 4-9 | Extreme hardness | REPAIR or REPLACE (age-dependent) |
+| The Frat House | 3-7 | Extreme usage | MAINTAIN or REPAIR |
+| The Grandma Special | 8-15 | Minimal usage | REPLACE (age) |
+| The Ticking Clock | 10-14 | Expiring | REPLACE |
+| The Leaker | 6-12 | Leaking | REPLACE (tank body) or REPAIR (fitting) |
 
-Modify `getRawRecommendation` to add a new decision branch **before** the economic fragility check:
+### Location 3: `src/components/AlgorithmTestHarness.tsx` (10 scenarios)
+| Scenario Name | Key Stress | Expected Recommendation |
+|--------------|-----------|------------------------|
+| Attic Time Bomb | 12yr, attic, no pan, closed loop | REPLACE (Attic Liability) |
+| Zombie Expansion Tank | 8yr, waterlogged exp tank, 90 PSI | REPAIR (Waterlogged Expansion Tank) |
+| Gas Starvation | Tankless, undersized gas line | REPAIR (gas line) |
+| Chloramine + Hard Water | 22 GPG, chloramine, hot temp | REPLACE or REPAIR (chemistry) |
+| Orphaned Flue | Orphaned flue backdraft risk | REPLACE (venting) |
+| Galvanic Nightmare | Direct copper, fitting leak, rust | REPLACE (Too Fragile to Service) |
+| Hybrid Suffocation | Hybrid, sealed closet, clogged filter | REPAIR (airflow) |
+| Tankless Scale Crisis | Tankless, never descaled, no valves | REPAIR (install valves first) |
+| Legionella Risk | Low temp, light usage, 80 gal | MAINTAIN (temp increase) |
+| Perfect Unit | All equipment, well-maintained | PASS |
 
-```text
-YOUNG TANK + HIGH BIO-AGE + CORRECTABLE STRESS?
-├── YES → "Protect Your Investment" (REPAIR: Install infrastructure)
-│         Reason: Tank is young but stressed. Installing expansion tank 
-│         reduces aging rate and extends remaining life.
-│
-└── NO → Continue to existing fragility checks
-```
+---
 
-### Code Changes
+## Identified Issues/Concerns
 
-**File: `src/lib/opterraAlgorithm.ts`**
+### Issue 1: "The Missing Tank" (mockAsset.ts)
+- **Scenario**: 4-year-old, closed-loop, no expansion tank, finished area
+- **Current inputs**: `isClosedLoop: true`, `hasExpTank: false`, `location: 'MAIN_LIVING'`
+- **Expected**: Should hit Tier 3A "Missing Thermal Expansion" → REPAIR
+- **Concern**: Verify `hasHighBioAge` is false so it doesn't falsely trigger v8.5 gate
 
-Add new gate before Tier 2C (~line 1529):
+### Issue 2: "The Pressure Cooker" (mockAsset.ts)
+- **Scenario**: 5yr, 95 PSI, has exp tank but no PRV, finished area
+- **Current inputs**: `housePsi: 95`, `hasPrv: false`, `hasExpTank: true`
+- **Expected**: Should hit Tier 3B "Critical Pressure Violation" → REPAIR (PRV)
+- **Concern**: At 95 PSI it's above 80 PSI code limit, should return "High House Pressure" or "Critical Pressure Violation"
 
+### Issue 3: "The Softener Accelerator" (mockAsset.ts)
+- **Scenario**: 7yr, attic location, softener (accelerates anode decay)
+- **Current inputs**: `location: 'ATTIC'`, `hasSoftener: true`, `calendarAge: 7`
+- **Expected**: Check if failProb > 15% triggers "Attic Liability" REPLACE
+- **Concern**: Softener + 7 years may push bio-age high enough to trigger replacement
+
+### Issue 4: Random Scenario Generator Constraints
+- **Issue**: Random generator only produces GAS or ELECTRIC tanks (lines 138-144)
+- **Problem**: This means "The Zombie Tank" archetype could generate a tank with missing expansion tank that should be saveable under v8.5 if young, but the age range is 8-14 which bypasses young tank protection
+- **Status**: Correctly configured - old tanks should not benefit from young tank gate
+
+### Issue 5: Test Harness "Galvanic Nightmare"
+- **Scenario**: 7yr, direct copper, fitting leak, visual rust
+- **Current inputs**: `visualRust: true`, `isLeaking: true`, `leakSource: 'FITTING_VALVE'`
+- **Expected**: Should hit Tier 1A "Containment Breach" → REPLACE (visual rust)
+- **Concern**: Verify that visual rust takes priority over fitting leak repair
+
+---
+
+## Implementation Plan
+
+### Step 1: Create Algorithm Validation Test Suite
+Create a new file `src/lib/__tests__/scenarioValidation.ts` that:
+1. Imports all scenarios from all three locations
+2. Runs each scenario through `calculateOpterraRisk()`
+3. Compares output to expected recommendation
+4. Logs discrepancies
+
+### Step 2: Add Expected Outcomes to Each Scenario
+Modify scenario definitions to include expected algorithm output:
 ```typescript
-// 2B-NEW: "Infrastructure First" Gate for Young Tanks
-// Young tanks with high bio-age due to CORRECTABLE stress (missing infra)
-// can be saved with infrastructure upgrades, even if anode is depleted
-const YOUNG_TANK_THRESHOLD = 6; // Years - within this range, infrastructure fixes are worthwhile
-const isYoungTank = data.calendarAge <= YOUNG_TANK_THRESHOLD;
-const hasCorrectableStress = 
-  (data.isClosedLoop && !data.hasExpTank) ||  // Missing expansion tank
-  (data.housePsi > 80 && !data.hasPrv);       // Missing PRV
-
-// Young tank with high stress that can be reduced via infrastructure
-if (isYoungTank && hasHighBioAge && hasCorrectableStress && metrics.failProb < 50) {
-  // Calculate projected life WITH infrastructure fixes
-  const wouldExtendLife = metrics.yearsLeftOptimized > metrics.yearsLeftCurrent + 2;
-  
-  if (wouldExtendLife) {
-    return {
-      action: 'REPAIR',
-      title: 'Protect Your Investment',
-      reason: `Tank is ${data.calendarAge} years old with significant stress. Installing code-required infrastructure will reduce wear rate and extend useful life.`,
-      urgent: true,
-      badgeColor: 'orange',
-      badge: 'SERVICE',
-      note: 'Unit has some wear but is worth protecting with infrastructure upgrades.'
-    };
-  }
-}
-```
-
-### Modify "Naked Rule" to Allow Infrastructure Repairs on Young Tanks
-
-**File: `src/lib/opterraAlgorithm.ts`** (lines 1802-1813)
-
-Current:
-```typescript
-// RULE 1: The "Naked" Rule (Liability Protection)
-if (metrics.shieldLife <= 0 && rec.action === 'MAINTAIN') {
-  return { action: 'REPLACE', title: 'End of Service Life', ... };
-}
-```
-
-Modified:
-```typescript
-// RULE 1: The "Naked" Rule (Liability Protection)
-// Exception: Young tanks can still benefit from infrastructure fixes
-const isYoungEnoughToSave = data.calendarAge <= 6;
-const hasInfrastructureRepair = rec.action === 'REPAIR' && 
-  (rec.title.includes('Expansion') || rec.title.includes('PRV') || rec.title.includes('Pressure'));
-
-if (metrics.shieldLife <= 0 && rec.action === 'MAINTAIN' && !isYoungEnoughToSave) {
-  return { action: 'REPLACE', title: 'End of Service Life', ... };
-}
-
-// Allow infrastructure repairs to proceed for young naked tanks
-if (metrics.shieldLife <= 0 && hasInfrastructureRepair && isYoungEnoughToSave) {
-  rec.note = 'Anode protection is depleted. Infrastructure fix will extend remaining life but monitor closely.';
-  // Don't override - let the REPAIR recommendation through
-}
-```
-
-### Add "Run to Failure" Option for Monitor-Only Cases
-
-Add a new recommendation tier for tanks that:
-- Are young (≤6 years)
-- Have depleted anodes
-- Are in LOW-RISK locations (garage, basement)
-- Have infrastructure already in place OR don't need it
-
-```typescript
-// 2B-ALT: "Managed Decline" for Low-Risk Young Tanks
-const isLowRiskLocation = metrics.riskLevel <= 2; // Garage, Basement, Utility
-const hasInfrastructure = data.hasExpTank && (!data.isClosedLoop || data.hasExpTank);
-
-if (isYoungTank && isAnodeDepleted && isLowRiskLocation && !hasCorrectableStress) {
-  return {
-    action: 'PASS',
-    title: 'Run to Failure OK',
-    reason: `Anode is depleted but tank is young (${data.calendarAge} yrs) in a protected location. Safe to monitor and budget for replacement.`,
-    urgent: false,
-    badgeColor: 'blue',
-    badge: 'MONITOR',
-    note: `Estimated ${Math.round(metrics.yearsLeftCurrent)} years remaining. No structural risk from location.`
+interface ValidatedScenario {
+  name: string;
+  inputs: ForensicInputs;
+  expected: {
+    action: 'REPLACE' | 'REPAIR' | 'MAINTAIN' | 'PASS' | 'UPGRADE';
+    titleContains?: string; // Partial match for recommendation title
+    badgeExpected?: string;
   };
 }
 ```
 
----
+### Step 3: Fix Identified Discrepancies
+Based on validation results, update scenarios where:
+- Expected output doesn't match algorithm output
+- Scenario description doesn't match its inputs
+- v8.5 young tank gate should/shouldn't apply
 
-## Decision Matrix After Changes
+### Step 4: Add Console Validation on Demo Load
+In `Index.tsx`, add a development-mode check that:
+1. Runs the loaded scenario through the algorithm
+2. Console.logs the recommendation details
+3. Warns if recommendation seems inconsistent with scenario name
 
-| Scenario | Calendar Age | Anode | Location | Infra Needed? | Recommendation |
-|----------|--------------|-------|----------|---------------|----------------|
-| Young + Naked + Infra Missing | ≤6 yrs | Depleted | Any | Yes | **REPAIR** (Install infra) |
-| Young + Naked + Infra OK | ≤6 yrs | Depleted | Low-Risk | No | **PASS** (Run to failure) |
-| Young + Naked + High-Risk | ≤6 yrs | Depleted | Attic/Upper | Any | **REPLACE** (Location risk) |
-| Old + Naked | >8 yrs | Depleted | Any | Any | **REPLACE** (End of service) |
+### Step 5: Update Scenario Documentation
+Create `docs/demo-scenarios.md` with:
+- Full list of all scenarios
+- Expected recommendation for each
+- Key stress factors that trigger the recommendation
+- Test coverage notes
 
 ---
 
@@ -135,25 +141,42 @@ if (isYoungTank && isAnodeDepleted && isLowRiskLocation && !hasCorrectableStress
 
 | File | Changes |
 |------|---------|
-| `src/lib/opterraAlgorithm.ts` | Add "Infrastructure First" gate for young tanks (~line 1529) |
-| `src/lib/opterraAlgorithm.ts` | Modify "Naked Rule" to allow infra repairs on young tanks (~line 1802) |
-| `docs/algorithm-changelog.md` | Document v8.5 "Young Tank Infrastructure Gate" |
+| `src/lib/__tests__/scenarioValidation.ts` | Create new test file for automated validation |
+| `src/data/mockAsset.ts` | Add `expected` field to scenario interface |
+| `src/lib/generateRandomScenario.ts` | Add expected outcome to archetypes |
+| `src/pages/Index.tsx` | Add dev-mode scenario validation logging |
+| `docs/demo-scenarios.md` | Create documentation for all scenarios |
 
 ---
 
-## Benefits
+## Validation Script (Quick Check)
 
-1. **Pragmatic**: Allows homeowners to invest in code compliance without forcing immediate replacement
-2. **Physics-Based**: Infrastructure fixes genuinely reduce stress and extend life
-3. **Location-Aware**: High-risk locations still push toward replacement
-4. **Honest**: "Run to failure" messaging sets appropriate expectations for naked tanks
-5. **Lead Capture**: Creates service opportunities (expansion tank install) instead of "replace or nothing"
+To manually verify scenarios now, we can add temporary logging:
+
+```typescript
+// In Index.tsx, add after computing opterraResult:
+if (process.env.NODE_ENV === 'development') {
+  console.log('[VALIDATION] Scenario:', currentAsset?.model || 'Unknown');
+  console.log('[VALIDATION] Result:', opterraResult.verdict);
+  console.log('[VALIDATION] Metrics:', {
+    bioAge: opterraResult.metrics.bioAge,
+    failProb: opterraResult.metrics.failProb,
+    shieldLife: opterraResult.metrics.shieldLife,
+    hasHighBioAge: opterraResult.metrics.bioAge > currentInputs.calendarAge * 1.8
+  });
+}
+```
 
 ---
 
-## Test Scenarios to Add
+## Test Matrix Summary
 
-1. **4-year tank, depleted anode, missing expansion tank, garage** → Should recommend REPAIR (install expansion)
-2. **4-year tank, depleted anode, has expansion tank, basement** → Should recommend PASS (run to failure)
-3. **4-year tank, depleted anode, missing expansion, attic** → Should recommend REPLACE (location risk)
-4. **9-year tank, depleted anode, missing expansion** → Should recommend REPLACE (too old)
+| Category | Count | Expected PASS | Expected REPAIR | Expected REPLACE |
+|----------|-------|---------------|-----------------|------------------|
+| mockAsset Tank Scenarios | 10 | 3 | 4 | 3 |
+| mockAsset Hybrid Scenarios | 3 | 1 | 2 | 0 |
+| mockAsset Tankless Scenarios | 6 | 2 | 4 | 0 |
+| Random Archetypes | 11 | 2 | 4 | 5 |
+| Test Harness Scenarios | 10 | 1 | 5 | 4 |
+| **Total** | **40** | **9** | **19** | **12** |
+
