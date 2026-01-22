@@ -207,13 +207,14 @@ function buildTankSteps(
     impact: effectiveHardness > 15 ? 'critical' : effectiveHardness > 7 ? 'negative' : 'positive',
   });
 
-  // Step 3: Anode Shield Life (v9.0 Physics Model)
+  // Step 3: Anode Shield Life (v9.0 Physics Model with Burn Rate Transparency)
   // v9.0: 4-year baseline, multiplicative burn rate, history-aware
   const baseMassYears = (inputs.anodeCount === 2 || inputs.warrantyYears >= 12) ? 7.5 : 4.0;
   const softenerFactor = inputs.hasSoftener ? 3.0 : 1.0;
   const recircFactor = inputs.hasCircPump ? 1.25 : 1.0;
   const galvanicFactor = inputs.connectionType === 'DIRECT_COPPER' ? 2.5 : 1.0;
-  const currentBurnRate = Math.min(8.0, softenerFactor * galvanicFactor * recircFactor);
+  const chloramineFactor = inputs.sanitizerType === 'CHLORAMINE' ? 1.2 : 1.0;
+  const currentBurnRate = Math.min(8.0, softenerFactor * galvanicFactor * recircFactor * chloramineFactor);
   
   const anodeAge = inputs.lastAnodeReplaceYearsAgo ?? inputs.calendarAge;
   
@@ -222,11 +223,18 @@ function buildTankSteps(
     ? Math.max(0, anodeAge - inputs.yearsWithoutSoftener)
     : (inputs.hasSoftener ? anodeAge : 0);
   const yearsNormal = anodeAge - yearsWithSoftener;
-  const historicalBurnRate = galvanicFactor * recircFactor;
+  const historicalBurnRate = galvanicFactor * recircFactor * chloramineFactor;
   
   const consumedMass = (yearsNormal * historicalBurnRate) + (yearsWithSoftener * currentBurnRate);
   const remainingMass = baseMassYears - consumedMass;
   const calculatedShieldLife = remainingMass <= 0 ? 0 : Math.max(0.5, remainingMass / currentBurnRate);
+  
+  // Build active factors list for display
+  const activeBurnFactors: string[] = [];
+  if (softenerFactor > 1) activeBurnFactors.push(`Softener (${softenerFactor}×)`);
+  if (galvanicFactor > 1) activeBurnFactors.push(`Direct Copper (${galvanicFactor}×)`);
+  if (recircFactor > 1) activeBurnFactors.push(`Recirc Pump (${recircFactor}×)`);
+  if (chloramineFactor > 1) activeBurnFactors.push(`Chloramine (${chloramineFactor}×)`);
   
   steps.push({
     id: 'anode_shield',
@@ -236,11 +244,11 @@ function buildTankSteps(
     formula: '(baseMass - consumedMass) / currentBurnRate',
     inputs: [
       { label: 'Base Capacity', value: baseMassYears.toFixed(1) + ' yrs', highlight: true },
-      { label: 'Years Normal', value: yearsNormal.toFixed(1) },
-      { label: 'Years w/ Softener', value: yearsWithSoftener.toFixed(1), highlight: yearsWithSoftener > 0 },
-      { label: 'Historical Burn', value: historicalBurnRate.toFixed(2) + '×' },
+      { label: 'Anode Age', value: anodeAge.toFixed(1) + ' yrs' },
       { label: 'Current Burn Rate', value: currentBurnRate.toFixed(2) + '×', highlight: currentBurnRate > 2 },
+      { label: 'Active Accelerators', value: activeBurnFactors.length > 0 ? activeBurnFactors.join(', ') : 'None', highlight: activeBurnFactors.length > 0 },
       { label: 'Mass Consumed', value: consumedMass.toFixed(1) + ' yrs' },
+      { label: 'Mass Remaining', value: remainingMass.toFixed(1) + ' yrs' },
     ],
     result: { label: 'Shield Life Remaining', value: metrics.shieldLife.toFixed(1), unit: 'yrs' },
     impact: metrics.shieldLife <= 0 ? 'critical' : metrics.shieldLife < 1 ? 'negative' : 'positive',

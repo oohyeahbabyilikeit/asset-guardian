@@ -215,6 +215,14 @@ export function calculateTanklessHealth(data: ForensicInputs): OpterraMetrics {
     anodeDepletionPercent: 0,
     anodeStatus: 'protected' as const,  // N/A for tankless
     anodeMassRemaining: 1,               // N/A for tankless
+    // Tankless has no anode burn factors - all false
+    anodeBurnRate: 1,
+    anodeBurnFactors: {
+      softener: false,
+      galvanic: false,
+      recircPump: false,
+      chloramine: false,
+    },
     effectivePsi: data.housePsi,
     isTransientPressure: false, // Tankless units don't have same thermal expansion concern
     scaleBuildupScore: parseFloat(scaleBuildupScore.toFixed(1)),

@@ -188,6 +188,14 @@ export interface ForensicInputs {
 // Anode Status type for percentage-based alerting
 export type AnodeStatus = 'protected' | 'inspect' | 'replace' | 'naked';
 
+// NEW v9.3: Burn rate factors for anode depletion transparency
+export interface AnodeBurnFactors {
+  softener: boolean;     // 3.0x if true
+  galvanic: boolean;     // 2.5x if direct copper
+  recircPump: boolean;   // 1.25x if true
+  chloramine: boolean;   // 1.2x if true
+}
+
 export interface OpterraMetrics {
   bioAge: number;
   failProb: number;
@@ -200,6 +208,10 @@ export interface OpterraMetrics {
   anodeDepletionPercent: number;  // 0-100 (0 = new rod, 100 = depleted)
   anodeStatus: AnodeStatus;       // Three-stage status: protected/inspect/replace/naked
   anodeMassRemaining: number;     // 0-1 (fraction of original mass)
+  
+  // NEW v9.3: Burn rate transparency - shows WHY anode depleted faster
+  anodeBurnRate: number;          // Combined multiplier (e.g., 3.125)
+  anodeBurnFactors: AnodeBurnFactors; // Individual active factors
   
   effectivePsi: number;
   isTransientPressure: boolean;

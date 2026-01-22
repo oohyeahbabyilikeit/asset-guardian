@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Wrench, Droplets, Shield, Plus, Calendar, AlertTriangle, Wind, Cpu, Flame, Zap, Info, Gauge, ArrowUp, ArrowDown } from 'lucide-react';
 import { EducationalDrawer, type EducationalTopic } from '@/components/EducationalDrawer';
+import { AnodeBurnFactorsDisplay } from '@/components/AnodeBurnFactorsDisplay';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { ServiceEvent, ServiceEventType } from '@/types/serviceHistory';
-import type { FuelType, AirFilterStatus, InletFilterStatus, FlameRodStatus, VentStatus } from '@/lib/opterraAlgorithm';
+import type { FuelType, AirFilterStatus, InletFilterStatus, FlameRodStatus, VentStatus, AnodeBurnFactors } from '@/lib/opterraTypes';
 import { isTankless } from '@/lib/opterraAlgorithm';
 import { TanklessDiagram } from './TanklessDiagram';
 import { getServiceImpactDescription } from '@/lib/maintenanceCalculations';
@@ -45,6 +46,11 @@ interface ServiceHistoryProps {
   // Service history tracking for context-aware education
   lastAnodeReplaceYearsAgo?: number | null;
   lastFlushYearsAgo?: number | null;
+  // NEW v9.3: Anode burn rate transparency
+  anodeBurnRate?: number;
+  anodeBurnFactors?: AnodeBurnFactors;
+  anodeDepletionPercent?: number;
+  anodeStatus?: 'protected' | 'inspect' | 'replace' | 'naked';
 }
 
 // Integrated Water Heater SVG Diagram Component
@@ -1021,6 +1027,11 @@ export function ServiceHistory({
   // Service history for context-aware education
   lastAnodeReplaceYearsAgo,
   lastFlushYearsAgo,
+  // NEW v9.3: Anode burn rate transparency
+  anodeBurnRate = 1,
+  anodeBurnFactors = { softener: false, galvanic: false, recircPump: false, chloramine: false },
+  anodeDepletionPercent: propAnodeDepletionPercent,
+  anodeStatus: propAnodeStatus,
 }: ServiceHistoryProps) {
   // Breach detection
   const isBreach = isLeaking || visualRust;
@@ -1233,6 +1244,16 @@ export function ServiceHistory({
               </>
             )}
           </div>
+          
+          {/* Anode Burn Rate Transparency - Show when depleted or in warning state */}
+          {!isTanklessUnit && anodeBurnRate > 1 && (propAnodeStatus === 'replace' || propAnodeStatus === 'naked' || propAnodeStatus === 'inspect') && (
+            <div className="mt-3 w-full">
+              <AnodeBurnFactorsDisplay 
+                burnFactors={anodeBurnFactors}
+                burnRate={anodeBurnRate}
+              />
+            </div>
+          )}
           
           {/* TANKLESS Error Code Banner */}
           {isTanklessUnit && errorCodeCount > 0 && (
