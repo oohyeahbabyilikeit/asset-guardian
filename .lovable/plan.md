@@ -1,110 +1,187 @@
 
-## What’s actually broken (why the “min-h-0 / overflow-y-auto” fixes didn’t help)
-Your Property Report is a **Radix Sheet** (`<Sheet>`). When a Sheet is open, Radix uses a scroll-lock mechanism (via `react-remove-scroll`) that **blocks wheel/trackpad scrolling everywhere except inside the Sheet content**.
-
-Right now, `SalesCoachDrawer` is rendered **outside** the Sheet (“for z-index”), which means it’s treated as “outside the allowed area,” so wheel scrolling gets prevented at the document level. That exactly produces: **“no scrolling at all”** even if the Sales Coach container is technically scrollable.
-
-So we’re going to “redo it” in a way that avoids fighting Radix’s scroll lock entirely.
-
-## Agreed behavior (from your answers)
-- When Sales Coach opens: **close the Property Report behind it**
-- When Sales Coach closes: **auto-return to the same Property Report**
-
-This guarantees the Sales Coach overlay is the only modal/overlay on screen, so nothing else can scroll-lock it.
+## Goal
+Ensure Sales Coach uses **real data from the database** by:
+1. Seeding demo data into the database (profiles, properties, water heaters, assessments, and opportunity notifications)
+2. Wiring up the `OpportunityFeed` to fetch from the database instead of mock data
+3. Ensuring the Sales Coach edge function receives complete, real data
 
 ---
 
-## Implementation plan (full redo, reliable)
-### 1) Move Sales Coach ownership up to `OpportunityFeed`
-**Goal:** Sales Coach should not be a child of `PropertyReportDrawer` at all.
+## Current State (the problem)
+
+**Data flow today:**
+1. `OpportunityFeed` imports `mockOpportunities` from `src/data/mockContractorData.ts` (hardcoded fake data)
+2. User clicks "Sales Coach" → `SalesCoachDrawer` receives the mock object
+3. `SalesCoachDrawer` sends the mock object to the `sales-coach` edge function
+4. Edge function builds a prompt from whatever it receives (trusts client blindly)
+
+**Database state:**
+- 0 rows in `opportunity_notifications`
+- 0 rows in `assessments`
+- 0 rows in `water_heaters`
+- 0 rows in `properties`
+- 0 rows in `profiles`
+
+**The mock data contains 12 detailed opportunities** with full forensic inputs, asset details, and opterra results. We'll seed equivalent data into the database.
+
+---
+
+## Implementation Plan
+
+### Phase 1: Create seed data migration
+
+Create a database migration that inserts demo data matching the current mock records:
+
+**Insert sequence (respecting foreign keys):**
+1. `profiles` → Create a contractor profile and homeowner profiles
+2. `user_roles` → Assign contractor role
+3. `properties` → Create properties for each opportunity address
+4. `water_heaters` → Create water heater records with all forensic inputs
+5. `assessments` → Create assessment records with opterra results
+6. `opportunity_notifications` → Create opportunity records linked to contractor
+
+**Data mapping from mock to database:**
+- `MockOpportunity.customerName` → `profiles.full_name`
+- `MockOpportunity.customerPhone` → `profiles.phone`
+- `MockOpportunity.propertyAddress` → `properties.address_line1, city, state, zip_code`
+- `MockOpportunity.asset.*` → `water_heaters.*`
+- `MockOpportunity.forensicInputs.*` → `water_heaters.*` columns
+- `MockOpportunity.opterraResult.*` → `assessments.opterra_result` (JSONB) + denormalized fields
+- `MockOpportunity.inspectionNotes` → `assessments.inspection_notes`
+- Opportunity metadata → `opportunity_notifications.*`
+
+### Phase 2: Create opportunity fetching hook
+
+Create `src/hooks/useContractorOpportunities.ts`:
+
+```text
+Hook responsibilities:
+- Fetch from opportunity_notifications joined with water_heaters, properties, profiles, and assessments
+- Transform database rows into the MockOpportunity shape (for minimal UI changes)
+- Handle loading and error states
+- Support priority filtering
+```
+
+**Query structure:**
+```sql
+SELECT 
+  opp.*, 
+  wh.* (forensic data becomes forensicInputs),
+  p.address_line1, p.city, p.state, p.zip_code (becomes propertyAddress),
+  pr.full_name, pr.phone, pr.email (becomes customerName, customerPhone, customerEmail),
+  a.opterra_result, a.inspection_notes, a.photos (becomes opterraResult, inspectionNotes, photoUrls)
+FROM opportunity_notifications opp
+JOIN water_heaters wh ON opp.water_heater_id = wh.id
+JOIN properties p ON wh.property_id = p.id
+LEFT JOIN profiles pr ON p.owner_id = pr.id
+LEFT JOIN assessments a ON a.water_heater_id = wh.id
+WHERE opp.contractor_id = $currentUserId
+  AND opp.status IN ('pending', 'viewed', 'contacted')
+ORDER BY priority_order, created_at
+```
+
+### Phase 3: Update OpportunityFeed to use real data
+
+**File: `src/components/contractor/OpportunityFeed.tsx`**
 
 Changes:
-- Add state in `src/components/contractor/OpportunityFeed.tsx`:
-  - `selectedOpportunityId` (or keep current `selectedOpportunity`, but using ID is safer)
-  - `salesCoachOpportunityId`
-  - `returnToReportOpportunityId` (so we can re-open the same report after closing Sales Coach)
+1. Remove `import { mockOpportunities } from '@/data/mockContractorData'`
+2. Add `import { useContractorOpportunities } from '@/hooks/useContractorOpportunities'`
+3. Replace `const [opportunities, setOpportunities] = useState(mockOpportunities)` with hook call
+4. Add loading skeleton while fetching
+5. Add empty state when no opportunities exist
 
-Flow:
-- Clicking “Details” sets `selectedOpportunityId`
-- Clicking “Sales Coach” will:
-  1) store current `selectedOpportunityId` into `returnToReportOpportunityId`
-  2) close the report (`selectedOpportunityId = null`)
-  3) open Sales Coach (`salesCoachOpportunityId = that id`)
+### Phase 4: Create data transformation layer
 
-Closing Sales Coach will:
-1) close Sales Coach (`salesCoachOpportunityId = null`)
-2) reopen report (`selectedOpportunityId = returnToReportOpportunityId`)
+Create `src/lib/opportunityMapper.ts`:
 
-Why this works:
-- With the Sheet closed, **no Radix scroll lock is active**, so Sales Coach scroll is native and reliable.
+```text
+Functions:
+- mapDbRowToOpportunity(row): MockOpportunity
+- mapForensicInputsFromWaterHeater(wh): ForensicInputs
+- mapOpterraResultFromAssessment(a): OpterraResultSummary
+- formatPropertyAddress(p): string
+```
 
-### 2) Update `PropertyReportDrawer` to be “dumb” (no Sales Coach state inside)
-In `src/components/contractor/PropertyReportDrawer.tsx`:
-- Remove `showSalesCoach` state entirely
-- Remove the `<SalesCoachDrawer .../>` render entirely
-- Replace the “Sales Coach” button action with a callback prop:
-  - New prop: `onOpenSalesCoach?: (opportunityId: string) => void` (or pass the whole opportunity)
+This keeps the transformation logic centralized and testable.
 
-This makes Property Report purely a report UI; Sales Coach becomes a separate top-level overlay.
+### Phase 5: Verify Sales Coach data flow
 
-### 3) Render `SalesCoachDrawer` from `OpportunityFeed` (top level)
-In `src/components/contractor/OpportunityFeed.tsx`:
-- Render `<SalesCoachDrawer open={...} opportunity={...} onClose={...} />` alongside the existing `<PropertyReportDrawer />`.
+The `SalesCoachDrawer` already sends the opportunity object to the edge function. Once we're using real data, the edge function will receive:
+- Real customer name and address
+- Real forensic inputs from inspection
+- Real opterra diagnostic results
+- Real technician notes
 
-Important:
-- When Sales Coach is open, the report is closed (per your preference), so the scroll lock is gone.
-
-### 4) Simplify Sales Coach scroll behavior (stop “helping,” just let it scroll)
-In `src/components/contractor/SalesCoachDrawer.tsx`:
-- Keep the flex layout (`fixed inset-0 flex flex-col overflow-hidden` + middle `flex-1 min-h-0 overflow-y-auto`)
-- Remove any remaining “scroll-fighting” behavior that’s unnecessary once the Sheet isn’t open.
-  - We can keep the “only autoscroll if near bottom” logic, but we’ll ensure it never runs during initial briefing unless explicitly desired.
-  - If needed, we can disable auto-scroll entirely during `briefing` streaming and only auto-scroll for the chat stream.
-
-### 5) Fix the console warnings (so we’re not missing real errors)
-These aren’t the main bug, but they pollute debugging:
-
-**A) ReactMarkdown ref warning**
-- `react-markdown` can pass props (sometimes including `ref`) into custom renderers.
-- We’ll update the `components={{ p, ul, li, strong }}` handlers to spread props onto actual DOM nodes:
-  - `p: ({node, ...props}) => <p {...props} className="..." />`
-This removes “Function components cannot be given refs” warnings.
-
-**B) Radix “Missing Description / aria-describedby” warning**
-- Add a `SheetDescription` (can be `sr-only`) in `PropertyReportDrawer` to satisfy Radix accessibility requirements.
+No changes needed to the edge function - it already accepts the right structure.
 
 ---
 
-## Testing checklist (what I’ll verify after implementation)
-1) Go to `/contractor`
-2) Click a Lead → “Details” opens Property Report
-3) Click “Sales Coach”
-   - Property Report closes
-   - Sales Coach opens
-4) Generate a long briefing
-5) Verify scroll with:
-   - mouse wheel
-   - trackpad two-finger scroll
-   - scrollbar drag
-6) Send 2–3 follow-up questions; verify scrolling still works during streaming
-7) Click Close/Back:
-   - Sales Coach closes
-   - Property Report reopens on the same opportunity
+## Files to Create/Modify
 
-Acceptance criteria:
-- Sales Coach scroll works 100% on desktop (wheel/trackpad) while briefing/chat are long.
-- No “snap back” behavior while reading older content.
-- Closing Sales Coach reliably returns to the same report.
+| File | Action | Description |
+|------|--------|-------------|
+| (migration) | CREATE | Seed demo data matching mock opportunities |
+| `src/hooks/useContractorOpportunities.ts` | CREATE | Hook to fetch opportunities from database |
+| `src/lib/opportunityMapper.ts` | CREATE | Transform database rows to UI types |
+| `src/components/contractor/OpportunityFeed.tsx` | MODIFY | Use hook instead of mock data |
 
 ---
 
-## Files that will be changed
-- `src/components/contractor/OpportunityFeed.tsx` (new state + orchestration, render SalesCoachDrawer here)
-- `src/components/contractor/PropertyReportDrawer.tsx` (remove internal Sales Coach overlay; add callback prop)
-- `src/components/contractor/SalesCoachDrawer.tsx` (final scroll + markdown + key handling polish)
-- (Optional) `src/components/ui/sheet.tsx` only if we need accessibility tweaks globally (likely not necessary)
+## Demo Data Summary (12 opportunities)
+
+| Priority | Customer | Address | Unit | Health |
+|----------|----------|---------|------|--------|
+| CRITICAL | Johnson Family | 1847 Sunset Dr, Phoenix | Rheem 50g Gas | 24 |
+| CRITICAL | Williams Residence | 2301 E Camelback Rd, Phoenix | Bradford White 50g Electric | 18 |
+| HIGH | Martinez Residence | 456 Oak Ave, Scottsdale | A.O. Smith 50g Gas | 62 |
+| HIGH | Chen Family | 789 Mesquite Ln, Tempe | State Select 50g Gas | 45 |
+| HIGH | Thompson Home | 1122 Palm Desert Way, Gilbert | Bradford White 40g Gas | 52 |
+| MEDIUM | Rodriguez Family | 3344 Saguaro Blvd, Mesa | Rheem 40g Gas | 71 |
+| MEDIUM | Patel Residence | 5566 Ironwood Dr, Chandler | A.O. Smith 40g Gas | 78 |
+| MEDIUM | Anderson Home | 9900 Cactus Wren Ln, Peoria | Bradford White 40g Electric | 68 |
+| MEDIUM | Davis Residence | 2233 Quail Run, Scottsdale | State Select 40g Gas | 74 |
+| LOW | Miller Family | 4455 Dove Valley Rd, Cave Creek | Rheem 50g Gas | 92 |
+| LOW | Taylor Home | 6677 Desert Sage Way, Fountain Hills | A.O. Smith 50g Electric | 88 |
+| LOW | Garcia Residence | 8899 Prickly Pear Trail, Sun City | Rheem 50g Gas | 85 |
 
 ---
 
-## If anything still blocks scrolling after this
-At that point, the only remaining causes would be truly global wheel prevention (rare) or a transparent overlay capturing pointer events above Sales Coach. If needed, we’ll add a temporary on-screen debug strip (scrollTop/scrollHeight/clientHeight + “wheel events received”) to prove whether the browser is even delivering wheel events to the container, then remove it once confirmed.
+## Contractor Access Pattern
+
+Since database tables use RLS, we need:
+1. A logged-in user with the `contractor` role
+2. Active `contractor_property_relationships` linking the contractor to each property
+3. OR - for demo purposes, we can use a service role / bypass RLS for the seed data
+
+The seed migration will create a demo contractor profile and establish all necessary relationships.
+
+---
+
+## Technical Notes
+
+**RLS considerations:**
+- The seed migration will use the service role context to bypass RLS during seeding
+- The frontend fetch will work because we'll establish contractor_property_relationships
+- If no user is logged in, the hook returns empty (expected behavior)
+
+**Type safety:**
+- The `useContractorOpportunities` hook will return `MockOpportunity[]` to minimize UI changes
+- Internal typing uses database row types from `@/integrations/supabase/types`
+
+**Performance:**
+- Single query with JOINs is more efficient than multiple queries
+- Results cached via React Query
+
+---
+
+## Verification Steps
+
+After implementation:
+1. Log in as the demo contractor
+2. Go to `/contractor`
+3. Verify 12 opportunities appear (matching the mock data)
+4. Click "Details" on any opportunity
+5. Click "Sales Coach"
+6. Verify the briefing references real data (customer name, address, PSI readings, health score, etc.)
+7. Check that follow-up questions also reflect real data context
