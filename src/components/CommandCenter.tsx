@@ -535,15 +535,99 @@ export function CommandCenter({
   const shouldBundleViolations = shouldShowReplacementOption;
   const hasCodeIssues = violationIssues.length > 0;
 
-  // Base maintenance tasks (only shown when maintenance is appropriate)
+  // NEW: Use algorithm-derived flush and anode metrics for accurate recommendations
+  // Calculate months to flush from algorithm (0 if due now)
+  const isFlushDueNow = flushStatus === 'due' || flushStatus === 'lockout' || flushStatus === 'critical';
+  const cappedMonthsToFlush = isFlushDueNow ? 0 : Math.min(Math.max(0, monthsToFlush ?? 6), 36);
+  
+  // Get flush benefit from sediment (v9.1 pro-grade logic)
+  const getFlushBenefit = () => {
+    if (flushStatus === 'lockout') return 'Professional extraction needed';
+    if (sedimentLbs > 1) return `Restore up to ${Math.round(sedimentLbs * 3)}% efficiency`;
+    return 'Maintain peak efficiency';
+  };
+  
+  // Get flush explanation based on conditions
+  const getFlushWhyExplanation = () => {
+    if (flushStatus === 'lockout') {
+      return `Sediment buildup has reached ${sedimentLbs.toFixed(1)} lbs—standard flushing is not recommended. Professional vacuum extraction or replacement may be required.`;
+    }
+    if (sedimentLbs > 1) {
+      return `Approximately ${sedimentLbs.toFixed(1)} lbs of mineral buildup has accumulated. Flushing restores heating efficiency and prevents damage to the tank lining.`;
+    }
+    if (currentInputs.hardnessGPG > 10) {
+      return 'Your water hardness accelerates sediment buildup. Regular flushing prevents efficiency loss and extends equipment lifespan.';
+    }
+    return 'Periodic flushing removes mineral deposits that reduce heating efficiency and can cause premature tank failure.';
+  };
+  
+  // NEW v9.2: Calculate anode service from depletion percentage (not time)
+  // Uses anodeDepletionPercent and anodeStatus already destructured from metrics above
+  let cappedMonthsToAnode: number;
+  let anodeUrgency: MaintenanceTask['urgency'];
+  
+  if (anodeDepletionPercent > 50 || anodeStatus === 'replace' || anodeStatus === 'naked') {
+    cappedMonthsToAnode = 0;
+    anodeUrgency = anodeStatus === 'naked' ? 'critical' : 'overdue';
+  } else if (anodeDepletionPercent > 40 || anodeStatus === 'inspect') {
+    const burnRatePerYear = anodeDepletionPercent / Math.max(1, currentInputs.calendarAge);
+    const percentRemaining = 50 - anodeDepletionPercent;
+    cappedMonthsToAnode = Math.round((percentRemaining / burnRatePerYear) * 12);
+    anodeUrgency = 'schedule';
+  } else {
+    const burnRatePerYear = Math.max(5, anodeDepletionPercent) / Math.max(1, currentInputs.calendarAge);
+    const percentRemaining = 50 - anodeDepletionPercent;
+    cappedMonthsToAnode = Math.min(36, Math.round((percentRemaining / burnRatePerYear) * 12));
+    anodeUrgency = 'optimal';
+  }
+  
+  // Get anode description based on status
+  const getAnodeDescription = () => {
+    if (anodeStatus === 'naked') return 'CRITICAL: Tank is unprotected - anode depleted';
+    if (anodeStatus === 'replace') return 'Anode rod has passed service threshold';
+    return 'Check sacrificial anode for corrosion protection';
+  };
+  
+  const getAnodeWhyExplanation = () => {
+    if (anodeStatus === 'naked') {
+      return `The sacrificial anode rod is completely depleted (${Math.round(anodeDepletionPercent)}%). Your tank is currently unprotected from corrosion. Immediate inspection and replacement is critical.`;
+    }
+    if (anodeStatus === 'replace') {
+      return `The anode rod has passed the 50% service threshold (${Math.round(anodeDepletionPercent)}% depleted). Replacement now provides a safety buffer before the tank becomes unprotected.`;
+    }
+    if (anodeStatus === 'inspect') {
+      return `The anode rod is approaching the service window (${Math.round(anodeDepletionPercent)}% depleted). Planning inspection now allows time to schedule replacement.`;
+    }
+    return 'The sacrificial anode rod protects your tank from rust. Regular inspection ensures protection is maintained.';
+  };
+
+  // Base maintenance tasks using full algorithm metrics
   const baseMaintenanceTasks: MaintenanceTask[] = isTanklessUnit 
     ? [
         { type: 'descale', label: 'Descale', description: 'Remove scale buildup', monthsUntilDue: 0, urgency: 'schedule' as const, benefit: 'Restore flow rate', whyExplanation: '', icon: 'droplets' as const },
         { type: 'filter_clean' as MaintenanceTask['type'], label: 'Filter Clean', description: 'Clean inlet filter', monthsUntilDue: 0, urgency: 'schedule' as const, benefit: 'Maintain flow', whyExplanation: '', icon: 'filter' as const },
       ]
     : [
-        { type: 'flush', label: 'Tank Flush', description: 'Drain sediment', monthsUntilDue: monthsToFlush ?? 6, urgency: mapFlushStatus(flushStatus), benefit: 'Restore efficiency', whyExplanation: '', icon: 'droplets' as const },
-        { type: 'anode', label: 'Anode Inspection', description: 'Check corrosion protection', monthsUntilDue: 12, urgency: 'schedule' as const, benefit: 'Extend tank life', whyExplanation: '', icon: 'shield' as const },
+        { 
+          type: 'flush', 
+          label: flushStatus === 'lockout' ? 'Tank Flush (Lockout)' : 'Tank Flush', 
+          description: flushStatus === 'lockout' ? 'Heavy buildup detected - professional service required' : 'Drain sediment from tank bottom', 
+          monthsUntilDue: cappedMonthsToFlush, 
+          urgency: mapFlushStatus(flushStatus), 
+          benefit: getFlushBenefit(), 
+          whyExplanation: getFlushWhyExplanation(), 
+          icon: 'droplets' as const 
+        },
+        { 
+          type: 'anode', 
+          label: 'Anode Rod Inspection', 
+          description: getAnodeDescription(), 
+          monthsUntilDue: cappedMonthsToAnode, 
+          urgency: anodeUrgency, 
+          benefit: anodeStatus === 'naked' || anodeStatus === 'replace' ? 'Restore tank corrosion protection' : 'Prevent tank corrosion', 
+          whyExplanation: getAnodeWhyExplanation(), 
+          icon: 'shield' as const 
+        },
       ];
 
   // Replacement consultation task for units needing replacement
