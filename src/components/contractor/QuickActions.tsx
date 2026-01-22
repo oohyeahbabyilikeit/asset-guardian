@@ -3,7 +3,11 @@ import { ClipboardList, Building2, DollarSign, FileBarChart } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-export function QuickActions() {
+interface QuickActionsProps {
+  compact?: boolean;
+}
+
+export function QuickActions({ compact = false }: QuickActionsProps) {
   const handlePricingSetup = () => {
     toast.info('Pricing setup coming soon');
   };
@@ -11,6 +15,48 @@ export function QuickActions() {
   const handleReports = () => {
     toast.info('Reports coming soon');
   };
+
+  const actions = [
+    { icon: ClipboardList, label: 'Inspect', shortLabel: 'Inspect', to: '/?mode=technician' },
+    { icon: Building2, label: 'View Properties', shortLabel: 'Props', onClick: () => toast.info('Properties view coming soon') },
+    { icon: DollarSign, label: 'Pricing Setup', shortLabel: 'Pricing', onClick: handlePricingSetup },
+    { icon: FileBarChart, label: 'Reports', shortLabel: 'Reports', onClick: handleReports },
+  ];
+
+  if (compact) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-100 p-3">
+        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Quick Actions</h3>
+        <div className="grid grid-cols-2 gap-1.5">
+          {actions.map((action) => 
+            action.to ? (
+              <Link key={action.label} to={action.to}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2 h-8 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                >
+                  <action.icon className="w-3.5 h-3.5" />
+                  {action.shortLabel}
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                key={action.label}
+                variant="ghost"
+                size="sm"
+                onClick={action.onClick}
+                className="w-full justify-start gap-2 h-8 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+              >
+                <action.icon className="w-3.5 h-3.5" />
+                {action.shortLabel}
+              </Button>
+            )
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-4">
