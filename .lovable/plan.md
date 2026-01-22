@@ -1,182 +1,245 @@
 
 
-# Add Missing Tank Algorithm Columns to water_heaters Table
+# Automatic Contractor Opportunity Notification System
 
-## Goal
-Add 9 missing `ForensicInputs` fields to the `water_heaters` table so every tank algorithm input can be persisted and retrieved for accurate historical assessments.
+## Overview
+
+Build a system that automatically scans water heater records nightly and notifies contractors (plumbing business owners) of maintenance and replacement opportunities for their connected properties.
 
 ---
 
-## Migration: Add 9 Missing Columns
+## Phase 1: Dynamic Age Calculation
+
+### Problem
+Currently `calendar_age_years` is a static snapshot from inspection time. A unit inspected 6 months ago still shows the same age.
+
+### Solution
+Calculate age dynamically from `install_date` whenever the algorithm runs.
+
+### Changes
+
+**Database**: Add `manufacture_date` column (already have `install_date` which serves this purpose)
+
+**Algorithm Helper** (`src/lib/opterraAlgorithm.ts`):
+```typescript
+export function calculateCurrentAge(installDate: Date | null, storedAge?: number): number {
+  if (installDate) {
+    const now = new Date();
+    return (now.getTime() - installDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+  }
+  return storedAge ?? 0;
+}
+```
+
+**Usage Pattern**: When loading a water heater for algorithm calculation, compute current age:
+```typescript
+const currentAge = calculateCurrentAge(waterHeater.install_date, waterHeater.calendar_age_years);
+const inputs: ForensicInputs = { calendarAge: currentAge, ... };
+```
+
+---
+
+## Phase 2: Opportunity Detection Engine
+
+### New Edge Function: `detect-opportunities`
+
+Runs nightly via `pg_cron`. Scans all water heaters and identifies actionable opportunities.
+
+### Opportunity Types
+
+| Type | Detection Logic | Priority |
+|------|-----------------|----------|
+| `warranty_ending` | Warranty expires within 90 days | HIGH |
+| `flush_due` | `monthsToFlush <= 0` or `flushStatus = 'due'/'critical'` | MEDIUM |
+| `anode_due` | `shieldLife <= 1 year` | MEDIUM |
+| `descale_due` | Tankless: `descaleStatus = 'due'/'critical'` | MEDIUM |
+| `replacement_recommended` | `failProb >= 0.4` or `healthScore <= 50` | HIGH |
+| `replacement_urgent` | `failProb >= 0.6` or leaking | CRITICAL |
+| `infrastructure_missing` | No PRV/expansion tank in closed loop | MEDIUM |
+| `annual_checkup` | 12+ months since last service event | LOW |
+
+### New Database Table: `opportunity_notifications`
 
 ```sql
--- Add missing tank algorithm columns to water_heaters table
--- These fields are actively used in opterraAlgorithm.ts but not currently persisted
+CREATE TABLE opportunity_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  water_heater_id UUID NOT NULL REFERENCES water_heaters(id),
+  contractor_id UUID NOT NULL REFERENCES profiles(id),
+  opportunity_type TEXT NOT NULL,
+  priority TEXT DEFAULT 'medium', -- low, medium, high, critical
+  health_score INTEGER,
+  fail_probability NUMERIC,
+  calculated_age NUMERIC,
+  opportunity_context JSONB DEFAULT '{}',
+  status TEXT DEFAULT 'pending', -- pending, sent, viewed, converted, dismissed
+  created_at TIMESTAMPTZ DEFAULT now(),
+  sent_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ DEFAULT (now() + INTERVAL '30 days')
+);
 
--- 1. Household Usage Fields
-ALTER TABLE water_heaters
-ADD COLUMN people_count integer DEFAULT 3,
-ADD COLUMN usage_type text DEFAULT 'normal';
-
--- Add constraint for valid usage_type values
-ALTER TABLE water_heaters
-ADD CONSTRAINT usage_type_valid 
-CHECK (usage_type IS NULL OR usage_type IN ('light', 'normal', 'heavy'));
-
--- Add constraint for people_count range (1-12)
-ALTER TABLE water_heaters
-ADD CONSTRAINT people_count_range 
-CHECK (people_count IS NULL OR (people_count >= 1 AND people_count <= 12));
-
--- 2. Service History Fields (critical for anode/sediment models)
-ALTER TABLE water_heaters
-ADD COLUMN last_anode_replace_years_ago numeric DEFAULT NULL,
-ADD COLUMN last_flush_years_ago numeric DEFAULT NULL,
-ADD COLUMN is_annually_maintained boolean DEFAULT false;
-
--- Add constraints for service history years (0-50 range)
-ALTER TABLE water_heaters
-ADD CONSTRAINT last_anode_replace_range 
-CHECK (last_anode_replace_years_ago IS NULL OR (last_anode_replace_years_ago >= 0 AND last_anode_replace_years_ago <= 50));
-
-ALTER TABLE water_heaters
-ADD CONSTRAINT last_flush_range 
-CHECK (last_flush_years_ago IS NULL OR (last_flush_years_ago >= 0 AND last_flush_years_ago <= 50));
-
--- 3. History Tracking Fields ("Lazarus Effect" prevention)
-ALTER TABLE water_heaters
-ADD COLUMN years_without_anode numeric DEFAULT NULL,
-ADD COLUMN years_without_softener numeric DEFAULT NULL;
-
--- Add constraints for history tracking (0-50 range)
-ALTER TABLE water_heaters
-ADD CONSTRAINT years_without_anode_range 
-CHECK (years_without_anode IS NULL OR (years_without_anode >= 0 AND years_without_anode <= 50));
-
-ALTER TABLE water_heaters
-ADD CONSTRAINT years_without_softener_range 
-CHECK (years_without_softener IS NULL OR (years_without_softener >= 0 AND years_without_softener <= 50));
-
--- 4. Water Chemistry Fields
-ALTER TABLE water_heaters
-ADD COLUMN softener_salt_status text DEFAULT 'UNKNOWN',
-ADD COLUMN sanitizer_type text DEFAULT 'UNKNOWN';
-
--- Add constraint for valid salt status values
-ALTER TABLE water_heaters
-ADD CONSTRAINT salt_status_valid 
-CHECK (softener_salt_status IS NULL OR softener_salt_status IN ('OK', 'EMPTY', 'UNKNOWN'));
-
--- Add constraint for valid sanitizer type values
-ALTER TABLE water_heaters
-ADD CONSTRAINT sanitizer_type_valid 
-CHECK (sanitizer_type IS NULL OR sanitizer_type IN ('CHLORINE', 'CHLORAMINE', 'UNKNOWN'));
-
--- 5. Update tank_water_heaters view to include new columns
-CREATE OR REPLACE VIEW tank_water_heaters 
-WITH (security_invoker = true) AS
-SELECT *
-FROM water_heaters
-WHERE fuel_type IN ('GAS', 'ELECTRIC', 'HYBRID');
+-- Index for fast contractor lookup
+CREATE INDEX idx_opp_contractor_status ON opportunity_notifications(contractor_id, status);
 ```
 
 ---
 
-## Column Details
+## Phase 3: Edge Function Implementation
 
-| Column | Type | Default | Constraint | Algorithm Usage |
-|--------|------|---------|------------|-----------------|
-| `people_count` | integer | 3 | 1-12 | Usage intensity multiplier (gallons/day) |
-| `usage_type` | text | 'normal' | light/normal/heavy | Wear rate multiplier (0.8x/1.0x/1.3x) |
-| `last_anode_replace_years_ago` | numeric | NULL | 0-50 | Anode shield life reset calculation |
-| `last_flush_years_ago` | numeric | NULL | 0-50 | Sediment accumulation reset |
-| `is_annually_maintained` | boolean | false | - | Steady-state sediment factor (0.4 lbs/year) |
-| `years_without_anode` | numeric | NULL | 0-50 | Historical corrosion damage tracking |
-| `years_without_softener` | numeric | NULL | 0-50 | Historical hard water damage |
-| `softener_salt_status` | text | 'UNKNOWN' | OK/EMPTY/UNKNOWN | Effective hardness override |
-| `sanitizer_type` | text | 'UNKNOWN' | CHLORINE/CHLORAMINE/UNKNOWN | Resin degradation factor |
-
----
-
-## Files to Update After Migration
-
-| File | Changes |
-|------|---------|
-| `src/lib/syncMappers.ts` | Add 9 new fields to `WaterHeaterInsert` interface and `mapInspectionToWaterHeater()` |
-| `src/types/technicianMapper.ts` | Map new fields in `mapTechnicianToForensicInputs()` |
-| `docs/database.md` | Document new columns in schema reference |
-
----
-
-## Sync Mapper Updates
+### `supabase/functions/detect-opportunities/index.ts`
 
 ```typescript
-// In WaterHeaterInsert interface, add:
-people_count?: number;
-usage_type?: string;
-last_anode_replace_years_ago?: number;
-last_flush_years_ago?: number;
-is_annually_maintained?: boolean;
-years_without_anode?: number;
-years_without_softener?: number;
-softener_salt_status?: string;
-sanitizer_type?: string;
-
-// In mapInspectionToWaterHeater(), add:
-people_count: data.homeownerContext?.peopleCount || 3,
-usage_type: data.homeownerContext?.usageType || 'normal',
-last_anode_replace_years_ago: data.serviceHistory?.lastAnodeReplaceYearsAgo,
-last_flush_years_ago: data.serviceHistory?.lastFlushYearsAgo,
-is_annually_maintained: data.serviceHistory?.isAnnuallyMaintained || false,
-years_without_anode: data.serviceHistory?.yearsWithoutAnode,
-years_without_softener: data.serviceHistory?.yearsWithoutSoftener,
-softener_salt_status: data.softener?.saltStatus || 'UNKNOWN',
-sanitizer_type: data.sanitizerType || 'UNKNOWN',
+// Pseudocode structure
+async function detectOpportunities() {
+  // 1. Fetch all water heaters with contractor relationships
+  const waterHeaters = await fetchWaterHeatersWithContractors();
+  
+  // 2. For each water heater, calculate current age and run algorithm
+  for (const wh of waterHeaters) {
+    const currentAge = calculateCurrentAge(wh.install_date, wh.calendar_age_years);
+    const inputs = buildForensicInputs(wh, currentAge);
+    const result = calculateOpterraRisk(inputs);
+    
+    // 3. Detect opportunities based on thresholds
+    const opportunities = detectThresholdBreaches(wh, result);
+    
+    // 4. Check for existing pending notifications (avoid duplicates)
+    // 5. Insert new opportunities
+  }
+}
 ```
+
+### Deduplication Logic
+- Don't create duplicate notifications for same water heater + opportunity type within 30 days
+- Mark existing as "superseded" if priority increases
 
 ---
 
-## Current vs Future Data Flow
+## Phase 4: Notification Delivery
+
+### Email Delivery via Resend
+
+New edge function: `send-opportunity-notifications`
+
+**Email Template Content**:
+```
+Subject: {count} Maintenance Opportunities in Your Service Area
+
+Hi {contractorName},
+
+We've identified {count} opportunities for your connected properties:
+
+🔴 CRITICAL (1):
+  - {address}: Water heater replacement recommended (Health: 35/100)
+
+🟡 HIGH (2):
+  - {address}: Warranty expiring in 45 days
+  - {address}: Anode rod due for inspection
+
+🟢 MEDIUM (3):
+  - {address}: Annual flush due
+  ...
+
+[View Opportunities Dashboard →]
+```
+
+### Delivery Schedule
+- Run daily at 7 AM local time (contractor's timezone)
+- Batch notifications per contractor (don't send 10 emails for 10 properties)
+- Respect `preferred_contact_method` from profiles table
+
+---
+
+## Phase 5: Contractor Dashboard
+
+### New Route: `/contractor/opportunities`
+
+Display pending opportunities with:
+- Filter by priority/type/property
+- One-click "Schedule Service" → creates lead
+- "Dismiss" with reason → updates status
+- "Already Serviced" → creates service event
+
+---
+
+## Data Flow Diagram
 
 ```text
-BEFORE (missing fields):
-TechnicianInspection → mapToForensicInputs() → Algorithm runs → Result
-                                ↓
-                         water_heaters table (24 fields)
-                         [people_count, usage_type NOT saved]
-
-AFTER (complete fields):
-TechnicianInspection → mapToForensicInputs() → Algorithm runs → Result
-                                ↓
-                         water_heaters table (33 fields)
-                         [ALL algorithm inputs persisted]
+┌─────────────────────────────────────────────────────────────────┐
+│                         NIGHTLY CRON                            │
+│                    (pg_cron @ 2 AM UTC)                         │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              EDGE FUNCTION: detect-opportunities                │
+│  1. Fetch water_heaters with contractor relationships           │
+│  2. Calculate CURRENT age from install_date                     │
+│  3. Run Opterra algorithm for each unit                         │
+│  4. Detect threshold breaches (warranty, flush, replacement)    │
+│  5. Insert into opportunity_notifications (deduped)             │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              EDGE FUNCTION: send-opportunity-notifications      │
+│                        (Runs @ 7 AM)                            │
+│  1. Group pending notifications by contractor                   │
+│  2. Build digest email with priority sections                   │
+│  3. Send via Resend API                                         │
+│  4. Mark as 'sent' with timestamp                               │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    CONTRACTOR DASHBOARD                         │
+│  - View pending opportunities                                   │
+│  - Filter/sort by priority                                      │
+│  - Convert to lead or service event                             │
+│  - Dismiss with reason                                          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Smart Proxy Behavior (Unchanged)
+## Implementation Sequence
 
-The algorithm's `applySmartProxies()` function will continue to work for records with NULL values:
-
-| Field | NULL Behavior |
-|-------|---------------|
-| `people_count` | Defaults to 2.5 (average household) |
-| `usage_type` | Defaults to 'normal' |
-| `last_anode_replace_years_ago` | Assumes never replaced |
-| `last_flush_years_ago` | Assumes never flushed |
-| `is_annually_maintained` | Assumes false |
-| `years_without_anode` | Calculated from calendar age |
-| `years_without_softener` | Calculated from calendar age if softener present |
-| `softener_salt_status` | Defaults to 'UNKNOWN' |
-| `sanitizer_type` | Defaults to 'UNKNOWN' |
+| Step | Task | Dependency |
+|------|------|------------|
+| 1 | Add `calculateCurrentAge()` helper | None |
+| 2 | Create `opportunity_notifications` table | None |
+| 3 | Build `detect-opportunities` edge function | Steps 1-2 |
+| 4 | Set up pg_cron job for detection | Step 3 |
+| 5 | Add RESEND_API_KEY secret | None |
+| 6 | Build `send-opportunity-notifications` edge function | Step 5 |
+| 7 | Set up pg_cron job for sending | Step 6 |
+| 8 | Build contractor opportunities dashboard | Steps 1-4 |
 
 ---
 
-## Expected Outcome
+## Required Secrets
 
-After this migration:
-- All 33 tank algorithm inputs will have corresponding database columns
-- Historical assessments can be accurately recalculated
-- No more data loss between inspection and persistence
-- TypeScript types will auto-regenerate to include new columns
+| Secret | Purpose |
+|--------|---------|
+| `RESEND_API_KEY` | Email delivery via Resend |
+
+---
+
+## Existing Assets to Leverage
+
+| Asset | How It's Used |
+|-------|---------------|
+| `contractor_property_relationships` | Links contractors to properties |
+| `leads` table | Convert opportunity → lead |
+| `service_events` table | Log completed maintenance |
+| `maintenanceCalculations.ts` | Threshold detection logic |
+| `calculateOpterraRisk()` | Health/failure scoring |
+
+---
+
+## Success Metrics
+
+1. **Opportunity Detection Rate**: % of due maintenance items flagged
+2. **Email Open Rate**: Track via Resend analytics
+3. **Conversion Rate**: Opportunities → Leads → Service Events
+4. **Time to Action**: Hours between notification and contractor response
 
