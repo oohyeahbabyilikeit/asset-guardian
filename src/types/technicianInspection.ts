@@ -120,6 +120,17 @@ export interface ContractorContext {
 // Homeowner context captured at handoff
 export interface HomeownerContext {
   name?: string;            // "John" (captured at handoff)
+  peopleCount?: number;     // Household size (1-12)
+  usageType?: 'light' | 'normal' | 'heavy';  // Usage intensity
+}
+
+// Service history for algorithm inputs
+export interface ServiceHistoryContext {
+  lastAnodeReplaceYearsAgo?: number;  // Years since anode replacement
+  lastFlushYearsAgo?: number;         // Years since tank flush
+  isAnnuallyMaintained?: boolean;     // Annual maintenance plan
+  yearsWithoutAnode?: number;         // Historical corrosion tracking
+  yearsWithoutSoftener?: number;      // Historical hard water damage
 }
 
 // Handoff mode determines CTA behavior
@@ -152,6 +163,10 @@ export interface TechnicianInspectionData {
   contractorContext?: ContractorContext;
   homeownerContext?: HomeownerContext;
   handoffMode?: HandoffMode;
+  
+  // v1.1 Algorithm fields
+  serviceHistory?: ServiceHistoryContext;
+  sanitizerType?: 'CHLORINE' | 'CHLORAMINE' | 'UNKNOWN';
 }
 
 // Defaults for initialization
