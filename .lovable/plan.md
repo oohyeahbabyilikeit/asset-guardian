@@ -1,264 +1,343 @@
 
-# Sidecar UX Improvements: Revenue Capture & Engagement Verification
+
+# Update Backend Documentation with New Features
 
 ## Overview
 
-This plan implements three critical features to make the non-integrated sidecar dashboard work properly for tracking real business results:
+The `docs/backend.md` file needs to be updated to document the new Contractor Dashboard redesign and sidecar revenue tracking features that have been implemented. This includes:
 
-1. **Celebration Modal with Revenue Capture** - Transform "Mark Converted" into a satisfying cash register moment that collects actual sale amounts
-2. **"Did You Book This?" Nudge** - Visual indicator on high-engagement leads to prompt status verification
-3. **Est. Value vs Revenue Distinction** - Clear separation between pipeline potential and confirmed closes
-
----
-
-## Problem Statement
-
-Since the app is a sidecar (no integration with invoicing/FSM systems), there are two risks:
-
-| Risk | Current Behavior | Impact |
-|------|-----------------|--------|
-| Revenue stays at $0 | "Mark Converted" just stops sequence | Dashboard loses credibility |
-| Stale sequences | Customer books via phone, contractor forgets to update | Automation keeps running embarrassingly |
+1. **New Database Tables**: `nurturing_sequences`, `sequence_events`, `sequence_templates`, `demo_opportunities`
+2. **New Revenue Column**: `revenue_usd` on `nurturing_sequences` for tracking actual closed sales
+3. **New Hooks**: `useWeeklyStats`, `useRecentActivity`, `useNurturingSequences`, `useSequenceEvents`
+4. **New Components**: Dashboard widgets for the contractor automation view
 
 ---
 
-## Implementation Plan
+## Additions to Backend Documentation
 
-### Phase 1: Database Schema Update
+### Section 1: Update ERDiagram (lines ~93-318)
 
-Add a `revenue_usd` column to `nurturing_sequences` to store manually-entered sale amounts.
+Add the new nurturing/sequence tables to the entity relationship diagram:
 
-```sql
-ALTER TABLE nurturing_sequences 
-ADD COLUMN revenue_usd numeric DEFAULT NULL;
-```
-
-This column stores the real dollar value entered when marking a sequence as converted.
-
----
-
-### Phase 2: Create Celebration Modal
-
-Replace the simple confirmation dialog with a celebratory modal that captures the sale amount.
-
-**New Component: `ConversionCelebrationModal.tsx`**
-
-Visual Design:
 ```text
-┌──────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│                         🎉 🎊 🎉                                │
-│                                                                  │
-│              CONGRATULATIONS!                                    │
-│              You closed the deal!                                │
-│                                                                  │
-│         Mrs. Johnson · 123 Maple Ave                            │
-│                                                                  │
-│         ┌────────────────────────────────────────┐              │
-│         │  $    [ 4,500                      ]  │              │
-│         │       Final Sale Amount                │              │
-│         └────────────────────────────────────────┘              │
-│                                                                  │
-│                    [ Log Revenue & Complete ]                    │
-│                    [ Skip (Don't Track) ]                        │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+%% Nurturing Sequences Layer
+demo_opportunities ||--o{ nurturing_sequences : "has"
+nurturing_sequences ||--o{ sequence_events : "contains"
+sequence_templates ||--o{ nurturing_sequences : "uses"
 ```
 
-Features:
-- Confetti animation on open (using framer-motion)
-- Currency input with $ prefix
-- "Log Revenue & Complete" button (primary action)
-- "Skip" link for cases where they don't want to track
-- Stores value in `nurturing_sequences.revenue_usd`
+And table definitions:
+```text
+demo_opportunities {
+    uuid id PK
+    string customer_name
+    string property_address
+    string opportunity_type
+    string priority
+    string status
+    jsonb forensic_inputs
+    integer health_score
+}
 
----
+nurturing_sequences {
+    uuid id PK
+    uuid opportunity_id FK
+    string sequence_type
+    string status
+    integer current_step
+    integer total_steps
+    timestamptz next_action_at
+    string outcome
+    numeric revenue_usd
+}
 
-### Phase 3: Update Mark Outcome Mutation
+sequence_events {
+    uuid id PK
+    uuid sequence_id FK
+    integer step_number
+    string action_type
+    string status
+    timestamptz scheduled_at
+    timestamptz executed_at
+    timestamptz opened_at
+    timestamptz clicked_at
+}
 
-Modify `useMarkOutcome` in `useSequenceEvents.ts` to accept an optional `revenueUsd` parameter.
+sequence_templates {
+    uuid id PK
+    string name
+    string trigger_type
+    jsonb steps
+    boolean is_active
+}
+```
+
+### Section 2: New Table Schema Details (after line ~675)
+
+Add complete column-level schema documentation for the four new tables:
+
+#### `demo_opportunities`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `customer_name` | `text` | No | - | Contact name |
+| `customer_phone` | `text` | Yes | - | Contact phone |
+| `customer_email` | `text` | Yes | - | Contact email |
+| `property_address` | `text` | No | - | Street address |
+| `property_city` | `text` | No | - | City |
+| `property_state` | `text` | No | `'AZ'` | State code |
+| `property_zip` | `text` | No | - | ZIP code |
+| `opportunity_type` | `text` | No | - | `replacement`, `code_violation`, `maintenance` |
+| `priority` | `text` | No | - | `critical`, `high`, `medium`, `low` |
+| `status` | `text` | No | `'pending'` | Pipeline status |
+| `job_complexity` | `text` | No | `'STANDARD'` | `STANDARD`, `COMPLEX`, `PREMIUM` |
+| `asset_brand` | `text` | No | - | Equipment brand |
+| `asset_age_years` | `numeric` | No | - | Equipment age |
+| `forensic_inputs` | `jsonb` | No | `'{}'` | Algorithm input data |
+| `health_score` | `integer` | Yes | - | 0-100 health score |
+| `bio_age` | `numeric` | Yes | - | Biological age |
+| `fail_probability` | `numeric` | Yes | - | 12-month failure probability |
+| `verdict_action` | `text` | Yes | - | `replace`, `maintain`, `monitor` |
+
+#### `nurturing_sequences`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `opportunity_id` | `uuid` | No | - | FK to demo_opportunities |
+| `sequence_type` | `text` | No | - | `replacement_urgent`, `code_violation`, `maintenance` |
+| `status` | `text` | No | `'active'` | `active`, `paused`, `completed`, `cancelled` |
+| `current_step` | `integer` | No | `1` | Current step number |
+| `total_steps` | `integer` | No | - | Total steps in sequence |
+| `next_action_at` | `timestamptz` | Yes | - | When next action due |
+| `started_at` | `timestamptz` | No | `now()` | When sequence started |
+| `completed_at` | `timestamptz` | Yes | - | When sequence ended |
+| `outcome` | `text` | Yes | - | `converted`, `lost`, `stopped` |
+| `outcome_reason` | `text` | Yes | - | Reason for outcome |
+| `outcome_step` | `integer` | Yes | - | Step when outcome occurred |
+| `outcome_at` | `timestamptz` | Yes | - | When outcome recorded |
+| `revenue_usd` | `numeric` | Yes | - | **Manually-entered sale amount** |
+
+#### `sequence_events`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `sequence_id` | `uuid` | No | - | FK to nurturing_sequences |
+| `step_number` | `integer` | No | - | Step position in sequence |
+| `action_type` | `text` | No | - | `sms`, `email`, `call_reminder` |
+| `status` | `text` | No | `'pending'` | `pending`, `sent`, `failed`, `skipped` |
+| `scheduled_at` | `timestamptz` | No | - | When action scheduled |
+| `executed_at` | `timestamptz` | Yes | - | When action executed |
+| `delivery_status` | `text` | Yes | `'pending'` | `pending`, `sent`, `delivered`, `failed` |
+| `message_content` | `text` | Yes | - | Message text |
+| `opened_at` | `timestamptz` | Yes | - | When recipient opened |
+| `clicked_at` | `timestamptz` | Yes | - | When recipient clicked |
+| `error_message` | `text` | Yes | - | Error if failed |
+
+#### `sequence_templates`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `name` | `text` | No | - | Template name |
+| `trigger_type` | `text` | No | - | What triggers this sequence |
+| `steps` | `jsonb` | No | `'[]'` | Array of step definitions |
+| `is_active` | `boolean` | No | `true` | Template enabled |
+
+### Section 3: Add New Relationship Chain (after line ~790)
+
+#### 7. Nurturing Sequence Chain
+```text
+demo_opportunities
+    ↓ opportunity_id
+nurturing_sequences
+    ↓ sequence_id
+sequence_events
+```
+
+**Key Points:**
+- Sequences are linked to demo opportunities (not core water_heaters)
+- Each sequence has multiple events (one per step)
+- Templates define reusable sequence blueprints
+- `revenue_usd` captures actual closed sale amounts (manual entry)
+
+### Section 4: Add FK Reference Table Rows
+
+| Child Table | FK Column | Parent Table | Cascade? |
+|-------------|-----------|--------------|----------|
+| `nurturing_sequences` | `opportunity_id` | `demo_opportunities` | CASCADE |
+| `sequence_events` | `sequence_id` | `nurturing_sequences` | CASCADE |
+
+### Section 5: Add New Table Category
+
+| Category | Tables | Purpose |
+|----------|--------|---------|
+| **Nurturing/Automation** | `demo_opportunities`, `nurturing_sequences`, `sequence_events`, `sequence_templates` | Lead nurturing automation |
+
+### Section 6: New Hooks Documentation (new section after Type Mappers)
+
+## Contractor Dashboard Hooks
+
+### Location: `src/hooks/useNurturingSequences.ts`
+
+#### `useNurturingSequences(opportunityId?: string)`
+
+Fetches all nurturing sequences, optionally filtered by opportunity.
 
 ```typescript
-// Updated mutation signature
-useMarkOutcome({
+interface NurturingSequence {
+  id: string;
+  opportunityId: string;
+  sequenceType: string;
+  status: 'active' | 'paused' | 'completed' | 'cancelled';
+  currentStep: number;
+  totalSteps: number;
+  nextActionAt: Date | null;
+  startedAt: Date;
+  completedAt: Date | null;
+  outcome: 'converted' | 'lost' | 'stopped' | null;
+  outcomeReason: string | null;
+  outcomeAt: Date | null;
+}
+```
+
+#### `useEnrichedSequences()`
+
+Fetches sequences with customer data from demo_opportunities (client-side join).
+
+```typescript
+interface EnrichedSequence extends NurturingSequence {
+  customerName: string;
+  propertyAddress: string;
+  opportunityType: string;
+}
+```
+
+#### `usePulseMetrics()`
+
+Aggregates automation health metrics for dashboard display.
+
+```typescript
+interface PulseMetrics {
+  enrolled7Days: number;   // Sequences created in last 7 days
+  activeNow: number;       // Currently active sequences
+  engaged24h: number;      // Opens/clicks in last 24 hours
+  converted: number;       // Total converted sequences
+}
+```
+
+---
+
+### Location: `src/hooks/useSequenceEvents.ts`
+
+#### `useSequenceEvents(sequenceId: string)`
+
+Fetches all events for a specific sequence.
+
+#### `useMarkOutcome()`
+
+Marks a sequence as converted/lost with optional revenue capture.
+
+```typescript
+interface MarkOutcomeParams {
   sequenceId: string;
   outcome: 'converted' | 'lost';
   reason?: string;
   currentStep: number;
-  revenueUsd?: number;  // NEW: optional sale amount
-})
+  revenueUsd?: number | null;  // Manual sale amount entry
+}
 ```
-
-The mutation will update the new `revenue_usd` column when provided.
 
 ---
 
-### Phase 4: Add "High Interest" Nudge to Table Rows
+### Location: `src/hooks/useWeeklyStats.ts`
 
-In `SequenceTableRow.tsx`, detect high-engagement leads (2+ clicks) and show a visual nudge.
+#### `useWeeklyStats()`
 
-Detection Logic:
+Calculates weekly performance metrics from database.
+
 ```typescript
-// Count clicked events in sequence history
-const clickCount = events.filter(e => e.clickedAt != null).length;
-const isHighInterest = clickCount >= 2;
+interface WeeklyStats {
+  jobsBooked: number;     // Converted sequences this week
+  revenue: number;        // Sum of revenue_usd from conversions
+  fromAutomation: number; // Bookings from automated sequences
+  trend: number;          // % change vs previous week
+}
 ```
 
-Visual Indicator:
+**Key Distinction:**
+- `revenue` is derived from **manually-entered** `revenue_usd` values
+- This is NOT estimated - it's what the contractor actually logged
+
+---
+
+### Location: `src/hooks/useRecentActivity.ts`
+
+#### `useRecentActivity(limit?: number)`
+
+Fetches recent engagement activity for the dashboard feed.
+
+```typescript
+type ActivityType = 'opened' | 'clicked' | 'booked' | 'started' | 'stopped';
+
+interface ActivityItem {
+  id: string;
+  type: ActivityType;
+  customerName: string;
+  propertyAddress: string;
+  sequenceType: string;
+  messageContent?: string;
+  timestamp: Date;
+}
+```
+
+### Section 7: Revenue Tracking Architecture (new section)
+
+## Revenue Tracking (Sidecar Model)
+
+The platform operates as a "sidecar" without integration to external invoicing systems. Revenue tracking uses manual entry with gamification.
+
+### Data Flow
+
 ```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│ 123 Maple Ave - Smith   │ Urgent Replace │ Step 3/5 │ 🔥 HIGH INTEREST  │
-│ Check if they booked?                                                    │
-└──────────────────────────────────────────────────────────────────────────┘
+1. Contractor clicks "Mark Converted" in SequenceControlDrawer
+         ↓
+2. ConversionCelebrationModal opens with confetti animation
+         ↓
+3. Contractor enters Final Sale Amount: $[    ]
+         ↓
+4. useMarkOutcome() saves to nurturing_sequences.revenue_usd
+         ↓
+5. useWeeklyStats() sums revenue_usd for dashboard display
 ```
 
-UI Elements:
-- Yellow/amber dot or flame icon next to engagement icons
-- Tooltip on hover: "High Interest - Did they book?"
-- Subtle highlight on the row background
-- Optional: small "Verify" button that opens the SequenceControlDrawer
+### Est. Value vs Revenue Distinction
 
----
+| Metric | Source | Display | Purpose |
+|--------|--------|---------|---------|
+| **Est. Value** | Calculated from opportunity types | `~$18,000` (tilde prefix) | Pipeline potential |
+| **Revenue** | Sum of `revenue_usd` entries | `$9,000` (solid, green) | Actual closed sales |
 
-### Phase 5: Update Weekly Stats to Use Real Revenue
+**Pitch:** "We generated $18k in opportunities. You closed $9k. Let's go get the rest."
 
-Modify `useWeeklyStats.ts` to query actual `revenue_usd` from converted sequences instead of estimating.
+### High Interest Nudge
 
-Current (estimation):
-```typescript
-const avgJobValue = 1400;
-const revenue = jobsBooked * avgJobValue;
-```
-
-New (real data):
-```typescript
-// Sum actual revenue from converted sequences
-const { data } = await supabase
-  .from('nurturing_sequences')
-  .select('revenue_usd')
-  .eq('outcome', 'converted')
-  .gte('completed_at', weekStart.toISOString());
-
-const revenue = data?.reduce((sum, s) => sum + (s.revenue_usd || 0), 0) ?? 0;
-```
-
----
-
-### Phase 6: Distinguish Est. Value vs Real Revenue in Dashboard
-
-Update `PipelineSummaryCard` and `WeeklyStatsCard` to clearly differentiate:
-
-| Metric | Source | Label |
-|--------|--------|-------|
-| Est. Value | Calculated from opportunity types | "~$18,000" (with tilde) |
-| Revenue | Sum of `revenue_usd` from conversions | "$9,000" (solid, no tilde) |
-
-Add a subtle tooltip explaining the difference:
-- Est. Value: "Potential revenue based on opportunities in pipeline"
-- Revenue: "Confirmed closes you've logged this week"
-
-Visual Treatment:
-- Est. Value: Gray or muted color, tilde prefix (~$)
-- Revenue: Green/emerald, bold, no prefix
+Sequences with 2+ clicks display a "High Interest" indicator (flame icon) in the table to prompt the contractor to verify if the customer has booked externally.
 
 ---
 
 ## File Changes Summary
 
-### Database Migration
+| File | Action |
+|------|--------|
+| `docs/backend.md` | Add new sections documenting nurturing tables, hooks, and revenue tracking |
 
-| Change | Details |
-|--------|---------|
-| Add column | `nurturing_sequences.revenue_usd` (numeric, nullable) |
+The documentation update will add approximately 400-500 lines covering:
+- 4 new table schemas with full column details
+- New relationship chain documentation
+- 5 new hooks with TypeScript interfaces
+- Revenue tracking architecture explanation
+- Updated ERDiagram with nurturing entities
 
-### New Files
-
-| File | Purpose |
-|------|---------|
-| `src/components/contractor/ConversionCelebrationModal.tsx` | Revenue capture modal with confetti |
-
-### Modified Files
-
-| File | Changes |
-|------|---------|
-| `src/hooks/useSequenceEvents.ts` | Add `revenueUsd` param to `useMarkOutcome` |
-| `src/hooks/useNurturingSequences.ts` | Update interface to include `revenueUsd` |
-| `src/components/contractor/SequenceControlDrawer.tsx` | Replace outcome dialog with celebration modal |
-| `src/components/contractor/SequenceTableRow.tsx` | Add high-interest nudge indicator |
-| `src/hooks/useWeeklyStats.ts` | Query real `revenue_usd` instead of estimating |
-| `src/components/contractor/WeeklyStatsCard.tsx` | Update labels to distinguish Est. vs Real |
-| `src/components/contractor/PipelineSummaryCard.tsx` | Clarify "Est. Value" label with tooltip |
-
----
-
-## Technical Details
-
-### Celebration Modal Animation
-
-Using framer-motion for entrance:
-```typescript
-<motion.div
-  initial={{ scale: 0.8, opacity: 0 }}
-  animate={{ scale: 1, opacity: 1 }}
-  transition={{ type: "spring", duration: 0.5 }}
->
-  {/* Confetti bursts */}
-  <motion.div animate={{ rotate: [0, 10, -10, 0] }}>🎉</motion.div>
-</motion.div>
-```
-
-### High Interest Detection
-
-```typescript
-// In SequenceTableRow
-const clickCount = events.filter(e => e.clickedAt != null).length;
-const isHighInterest = clickCount >= 2 && sequence.status === 'active';
-
-// Render nudge
-{isHighInterest && (
-  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
-    <Flame className="w-3 h-3" />
-    High Interest
-  </span>
-)}
-```
-
-### Revenue Aggregation Query
-
-```typescript
-// In useWeeklyStats
-const { data: conversions } = await supabase
-  .from('nurturing_sequences')
-  .select('id, outcome, completed_at, revenue_usd')
-  .eq('outcome', 'converted')
-  .gte('completed_at', weekStart.toISOString());
-
-const jobsBooked = conversions?.length ?? 0;
-const revenue = conversions?.reduce((sum, c) => sum + (c.revenue_usd || 0), 0) ?? 0;
-```
-
----
-
-## UX Flow: Marking a Conversion
-
-1. User clicks "Mark Converted" button
-2. Celebration modal opens with confetti animation
-3. User enters sale amount (e.g., $4,500)
-4. User clicks "Log Revenue & Complete"
-5. Sequence is marked as converted with revenue stored
-6. Toast: "🎉 $4,500 logged! Great work!"
-7. Dashboard "Revenue" widget updates immediately
-
----
-
-## Summary
-
-These three improvements make the sidecar dashboard tell the truth about business results:
-
-| Feature | Benefit |
-|---------|---------|
-| Celebration Modal | Makes logging revenue feel satisfying → higher adoption |
-| High Interest Nudge | Prompts contractors to verify status → cleaner data |
-| Est. vs Real distinction | Owner understands the gap → "Let's go get the rest" conversation |
-
-The pitch becomes: "We generated $18k in opportunities. You told us you closed $9k. Let's go get the rest."
