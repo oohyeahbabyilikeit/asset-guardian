@@ -35,6 +35,27 @@ export interface SequenceStats {
   total: number;
 }
 
+// Raw DB row types (since types.ts hasn't been regenerated yet)
+interface NurturingSequenceRow {
+  id: string;
+  opportunity_id: string;
+  sequence_type: string;
+  status: string;
+  current_step: number;
+  total_steps: number;
+  next_action_at: string | null;
+  started_at: string;
+  completed_at: string | null;
+}
+
+interface SequenceTemplateRow {
+  id: string;
+  name: string;
+  trigger_type: string;
+  steps: unknown;
+  is_active: boolean;
+}
+
 /**
  * Fetch all nurturing sequences, optionally filtered by opportunity
  */
@@ -43,7 +64,7 @@ export function useNurturingSequences(opportunityId?: string) {
     queryKey: ['nurturing-sequences', opportunityId],
     queryFn: async (): Promise<NurturingSequence[]> => {
       let query = supabase
-        .from('nurturing_sequences')
+        .from('nurturing_sequences' as any)
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -55,7 +76,8 @@ export function useNurturingSequences(opportunityId?: string) {
       
       if (error) throw error;
       
-      return (data || []).map(row => ({
+      const rows = (data || []) as unknown as NurturingSequenceRow[];
+      return rows.map(row => ({
         id: row.id,
         opportunityId: row.opportunity_id,
         sequenceType: row.sequence_type,
@@ -81,7 +103,7 @@ export function useOpportunitySequence(opportunityId: string | null) {
       if (!opportunityId) return null;
       
       const { data, error } = await supabase
-        .from('nurturing_sequences')
+        .from('nurturing_sequences' as any)
         .select('*')
         .eq('opportunity_id', opportunityId)
         .order('created_at', { ascending: false })
@@ -91,16 +113,17 @@ export function useOpportunitySequence(opportunityId: string | null) {
       if (error) throw error;
       if (!data) return null;
       
+      const row = data as unknown as NurturingSequenceRow;
       return {
-        id: data.id,
-        opportunityId: data.opportunity_id,
-        sequenceType: data.sequence_type,
-        status: data.status as NurturingSequence['status'],
-        currentStep: data.current_step,
-        totalSteps: data.total_steps,
-        nextActionAt: data.next_action_at ? new Date(data.next_action_at) : null,
-        startedAt: new Date(data.started_at),
-        completedAt: data.completed_at ? new Date(data.completed_at) : null,
+        id: row.id,
+        opportunityId: row.opportunity_id,
+        sequenceType: row.sequence_type,
+        status: row.status as NurturingSequence['status'],
+        currentStep: row.current_step,
+        totalSteps: row.total_steps,
+        nextActionAt: row.next_action_at ? new Date(row.next_action_at) : null,
+        startedAt: new Date(row.started_at),
+        completedAt: row.completed_at ? new Date(row.completed_at) : null,
       };
     },
     enabled: !!opportunityId,
@@ -116,18 +139,19 @@ export function useSequenceTemplates() {
     queryKey: ['sequence-templates'],
     queryFn: async (): Promise<SequenceTemplate[]> => {
       const { data, error } = await supabase
-        .from('sequence_templates')
+        .from('sequence_templates' as any)
         .select('*')
         .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
       
-      return (data || []).map(row => ({
+      const rows = (data || []) as unknown as SequenceTemplateRow[];
+      return rows.map(row => ({
         id: row.id,
         name: row.name,
         triggerType: row.trigger_type,
-        steps: (row.steps as unknown as SequenceStep[]) || [],
+        steps: (row.steps as SequenceStep[]) || [],
         isActive: row.is_active,
       }));
     },
@@ -156,7 +180,7 @@ export function useToggleSequenceStatus() {
   return useMutation({
     mutationFn: async ({ sequenceId, newStatus }: { sequenceId: string; newStatus: 'active' | 'paused' }) => {
       const { error } = await supabase
-        .from('nurturing_sequences')
+        .from('nurturing_sequences' as any)
         .update({ status: newStatus })
         .eq('id', sequenceId);
       
@@ -186,10 +210,10 @@ export function useStartSequence() {
       totalSteps: number;
     }) => {
       const nextActionAt = new Date();
-      nextActionAt.setDate(nextActionAt.getDate() + 1); // First action tomorrow
+      nextActionAt.setDate(nextActionAt.getDate() + 1);
       
       const { error } = await supabase
-        .from('nurturing_sequences')
+        .from('nurturing_sequences' as any)
         .insert({
           opportunity_id: opportunityId,
           sequence_type: sequenceType,
