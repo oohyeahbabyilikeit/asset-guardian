@@ -59,7 +59,7 @@ export default function Sequences() {
             </Button>
             <div>
               <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Zap className="w-5 h-5 text-violet-400" />
+                <Zap className="w-5 h-5 text-primary" />
                 Outreach Sequences
               </h1>
               <p className="text-sm text-muted-foreground">
@@ -74,7 +74,7 @@ export default function Sequences() {
             
             <Button
               onClick={handleNewTemplate}
-              className="gap-2 bg-violet-600 hover:bg-violet-700"
+              className="gap-2"
             >
               <Plus className="w-4 h-4" />
               New Template
@@ -101,7 +101,7 @@ export default function Sequences() {
               <TabsTrigger value="active" className="gap-2">
                 Active
                 {filteredSequences.length > 0 && (
-                  <span className="text-xs bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full">
+                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
                     {filteredSequences.length}
                   </span>
                 )}

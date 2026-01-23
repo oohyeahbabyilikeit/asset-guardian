@@ -2,7 +2,7 @@ import { ListFilter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { normalizeSequenceType, type EnrichedSequence } from '@/hooks/useNurturingSequences';
 
-export type SequenceBucket = 'all' | 'high_risk' | 'code_violation' | 'maintenance' | 'warranty';
+export type SequenceBucket = 'all' | 'high_risk' | 'code_violation' | 'maintenance' | 'warranty' | 'anode';
 
 interface SequenceBucketSidebarProps {
   sequences: EnrichedSequence[];
@@ -23,22 +23,27 @@ const BUCKET_CONFIG: {
   {
     id: 'high_risk',
     label: 'High Risk / Replace',
-    matchTypes: ['replacement_urgent', 'urgent_replace'],
+    matchTypes: ['replacement_urgent', 'urgent_replace', 'high_risk'],
   },
   {
     id: 'code_violation',
     label: 'Code Violation',
-    matchTypes: ['code_violation'],
+    matchTypes: ['code_violation', 'code_fix'],
   },
   {
     id: 'maintenance',
     label: 'Maintenance',
-    matchTypes: ['maintenance', 'maintenance_reminder'],
+    matchTypes: ['maintenance', 'maintenance_reminder', 'annual_flush', 'flush'],
   },
   {
     id: 'warranty',
     label: 'Warranty',
     matchTypes: ['warranty_expiring', 'warranty'],
+  },
+  {
+    id: 'anode',
+    label: 'Anode Check',
+    matchTypes: ['anode', 'anode_check', 'anode_replace'],
   },
 ];
 
@@ -86,20 +91,20 @@ export function SequenceBucketSidebar({
                 className={cn(
                   'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all',
                   isActive
-                    ? 'bg-muted border-l-2 border-l-violet-500 text-foreground font-medium'
+                    ? 'bg-muted border-l-2 border-l-primary text-foreground font-medium'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
                 )}
               >
                 <span className="flex items-center gap-2">
                   {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
                   {bucket.label}
                 </span>
                 <span className={cn(
                   'text-xs tabular-nums px-1.5 py-0.5 rounded-full',
                   isActive 
-                    ? 'bg-violet-500/20 text-violet-300'
+                    ? 'bg-primary/20 text-primary'
                     : 'bg-muted-foreground/10',
                 )}>
                   {count}
