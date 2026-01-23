@@ -7,14 +7,15 @@ import { ActiveSequencesList } from '@/components/contractor/ActiveSequencesList
 import { TemplatesList } from '@/components/contractor/TemplatesList';
 import { SequenceAnalytics } from '@/components/contractor/SequenceAnalytics';
 import { TemplateEditor } from '@/components/contractor/TemplateEditor';
-import { useNurturingSequences, useSequenceTemplates } from '@/hooks/useNurturingSequences';
+import { useEnrichedSequences, useSequenceTemplates } from '@/hooks/useNurturingSequences';
 
 export default function Sequences() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   
-  const { data: sequences = [] } = useNurturingSequences();
+  // Use enriched sequences for customer data
+  const { data: sequences = [] } = useEnrichedSequences();
   const { data: templates = [] } = useSequenceTemplates();
   
   const activeSequences = sequences.filter(s => 

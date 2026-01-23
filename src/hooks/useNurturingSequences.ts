@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { addDays } from 'date-fns';
 
 export interface NurturingSequence {
   id: string;
@@ -11,6 +12,15 @@ export interface NurturingSequence {
   nextActionAt: Date | null;
   startedAt: Date;
   completedAt: Date | null;
+  outcome: 'converted' | 'lost' | 'stopped' | null;
+  outcomeReason: string | null;
+  outcomeAt: Date | null;
+}
+
+export interface EnrichedSequence extends NurturingSequence {
+  customerName: string;
+  propertyAddress: string;
+  opportunityType: string;
 }
 
 export interface SequenceTemplate {
@@ -46,6 +56,16 @@ interface NurturingSequenceRow {
   next_action_at: string | null;
   started_at: string;
   completed_at: string | null;
+  outcome: string | null;
+  outcome_reason: string | null;
+  outcome_at: string | null;
+}
+
+interface DemoOpportunityRow {
+  id: string;
+  customer_name: string;
+  property_address: string;
+  opportunity_type: string;
 }
 
 interface SequenceTemplateRow {
@@ -54,6 +74,37 @@ interface SequenceTemplateRow {
   trigger_type: string;
   steps: unknown;
   is_active: boolean;
+}
+
+/**
+ * Normalize sequence type for consistent matching between sequences and templates
+ */
+export function normalizeSequenceType(type: string): string {
+  const mappings: Record<string, string> = {
+    'urgent_replace': 'replacement_urgent',
+    'replacement_urgent': 'replacement_urgent',
+    'maintenance_reminder': 'maintenance',
+    'maintenance': 'maintenance',
+    'code_violation': 'code_violation',
+  };
+  return mappings[type] || type;
+}
+
+function mapSequenceRow(row: NurturingSequenceRow): NurturingSequence {
+  return {
+    id: row.id,
+    opportunityId: row.opportunity_id,
+    sequenceType: row.sequence_type,
+    status: row.status as NurturingSequence['status'],
+    currentStep: row.current_step,
+    totalSteps: row.total_steps,
+    nextActionAt: row.next_action_at ? new Date(row.next_action_at) : null,
+    startedAt: new Date(row.started_at),
+    completedAt: row.completed_at ? new Date(row.completed_at) : null,
+    outcome: row.outcome as NurturingSequence['outcome'],
+    outcomeReason: row.outcome_reason,
+    outcomeAt: row.outcome_at ? new Date(row.outcome_at) : null,
+  };
 }
 
 /**
@@ -77,17 +128,52 @@ export function useNurturingSequences(opportunityId?: string) {
       if (error) throw error;
       
       const rows = (data || []) as unknown as NurturingSequenceRow[];
-      return rows.map(row => ({
-        id: row.id,
-        opportunityId: row.opportunity_id,
-        sequenceType: row.sequence_type,
-        status: row.status as NurturingSequence['status'],
-        currentStep: row.current_step,
-        totalSteps: row.total_steps,
-        nextActionAt: row.next_action_at ? new Date(row.next_action_at) : null,
-        startedAt: new Date(row.started_at),
-        completedAt: row.completed_at ? new Date(row.completed_at) : null,
-      }));
+      return rows.map(mapSequenceRow);
+    },
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Fetch enriched sequences with customer data from demo_opportunities
+ */
+export function useEnrichedSequences() {
+  return useQuery({
+    queryKey: ['enriched-sequences'],
+    queryFn: async (): Promise<EnrichedSequence[]> => {
+      // Fetch sequences
+      const { data: sequenceData, error: seqError } = await supabase
+        .from('nurturing_sequences' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (seqError) throw seqError;
+      
+      // Fetch opportunities for enrichment
+      const { data: opportunityData, error: oppError } = await supabase
+        .from('demo_opportunities' as any)
+        .select('id, customer_name, property_address, opportunity_type');
+      
+      if (oppError) throw oppError;
+      
+      const sequences = (sequenceData || []) as unknown as NurturingSequenceRow[];
+      const opportunities = (opportunityData || []) as unknown as DemoOpportunityRow[];
+      
+      // Create lookup map
+      const opportunityMap = new Map(
+        opportunities.map(o => [o.id, o])
+      );
+      
+      // Enrich sequences with customer data
+      return sequences.map(row => {
+        const opp = opportunityMap.get(row.opportunity_id);
+        return {
+          ...mapSequenceRow(row),
+          customerName: opp?.customer_name || 'Unknown Customer',
+          propertyAddress: opp?.property_address || 'Unknown Address',
+          opportunityType: opp?.opportunity_type || 'unknown',
+        };
+      });
     },
     staleTime: 30_000,
   });
@@ -114,17 +200,7 @@ export function useOpportunitySequence(opportunityId: string | null) {
       if (!data) return null;
       
       const row = data as unknown as NurturingSequenceRow;
-      return {
-        id: row.id,
-        opportunityId: row.opportunity_id,
-        sequenceType: row.sequence_type,
-        status: row.status as NurturingSequence['status'],
-        currentStep: row.current_step,
-        totalSteps: row.total_steps,
-        nextActionAt: row.next_action_at ? new Date(row.next_action_at) : null,
-        startedAt: new Date(row.started_at),
-        completedAt: row.completed_at ? new Date(row.completed_at) : null,
-      };
+      return mapSequenceRow(row);
     },
     enabled: !!opportunityId,
     staleTime: 30_000,
@@ -195,6 +271,7 @@ export function useToggleSequenceStatus() {
 
 /**
  * Mutation to start a new sequence for an opportunity
+ * Creates both the sequence AND the corresponding events for each step
  */
 export function useStartSequence() {
   const queryClient = useQueryClient();
@@ -203,16 +280,19 @@ export function useStartSequence() {
     mutationFn: async ({ 
       opportunityId, 
       sequenceType, 
-      totalSteps 
+      totalSteps,
+      templateSteps,
     }: { 
       opportunityId: string; 
       sequenceType: string; 
       totalSteps: number;
+      templateSteps?: SequenceStep[];
     }) => {
-      const nextActionAt = new Date();
-      nextActionAt.setDate(nextActionAt.getDate() + 1);
+      const startDate = new Date();
+      const firstStepDate = addDays(startDate, 1);
       
-      const { error } = await supabase
+      // Insert the sequence
+      const { data: seqData, error: seqError } = await supabase
         .from('nurturing_sequences' as any)
         .insert({
           opportunity_id: opportunityId,
@@ -220,14 +300,43 @@ export function useStartSequence() {
           status: 'active',
           current_step: 1,
           total_steps: totalSteps,
-          next_action_at: nextActionAt.toISOString(),
-        });
+          next_action_at: firstStepDate.toISOString(),
+        })
+        .select('id')
+        .single();
       
-      if (error) throw error;
+      if (seqError) throw seqError;
+      
+      const sequenceId = (seqData as any).id;
+      
+      // If we have template steps, create sequence_events for each step
+      if (templateSteps && templateSteps.length > 0) {
+        const events = templateSteps.map(step => ({
+          sequence_id: sequenceId,
+          step_number: step.step,
+          action_type: step.action,
+          scheduled_at: addDays(startDate, step.day).toISOString(),
+          status: 'pending',
+          message_content: step.message,
+        }));
+        
+        const { error: eventsError } = await supabase
+          .from('sequence_events' as any)
+          .insert(events);
+        
+        if (eventsError) {
+          console.error('Failed to create sequence events:', eventsError);
+          // Don't throw - sequence was created, events can be added later
+        }
+      }
+      
+      return { sequenceId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nurturing-sequences'] });
       queryClient.invalidateQueries({ queryKey: ['nurturing-sequence'] });
+      queryClient.invalidateQueries({ queryKey: ['enriched-sequences'] });
+      queryClient.invalidateQueries({ queryKey: ['sequence-events'] });
     },
   });
 }

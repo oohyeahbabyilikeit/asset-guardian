@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 
 interface SequenceRowProps {
   sequence: NurturingSequence;
+  customerName: string;
+  propertyAddress: string;
   urgency: 'overdue' | 'today' | 'upcoming';
   onClick: () => void;
 }
@@ -47,7 +49,7 @@ function formatDueDate(date: Date | null): string {
   });
 }
 
-export function SequenceRow({ sequence, urgency, onClick }: SequenceRowProps) {
+export function SequenceRow({ sequence, customerName, propertyAddress, urgency, onClick }: SequenceRowProps) {
   const isPaused = sequence.status === 'paused';
   
   const toggleStatus = useToggleSequenceStatus();
@@ -116,10 +118,10 @@ export function SequenceRow({ sequence, urgency, onClick }: SequenceRowProps) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          {/* Customer Name Placeholder - will be enriched */}
+          {/* Customer Name */}
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium truncate">
-              Lead {sequence.opportunityId.slice(0, 8)}
+              {customerName}
             </span>
             {isPaused && (
               <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
@@ -127,6 +129,11 @@ export function SequenceRow({ sequence, urgency, onClick }: SequenceRowProps) {
               </span>
             )}
           </div>
+          
+          {/* Property Address (shortened) */}
+          <p className="text-xs text-muted-foreground truncate mb-1">
+            {propertyAddress.split(',')[0]}
+          </p>
           
           {/* Sequence Type & Progress */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
