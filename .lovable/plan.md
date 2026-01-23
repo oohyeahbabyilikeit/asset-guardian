@@ -1,310 +1,191 @@
 
+# Contractor Flow Optimization - "Print Money" Mode
 
-# Real Nurturing Sequence System - Feature Design
+## Current State Analysis
 
-## Current Gaps
+The Lead Engine currently has:
+- Lane-based categorization (Replacements, Code Fixes, Maintenance)
+- Nurturing sequence badges with step progress
+- Category filter tabs
+- Call/Details/Coach actions on each lead
+- Sequence Overview panel at the bottom
 
-The current implementation has:
-- Sequences stored in DB with step/status
-- Badge showing "Step 2/5" on lead cards
-- Pause/Resume toggle
-- Aggregate stats panel
+### Identified Friction Points
 
-But lacks the intuitive features contractors need to actually manage outreach.
-
----
-
-## Feature Requirements for a Real Nurture System
-
-### 1. Sequence Lifecycle Management
-
-| Feature | Description |
-|---------|-------------|
-| **Start Sequence** | Button on lead card or drawer to enroll a lead in a sequence |
-| **Choose Template** | Modal/drawer showing available templates with preview |
-| **Stop Sequence** | Cancel entirely (different from pause) |
-| **Restart Sequence** | Re-enroll from step 1 after completion or cancel |
-
-### 2. Sequence Step Visibility
-
-| Feature | Description |
-|---------|-------------|
-| **Step Timeline View** | Visual timeline showing all steps, what's done, what's next |
-| **Step Details** | See the actual message content for each step |
-| **Scheduled Timing** | Show "Day 0", "Day 3", etc. and actual scheduled dates |
-| **Step Type Icons** | SMS, Email, Call Reminder with distinct icons |
-
-### 3. Event History / Activity Log
-
-| Feature | Description |
-|---------|-------------|
-| **Sent Log** | Record of every message sent with timestamp |
-| **Delivery Status** | Sent / Delivered / Failed |
-| **Open/Click Tracking** | Did they open the email? Click a link? |
-| **Reply Detection** | Flag when customer responds (stops automation) |
-
-### 4. Manual Controls
-
-| Feature | Description |
-|---------|-------------|
-| **Send Now** | Trigger the next step immediately |
-| **Skip Step** | Skip current step, advance to next |
-| **Jump to Step** | Go to a specific step in the sequence |
-| **Edit Message** | Customize the message for this specific lead |
-
-### 5. Outcome Tracking
-
-| Feature | Description |
-|---------|-------------|
-| **Mark Converted** | Lead booked appointment / closed deal |
-| **Mark Lost** | Lead declined / unsubscribed |
-| **Reason Codes** | Why did they convert or decline? |
-| **Sequence Attribution** | Which step led to conversion? |
-
-### 6. Template Management
-
-| Feature | Description |
-|---------|-------------|
-| **View Templates** | List all available sequence templates |
-| **Preview Steps** | See the full workflow before starting |
-| **Create Template** | Build custom sequences (advanced) |
-| **Enable/Disable** | Turn templates on/off |
+1. **No revenue visibility** - Contractor can't see potential earnings or conversion value
+2. **Buried sequences panel** - The Nurturing Sequences overview is at the bottom, easy to miss
+3. **No "hot leads" priority** - Critical actions requiring TODAY get lost in the list
+4. **Missing urgency cues** - No time-sensitive indicators (e.g., "Call within 2 hours")
+5. **No quick-start actions** - Starting sequences requires multiple taps
+6. **No performance dashboard** - Contractor can't see their win rate or trending metrics
 
 ---
 
-## Proposed UI Components
+## Optimization Strategy
 
-### 1. Sequence Control Drawer
+### Phase 1: "Money Dashboard" Header
 
-Opens when clicking "Details" on a sequence badge or "Start Sequence" on a lead without one.
+Add a revenue-focused summary bar at the top showing:
+- **Today's Priority**: Number of leads needing action TODAY
+- **Pipeline Value**: Visual indicator of opportunity value (Replacements = $$$)
+- **Active Outreach**: Sequences running right now
+- **This Week Conversions**: Quick win counter
 
-```
-+----------------------------------------------------------+
-|  Nurturing Sequence                              [Close] |
-+----------------------------------------------------------+
-|                                                          |
-|  ┌────────────────────────────────────────────────────┐  |
-|  │  Maria Santos · 123 Oak St                         │  |
-|  │  Rheem 50g · 12yr · CRITICAL                       │  |
-|  └────────────────────────────────────────────────────┘  |
-|                                                          |
-|  CURRENT SEQUENCE: Urgent Replace (5 steps)              |
-|  Status: Active · Step 2 of 5 · Next: Tomorrow           |
-|                                                          |
-|  ──────── Step Timeline ────────                         |
-|                                                          |
-|  [x] Day 0 · SMS · "Your water heater needs attention"   |
-|      Sent Jan 22, 2:30 PM · Delivered                    |
-|                                                          |
-|  [>] Day 1 · EMAIL · "Risk report PDF attached"          |
-|      Scheduled: Jan 23, 2:30 PM                          |
-|      [Send Now] [Skip] [Edit]                            |
-|                                                          |
-|  [ ] Day 3 · SMS · "Limited time financing available"    |
-|      Scheduled: Jan 25, 2:30 PM                          |
-|                                                          |
-|  [ ] Day 5 · CALL · "Call reminder to contractor"        |
-|      Scheduled: Jan 27, 2:30 PM                          |
-|                                                          |
-|  [ ] Day 7 · SMS · "Ready when you are"                  |
-|      Scheduled: Jan 29, 2:30 PM                          |
-|                                                          |
-|  ────────────────────────────────────────                |
-|                                                          |
-|  [Pause Sequence]  [Stop Sequence]  [Change Template]    |
-|                                                          |
-+----------------------------------------------------------+
-```
+### Phase 2: "Hot Leads" Floating Action Panel
 
-### 2. Start Sequence Modal
+Create a sticky action panel showing the #1 priority lead:
+- Most critical lead with countdown timer
+- One-tap call button
+- One-tap start sequence
+- Auto-advances to next lead when action taken
 
-Shows when starting a new sequence for a lead:
+### Phase 3: "Batch Sequence Starter"
 
-```
-+------------------------------------------+
-|  Start Nurturing Sequence                |
-+------------------------------------------+
-|                                          |
-|  Choose a sequence for Maria Santos:     |
-|                                          |
-|  ┌────────────────────────────────────┐  |
-|  │ [x] Urgent Replacement - 5 Day     │  |
-|  │     5 steps · SMS + Email + Call   │  |
-|  │     Best for: Critical/High leads  │  |
-|  └────────────────────────────────────┘  |
-|                                          |
-|  ┌────────────────────────────────────┐  |
-|  │ [ ] Code Violation Awareness       │  |
-|  │     3 steps · Email + SMS + Call   │  |
-|  │     Best for: Safety issues        │  |
-|  └────────────────────────────────────┘  |
-|                                          |
-|  ┌────────────────────────────────────┐  |
-|  │ [ ] Maintenance Reminder - 30 Day  │  |
-|  │     4 steps · Email + SMS          │  |
-|  │     Best for: Routine maintenance  │  |
-|  └────────────────────────────────────┘  |
-|                                          |
-|  [Preview Steps]         [Start Now]     |
-|                                          |
-+------------------------------------------+
-```
+Add a batch action mode:
+- Select multiple leads without sequences
+- One-tap to enroll all in appropriate templates
+- Smart template matching based on lead category
 
-### 3. Activity Log Tab (in PropertyReportDrawer)
+### Phase 4: Performance Metrics Integration
 
-Add a tab to the existing drawer showing sequence history:
-
-```
-+------------------------------------------+
-|  Activity                                |
-+------------------------------------------+
-|                                          |
-|  Today                                   |
-|  ─────                                   |
-|  📧 Email sent: "Risk report PDF"        |
-|     2:30 PM · Delivered · Opened         |
-|                                          |
-|  Yesterday                               |
-|  ─────────                               |
-|  📱 SMS sent: "Your water heater needs   |
-|     attention"                           |
-|     3:45 PM · Delivered                  |
-|                                          |
-|  📋 Sequence started: Urgent Replace     |
-|     3:45 PM · By system                  |
-|                                          |
-|  🔍 Lead created from inspection         |
-|     3:30 PM · Tech: John Smith           |
-|                                          |
-+------------------------------------------+
-```
-
-### 4. Enhanced Lead Card with Start Button
-
-For leads without a sequence:
-
-```
-┌──────────────────────────────────────────────────────────┐
-│ Maria Santos                                  Health: 28 │
-│ 123 Oak Street, Phoenix AZ                               │
-├──────────────────────────────────────────────────────────┤
-│ Rheem ProSeries · 50 gal · 12 years                      │
-│ LEAKING · High sediment                                  │
-├──────────────────────────────────────────────────────────┤
-│ ⚡ No sequence active                                    │
-│ [+ Start Sequence]                                       │
-├──────────────────────────────────────────────────────────┤
-│ [Call]  [Details]  [Coach]                    2 hours ago│
-└──────────────────────────────────────────────────────────┘
-```
+Add a collapsible performance header:
+- Conversion rate trending
+- Response rate from sequences
+- Closes this week vs last week
+- Visual momentum indicator
 
 ---
 
-## Implementation Plan
+## Technical Implementation
 
-### Phase 1: Core Sequence Controls
+### New Components
 
-**New Components:**
 | Component | Purpose |
 |-----------|---------|
-| `SequenceControlDrawer.tsx` | Full drawer showing timeline, controls, history |
-| `StartSequenceModal.tsx` | Template picker when starting a new sequence |
-| `StepTimeline.tsx` | Visual timeline of sequence steps |
-| `StepCard.tsx` | Individual step with status, timing, actions |
+| `MoneyDashboard.tsx` | Revenue-focused KPI bar at top of Lead Engine |
+| `HotLeadPanel.tsx` | Floating priority action panel for top lead |
+| `BatchSequenceSheet.tsx` | Bottom sheet for batch sequence enrollment |
+| `PerformanceRibbon.tsx` | Collapsible weekly performance metrics |
 
-**Database:**
-- Use existing `sequence_events` table to log sent messages
-- Add columns: `delivery_status`, `opened_at`, `clicked_at`
-
-**Hooks:**
-| Hook | Purpose |
-|------|---------|
-| `useSequenceEvents(sequenceId)` | Fetch event history |
-| `useAdvanceStep()` | Mutation to send now or skip |
-| `useStopSequence()` | Cancel a sequence entirely |
-
-### Phase 2: Activity Feed
-
-**New Components:**
-| Component | Purpose |
-|-----------|---------|
-| `ActivityFeed.tsx` | Chronological log of all touchpoints |
-| `ActivityItem.tsx` | Single activity entry with icon/status |
-
-**Integration:**
-- Add "Activity" tab to `PropertyReportDrawer`
-- Combine sequence events + manual actions (calls logged, notes added)
-
-### Phase 3: Template Management
-
-**New Components:**
-| Component | Purpose |
-|-----------|---------|
-| `TemplatesListDrawer.tsx` | View all templates |
-| `TemplatePreview.tsx` | Full step-by-step preview |
-
----
-
-## Files to Create
-
-| File | Description |
-|------|-------------|
-| `src/components/contractor/SequenceControlDrawer.tsx` | Main sequence management drawer |
-| `src/components/contractor/StartSequenceModal.tsx` | Template picker modal |
-| `src/components/contractor/StepTimeline.tsx` | Visual step timeline |
-| `src/components/contractor/StepCard.tsx` | Individual step UI |
-| `src/components/contractor/ActivityFeed.tsx` | Activity log component |
-| `src/hooks/useSequenceEvents.ts` | Fetch sequence event history |
-
-## Files to Modify
+### Modified Components
 
 | File | Changes |
 |------|---------|
-| `src/components/contractor/EnhancedLeadCard.tsx` | Add "Start Sequence" button for leads without one |
-| `src/components/contractor/NurturingBadge.tsx` | Make clickable to open control drawer |
-| `src/components/contractor/PropertyReportDrawer.tsx` | Add Activity tab with sequence history |
-| `src/pages/LeadEngine.tsx` | Wire up new drawers and modals |
-| `src/hooks/useNurturingSequences.ts` | Add mutations for skip, stop, advance |
+| `LeadEngine.tsx` | Add MoneyDashboard, HotLeadPanel, reorganize layout |
+| `SequenceOverviewPanel.tsx` | Move to header area, make more prominent |
+| `EnhancedLeadCard.tsx` | Add value indicator, time-since-last-contact |
+| `LeadLane.tsx` | Add batch selection checkboxes when in selection mode |
+| `CategoryTabs.tsx` | Add value totals to each category chip |
 
-## Database Changes
+### New Hooks
 
-Add columns to `sequence_events` table for tracking:
-```sql
-ALTER TABLE sequence_events 
-  ADD COLUMN delivery_status text DEFAULT 'pending',
-  ADD COLUMN opened_at timestamptz,
-  ADD COLUMN clicked_at timestamptz,
-  ADD COLUMN message_content text;
+| Hook | Purpose |
+|------|---------|
+| `useHotLead()` | Returns the single most urgent lead requiring action |
+| `useBatchSequenceStart()` | Mutation to start sequences for multiple opportunities |
+| `usePerformanceMetrics()` | Weekly/monthly conversion and response stats |
+
+---
+
+## Detailed Feature Designs
+
+### 1. Money Dashboard (Top Bar)
+
+```text
++------------------------------------------------------------------+
+| TODAY: 4 actions needed | $$$$ Pipeline | 7 Active | 3 Won      |
++------------------------------------------------------------------+
+```
+
+- "TODAY" shows count of leads with sequences due or no contact in 48hrs
+- "$$$$ Pipeline" shows dollar signs (1-4) based on replacement lead count
+- "Active" shows running sequences
+- "Won" shows this week's conversions
+
+### 2. Hot Lead Panel (Floating)
+
+When there's a critical lead requiring action:
+
+```text
++----------------------------------------------------------+
+| PRIORITY ACTION                                    ⏱ 2hr |
+| Williams Residence - LEAKING                             |
+| Bradford 50gal · 15yr · Health: 18                       |
+|                                                          |
+| [📞 Call Now]  [⚡ Start Sequence]  [→ Skip]             |
++----------------------------------------------------------+
+```
+
+- Appears above the lane list when there's an urgent lead
+- Timer shows time since last contact or time until next sequence step
+- "Skip" moves to next priority lead
+- Dismissable but returns on next visit
+
+### 3. Batch Sequence Mode
+
+Triggered by long-press or "Select" button in header:
+
+```text
++----------------------------------------------------------+
+| SELECT LEADS                               [Cancel] [Done] |
++----------------------------------------------------------+
+| ☑ Williams Residence - No sequence                        |
+| ☑ Johnson Family - No sequence                            |
+| ☐ Thompson Home - Urgent Replace (active)                 |
+| ☑ Anderson Home - No sequence                             |
++----------------------------------------------------------+
+| 3 selected · Start all with Urgent Replace template       |
+| [Start Sequences]                                         |
++----------------------------------------------------------+
+```
+
+### 4. Performance Ribbon (Collapsible)
+
+Tapping the header expands to show:
+
+```text
++----------------------------------------------------------+
+| THIS WEEK                           vs Last Week         |
+| ─────────────────────────────────────────────────────── |
+| 📞 Calls Made: 12        | Response Rate: 67% ▲          |
+| ⚡ Sequences: 8 started  | Conversion: 23% ▲              |
+| ✓ Closes: 3              | Trending: 🔥 Hot streak        |
++----------------------------------------------------------+
 ```
 
 ---
 
-## Technical Approach
+## Implementation Order
 
-**Step Timing Calculation:**
-- Each template step has a `day` offset (0, 1, 3, 5, 7)
-- `scheduled_at = sequence.started_at + (step.day * 24 hours)`
-- Display shows actual date/time based on this calculation
+1. **MoneyDashboard.tsx** - Quick visual wins, shows value immediately
+2. **HotLeadPanel.tsx** - Reduces decision fatigue, surfaces priority
+3. **PerformanceRibbon.tsx** - Gamifies success, shows momentum
+4. **BatchSequenceSheet.tsx** - Efficiency boost for bulk actions
+5. **EnhancedLeadCard.tsx updates** - Value indicators on each card
 
-**Send Now Logic:**
-- Update `sequence_events` with `executed_at = now()`
-- Advance `current_step` in `nurturing_sequences`
-- Recalculate `next_action_at` for remaining steps
+---
 
-**Outcome Tracking:**
-- When contractor marks "Converted", update sequence status to 'completed'
-- Store which step they were on at conversion (attribution)
-- Record reason code if applicable
+## Database Considerations
+
+No new tables required. All metrics can be derived from existing:
+- `demo_opportunities` - Pipeline counts, category totals
+- `nurturing_sequences` - Active/completed counts
+- `sequence_events` - Response and delivery tracking
+
+May add columns later for:
+- `last_contacted_at` on opportunities for time-since tracking
+- `estimated_value` on opportunities for pipeline value
 
 ---
 
 ## Summary
 
-This plan adds the missing pieces to make the nurturing system actually usable:
+This optimization transforms the Lead Engine from a "list of leads" into a **revenue command center**:
 
-1. **Start Sequence** - Enroll leads with template selection
-2. **View Steps** - See full timeline with scheduled dates
-3. **Control Steps** - Send now, skip, pause, stop
-4. **Track History** - Activity log showing what happened
-5. **Record Outcomes** - Mark converted/lost with attribution
+1. **Immediate value visibility** - Contractor sees money potential
+2. **Reduced decision fatigue** - Hot Lead Panel tells them exactly what to do next
+3. **Batch efficiency** - Start sequences for multiple leads in one action
+4. **Performance gamification** - Seeing wins and streaks motivates action
+5. **Mobile-first urgency** - Critical actions are unmissable
 
+The contractor logs in and immediately sees: what to do, why it matters, and how they're performing.
