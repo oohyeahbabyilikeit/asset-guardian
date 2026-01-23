@@ -1,70 +1,89 @@
 import { useState, useMemo } from 'react';
-import { AlertTriangle, Calendar, CalendarClock, Inbox } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Inbox, ArrowUpDown } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { type EnrichedSequence } from '@/hooks/useNurturingSequences';
-import { SequenceRow } from './SequenceRow';
+import { SequenceTableRow } from './SequenceTableRow';
 import { SequenceControlDrawer } from './SequenceControlDrawer';
 
 interface ActiveSequencesListProps {
   sequences: EnrichedSequence[];
 }
 
-interface SequenceGroup {
-  title: string;
-  icon: React.ElementType;
-  sequences: EnrichedSequence[];
-  urgency: 'overdue' | 'today' | 'upcoming';
-}
+type SortKey = 'address' | 'sequence' | 'step' | 'status' | 'nextAction';
+type SortOrder = 'asc' | 'desc';
 
 export function ActiveSequencesList({ sequences }: ActiveSequencesListProps) {
   const [selectedSequence, setSelectedSequence] = useState<EnrichedSequence | null>(null);
-  
-  // Group sequences by urgency
-  const groups = useMemo((): SequenceGroup[] => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
-    
-    const overdue: EnrichedSequence[] = [];
-    const today: EnrichedSequence[] = [];
-    const upcoming: EnrichedSequence[] = [];
-    
-    sequences.forEach(seq => {
-      if (!seq.nextActionAt) {
-        upcoming.push(seq);
-        return;
+  const [sortKey, setSortKey] = useState<SortKey>('nextAction');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  // Sort sequences
+  const sortedSequences = useMemo(() => {
+    return [...sequences].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortKey) {
+        case 'address':
+          comparison = a.propertyAddress.localeCompare(b.propertyAddress);
+          break;
+        case 'sequence':
+          comparison = a.sequenceType.localeCompare(b.sequenceType);
+          break;
+        case 'step':
+          comparison = a.currentStep - b.currentStep;
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case 'nextAction':
+          const aTime = a.nextActionAt?.getTime() ?? Infinity;
+          const bTime = b.nextActionAt?.getTime() ?? Infinity;
+          comparison = aTime - bTime;
+          break;
       }
       
-      const actionTime = seq.nextActionAt.getTime();
-      
-      if (actionTime < todayStart.getTime()) {
-        overdue.push(seq);
-      } else if (actionTime < todayEnd.getTime()) {
-        today.push(seq);
-      } else {
-        upcoming.push(seq);
-      }
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
-    
-    // Sort each group by next action date
-    const sortByNextAction = (a: EnrichedSequence, b: EnrichedSequence) => {
-      const aTime = a.nextActionAt?.getTime() || 0;
-      const bTime = b.nextActionAt?.getTime() || 0;
-      return aTime - bTime;
-    };
-    
-    overdue.sort(sortByNextAction);
-    today.sort(sortByNextAction);
-    upcoming.sort(sortByNextAction);
-    
-    return [
-      { title: 'Overdue', icon: AlertTriangle, sequences: overdue, urgency: 'overdue' as const },
-      { title: 'Due Today', icon: Calendar, sequences: today, urgency: 'today' as const },
-      { title: 'Upcoming', icon: CalendarClock, sequences: upcoming, urgency: 'upcoming' as const },
-    ].filter(g => g.sequences.length > 0);
-  }, [sequences]);
-  
+  }, [sequences, sortKey, sortOrder]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
+
+  const SortableHeader = ({ 
+    label, 
+    sortKeyName, 
+    className = '' 
+  }: { 
+    label: string; 
+    sortKeyName: SortKey; 
+    className?: string;
+  }) => (
+    <TableHead className={className}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 font-medium text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        onClick={() => handleSort(sortKeyName)}
+      >
+        {label}
+        <ArrowUpDown className="ml-1.5 h-3 w-3" />
+      </Button>
+    </TableHead>
+  );
+
   if (sequences.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -78,48 +97,42 @@ export function ActiveSequencesList({ sequences }: ActiveSequencesListProps) {
       </div>
     );
   }
-  
+
   return (
     <>
-      <div className="space-y-4">
-        {groups.map((group) => (
-          <div key={group.title}>
-            <div className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-lg mb-2',
-              group.urgency === 'overdue' && 'bg-rose-500/10 text-rose-400',
-              group.urgency === 'today' && 'bg-amber-500/10 text-amber-400',
-              group.urgency === 'upcoming' && 'bg-muted/50 text-muted-foreground',
-            )}>
-              <group.icon className="w-4 h-4" />
-              <span className="text-sm font-medium uppercase tracking-wider">
-                {group.title}
-              </span>
-              <span className={cn(
-                'text-xs px-1.5 py-0.5 rounded-full',
-                group.urgency === 'overdue' && 'bg-rose-500/20',
-                group.urgency === 'today' && 'bg-amber-500/20',
-                group.urgency === 'upcoming' && 'bg-muted',
-              )}>
-                {group.sequences.length}
-              </span>
-            </div>
-            
-            <div className="space-y-2">
-              {group.sequences.map((sequence) => (
-                <SequenceRow
-                  key={sequence.id}
-                  sequence={sequence}
-                  customerName={sequence.customerName}
-                  propertyAddress={sequence.propertyAddress}
-                  urgency={group.urgency}
-                  onClick={() => setSelectedSequence(sequence)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
+      <div className="rounded-lg border border-border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <SortableHeader label="Address / Customer" sortKeyName="address" className="w-[30%]" />
+              <SortableHeader label="Sequence" sortKeyName="sequence" className="w-[15%]" />
+              <SortableHeader label="Current Step" sortKeyName="step" className="w-[15%]" />
+              <SortableHeader label="Status" sortKeyName="status" className="w-[10%]" />
+              <TableHead className="w-[8%]">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Engagement
+                </span>
+              </TableHead>
+              <SortableHeader label="Next Touchpoint" sortKeyName="nextAction" className="w-[15%]" />
+              <TableHead className="w-[7%]">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Actions
+                </span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedSequences.map((sequence) => (
+              <SequenceTableRow
+                key={sequence.id}
+                sequence={sequence}
+                onRowClick={() => setSelectedSequence(sequence)}
+              />
+            ))}
+          </TableBody>
+        </Table>
       </div>
-      
+
       {/* Sequence Control Drawer */}
       {selectedSequence && (
         <SequenceControlDrawer

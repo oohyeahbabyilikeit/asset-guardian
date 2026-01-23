@@ -236,6 +236,67 @@ export function useSequenceTemplates() {
 }
 
 /**
+ * Fetch pulse metrics for the dashboard widget
+ */
+export function usePulseMetrics() {
+  return useQuery({
+    queryKey: ['pulse-metrics'],
+    queryFn: async () => {
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      // Fetch sequences
+      const { data: sequenceData, error: seqError } = await supabase
+        .from('nurturing_sequences' as any)
+        .select('id, status, outcome, created_at');
+
+      if (seqError) throw seqError;
+
+      const sequences = (sequenceData || []) as unknown as {
+        id: string;
+        status: string;
+        outcome: string | null;
+        created_at: string;
+      }[];
+
+      // Calculate enrolled (created in last 7 days)
+      const enrolled7Days = sequences.filter(s => 
+        new Date(s.created_at) >= sevenDaysAgo
+      ).length;
+
+      // Calculate active now
+      const activeNow = sequences.filter(s => s.status === 'active').length;
+
+      // Calculate converted
+      const converted = sequences.filter(s => s.outcome === 'converted').length;
+
+      // Fetch events for engagement (opened or clicked in last 24h)
+      const { data: eventData, error: evtError } = await supabase
+        .from('sequence_events' as any)
+        .select('id, opened_at, clicked_at')
+        .or(`opened_at.gte.${oneDayAgo.toISOString()},clicked_at.gte.${oneDayAgo.toISOString()}`);
+
+      if (evtError) {
+        // If there's an error (e.g., no events), just return 0 for engaged
+        console.warn('Could not fetch events for engagement:', evtError);
+        return { enrolled7Days, activeNow, engaged24h: 0, converted };
+      }
+
+      const engaged24h = (eventData || []).length;
+
+      return {
+        enrolled7Days,
+        activeNow,
+        engaged24h,
+        converted,
+      };
+    },
+    staleTime: 30_000,
+  });
+}
+
+/**
  * Calculate sequence statistics
  */
 export function getSequenceStats(sequences: NurturingSequence[]): SequenceStats {
