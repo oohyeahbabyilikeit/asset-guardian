@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Phone, ChevronRight, Pause, Play, Bot } from 'lucide-react';
+import { Phone, ChevronRight, Pause, Play, Bot, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NurturingBadge } from './NurturingBadge';
 import { 
@@ -16,6 +16,8 @@ interface EnhancedLeadCardProps {
   onViewDetails?: () => void;
   onOpenCoach?: () => void;
   onToggleSequence?: () => void;
+  onStartSequence?: () => void;
+  onOpenSequenceControl?: () => void;
 }
 
 const categoryStyles = {
@@ -40,6 +42,8 @@ export function EnhancedLeadCard({
   onViewDetails,
   onOpenCoach,
   onToggleSequence,
+  onStartSequence,
+  onOpenSequenceControl,
 }: EnhancedLeadCardProps) {
   const styles = categoryStyles[opportunity.category];
   const unitSummary = getUnitSummary(opportunity.asset);
@@ -48,6 +52,7 @@ export function EnhancedLeadCard({
   
   const isSequenceActive = sequence?.status === 'active';
   const isSequencePaused = sequence?.status === 'paused';
+  const hasActiveSequence = sequence && (isSequenceActive || isSequencePaused);
   
   return (
     <div className={cn(
@@ -70,9 +75,9 @@ export function EnhancedLeadCard({
           <div className={cn(
             'text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0',
             opportunity.healthScore <= 30 
-              ? 'bg-red-500/10 text-red-300' 
+              ? 'bg-destructive/10 text-destructive' 
               : opportunity.healthScore <= 50 
-                ? 'bg-amber-500/10 text-amber-300'
+                ? 'bg-warning/10 text-warning'
                 : 'bg-emerald-500/10 text-emerald-300'
           )}>
             {opportunity.healthScore}
@@ -95,11 +100,26 @@ export function EnhancedLeadCard({
       </div>
       
       {/* Nurturing Status */}
-      {sequence && (
-        <div className="px-3 pb-2 border-t border-border/50 pt-2">
-          <NurturingBadge sequence={sequence} />
-        </div>
-      )}
+      <div className="px-3 pb-2 border-t border-border/50 pt-2">
+        {sequence ? (
+          <button 
+            onClick={onOpenSequenceControl}
+            className="w-full text-left hover:opacity-80 transition-opacity"
+          >
+            <NurturingBadge sequence={sequence} />
+          </button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onStartSequence}
+            className="h-7 px-2 text-xs gap-1 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+          >
+            <Zap className="w-3 h-3" />
+            Start Sequence
+          </Button>
+        )}
+      </div>
       
       {/* Actions Row */}
       <div className="flex items-center gap-1.5 px-3 pb-3 pt-1 border-t border-border/50">
@@ -136,7 +156,7 @@ export function EnhancedLeadCard({
         <div className="flex-1" />
         
         {/* Sequence control */}
-        {sequence && (sequence.status === 'active' || sequence.status === 'paused') && (
+        {hasActiveSequence && (
           <Button 
             size="sm" 
             variant="ghost" 

@@ -7,6 +7,8 @@ import { LeadLane } from '@/components/contractor/LeadLane';
 import { SequenceOverviewPanel } from '@/components/contractor/SequenceOverviewPanel';
 import { PropertyReportDrawer } from '@/components/contractor/PropertyReportDrawer';
 import { SalesCoachDrawer } from '@/components/contractor/SalesCoachDrawer';
+import { StartSequenceModal } from '@/components/contractor/StartSequenceModal';
+import { SequenceControlDrawer } from '@/components/contractor/SequenceControlDrawer';
 import { useContractorOpportunities } from '@/hooks/useContractorOpportunities';
 import { 
   useNurturingSequences, 
@@ -35,6 +37,13 @@ export default function LeadEngine() {
   const [reportOpportunityId, setReportOpportunityId] = useState<string | null>(null);
   const [coachOpportunityId, setCoachOpportunityId] = useState<string | null>(null);
   const [returnToReportId, setReturnToReportId] = useState<string | null>(null);
+  
+  // Sequence UI state
+  const [startSequenceOpp, setStartSequenceOpp] = useState<CategorizedOpportunity | null>(null);
+  const [sequenceControlData, setSequenceControlData] = useState<{
+    opportunity: CategorizedOpportunity;
+    sequence: NurturingSequence;
+  } | null>(null);
   
   // Categorize opportunities
   const categorized = useMemo(() => 
@@ -128,6 +137,14 @@ export default function LeadEngine() {
     );
   };
   
+  const handleStartSequence = (opportunity: CategorizedOpportunity) => {
+    setStartSequenceOpp(opportunity);
+  };
+  
+  const handleOpenSequenceControl = (opportunity: CategorizedOpportunity, sequence: NurturingSequence) => {
+    setSequenceControlData({ opportunity, sequence });
+  };
+  
   const isLoading = oppsLoading || seqLoading;
   
   // Determine which lanes to show
@@ -160,7 +177,7 @@ export default function LeadEngine() {
           <Button variant="ghost" size="icon" className="relative h-9 w-9">
             <Bell className="h-4 w-4" />
             {criticalCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-rose-500 text-[10px] font-bold text-white flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
                 {criticalCount}
               </span>
             )}
@@ -197,6 +214,8 @@ export default function LeadEngine() {
                   onViewDetails={handleViewDetails}
                   onOpenCoach={handleOpenCoach}
                   onToggleSequence={handleToggleSequence}
+                  onStartSequence={handleStartSequence}
+                  onOpenSequenceControl={handleOpenSequenceControl}
                 />
               )}
               
@@ -209,6 +228,8 @@ export default function LeadEngine() {
                   onViewDetails={handleViewDetails}
                   onOpenCoach={handleOpenCoach}
                   onToggleSequence={handleToggleSequence}
+                  onStartSequence={handleStartSequence}
+                  onOpenSequenceControl={handleOpenSequenceControl}
                 />
               )}
               
@@ -221,6 +242,8 @@ export default function LeadEngine() {
                   onViewDetails={handleViewDetails}
                   onOpenCoach={handleOpenCoach}
                   onToggleSequence={handleToggleSequence}
+                  onStartSequence={handleStartSequence}
+                  onOpenSequenceControl={handleOpenSequenceControl}
                 />
               )}
             </div>
@@ -259,6 +282,27 @@ export default function LeadEngine() {
           open={!!coachOpportunity}
           onClose={handleCloseCoach}
           opportunity={coachOpportunity}
+        />
+      )}
+      
+      {/* Start Sequence Modal */}
+      {startSequenceOpp && (
+        <StartSequenceModal
+          open={!!startSequenceOpp}
+          onClose={() => setStartSequenceOpp(null)}
+          opportunityId={startSequenceOpp.id}
+          customerName={startSequenceOpp.customerName}
+        />
+      )}
+      
+      {/* Sequence Control Drawer */}
+      {sequenceControlData && (
+        <SequenceControlDrawer
+          open={!!sequenceControlData}
+          onClose={() => setSequenceControlData(null)}
+          sequence={sequenceControlData.sequence}
+          customerName={sequenceControlData.opportunity.customerName}
+          propertyAddress={sequenceControlData.opportunity.propertyAddress}
         />
       )}
     </div>
