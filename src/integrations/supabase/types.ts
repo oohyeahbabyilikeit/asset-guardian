@@ -507,6 +507,56 @@ export type Database = {
           },
         ]
       }
+      nurturing_sequences: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          id: string
+          next_action_at: string | null
+          opportunity_id: string
+          sequence_type: string
+          started_at: string
+          status: string
+          total_steps: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          next_action_at?: string | null
+          opportunity_id: string
+          sequence_type: string
+          started_at?: string
+          status?: string
+          total_steps: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          next_action_at?: string | null
+          opportunity_id?: string
+          sequence_type?: string
+          started_at?: string
+          status?: string
+          total_steps?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nurturing_sequences_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "demo_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunity_notifications: {
         Row: {
           calculated_age: number | null
@@ -828,6 +878,80 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sequence_events: {
+        Row: {
+          action_type: string
+          created_at: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          scheduled_at: string
+          sequence_id: string
+          status: string
+          step_number: number
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          scheduled_at: string
+          sequence_id: string
+          status?: string
+          step_number: number
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          scheduled_at?: string
+          sequence_id?: string
+          status?: string
+          step_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sequence_events_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "nurturing_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sequence_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          steps: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          steps?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          steps?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       service_events: {
         Row: {
