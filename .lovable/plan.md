@@ -1,156 +1,273 @@
 
-# Sequences Page Database Integration Fix
 
-## Issues Found
+# Optimal Desktop Dashboard UX - Outreach Sequences Redesign
 
-After reviewing the code and database, I identified several critical gaps preventing the Sequences page from being cohesive and fully database-connected:
+## Overview
 
-### 1. Missing Customer Information
-The `ActiveSequencesList` and `SequenceRow` components display placeholder text like "Lead a000000" instead of actual customer names and addresses. The data exists in `demo_opportunities` but the sequences only store `opportunity_id` - there's no join being performed.
+This plan transforms the current Sequences page into the optimal contractor dashboard flow with three major features:
 
-### 2. No Sequence Events Being Created
-When `useStartSequence` creates a nurturing sequence, it only inserts into `nurturing_sequences` but **never creates the corresponding `sequence_events` rows**. This means:
-- "Send Now" and "Skip" buttons fail (no event IDs exist)
-- `StepTimeline` shows empty execution history
-- No data for analytics calculations
-
-### 3. Inconsistent Trigger Type Matching
-- Sequences use: `urgent_replace`, `maintenance_reminder`
-- Templates use: `replacement_urgent`, `maintenance`
-- This causes template lookups to fail in some cases
-
-### 4. Missing TypeScript Fields
-The `NurturingSequence` interface is missing the `outcome`, `outcomeReason`, and `outcomeAt` fields that exist in the database, causing `(s as any).outcome` workarounds.
-
-### 5. Analytics Using Mock Values
-Open rate (68%) and click rate (24%) are hardcoded instead of calculated from actual `sequence_events` data.
+1. **The "Pulse" Widget** - A summary widget for the Lead Engine dashboard showing automation health at a glance
+2. **Master Table View** - Replace the card-based sequence list with a sortable, scannable data table
+3. **Sequence Type Sidebar** - Left sidebar filter for sequence buckets
+4. **Global Search with Kill Switch** - Quick search to find customers and stop sequences instantly
 
 ---
 
-## Solution
+## Current State Analysis
 
-### 1. Create a New Hook to Fetch Enriched Sequences
+The existing Sequences page uses:
+- **Tab layout**: Active | Templates | Analytics
+- **Card-based list**: `ActiveSequencesList` → `SequenceRow` (grouped by urgency)
+- **No sidebar filters**
+- **No global search**
+- **No dashboard widget on Lead Engine**
 
-Create `useEnrichedSequences` that joins `nurturing_sequences` with `demo_opportunities` to get customer names and addresses in a single query:
-
-```typescript
-// Returns sequences with customerName and propertyAddress attached
-useEnrichedSequences() -> EnrichedSequence[]
-```
-
-### 2. Fix `useStartSequence` to Create Events
-
-When starting a sequence, also create `sequence_events` rows for each step from the template:
-
-```typescript
-// For each template step:
-INSERT INTO sequence_events {
-  sequence_id,
-  step_number,
-  action_type,
-  scheduled_at: (start_date + step.day days),
-  status: 'pending',
-  message_content: step.message
-}
-```
-
-### 3. Update TypeScript Types
-
-Add missing fields to `NurturingSequence`:
-- `outcome: 'converted' | 'lost' | 'stopped' | null`
-- `outcomeReason: string | null`
-- `outcomeAt: Date | null`
-
-### 4. Fix Template Matching
-
-Create a unified mapping function that handles both naming conventions:
-- `urgent_replace` ↔ `replacement_urgent`
-- `maintenance_reminder` ↔ `maintenance`
-
-### 5. Calculate Real Analytics
-
-Replace hardcoded rates with actual calculations from `sequence_events`:
-- Open rate = events with `opened_at` / total sent events
-- Click rate = events with `clicked_at` / total sent events
+The user's optimal flow requires a significant restructure to make the desktop experience more scannable and actionable.
 
 ---
 
-## File Changes
+## Implementation Plan
+
+### Phase 1: Create the "Pulse" Widget
+
+Add a new summary card to the Lead Engine dashboard that shows automation health at a glance.
+
+**New Component: `SequencesPulseWidget.tsx`**
+
+Layout:
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│  🤖 Automated Outreach                                    [View →] │
+├────────────┬─────────────┬─────────────┬─────────────────────────────┤
+│  Enrolled  │   Active    │   Engaged   │   Converted               │
+│  (7 days)  │    Now      │  (24h)      │                           │
+│    14      │     42      │      8      │      3                    │
+└────────────┴─────────────┴─────────────┴─────────────────────────────┘
+```
+
+Metrics (from database):
+- **Enrolled (7 days)**: Count of sequences created in last 7 days
+- **Active Now**: Count of sequences with status='active'
+- **Engaged (24h)**: Count of events with `opened_at` or `clicked_at` in last 24 hours
+- **Converted**: Count of sequences with outcome='converted'
+
+Click behavior: Navigates to `/contractor/sequences`
+
+---
+
+### Phase 2: Redesign Active Sequences as Master Table
+
+Replace the card-based `ActiveSequencesList` with a proper data table using the existing shadcn Table components.
+
+**Modified Component: `ActiveSequencesList.tsx`**
+
+Table Columns:
+| Column | Content | Width |
+|--------|---------|-------|
+| Address/Customer | "123 Maple Ave - Smith" | 30% |
+| Sequence | "Urgent Replace", "Annual Flush" | 15% |
+| Current Step | "Step 2/5: 'Risk Report' Email" | 20% |
+| Status | 🟢 Active, 🟡 Paused, 🔴 Error | 8% |
+| Engagement | 👁️ (Opened) and 👆 (Clicked) icons | 8% |
+| Next Touchpoint | "Tomorrow @ 9:00 AM" | 12% |
+| Actions | [PAUSE] [SKIP] [STOP] | 7% |
+
+Table behavior:
+- Sortable by any column (click headers)
+- Status icons light up for most recent message engagement
+- Clicking row opens SequenceControlDrawer (existing)
+- Action buttons work inline (no drawer needed for simple actions)
+
+---
+
+### Phase 3: Add Sequence Bucket Sidebar
+
+Add a left sidebar filter to the Sequences page for filtering by automation type.
+
+**New Component: `SequenceBucketSidebar.tsx`**
+
+Sidebar items:
+```text
+┌─────────────────────────┐
+│  FILTER BY TYPE         │
+├─────────────────────────┤
+│  ● All Active     (56)  │ ← default
+│  ○ High Risk      (12)  │ ← replacement_urgent
+│  ○ Code Violation  (8)  │ ← code_violation  
+│  ○ Maintenance    (30)  │ ← maintenance
+│  ○ Warranty        (6)  │ ← warranty_expiring
+└─────────────────────────┘
+```
+
+Filter logic:
+- Maps to `sequence_type` field
+- Uses `normalizeSequenceType()` for consistent matching
+- Clicking filter updates table to show only matching sequences
+
+---
+
+### Phase 4: Global Search with Kill Switch
+
+Add a search bar to the Sequences page header that allows quick lookup and instant sequence stopping.
+
+**Modified Component: `Sequences.tsx` header**
+
+Search behavior:
+1. User types customer name or address
+2. Matching sequences appear in dropdown
+3. Each result shows: "123 Maple Ave - Smith [IN SEQUENCE: REPLACEMENT]"
+4. Clicking the badge instantly opens a confirm dialog to STOP the sequence
+5. Stopping marks `outcome='stopped'`, `status='cancelled'`
+
+This solves the "Mrs. Jones calls to book" scenario - one search, one click, automation stopped.
+
+**New Component: `SequenceGlobalSearch.tsx`**
+
+Uses Command component (cmdk) for fast fuzzy search with keyboard navigation.
+
+---
+
+## File Changes Summary
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/components/contractor/SequencesPulseWidget.tsx` | Dashboard widget showing automation health |
+| `src/components/contractor/SequenceBucketSidebar.tsx` | Left sidebar filter by sequence type |
+| `src/components/contractor/SequenceGlobalSearch.tsx` | Global search with kill switch |
+| `src/components/contractor/SequenceTableRow.tsx` | Individual table row for master table |
 
 ### Modified Files
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useNurturingSequences.ts` | Add `outcome` fields to interface, create `useEnrichedSequences` hook, fix `useStartSequence` to create events |
-| `src/components/contractor/ActiveSequencesList.tsx` | Use enriched sequences with real customer data |
-| `src/components/contractor/SequenceRow.tsx` | Accept and display customerName, propertyAddress props |
-| `src/components/contractor/SequenceControlDrawer.tsx` | Use enriched data, fix template matching |
-| `src/components/contractor/SequenceAnalytics.tsx` | Calculate real open/click rates from events |
-| `src/pages/Sequences.tsx` | Use enriched sequences hook |
+| `src/pages/Sequences.tsx` | Add sidebar layout, search bar, update to table view |
+| `src/pages/LeadEngine.tsx` | Add SequencesPulseWidget above CommandBar |
+| `src/components/contractor/ActiveSequencesList.tsx` | Replace cards with Table component |
+| `src/hooks/useNurturingSequences.ts` | Add `usePulseMetrics()` hook for widget data |
 
 ---
 
-## Technical Details
+## Database Queries
 
-### Enriched Sequence Type
+### Pulse Widget Metrics
 
 ```typescript
-interface EnrichedSequence extends NurturingSequence {
-  customerName: string;
-  propertyAddress: string;
-  opportunityType: string;
+usePulseMetrics() -> {
+  enrolled7Days: count of nurturing_sequences created > now() - 7 days
+  activeNow: count of nurturing_sequences with status = 'active'
+  engaged24h: count of sequence_events with opened_at > now() - 24h OR clicked_at > now() - 24h
+  converted: count of nurturing_sequences with outcome = 'converted'
 }
 ```
 
-### Database Query for Enrichment
+### Engagement Detection (per sequence)
 
-Since we can't use JOINs directly in Supabase JS client between tables without foreign keys, we'll:
-1. Fetch all nurturing sequences
-2. Fetch all demo_opportunities
-3. Map them client-side (efficient for small datasets)
-
-### Event Creation on Sequence Start
+For the engagement icons in the table, we need to check if the most recent sent event has been opened/clicked:
 
 ```typescript
-// In useStartSequence mutation:
-const templateSteps = template.steps;
-const startDate = new Date();
-
-const events = templateSteps.map(step => ({
-  sequence_id: newSequenceId,
-  step_number: step.step,
-  action_type: step.action,
-  scheduled_at: addDays(startDate, step.day).toISOString(),
-  status: 'pending',
-  message_content: step.message,
-}));
-
-await supabase.from('sequence_events').insert(events);
-```
-
-### Template Type Mapping
-
-```typescript
-function normalizeSequenceType(type: string): string {
-  const mappings: Record<string, string> = {
-    'urgent_replace': 'replacement_urgent',
-    'replacement_urgent': 'replacement_urgent',
-    'maintenance_reminder': 'maintenance',
-    'maintenance': 'maintenance',
-    'code_violation': 'code_violation',
-  };
-  return mappings[type] || type;
-}
+// In enriched sequence data
+const latestEvent = events.filter(e => e.status === 'sent').sort(desc)[0]
+const hasOpened = latestEvent?.openedAt != null
+const hasClicked = latestEvent?.clickedAt != null
 ```
 
 ---
 
-## Outcome
+## Technical Architecture
 
-After these changes:
-- Sequence rows show real customer names and property addresses
-- "Send Now" and "Skip" buttons work with actual event records
-- Template matching is consistent across the app
-- Analytics show calculated metrics based on real data
-- TypeScript types are complete without `any` casts
-- The entire Sequences page is fully database-connected
+### Page Layout Change
+
+Current Sequences.tsx:
+```
+┌──────────────────────────────┐
+│ Header                       │
+├──────────────────────────────┤
+│ Tabs                         │
+├──────────────────────────────┤
+│ Content (cards)              │
+└──────────────────────────────┘
+```
+
+New Sequences.tsx:
+```
+┌──────────────────────────────────────────────────┐
+│ Header with Global Search                        │
+├──────────┬───────────────────────────────────────┤
+│ Sidebar  │ Tabs (Active | Templates | Analytics) │
+│ Filters  ├───────────────────────────────────────┤
+│          │ Master Table or Tab Content           │
+│ (12 hl)  │                                       │
+│ (30 mt)  │                                       │
+│ (14 an)  │                                       │
+└──────────┴───────────────────────────────────────┘
+```
+
+### Kill Switch Flow
+
+```text
+1. User types "Jones" in search
+2. Dropdown shows: "123 Maple Ave - Jones [REPLACEMENT]"
+3. User clicks the badge
+4. Confirm dialog: "Stop sequence for Jones?"
+5. On confirm:
+   - nurturing_sequences.update({ 
+       status: 'cancelled', 
+       outcome: 'stopped', 
+       outcome_reason: 'Customer booked' 
+     })
+6. Toast: "Sequence stopped for Jones"
+```
+
+---
+
+## Design Details
+
+### Status Icons
+
+| Status | Icon | Color |
+|--------|------|-------|
+| Active | ● | `text-emerald-400` |
+| Paused | ● | `text-amber-400` |
+| Error | ● | `text-rose-400` |
+
+### Engagement Icons
+
+| State | Icon | Appearance |
+|-------|------|------------|
+| Not sent yet | 👁️ 👆 | `text-muted-foreground/30` (dimmed) |
+| Sent, not opened | 👁️ | `text-muted-foreground/50` |
+| Opened | 👁️ | `text-sky-400` (lit up) |
+| Clicked | 👆 | `text-violet-400` (lit up) |
+
+### Sidebar Visual
+
+```text
+┌─────────────────────────────────┐
+│  📋 FILTER BY TYPE              │
+│  ───────────────────────────────│
+│  ● All Active            56    │ ← bg-muted, border-l-2 violet
+│    High Risk / Replace   12    │
+│    Code Violation         8    │
+│    Maintenance           30    │
+│    Warranty               6    │
+└─────────────────────────────────┘
+```
+
+---
+
+## Summary
+
+This redesign addresses all user requirements:
+
+1. **The Pulse Widget**: Quick glance at automation health from Lead Engine
+2. **Master Table**: Scannable rows instead of cards - see everything at once
+3. **Bucket Filters**: Left sidebar to filter by sequence type (owner checks "High Risk" daily)
+4. **Kill Switch Search**: Global search with one-click STOP when customer books
+
+The primary interaction model shifts to:
+- **Default**: Watch the table - it populates automatically
+- **Success metric**: "Engaged" numbers go up
+- **Primary action**: Search + Stop when customer books
+
