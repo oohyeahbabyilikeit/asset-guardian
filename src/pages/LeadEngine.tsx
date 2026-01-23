@@ -4,24 +4,26 @@ import { ArrowLeft, Bell, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryTabs } from '@/components/contractor/CategoryTabs';
 import { LeadLane } from '@/components/contractor/LeadLane';
-import { SequenceOverviewPanel } from '@/components/contractor/SequenceOverviewPanel';
+import { MoneyDashboard } from '@/components/contractor/MoneyDashboard';
+import { HotLeadPanel } from '@/components/contractor/HotLeadPanel';
+import { PerformanceRibbon } from '@/components/contractor/PerformanceRibbon';
 import { PropertyReportDrawer } from '@/components/contractor/PropertyReportDrawer';
 import { SalesCoachDrawer } from '@/components/contractor/SalesCoachDrawer';
 import { StartSequenceModal } from '@/components/contractor/StartSequenceModal';
 import { SequenceControlDrawer } from '@/components/contractor/SequenceControlDrawer';
-import { useContractorOpportunities } from '@/hooks/useContractorOpportunities';
+import { useContractorOpportunities, getClosesMetrics } from '@/hooks/useContractorOpportunities';
 import { 
   useNurturingSequences, 
   useToggleSequenceStatus,
   getSequenceStats,
   type NurturingSequence,
 } from '@/hooks/useNurturingSequences';
+import { useHotLead } from '@/hooks/useHotLead';
 import { 
   categorizeOpportunities, 
   type LeadCategory,
   type CategorizedOpportunity,
 } from '@/lib/opportunityCategories';
-import { type MockOpportunity } from '@/data/mockContractorData';
 import { toast } from 'sonner';
 
 export default function LeadEngine() {
@@ -51,6 +53,13 @@ export default function LeadEngine() {
     [opportunities]
   );
   
+  // All categorized opportunities for hot lead calculation
+  const allCategorizedOpps = useMemo(() => [
+    ...categorized.replacements,
+    ...categorized.codeFixes,
+    ...categorized.maintenance,
+  ], [categorized]);
+  
   // Build sequence lookup by opportunity ID
   const sequencesByOpp = useMemo(() => {
     const map: Record<string, NurturingSequence> = {};
@@ -63,8 +72,42 @@ export default function LeadEngine() {
     return map;
   }, [sequences]);
   
+  // Hot lead hook
+  const { hotLead, hotLeadSequence, skipCurrentLead } = useHotLead({
+    opportunities: allCategorizedOpps,
+    sequencesByOpp,
+  });
+  
   // Calculate stats
   const sequenceStats = useMemo(() => getSequenceStats(sequences), [sequences]);
+  const closesMetrics = useMemo(() => getClosesMetrics(opportunities), [opportunities]);
+  
+  // Money Dashboard metrics
+  const dashboardMetrics = useMemo(() => {
+    // Today's actions: leads without sequences or with sequence steps due
+    const leadsNeedingAction = allCategorizedOpps.filter(opp => {
+      const seq = sequencesByOpp[opp.id];
+      if (!seq) return opp.priority === 'critical' || opp.priority === 'high';
+      if (seq.status === 'completed' || seq.status === 'cancelled') return false;
+      if (seq.nextActionAt) {
+        const nextAction = new Date(seq.nextActionAt);
+        const today = new Date();
+        return nextAction.toDateString() === today.toDateString() || nextAction < today;
+      }
+      return false;
+    });
+    
+    // Pipeline value based on replacement count (1-4 scale)
+    const replacementCount = categorized.replacements.length;
+    const pipelineValue = Math.min(4, Math.max(1, Math.ceil(replacementCount / 2)));
+    
+    return {
+      todayActionCount: leadsNeedingAction.length,
+      pipelineValue,
+      activeSequences: sequenceStats.active,
+      thisWeekWins: sequenceStats.completed,
+    };
+  }, [allCategorizedOpps, sequencesByOpp, categorized.replacements.length, sequenceStats]);
   
   // Counts for category tabs
   const counts = {
@@ -203,6 +246,32 @@ export default function LeadEngine() {
           </div>
         ) : (
           <>
+            {/* Money Dashboard */}
+            <MoneyDashboard
+              todayActionCount={dashboardMetrics.todayActionCount}
+              pipelineValue={dashboardMetrics.pipelineValue}
+              activeSequences={dashboardMetrics.activeSequences}
+              thisWeekWins={dashboardMetrics.thisWeekWins}
+            />
+
+            {/* Hot Lead Panel */}
+            {hotLead && (
+              <HotLeadPanel
+                opportunity={hotLead}
+                sequence={hotLeadSequence}
+                onCall={() => handleCall(hotLead)}
+                onStartSequence={() => handleStartSequence(hotLead)}
+                onSkip={skipCurrentLead}
+                onViewDetails={() => handleViewDetails(hotLead)}
+              />
+            )}
+
+            {/* Performance Ribbon */}
+            <PerformanceRibbon 
+              metrics={closesMetrics} 
+              sequenceStats={sequenceStats}
+            />
+
             {/* Lead Lanes */}
             <div className="space-y-3">
               {showReplacements && (
@@ -253,11 +322,6 @@ export default function LeadEngine() {
               <div className="text-center py-16">
                 <p className="text-muted-foreground">No active opportunities</p>
               </div>
-            )}
-            
-            {/* Sequence Overview */}
-            {sequences.length > 0 && (
-              <SequenceOverviewPanel stats={sequenceStats} />
             )}
           </>
         )}
