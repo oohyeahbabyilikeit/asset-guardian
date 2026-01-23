@@ -23,22 +23,25 @@ const categoryConfig = {
     label: 'Replacements',
     icon: Flame,
     color: 'text-rose-400',
-    bgColor: 'bg-rose-500/10',
-    borderColor: 'border-rose-500/30',
+    bgColor: 'bg-gradient-to-r from-rose-500/15 to-rose-500/5',
+    borderColor: 'border-rose-500/20',
+    iconBg: 'bg-rose-500/20',
   },
   codeFixes: {
     label: 'Code Fixes',
     icon: AlertTriangle,
     color: 'text-amber-400',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
+    bgColor: 'bg-gradient-to-r from-amber-500/15 to-amber-500/5',
+    borderColor: 'border-amber-500/20',
+    iconBg: 'bg-amber-500/20',
   },
   maintenance: {
     label: 'Maintenance',
     icon: Wrench,
     color: 'text-sky-400',
-    bgColor: 'bg-sky-500/10',
-    borderColor: 'border-sky-500/30',
+    bgColor: 'bg-gradient-to-r from-sky-500/15 to-sky-500/5',
+    borderColor: 'border-sky-500/20',
+    iconBg: 'bg-sky-500/20',
   },
 };
 
@@ -66,27 +69,32 @@ export function LeadLane({
   
   return (
     <div className={cn(
-      'rounded-lg border',
+      'rounded-xl border overflow-hidden',
       config.borderColor,
-      'overflow-hidden'
+      'shadow-lg shadow-black/10'
     )}>
       {/* Lane Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
-          'w-full flex items-center justify-between px-4 py-2.5',
+          'w-full flex items-center justify-between px-4 py-3',
           config.bgColor,
-          'hover:opacity-90 transition-opacity'
+          'hover:opacity-90 transition-all duration-200'
         )}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon className={cn('w-4 h-4 shrink-0', config.color)} />
-          <span className={cn('font-medium text-sm', config.color)}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={cn(
+            'flex items-center justify-center w-8 h-8 rounded-lg',
+            config.iconBg
+          )}>
+            <Icon className={cn('w-4 h-4', config.color)} />
+          </div>
+          <span className={cn('font-semibold text-sm', config.color)}>
             {config.label}
           </span>
           <span className={cn(
-            'text-xs px-2 py-0.5 rounded-full shrink-0',
-            'bg-background/50 text-foreground/70'
+            'text-xs font-bold px-2.5 py-1 rounded-full',
+            'bg-background/60 text-foreground/80 border border-white/10'
           )}>
             {count}
           </span>
@@ -99,16 +107,22 @@ export function LeadLane({
           )}
         </div>
         
-        {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-        )}
+        <div className={cn(
+          'flex items-center justify-center w-7 h-7 rounded-lg bg-background/40 border border-white/5',
+          'transition-transform duration-200',
+          isExpanded && 'rotate-0'
+        )}>
+          {isExpanded ? (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          )}
+        </div>
       </button>
       
       {/* Lane Content */}
       {isExpanded && (
-        <div className="p-2 space-y-1.5 bg-background/50">
+        <div className="p-3 space-y-2 bg-background/50">
           {opportunities.map(opportunity => {
             const sequence = sequences[opportunity.id] || null;
             return (
