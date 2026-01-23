@@ -1,262 +1,264 @@
 
-
-# Contractor View Redesign - Complete Desktop Dashboard
+# Sidecar UX Improvements: Revenue Capture & Engagement Verification
 
 ## Overview
 
-This redesign consolidates the contractor experience into a clean, focused dashboard that emphasizes the automated outreach system. The user's optimal flow centers on:
-- **Watch the machine run** (Pulse Widget on dashboard)
-- **Manage active sequences** (Master Table view)
-- **Intervene when needed** (Kill Switch search)
+This plan implements three critical features to make the non-integrated sidecar dashboard work properly for tracking real business results:
 
-## Current Architecture Issues
+1. **Celebration Modal with Revenue Capture** - Transform "Mark Converted" into a satisfying cash register moment that collects actual sale amounts
+2. **"Did You Book This?" Nudge** - Visual indicator on high-engagement leads to prompt status verification
+3. **Est. Value vs Revenue Distinction** - Clear separation between pipeline potential and confirmed closes
 
-| Issue | Current State | Desired State |
-|-------|---------------|---------------|
-| Multiple entry points | LeadEngine + Contractor + Sequences | Single unified dashboard |
-| Lead-centric UI | Card lanes by priority category | Sequence-centric table view |
-| Navigation confusion | Dashboard vs Lead Engine both at /contractor | Clear hierarchy: Dashboard → Sequences |
-| Pulse Widget placement | Embedded in LeadEngine with lead lanes | Prominent on main dashboard |
+---
 
-## Proposed Information Architecture
+## Problem Statement
 
-```text
-/contractor (Main Dashboard)
-├── Header with Company Name + Global Search
-├── Pulse Widget (The Machine Status)
-│   └── Click → /contractor/sequences
-├── Quick Stats Section
-│   ├── Pipeline Health
-│   ├── Weekly Wins
-│   └── Engagement Rate
-└── Activity Feed (Recent Bookings, Opens, Clicks)
+Since the app is a sidecar (no integration with invoicing/FSM systems), there are two risks:
 
-/contractor/sequences (Active Sequences Management)
-├── Header with Global Search (Kill Switch)
-├── Sidebar: Sequence Bucket Filters
-│   ├── All Active (count)
-│   ├── High Risk / Replacement (count) ← Daily Check
-│   ├── Maintenance Due (count)
-│   └── Anode Check (count)
-└── Master Table
-    ├── Address / Customer
-    ├── Sequence Type
-    ├── Current Step
-    ├── Status (🟢 🟡 🔴)
-    ├── Engagement (👁️ 👆)
-    ├── Next Touchpoint
-    └── Actions [PAUSE] [SKIP] [STOP]
-```
+| Risk | Current Behavior | Impact |
+|------|-----------------|--------|
+| Revenue stays at $0 | "Mark Converted" just stops sequence | Dashboard loses credibility |
+| Stale sequences | Customer books via phone, contractor forgets to update | Automation keeps running embarrassingly |
+
+---
 
 ## Implementation Plan
 
-### Phase 1: Redesign Main Dashboard (`/contractor`)
+### Phase 1: Database Schema Update
 
-Transform `LeadEngine.tsx` into a clean dashboard focused on automation monitoring.
+Add a `revenue_usd` column to `nurturing_sequences` to store manually-entered sale amounts.
 
-**New Layout:**
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  [☰] ACME Plumbing                              [🔍 Search...]        │
-│       Dashboard                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  🤖 Automated Outreach                                       [View →] │
-│  ──────────────────────────────────────────────────────────────────────│
-│   Enrolled (7d)    Active Now      Engaged (24h)      Converted       │
-│       14               42               8                  3          │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────┐  ┌──────────────────────────────────┐
-│  📊 Pipeline Health              │  │  🏆 This Week                    │
-│  ────────────────────────────────│  │  ────────────────────────────────│
-│  Replacements:  12               │  │  Jobs Booked:  3                 │
-│  Code Fixes:     8               │  │  Revenue:      $4,200            │
-│  Maintenance:   30               │  │  From Automation: 2              │
-└──────────────────────────────────┘  └──────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  📋 Recent Activity                                                    │
-│  ──────────────────────────────────────────────────────────────────────│
-│  • Mrs. Johnson opened "Risk Report" email           2 hours ago      │
-│  • Smith Residence booked replacement                Yesterday         │
-│  • New sequence started for 456 Oak Ave              Yesterday         │
-└─────────────────────────────────────────────────────────────────────────┘
+```sql
+ALTER TABLE nurturing_sequences 
+ADD COLUMN revenue_usd numeric DEFAULT NULL;
 ```
 
-**Key Changes to LeadEngine.tsx:**
-- Remove CategoryTabs, LeadLane, LeadCardCompact
-- Promote SequencesPulseWidget to hero position
-- Add Pipeline Summary card (from existing opportunity data)
-- Add Weekly Stats card
-- Add Recent Activity feed (from sequence_events)
-- Move Global Search to header (for quick Kill Switch access)
+This column stores the real dollar value entered when marking a sequence as converted.
 
-### Phase 2: Enhance Sequences Page (`/contractor/sequences`)
+---
 
-The Sequences page already has most features implemented. Enhancements needed:
+### Phase 2: Create Celebration Modal
 
-1. **Add "Anode Check" bucket** to sidebar (currently missing from buckets)
-2. **Improve table density** for more rows visible
-3. **Add engagement streak indicator** (multiple opens = hot)
-4. **Add "Last Contact" column** showing when last message was sent
+Replace the simple confirmation dialog with a celebratory modal that captures the sale amount.
 
-### Phase 3: Update Navigation
+**New Component: `ConversionCelebrationModal.tsx`**
 
-**ContractorMenu Updates:**
-- Rename "Lead Engine" to "Dashboard"
-- Ensure "Sequences" is prominently placed
-- Add counts to nav items (e.g., "Sequences (42)")
+Visual Design:
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│                         🎉 🎊 🎉                                │
+│                                                                  │
+│              CONGRATULATIONS!                                    │
+│              You closed the deal!                                │
+│                                                                  │
+│         Mrs. Johnson · 123 Maple Ave                            │
+│                                                                  │
+│         ┌────────────────────────────────────────┐              │
+│         │  $    [ 4,500                      ]  │              │
+│         │       Final Sale Amount                │              │
+│         └────────────────────────────────────────┘              │
+│                                                                  │
+│                    [ Log Revenue & Complete ]                    │
+│                    [ Skip (Don't Track) ]                        │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-### Phase 4: Create Activity Feed Component
+Features:
+- Confetti animation on open (using framer-motion)
+- Currency input with $ prefix
+- "Log Revenue & Complete" button (primary action)
+- "Skip" link for cases where they don't want to track
+- Stores value in `nurturing_sequences.revenue_usd`
 
-New component to show recent automation activity:
+---
+
+### Phase 3: Update Mark Outcome Mutation
+
+Modify `useMarkOutcome` in `useSequenceEvents.ts` to accept an optional `revenueUsd` parameter.
 
 ```typescript
-// ActivityFeed shows: opens, clicks, bookings, new sequences
-interface ActivityItem {
-  type: 'opened' | 'clicked' | 'booked' | 'started' | 'stopped';
-  customerName: string;
-  message?: string;
-  timestamp: Date;
-}
+// Updated mutation signature
+useMarkOutcome({
+  sequenceId: string;
+  outcome: 'converted' | 'lost';
+  reason?: string;
+  currentStep: number;
+  revenueUsd?: number;  // NEW: optional sale amount
+})
 ```
+
+The mutation will update the new `revenue_usd` column when provided.
+
+---
+
+### Phase 4: Add "High Interest" Nudge to Table Rows
+
+In `SequenceTableRow.tsx`, detect high-engagement leads (2+ clicks) and show a visual nudge.
+
+Detection Logic:
+```typescript
+// Count clicked events in sequence history
+const clickCount = events.filter(e => e.clickedAt != null).length;
+const isHighInterest = clickCount >= 2;
+```
+
+Visual Indicator:
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 123 Maple Ave - Smith   │ Urgent Replace │ Step 3/5 │ 🔥 HIGH INTEREST  │
+│ Check if they booked?                                                    │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+UI Elements:
+- Yellow/amber dot or flame icon next to engagement icons
+- Tooltip on hover: "High Interest - Did they book?"
+- Subtle highlight on the row background
+- Optional: small "Verify" button that opens the SequenceControlDrawer
+
+---
+
+### Phase 5: Update Weekly Stats to Use Real Revenue
+
+Modify `useWeeklyStats.ts` to query actual `revenue_usd` from converted sequences instead of estimating.
+
+Current (estimation):
+```typescript
+const avgJobValue = 1400;
+const revenue = jobsBooked * avgJobValue;
+```
+
+New (real data):
+```typescript
+// Sum actual revenue from converted sequences
+const { data } = await supabase
+  .from('nurturing_sequences')
+  .select('revenue_usd')
+  .eq('outcome', 'converted')
+  .gte('completed_at', weekStart.toISOString());
+
+const revenue = data?.reduce((sum, s) => sum + (s.revenue_usd || 0), 0) ?? 0;
+```
+
+---
+
+### Phase 6: Distinguish Est. Value vs Real Revenue in Dashboard
+
+Update `PipelineSummaryCard` and `WeeklyStatsCard` to clearly differentiate:
+
+| Metric | Source | Label |
+|--------|--------|-------|
+| Est. Value | Calculated from opportunity types | "~$18,000" (with tilde) |
+| Revenue | Sum of `revenue_usd` from conversions | "$9,000" (solid, no tilde) |
+
+Add a subtle tooltip explaining the difference:
+- Est. Value: "Potential revenue based on opportunities in pipeline"
+- Revenue: "Confirmed closes you've logged this week"
+
+Visual Treatment:
+- Est. Value: Gray or muted color, tilde prefix (~$)
+- Revenue: Green/emerald, bold, no prefix
+
+---
 
 ## File Changes Summary
 
-### Modified Files
+### Database Migration
 
-| File | Changes |
-|------|---------|
-| `src/pages/LeadEngine.tsx` | Complete redesign - remove lead lanes, add dashboard widgets |
-| `src/pages/Sequences.tsx` | Minor enhancements - add Anode bucket, improve density |
-| `src/components/contractor/ContractorMenu.tsx` | Rename items, add counts, highlight active |
-| `src/components/contractor/SequenceBucketSidebar.tsx` | Add "Anode Check" bucket |
+| Change | Details |
+|--------|---------|
+| Add column | `nurturing_sequences.revenue_usd` (numeric, nullable) |
 
 ### New Files
 
 | File | Purpose |
 |------|---------|
-| `src/components/contractor/DashboardPulseHero.tsx` | Enhanced Pulse Widget for hero position |
-| `src/components/contractor/PipelineSummaryCard.tsx` | Pipeline health breakdown |
-| `src/components/contractor/WeeklyStatsCard.tsx` | This week's performance metrics |
-| `src/components/contractor/RecentActivityFeed.tsx` | Activity stream from sequence events |
+| `src/components/contractor/ConversionCelebrationModal.tsx` | Revenue capture modal with confetti |
 
-### Removed/Deprecated
+### Modified Files
 
-| Component | Reason |
-|-----------|--------|
-| `CategoryTabs.tsx` | Replaced by sequence-centric view |
-| `LeadLane.tsx` | Replaced by master table |
-| `LeadCardCompact.tsx` | Replaced by table rows |
-| `CommandBar.tsx` | Replaced by dashboard widgets |
-| `Contractor.tsx` page | Redundant with new dashboard |
+| File | Changes |
+|------|---------|
+| `src/hooks/useSequenceEvents.ts` | Add `revenueUsd` param to `useMarkOutcome` |
+| `src/hooks/useNurturingSequences.ts` | Update interface to include `revenueUsd` |
+| `src/components/contractor/SequenceControlDrawer.tsx` | Replace outcome dialog with celebration modal |
+| `src/components/contractor/SequenceTableRow.tsx` | Add high-interest nudge indicator |
+| `src/hooks/useWeeklyStats.ts` | Query real `revenue_usd` instead of estimating |
+| `src/components/contractor/WeeklyStatsCard.tsx` | Update labels to distinguish Est. vs Real |
+| `src/components/contractor/PipelineSummaryCard.tsx` | Clarify "Est. Value" label with tooltip |
 
-## Database Queries
+---
 
-### Recent Activity Feed
+## Technical Details
 
-```sql
--- Get recent engagement events
-SELECT 
-  se.id,
-  se.opened_at,
-  se.clicked_at,
-  se.executed_at,
-  ns.sequence_type,
-  do.customer_name,
-  do.property_address
-FROM sequence_events se
-JOIN nurturing_sequences ns ON se.sequence_id = ns.id
-JOIN demo_opportunities do ON ns.opportunity_id = do.id
-WHERE se.opened_at IS NOT NULL 
-   OR se.clicked_at IS NOT NULL
-   OR se.executed_at > now() - interval '7 days'
-ORDER BY COALESCE(se.clicked_at, se.opened_at, se.executed_at) DESC
-LIMIT 10;
+### Celebration Modal Animation
+
+Using framer-motion for entrance:
+```typescript
+<motion.div
+  initial={{ scale: 0.8, opacity: 0 }}
+  animate={{ scale: 1, opacity: 1 }}
+  transition={{ type: "spring", duration: 0.5 }}
+>
+  {/* Confetti bursts */}
+  <motion.div animate={{ rotate: [0, 10, -10, 0] }}>🎉</motion.div>
+</motion.div>
 ```
 
-### Weekly Stats
+### High Interest Detection
 
-```sql
--- Completed sequences (converted) this week
-SELECT COUNT(*) 
-FROM nurturing_sequences 
-WHERE outcome = 'converted' 
-  AND completed_at > date_trunc('week', now());
+```typescript
+// In SequenceTableRow
+const clickCount = events.filter(e => e.clickedAt != null).length;
+const isHighInterest = clickCount >= 2 && sequence.status === 'active';
+
+// Render nudge
+{isHighInterest && (
+  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+    <Flame className="w-3 h-3" />
+    High Interest
+  </span>
+)}
 ```
 
-## Design Specifications
+### Revenue Aggregation Query
 
-### Dashboard Pulse Widget (Hero)
+```typescript
+// In useWeeklyStats
+const { data: conversions } = await supabase
+  .from('nurturing_sequences')
+  .select('id, outcome, completed_at, revenue_usd')
+  .eq('outcome', 'converted')
+  .gte('completed_at', weekStart.toISOString());
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   🤖  AUTOMATED OUTREACH                                   [View All →]│
-│   ────────────────────────────────────────────────────────────────────  │
-│                                                                         │
-│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │
-│   │     14      │  │     42      │  │      8      │  │      3      │   │
-│   │  Enrolled   │  │   Active    │  │   Engaged   │  │  Converted  │   │
-│   │  (7 days)   │  │    Now      │  │   (24h)     │  │             │   │
-│   │   👥 +3     │  │   🟢 ●●●    │  │   📬 ↑12%   │  │   🎉        │   │
-│   └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘   │
-│                                                                         │
-│   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░  56% of pipeline in sequence   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+const jobsBooked = conversions?.length ?? 0;
+const revenue = conversions?.reduce((sum, c) => sum + (c.revenue_usd || 0), 0) ?? 0;
 ```
 
-Colors:
-- Enrolled: Sky blue (`text-sky-400`)
-- Active: Emerald (`text-emerald-400`)
-- Engaged: Amber (`text-amber-400`)
-- Converted: Violet (`text-violet-400`)
+---
 
-### Pipeline Card
+## UX Flow: Marking a Conversion
 
-```text
-┌────────────────────────────────────┐
-│ 📊 Pipeline                        │
-│ ────────────────────────────────── │
-│                                    │
-│ 🔴 Replacements          12        │
-│ 🟡 Code Fixes             8        │
-│ 🔵 Maintenance           30        │
-│                                    │
-│ Total Value         ~$48,000       │
-└────────────────────────────────────┘
-```
+1. User clicks "Mark Converted" button
+2. Celebration modal opens with confetti animation
+3. User enters sale amount (e.g., $4,500)
+4. User clicks "Log Revenue & Complete"
+5. Sequence is marked as converted with revenue stored
+6. Toast: "🎉 $4,500 logged! Great work!"
+7. Dashboard "Revenue" widget updates immediately
 
-### Activity Feed Item
-
-```text
-│ 👁️  Mrs. Johnson opened "Risk Report" email     │
-│     123 Maple Ave · Urgent Replace              │  2h ago
-│     [View Sequence]                             │
-```
-
-Activity types:
-- 👁️ Opened email
-- 👆 Clicked link
-- 🎉 Customer booked
-- ▶️ Sequence started
-- ⏹️ Sequence stopped
+---
 
 ## Summary
 
-This redesign transforms the contractor experience from a lead-centric card interface to a **sequence-centric automation dashboard**:
+These three improvements make the sidecar dashboard tell the truth about business results:
 
-1. **Main Dashboard** answers: "Is the machine running?" with the Pulse Widget hero
-2. **Sequences Page** provides the master table for "Who's in the pipeline?"
-3. **Global Search** enables instant "Kill Switch" when customers book
-4. **Activity Feed** shows engagement without needing to dig into tables
+| Feature | Benefit |
+|---------|---------|
+| Celebration Modal | Makes logging revenue feel satisfying → higher adoption |
+| High Interest Nudge | Prompts contractors to verify status → cleaner data |
+| Est. vs Real distinction | Owner understands the gap → "Let's go get the rest" conversation |
 
-The primary interaction model becomes:
-- **Watch**: See the Pulse numbers trending up
-- **Monitor**: Glance at Activity Feed for engagement signals
-- **Intervene**: Search + Stop when customer calls to book
-
+The pitch becomes: "We generated $18k in opportunities. You told us you closed $9k. Let's go get the rest."
