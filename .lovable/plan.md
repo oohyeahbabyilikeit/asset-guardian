@@ -1,114 +1,40 @@
 
-# Lead Engine Modular Refactor
 
-## Problem Analysis
+# Lead Engine UI Refinement - Professional Navigation and Visual Polish
 
-The current UI has **too many visual layers** competing for attention:
+## Problem Summary
 
-```text
-Current Layout (Too Cluttered):
-┌─────────────────────────────────────┐
-│ Header + Category Tabs              │  ← Fixed
-├─────────────────────────────────────┤
-│ Money Dashboard (4 KPIs)            │  ← Zone 1
-├─────────────────────────────────────┤
-│ Hot Lead Panel (full card)          │  ← Zone 2 (DUPLICATES first lead!)
-├─────────────────────────────────────┤
-│ Performance Ribbon (collapsible)    │  ← Zone 3
-├─────────────────────────────────────┤
-│ Replacements Lane (4 cards)         │  ← Zone 4
-├─────────────────────────────────────┤
-│ Code Fixes Lane (2 cards)           │  ← Zone 5
-├─────────────────────────────────────┤
-│ Maintenance Lane (6 cards)          │  ← Zone 6
-└─────────────────────────────────────┘
-```
+The current Lead Engine has two core issues:
 
-### Key Issues
+1. **Navigation**: The back arrow navigates to `/` (consumer onboarding) which makes no sense for a contractor. A hamburger menu with proper navigation options is needed.
 
-| Issue | Impact |
-|-------|--------|
-| Hot Lead Panel duplicates first lead in lane | Confusing, wastes space |
-| 4 separate info zones before actual leads | Overwhelming first impression |
-| Each lead card has 4 vertical sections | Cards are too tall |
-| 5+ action buttons per card | Decision paralysis |
-| Performance Ribbon collapsible = hidden value | Easy to miss |
+2. **Visual Quality**: The interface feels "cheap" due to:
+   - Flat color gradients without depth
+   - Thin, low-contrast borders
+   - Small, cramped typography
+   - Inconsistent visual hierarchy
+   - Missing subtle polish elements (shadows, glows, better spacing)
 
 ---
 
-## Solution: Consolidated Command Bar + Streamlined Cards
+## Solution Overview
 
-### New Layout
+### 1. Replace Back Button with Hamburger Menu
 
-```text
-Proposed Layout (Clean & Focused):
-┌─────────────────────────────────────┐
-│ Header + Category Tabs              │  ← Keep (works well)
-├─────────────────────────────────────┤
-│ Command Bar (merged dashboard)      │  ← Zone 1: Money + Stats + Hot Alert
-├─────────────────────────────────────┤
-│ Lead Lanes (streamlined cards)      │  ← Zone 2: Compact cards only
-└─────────────────────────────────────┘
-```
+Create a slide-out navigation drawer with:
+- Contractor profile header
+- Navigation links (Dashboard, Lead Engine, Settings)
+- Quick actions (Add Lead, Sync Data)
+- Logout option
 
----
+### 2. Visual Polish Upgrade
 
-## Implementation Details
-
-### 1. New `CommandBar` Component
-
-Merge MoneyDashboard + PerformanceRibbon + Hot Lead Alert into ONE component:
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ 🔥 Hot: Williams (LEAKING)  [Call]    │  $$$$ │ 7 Active │ 3 Won │
-└──────────────────────────────────────────────────────────────┘
-```
-
-- **Left side**: Inline hot lead alert with quick call button
-- **Right side**: Pipeline + Active + Wins (compact)
-- One tap on hot lead opens details drawer
-- Performance stats accessible via expansion (optional)
-
-### 2. Simplified `LeadCardCompact` Component
-
-Reduce each lead card from 4 sections to 2:
-
-```text
-Current Card (Too Tall):           Compact Card (Streamlined):
-┌─────────────────────────┐        ┌─────────────────────────────────┐
-│ Name         Health: 24 │        │ • Williams   LEAKING    24  [📞]│
-├─────────────────────────┤        │   Bradford 50g · Step 2/5   →   │
-│ Address                 │        └─────────────────────────────────┘
-├─────────────────────────┤
-│ Unit · Context          │
-├─────────────────────────┤
-│ Sequence badge          │
-├─────────────────────────┤
-│ [Call] [Details] [Coach]│
-│ [Pause] timestamp       │
-└─────────────────────────┘
-```
-
-Key changes:
-- **Row 1**: Name + urgency tag + health score + inline call button
-- **Row 2**: Unit summary + sequence progress → tap to expand
-- Remove inline "Coach" button (move to drawer)
-- Remove inline "Pause/Resume" (move to drawer)
-- Tap entire card for details (not separate button)
-
-### 3. Remove Duplicate Hot Lead
-
-Don't show a separate Hot Lead Panel - instead:
-- Mark the hot lead in its lane with a glow/highlight
-- Show inline call button prominently in the Command Bar
-
-### 4. Unified Lead Lane Headers
-
-Collapse category lanes by default when there's only 1-2 leads:
-- Replacements (4 leads) → Expanded
-- Code Fixes (2 leads) → Collapsed with summary
-- Maintenance (6 leads) → Expanded
+Apply premium styling inspired by modern dashboards:
+- **Deeper gradients** with subtle glass-morphism
+- **Better shadows** and border treatments
+- **Improved typography** with proper weight hierarchy
+- **Micro-interactions** on hover/press states
+- **Consistent color system** with proper contrast
 
 ---
 
@@ -118,143 +44,189 @@ Collapse category lanes by default when there's only 1-2 leads:
 
 | File | Purpose |
 |------|---------|
-| `CommandBar.tsx` | Merged dashboard + hot lead + stats |
-| `LeadCardCompact.tsx` | Streamlined 2-row lead card |
-
-### Delete Components
-
-| File | Reason |
-|------|--------|
-| `MoneyDashboard.tsx` | Merged into CommandBar |
-| `HotLeadPanel.tsx` | Merged into CommandBar |
-| `PerformanceRibbon.tsx` | Merged into CommandBar (collapsible) |
+| `ContractorMenu.tsx` | Hamburger menu sheet with navigation and profile |
 
 ### Modified Components
 
 | File | Changes |
 |------|---------|
-| `LeadEngine.tsx` | Replace 3 components with CommandBar |
-| `LeadLane.tsx` | Use LeadCardCompact, auto-collapse small lanes |
-| `EnhancedLeadCard.tsx` | Rename/refactor to LeadCardCompact |
+| `LeadEngine.tsx` | Replace back button with hamburger trigger, add ContractorMenu |
+| `CommandBar.tsx` | Enhanced visual styling with glass effect and better contrast |
+| `LeadCardCompact.tsx` | Improved card design with better shadows and typography |
+| `LeadLane.tsx` | Polished lane headers with depth and better spacing |
+| `CategoryTabs.tsx` | Enhanced chip styling with better active states |
 
 ---
 
-## Visual Comparison
+## Detailed Designs
 
-### Before (Current)
+### 1. ContractorMenu Component
 
-```text
-[ TODAY: 1 action ] [ $$$$ Pipeline ] [ 7 Active ] [ 1 Won ]
-
-┌── PRIORITY ACTION ─────────────────────────────────────┐
-│ Williams Residence - LEAKING                           │
-│ Bradford 50g · Health: 18                              │
-│ [ Call Now ] [ Step 3/5 → ] [>]                        │
-└────────────────────────────────────────────────────────┘
-
-[ This Week: 17 closes ▲ 🔥 Hot streak ] [v]
-
-▼ Replacements (4 leads)
-┌───────────────────────────────────────────────────────┐
-│ • Williams Residence                           24     │
-│   2301 E Camelback Rd                                 │
-│   9yr Bradford White 50gal in Garage                  │
-│   LEAKING                                             │
-│   ⚡ Urgent Replace · Step 3/5 · Next: Tomorrow    →  │
-│   [Call] [Details>] [Coach] [Pause] 7hr ago           │
-└───────────────────────────────────────────────────────┘
-... (3 more cards)
-```
-
-### After (Refactored)
+A left-sliding Sheet with:
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│ 🔥 Williams (LEAKING) [📞]     │  $$$$ │  7 Active  │  3 Won   │
-└─────────────────────────────────────────────────────────────────┘
-
-▼ Replacements (4)
-┌──────────────────────────────────────────────────────────────┐
-│ 🔴 Williams         LEAKING                   24    [📞]     │
-│    9yr Bradford 50g · Urgent Replace 3/5              →      │
-├──────────────────────────────────────────────────────────────┤
-│ 🔴 Johnson Family   LEAKING                   24    [📞]     │
-│    12yr Rheem 50g · Urgent Replace 2/5                →      │
-├──────────────────────────────────────────────────────────────┤
-│ 🔴 Thompson Home                              52    [📞]     │
-│    8yr Bradford 40g · Urgent Replace 4/5              →      │
-├──────────────────────────────────────────────────────────────┤
-│ 🔴 Martinez Residence                         62    [📞]     │
-│    5yr A.O. Smith 50g · Maintenance 1/4 ⏸             →      │
-└──────────────────────────────────────────────────────────────┘
-
-▸ Code Fixes (2) — Chen Family, Patel Residence
-
-▼ Maintenance (6)
-...
++------------------------------------------+
+|  [X]                                     |
+|                                          |
+|  ACME Plumbing                           |
+|  John Smith                              |
+|  ─────────────────────────────────────── |
+|                                          |
+|  🏠  Dashboard                           |
+|  🔥  Lead Engine              ← active   |
+|  ⚙️  Settings                            |
+|  📊  Reports                             |
+|                                          |
+|  ─────────────────────────────────────── |
+|                                          |
+|  ➕  Add Lead                            |
+|  🔄  Sync Now                            |
+|                                          |
+|  ─────────────────────────────────────── |
+|                                          |
+|  🚪  Log Out                             |
++------------------------------------------+
 ```
+
+### 2. Header Redesign
+
+Replace:
+```text
+[←]  Lead Engine                    [🔔]
+     12 active opportunities
+```
+
+With:
+```text
+[☰]  Lead Engine                    [🔔]
+     12 active opportunities
+```
+
+### 3. CommandBar Visual Upgrade
+
+Current (flat):
+```text
+┌─────────────────────────────────────────────────┐
+│ Williams LEAKING  [Call]  │  $$$ │ 7 │ 1       │
+└─────────────────────────────────────────────────┘
+```
+
+Upgraded (depth + polish):
+```text
+┌─────────────────────────────────────────────────┐
+│ ░░ Subtle gradient with inner shadow ░░░░░░░░░ │
+│ ░░                                         ░░░ │
+│ ░░ 🔥 Williams  LEAKING   [Call Now]       ░░░ │
+│ ░░    Step 3/5                             ░░░ │
+│ ░░                                         ░░░ │
+│ ░░──────────────────────────────────────── ░░░ │
+│ ░░ $$$$ Pipeline  ⚡7 Active   🏆 1 Won    ░░░ │
+└─────────────────────────────────────────────────┘
+```
+
+Key changes:
+- Deeper background gradient with subtle glass effect
+- Larger hot lead section with proper padding
+- Stats moved to a subtle bottom row
+- Better icon treatments with subtle backgrounds
+- Improved button styling with proper hover states
+
+### 4. LeadCardCompact Visual Upgrade
+
+Current:
+```text
+┌───────────────────────────────────────────┐
+│ • Williams Residence    LEAKING   18 [📞]│
+│   15yr Bradford 50g...   Urgent 3/5    → │
+└───────────────────────────────────────────┘
+```
+
+Upgraded:
+```text
+┌───────────────────────────────────────────┐
+│                                           │
+│   Williams Residence              18      │
+│   LEAKING                         [📞]    │
+│                                           │
+│   15yr Bradford White 50gal               │
+│   🔴 Urgent Replace · Step 3/5     →      │
+│                                           │
+└───────────────────────────────────────────┘
+```
+
+Key changes:
+- More vertical padding for touch targets
+- Health score as prominent badge with color coding
+- Urgency tag below name (not cramped inline)
+- Clearer sequence progress with colored dot
+- Subtle card shadow for depth
+- Hot lead gets a subtle glow ring
+
+### 5. LeadLane Visual Upgrade
+
+Current lane headers are basic colored blocks. Upgraded:
+- Subtle gradient backgrounds
+- Better icon sizing and spacing
+- Count badge with proper contrast
+- Smooth expand/collapse animation
+- Divider lines between cards
 
 ---
 
-## Technical Approach
+## Technical Specifications
 
-### CommandBar Component
+### ContractorMenu Props
 
-```text
-Props:
-- hotLead: CategorizedOpportunity | null
-- hotLeadSequence: NurturingSequence | null
-- pipelineValue: number (1-4)
-- activeSequences: number
-- weeklyWins: number
-- onCallHotLead: () => void
-- onViewHotLead: () => void
+```typescript
+interface ContractorMenuProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 ```
 
-### LeadCardCompact Component
+### CSS Enhancements
 
-```text
-Props:
-- opportunity: CategorizedOpportunity
-- sequence: NurturingSequence | null
-- isHotLead: boolean (adds glow/highlight)
-- onCall: () => void
-- onClick: () => void (opens details drawer)
-```
+Apply these utility classes for premium feel:
 
-Interactions:
-- Tap card → Opens PropertyReportDrawer
-- Tap phone icon → Direct call
-- No inline Coach/Pause buttons (moved to drawer)
+| Element | Classes |
+|---------|---------|
+| Cards | `shadow-lg shadow-black/20 border-white/10` |
+| Glass effect | `bg-gradient-to-b backdrop-blur-sm` |
+| Hot lead glow | `ring-2 ring-rose-500/50 shadow-rose-500/25` |
+| Active states | `hover:shadow-xl transition-all duration-200` |
+| Typography | `font-semibold tracking-tight` for headers |
 
-### LeadLane Auto-Collapse
+### Color Refinements
 
-```text
-const defaultExpanded = opportunities.length > 2;
-// If 1-2 leads: show collapsed with names preview
-// If 3+ leads: expand by default
-```
+| Element | Current | Upgraded |
+|---------|---------|----------|
+| Card background | `bg-card` | `bg-card/80 backdrop-blur` |
+| Borders | `border-border` | `border-white/5` |
+| Hot lead ring | `ring-rose-500/40` | `ring-rose-500/60 shadow-lg shadow-rose-500/20` |
+| Health badge (critical) | `bg-destructive/10` | `bg-rose-500/20 border border-rose-500/30` |
 
 ---
 
-## Benefits
+## Implementation Order
 
-| Aspect | Before | After |
-|--------|--------|-------|
-| Visual zones above leads | 3 separate blocks | 1 unified command bar |
-| Lead card height | ~140px | ~60px |
-| Actions per card | 5 buttons | 2 (call + tap for details) |
-| Duplicate content | Hot lead shown twice | Hot lead highlighted in lane |
-| Scan time to first lead | 4 scroll swipes | Immediate |
+1. **ContractorMenu.tsx** - Create new component with Sheet navigation
+2. **LeadEngine.tsx** - Swap back button for hamburger, wire up menu
+3. **CommandBar.tsx** - Apply visual polish and layout improvements
+4. **LeadCardCompact.tsx** - Enhanced card styling with better spacing
+5. **LeadLane.tsx** - Polished lane headers
+6. **CategoryTabs.tsx** - Subtle tab improvements
 
 ---
 
 ## Summary
 
-This refactor consolidates scattered dashboard elements into a **single Command Bar** and replaces verbose lead cards with **compact 2-row cards**. The result is:
+This refinement transforms the Lead Engine from "functional but basic" to "professional and polished" by:
 
-1. **Fewer zones** - One command bar instead of three
-2. **No duplication** - Hot lead is highlighted, not repeated
-3. **Compact cards** - 60px vs 140px per lead
-4. **Clear actions** - Call and details only; other controls in drawer
-5. **Smart collapse** - Small lanes collapse to save space
+1. **Proper navigation** - Hamburger menu instead of orphaned back button
+2. **Visual depth** - Shadows, glows, and gradients for premium feel
+3. **Better spacing** - Larger touch targets, more breathing room
+4. **Consistent hierarchy** - Clear typography weights and sizes
+5. **Subtle polish** - Glass effects, smooth transitions, color refinements
+
+The result will feel like a modern SaaS dashboard that contractors can use confidently with clients.
+
