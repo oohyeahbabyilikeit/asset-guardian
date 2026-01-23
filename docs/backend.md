@@ -11,11 +11,9 @@
 5. [Offline Sync Architecture](#offline-sync-architecture)
 6. [Frontend-Backend Integration](#frontend-backend-integration)
 7. [Type Mappers Reference](#type-mappers-reference)
-8. [Contractor Dashboard Hooks](#contractor-dashboard-hooks)
-9. [Revenue Tracking (Sidecar Model)](#revenue-tracking-sidecar-model)
-10. [Security Model](#security-model)
-11. [Environment & Secrets](#environment--secrets)
-12. [Common Patterns & Best Practices](#common-patterns--best-practices)
+8. [Security Model](#security-model)
+9. [Environment & Secrets](#environment--secrets)
+10. [Common Patterns & Best Practices](#common-patterns--best-practices)
 
 ---
 
@@ -130,58 +128,10 @@ erDiagram
     contractor_install_presets }o--|| profiles : "belongs_to"
     contractor_service_prices }o--|| profiles : "belongs_to"
     
-    %% Nurturing Sequences Layer
-    demo_opportunities ||--o{ nurturing_sequences : "has"
-    nurturing_sequences ||--o{ sequence_events : "contains"
-    sequence_templates ||--o{ nurturing_sequences : "uses"
-    
     %% Lookup Tables (no relationships)
     unit_prices
     price_lookup_cache
     water_districts
-
-    demo_opportunities {
-        uuid id PK
-        string customer_name
-        string property_address
-        string opportunity_type
-        string priority
-        string status
-        jsonb forensic_inputs
-        integer health_score
-    }
-
-    nurturing_sequences {
-        uuid id PK
-        uuid opportunity_id FK
-        string sequence_type
-        string status
-        integer current_step
-        integer total_steps
-        timestamptz next_action_at
-        string outcome
-        numeric revenue_usd
-    }
-
-    sequence_events {
-        uuid id PK
-        uuid sequence_id FK
-        integer step_number
-        string action_type
-        string status
-        timestamptz scheduled_at
-        timestamptz executed_at
-        timestamptz opened_at
-        timestamptz clicked_at
-    }
-
-    sequence_templates {
-        uuid id PK
-        string name
-        string trigger_type
-        jsonb steps
-        boolean is_active
-    }
 
     %% Table Definitions
     profiles {
@@ -723,84 +673,6 @@ Complete column-level schema for all database tables.
 | `last_verified` | `timestamptz` | Yes | `now()` | Last verification |
 | `created_at` | `timestamptz` | Yes | `now()` | Record creation time |
 
-#### `demo_opportunities`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `customer_name` | `text` | No | - | Contact name |
-| `customer_phone` | `text` | Yes | - | Contact phone |
-| `customer_email` | `text` | Yes | - | Contact email |
-| `property_address` | `text` | No | - | Street address |
-| `property_city` | `text` | No | - | City |
-| `property_state` | `text` | No | `'AZ'` | State code |
-| `property_zip` | `text` | No | - | ZIP code |
-| `opportunity_type` | `text` | No | - | `replacement`, `code_violation`, `maintenance` |
-| `priority` | `text` | No | - | `critical`, `high`, `medium`, `low` |
-| `status` | `text` | No | `'pending'` | Pipeline status |
-| `job_complexity` | `text` | No | `'STANDARD'` | `STANDARD`, `COMPLEX`, `PREMIUM` |
-| `asset_brand` | `text` | No | - | Equipment brand |
-| `asset_age_years` | `numeric` | No | - | Equipment age |
-| `forensic_inputs` | `jsonb` | No | `'{}'` | Algorithm input data |
-| `health_score` | `integer` | Yes | - | 0-100 health score |
-| `bio_age` | `numeric` | Yes | - | Biological age |
-| `fail_probability` | `numeric` | Yes | - | 12-month failure probability |
-| `verdict_action` | `text` | Yes | - | `replace`, `maintain`, `monitor` |
-| `created_at` | `timestamptz` | No | `now()` | Record creation time |
-| `updated_at` | `timestamptz` | No | `now()` | Last update time |
-
-#### `nurturing_sequences`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `opportunity_id` | `uuid` | No | - | FK to demo_opportunities |
-| `sequence_type` | `text` | No | - | `replacement_urgent`, `code_violation`, `maintenance` |
-| `status` | `text` | No | `'active'` | `active`, `paused`, `completed`, `cancelled` |
-| `current_step` | `integer` | No | `1` | Current step number |
-| `total_steps` | `integer` | No | - | Total steps in sequence |
-| `next_action_at` | `timestamptz` | Yes | - | When next action due |
-| `started_at` | `timestamptz` | No | `now()` | When sequence started |
-| `completed_at` | `timestamptz` | Yes | - | When sequence ended |
-| `outcome` | `text` | Yes | - | `converted`, `lost`, `stopped` |
-| `outcome_reason` | `text` | Yes | - | Reason for outcome |
-| `outcome_step` | `integer` | Yes | - | Step when outcome occurred |
-| `outcome_at` | `timestamptz` | Yes | - | When outcome recorded |
-| `revenue_usd` | `numeric` | Yes | - | **Manually-entered sale amount** |
-| `created_at` | `timestamptz` | No | `now()` | Record creation time |
-| `updated_at` | `timestamptz` | No | `now()` | Last update time |
-
-#### `sequence_events`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `sequence_id` | `uuid` | No | - | FK to nurturing_sequences |
-| `step_number` | `integer` | No | - | Step position in sequence |
-| `action_type` | `text` | No | - | `sms`, `email`, `call_reminder` |
-| `status` | `text` | No | `'pending'` | `pending`, `sent`, `failed`, `skipped` |
-| `scheduled_at` | `timestamptz` | No | - | When action scheduled |
-| `executed_at` | `timestamptz` | Yes | - | When action executed |
-| `delivery_status` | `text` | Yes | `'pending'` | `pending`, `sent`, `delivered`, `failed` |
-| `message_content` | `text` | Yes | - | Message text |
-| `opened_at` | `timestamptz` | Yes | - | When recipient opened |
-| `clicked_at` | `timestamptz` | Yes | - | When recipient clicked |
-| `error_message` | `text` | Yes | - | Error if failed |
-| `created_at` | `timestamptz` | No | `now()` | Record creation time |
-| `updated_at` | `timestamptz` | No | `now()` | Last update time |
-
-#### `sequence_templates`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `name` | `text` | No | - | Template name |
-| `trigger_type` | `text` | No | - | What triggers this sequence |
-| `steps` | `jsonb` | No | `'[]'` | Array of step definitions |
-| `is_active` | `boolean` | No | `true` | Template enabled |
-| `created_at` | `timestamptz` | No | `now()` | Record creation time |
-| `updated_at` | `timestamptz` | No | `now()` | Last update time |
-
 ---
 
 ### Enum Types
@@ -916,21 +788,6 @@ contractor (via contractor_id)
 - Status workflow: pending → sent → viewed → converted/dismissed
 - Auto-expire after 30 days
 
-#### 7. Nurturing Sequence Chain
-```
-demo_opportunities
-    ↓ opportunity_id
-nurturing_sequences
-    ↓ sequence_id
-sequence_events
-```
-
-**Key Points:**
-- Sequences are linked to demo opportunities (not core water_heaters)
-- Each sequence has multiple events (one per step)
-- Templates define reusable sequence blueprints
-- `revenue_usd` captures actual closed sale amounts (manual entry)
-
 ### Foreign Key Reference Table
 
 | Child Table | FK Column | Parent Table | Cascade? |
@@ -955,8 +812,6 @@ sequence_events
 | `contractor_property_relationships` | `property_id` | `properties` | No |
 | `opportunity_notifications` | `water_heater_id` | `water_heaters` | CASCADE |
 | `opportunity_notifications` | `contractor_id` | `profiles` | CASCADE |
-| `nurturing_sequences` | `opportunity_id` | `demo_opportunities` | CASCADE |
-| `sequence_events` | `sequence_id` | `nurturing_sequences` | CASCADE |
 
 ### Table Categories
 
@@ -971,7 +826,6 @@ sequence_events
 | **Contractor Config** | `contractor_install_presets`, `contractor_service_prices` | Pricing/labor config |
 | **Lookup/Cache** | `unit_prices`, `price_lookup_cache`, `water_districts` | Reference data |
 | **Access Control** | `contractor_property_relationships` | Permission grants |
-| **Nurturing/Automation** | `demo_opportunities`, `nurturing_sequences`, `sequence_events`, `sequence_templates` | Lead nurturing automation |
 
 ---
 
@@ -1972,174 +1826,6 @@ EXECUTE FUNCTION create_contractor_property_relationship();
 -- Relationship lasts 1 year by default
 -- Function sets expires_at = now() + interval '1 year'
 ```
-
----
-
-## Contractor Dashboard Hooks
-
-React Query hooks for the contractor automation dashboard.
-
-### Location: `src/hooks/useNurturingSequences.ts`
-
-#### `useNurturingSequences(opportunityId?: string)`
-
-Fetches all nurturing sequences, optionally filtered by opportunity.
-
-```typescript
-interface NurturingSequence {
-  id: string;
-  opportunityId: string;
-  sequenceType: string;
-  status: 'active' | 'paused' | 'completed' | 'cancelled';
-  currentStep: number;
-  totalSteps: number;
-  nextActionAt: Date | null;
-  startedAt: Date;
-  completedAt: Date | null;
-  outcome: 'converted' | 'lost' | 'stopped' | null;
-  outcomeReason: string | null;
-  outcomeAt: Date | null;
-}
-```
-
-#### `useEnrichedSequences()`
-
-Fetches sequences with customer data from demo_opportunities (client-side join).
-
-```typescript
-interface EnrichedSequence extends NurturingSequence {
-  customerName: string;
-  propertyAddress: string;
-  opportunityType: string;
-}
-```
-
-#### `usePulseMetrics()`
-
-Aggregates automation health metrics for dashboard display.
-
-```typescript
-interface PulseMetrics {
-  enrolled7Days: number;   // Sequences created in last 7 days
-  activeNow: number;       // Currently active sequences
-  engaged24h: number;      // Opens/clicks in last 24 hours
-  converted: number;       // Total converted sequences
-}
-```
-
----
-
-### Location: `src/hooks/useSequenceEvents.ts`
-
-#### `useSequenceEvents(sequenceId: string)`
-
-Fetches all events for a specific sequence.
-
-```typescript
-interface SequenceEvent {
-  id: string;
-  sequenceId: string;
-  stepNumber: number;
-  actionType: 'sms' | 'email' | 'call_reminder';
-  scheduledAt: Date;
-  executedAt: Date | null;
-  status: 'pending' | 'sent' | 'failed' | 'skipped';
-  deliveryStatus: 'pending' | 'sent' | 'delivered' | 'failed';
-  messageContent: string | null;
-  openedAt: Date | null;
-  clickedAt: Date | null;
-}
-```
-
-#### `useMarkOutcome()`
-
-Marks a sequence as converted/lost with optional revenue capture.
-
-```typescript
-interface MarkOutcomeParams {
-  sequenceId: string;
-  outcome: 'converted' | 'lost';
-  reason?: string;
-  currentStep: number;
-  revenueUsd?: number | null;  // Manual sale amount entry
-}
-```
-
----
-
-### Location: `src/hooks/useWeeklyStats.ts`
-
-#### `useWeeklyStats()`
-
-Calculates weekly performance metrics from database.
-
-```typescript
-interface WeeklyStats {
-  jobsBooked: number;     // Converted sequences this week
-  revenue: number;        // Sum of revenue_usd from conversions
-  fromAutomation: number; // Bookings from automated sequences
-  trend: number;          // % change vs previous week
-}
-```
-
-**Key Distinction:**
-- `revenue` is derived from **manually-entered** `revenue_usd` values
-- This is NOT estimated - it's what the contractor actually logged
-
----
-
-### Location: `src/hooks/useRecentActivity.ts`
-
-#### `useRecentActivity(limit?: number)`
-
-Fetches recent engagement activity for the dashboard feed.
-
-```typescript
-type ActivityType = 'opened' | 'clicked' | 'booked' | 'started' | 'stopped';
-
-interface ActivityItem {
-  id: string;
-  type: ActivityType;
-  customerName: string;
-  propertyAddress: string;
-  sequenceType: string;
-  messageContent?: string;
-  timestamp: Date;
-}
-```
-
----
-
-## Revenue Tracking (Sidecar Model)
-
-The platform operates as a "sidecar" without integration to external invoicing systems. Revenue tracking uses manual entry with gamification.
-
-### Data Flow
-
-```text
-1. Contractor clicks "Mark Converted" in SequenceControlDrawer
-         ↓
-2. ConversionCelebrationModal opens with confetti animation
-         ↓
-3. Contractor enters Final Sale Amount: $[    ]
-         ↓
-4. useMarkOutcome() saves to nurturing_sequences.revenue_usd
-         ↓
-5. useWeeklyStats() sums revenue_usd for dashboard display
-```
-
-### Est. Value vs Revenue Distinction
-
-| Metric | Source | Display | Purpose |
-|--------|--------|---------|---------|
-| **Est. Value** | Calculated from opportunity types | `~$18,000` (tilde prefix) | Pipeline potential |
-| **Revenue** | Sum of `revenue_usd` entries | `$9,000` (solid, green) | Actual closed sales |
-
-**Pitch:** "We generated $18k in opportunities. You closed $9k. Let's go get the rest."
-
-### High Interest Nudge
-
-Sequences with 2+ clicks display a "High Interest" indicator (flame icon) in the table to prompt the contractor to verify if the customer has booked externally.
 
 ---
 
