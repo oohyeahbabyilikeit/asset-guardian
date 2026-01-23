@@ -1,273 +1,262 @@
 
 
-# Optimal Desktop Dashboard UX - Outreach Sequences Redesign
+# Contractor View Redesign - Complete Desktop Dashboard
 
 ## Overview
 
-This plan transforms the current Sequences page into the optimal contractor dashboard flow with three major features:
+This redesign consolidates the contractor experience into a clean, focused dashboard that emphasizes the automated outreach system. The user's optimal flow centers on:
+- **Watch the machine run** (Pulse Widget on dashboard)
+- **Manage active sequences** (Master Table view)
+- **Intervene when needed** (Kill Switch search)
 
-1. **The "Pulse" Widget** - A summary widget for the Lead Engine dashboard showing automation health at a glance
-2. **Master Table View** - Replace the card-based sequence list with a sortable, scannable data table
-3. **Sequence Type Sidebar** - Left sidebar filter for sequence buckets
-4. **Global Search with Kill Switch** - Quick search to find customers and stop sequences instantly
+## Current Architecture Issues
 
----
+| Issue | Current State | Desired State |
+|-------|---------------|---------------|
+| Multiple entry points | LeadEngine + Contractor + Sequences | Single unified dashboard |
+| Lead-centric UI | Card lanes by priority category | Sequence-centric table view |
+| Navigation confusion | Dashboard vs Lead Engine both at /contractor | Clear hierarchy: Dashboard → Sequences |
+| Pulse Widget placement | Embedded in LeadEngine with lead lanes | Prominent on main dashboard |
 
-## Current State Analysis
+## Proposed Information Architecture
 
-The existing Sequences page uses:
-- **Tab layout**: Active | Templates | Analytics
-- **Card-based list**: `ActiveSequencesList` → `SequenceRow` (grouped by urgency)
-- **No sidebar filters**
-- **No global search**
-- **No dashboard widget on Lead Engine**
+```text
+/contractor (Main Dashboard)
+├── Header with Company Name + Global Search
+├── Pulse Widget (The Machine Status)
+│   └── Click → /contractor/sequences
+├── Quick Stats Section
+│   ├── Pipeline Health
+│   ├── Weekly Wins
+│   └── Engagement Rate
+└── Activity Feed (Recent Bookings, Opens, Clicks)
 
-The user's optimal flow requires a significant restructure to make the desktop experience more scannable and actionable.
-
----
+/contractor/sequences (Active Sequences Management)
+├── Header with Global Search (Kill Switch)
+├── Sidebar: Sequence Bucket Filters
+│   ├── All Active (count)
+│   ├── High Risk / Replacement (count) ← Daily Check
+│   ├── Maintenance Due (count)
+│   └── Anode Check (count)
+└── Master Table
+    ├── Address / Customer
+    ├── Sequence Type
+    ├── Current Step
+    ├── Status (🟢 🟡 🔴)
+    ├── Engagement (👁️ 👆)
+    ├── Next Touchpoint
+    └── Actions [PAUSE] [SKIP] [STOP]
+```
 
 ## Implementation Plan
 
-### Phase 1: Create the "Pulse" Widget
+### Phase 1: Redesign Main Dashboard (`/contractor`)
 
-Add a new summary card to the Lead Engine dashboard that shows automation health at a glance.
+Transform `LeadEngine.tsx` into a clean dashboard focused on automation monitoring.
 
-**New Component: `SequencesPulseWidget.tsx`**
+**New Layout:**
 
-Layout:
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  🤖 Automated Outreach                                    [View →] │
-├────────────┬─────────────┬─────────────┬─────────────────────────────┤
-│  Enrolled  │   Active    │   Engaged   │   Converted               │
-│  (7 days)  │    Now      │  (24h)      │                           │
-│    14      │     42      │      8      │      3                    │
-└────────────┴─────────────┴─────────────┴─────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  [☰] ACME Plumbing                              [🔍 Search...]        │
+│       Dashboard                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  🤖 Automated Outreach                                       [View →] │
+│  ──────────────────────────────────────────────────────────────────────│
+│   Enrolled (7d)    Active Now      Engaged (24h)      Converted       │
+│       14               42               8                  3          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────┐  ┌──────────────────────────────────┐
+│  📊 Pipeline Health              │  │  🏆 This Week                    │
+│  ────────────────────────────────│  │  ────────────────────────────────│
+│  Replacements:  12               │  │  Jobs Booked:  3                 │
+│  Code Fixes:     8               │  │  Revenue:      $4,200            │
+│  Maintenance:   30               │  │  From Automation: 2              │
+└──────────────────────────────────┘  └──────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  📋 Recent Activity                                                    │
+│  ──────────────────────────────────────────────────────────────────────│
+│  • Mrs. Johnson opened "Risk Report" email           2 hours ago      │
+│  • Smith Residence booked replacement                Yesterday         │
+│  • New sequence started for 456 Oak Ave              Yesterday         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Metrics (from database):
-- **Enrolled (7 days)**: Count of sequences created in last 7 days
-- **Active Now**: Count of sequences with status='active'
-- **Engaged (24h)**: Count of events with `opened_at` or `clicked_at` in last 24 hours
-- **Converted**: Count of sequences with outcome='converted'
+**Key Changes to LeadEngine.tsx:**
+- Remove CategoryTabs, LeadLane, LeadCardCompact
+- Promote SequencesPulseWidget to hero position
+- Add Pipeline Summary card (from existing opportunity data)
+- Add Weekly Stats card
+- Add Recent Activity feed (from sequence_events)
+- Move Global Search to header (for quick Kill Switch access)
 
-Click behavior: Navigates to `/contractor/sequences`
+### Phase 2: Enhance Sequences Page (`/contractor/sequences`)
 
----
+The Sequences page already has most features implemented. Enhancements needed:
 
-### Phase 2: Redesign Active Sequences as Master Table
+1. **Add "Anode Check" bucket** to sidebar (currently missing from buckets)
+2. **Improve table density** for more rows visible
+3. **Add engagement streak indicator** (multiple opens = hot)
+4. **Add "Last Contact" column** showing when last message was sent
 
-Replace the card-based `ActiveSequencesList` with a proper data table using the existing shadcn Table components.
+### Phase 3: Update Navigation
 
-**Modified Component: `ActiveSequencesList.tsx`**
+**ContractorMenu Updates:**
+- Rename "Lead Engine" to "Dashboard"
+- Ensure "Sequences" is prominently placed
+- Add counts to nav items (e.g., "Sequences (42)")
 
-Table Columns:
-| Column | Content | Width |
-|--------|---------|-------|
-| Address/Customer | "123 Maple Ave - Smith" | 30% |
-| Sequence | "Urgent Replace", "Annual Flush" | 15% |
-| Current Step | "Step 2/5: 'Risk Report' Email" | 20% |
-| Status | 🟢 Active, 🟡 Paused, 🔴 Error | 8% |
-| Engagement | 👁️ (Opened) and 👆 (Clicked) icons | 8% |
-| Next Touchpoint | "Tomorrow @ 9:00 AM" | 12% |
-| Actions | [PAUSE] [SKIP] [STOP] | 7% |
+### Phase 4: Create Activity Feed Component
 
-Table behavior:
-- Sortable by any column (click headers)
-- Status icons light up for most recent message engagement
-- Clicking row opens SequenceControlDrawer (existing)
-- Action buttons work inline (no drawer needed for simple actions)
+New component to show recent automation activity:
 
----
-
-### Phase 3: Add Sequence Bucket Sidebar
-
-Add a left sidebar filter to the Sequences page for filtering by automation type.
-
-**New Component: `SequenceBucketSidebar.tsx`**
-
-Sidebar items:
-```text
-┌─────────────────────────┐
-│  FILTER BY TYPE         │
-├─────────────────────────┤
-│  ● All Active     (56)  │ ← default
-│  ○ High Risk      (12)  │ ← replacement_urgent
-│  ○ Code Violation  (8)  │ ← code_violation  
-│  ○ Maintenance    (30)  │ ← maintenance
-│  ○ Warranty        (6)  │ ← warranty_expiring
-└─────────────────────────┘
+```typescript
+// ActivityFeed shows: opens, clicks, bookings, new sequences
+interface ActivityItem {
+  type: 'opened' | 'clicked' | 'booked' | 'started' | 'stopped';
+  customerName: string;
+  message?: string;
+  timestamp: Date;
+}
 ```
-
-Filter logic:
-- Maps to `sequence_type` field
-- Uses `normalizeSequenceType()` for consistent matching
-- Clicking filter updates table to show only matching sequences
-
----
-
-### Phase 4: Global Search with Kill Switch
-
-Add a search bar to the Sequences page header that allows quick lookup and instant sequence stopping.
-
-**Modified Component: `Sequences.tsx` header**
-
-Search behavior:
-1. User types customer name or address
-2. Matching sequences appear in dropdown
-3. Each result shows: "123 Maple Ave - Smith [IN SEQUENCE: REPLACEMENT]"
-4. Clicking the badge instantly opens a confirm dialog to STOP the sequence
-5. Stopping marks `outcome='stopped'`, `status='cancelled'`
-
-This solves the "Mrs. Jones calls to book" scenario - one search, one click, automation stopped.
-
-**New Component: `SequenceGlobalSearch.tsx`**
-
-Uses Command component (cmdk) for fast fuzzy search with keyboard navigation.
-
----
 
 ## File Changes Summary
-
-### New Files
-
-| File | Purpose |
-|------|---------|
-| `src/components/contractor/SequencesPulseWidget.tsx` | Dashboard widget showing automation health |
-| `src/components/contractor/SequenceBucketSidebar.tsx` | Left sidebar filter by sequence type |
-| `src/components/contractor/SequenceGlobalSearch.tsx` | Global search with kill switch |
-| `src/components/contractor/SequenceTableRow.tsx` | Individual table row for master table |
 
 ### Modified Files
 
 | File | Changes |
 |------|---------|
-| `src/pages/Sequences.tsx` | Add sidebar layout, search bar, update to table view |
-| `src/pages/LeadEngine.tsx` | Add SequencesPulseWidget above CommandBar |
-| `src/components/contractor/ActiveSequencesList.tsx` | Replace cards with Table component |
-| `src/hooks/useNurturingSequences.ts` | Add `usePulseMetrics()` hook for widget data |
+| `src/pages/LeadEngine.tsx` | Complete redesign - remove lead lanes, add dashboard widgets |
+| `src/pages/Sequences.tsx` | Minor enhancements - add Anode bucket, improve density |
+| `src/components/contractor/ContractorMenu.tsx` | Rename items, add counts, highlight active |
+| `src/components/contractor/SequenceBucketSidebar.tsx` | Add "Anode Check" bucket |
 
----
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/components/contractor/DashboardPulseHero.tsx` | Enhanced Pulse Widget for hero position |
+| `src/components/contractor/PipelineSummaryCard.tsx` | Pipeline health breakdown |
+| `src/components/contractor/WeeklyStatsCard.tsx` | This week's performance metrics |
+| `src/components/contractor/RecentActivityFeed.tsx` | Activity stream from sequence events |
+
+### Removed/Deprecated
+
+| Component | Reason |
+|-----------|--------|
+| `CategoryTabs.tsx` | Replaced by sequence-centric view |
+| `LeadLane.tsx` | Replaced by master table |
+| `LeadCardCompact.tsx` | Replaced by table rows |
+| `CommandBar.tsx` | Replaced by dashboard widgets |
+| `Contractor.tsx` page | Redundant with new dashboard |
 
 ## Database Queries
 
-### Pulse Widget Metrics
+### Recent Activity Feed
 
-```typescript
-usePulseMetrics() -> {
-  enrolled7Days: count of nurturing_sequences created > now() - 7 days
-  activeNow: count of nurturing_sequences with status = 'active'
-  engaged24h: count of sequence_events with opened_at > now() - 24h OR clicked_at > now() - 24h
-  converted: count of nurturing_sequences with outcome = 'converted'
-}
+```sql
+-- Get recent engagement events
+SELECT 
+  se.id,
+  se.opened_at,
+  se.clicked_at,
+  se.executed_at,
+  ns.sequence_type,
+  do.customer_name,
+  do.property_address
+FROM sequence_events se
+JOIN nurturing_sequences ns ON se.sequence_id = ns.id
+JOIN demo_opportunities do ON ns.opportunity_id = do.id
+WHERE se.opened_at IS NOT NULL 
+   OR se.clicked_at IS NOT NULL
+   OR se.executed_at > now() - interval '7 days'
+ORDER BY COALESCE(se.clicked_at, se.opened_at, se.executed_at) DESC
+LIMIT 10;
 ```
 
-### Engagement Detection (per sequence)
+### Weekly Stats
 
-For the engagement icons in the table, we need to check if the most recent sent event has been opened/clicked:
-
-```typescript
-// In enriched sequence data
-const latestEvent = events.filter(e => e.status === 'sent').sort(desc)[0]
-const hasOpened = latestEvent?.openedAt != null
-const hasClicked = latestEvent?.clickedAt != null
+```sql
+-- Completed sequences (converted) this week
+SELECT COUNT(*) 
+FROM nurturing_sequences 
+WHERE outcome = 'converted' 
+  AND completed_at > date_trunc('week', now());
 ```
 
----
+## Design Specifications
 
-## Technical Architecture
-
-### Page Layout Change
-
-Current Sequences.tsx:
-```
-┌──────────────────────────────┐
-│ Header                       │
-├──────────────────────────────┤
-│ Tabs                         │
-├──────────────────────────────┤
-│ Content (cards)              │
-└──────────────────────────────┘
-```
-
-New Sequences.tsx:
-```
-┌──────────────────────────────────────────────────┐
-│ Header with Global Search                        │
-├──────────┬───────────────────────────────────────┤
-│ Sidebar  │ Tabs (Active | Templates | Analytics) │
-│ Filters  ├───────────────────────────────────────┤
-│          │ Master Table or Tab Content           │
-│ (12 hl)  │                                       │
-│ (30 mt)  │                                       │
-│ (14 an)  │                                       │
-└──────────┴───────────────────────────────────────┘
-```
-
-### Kill Switch Flow
+### Dashboard Pulse Widget (Hero)
 
 ```text
-1. User types "Jones" in search
-2. Dropdown shows: "123 Maple Ave - Jones [REPLACEMENT]"
-3. User clicks the badge
-4. Confirm dialog: "Stop sequence for Jones?"
-5. On confirm:
-   - nurturing_sequences.update({ 
-       status: 'cancelled', 
-       outcome: 'stopped', 
-       outcome_reason: 'Customer booked' 
-     })
-6. Toast: "Sequence stopped for Jones"
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│   🤖  AUTOMATED OUTREACH                                   [View All →]│
+│   ────────────────────────────────────────────────────────────────────  │
+│                                                                         │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │
+│   │     14      │  │     42      │  │      8      │  │      3      │   │
+│   │  Enrolled   │  │   Active    │  │   Engaged   │  │  Converted  │   │
+│   │  (7 days)   │  │    Now      │  │   (24h)     │  │             │   │
+│   │   👥 +3     │  │   🟢 ●●●    │  │   📬 ↑12%   │  │   🎉        │   │
+│   └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘   │
+│                                                                         │
+│   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░  56% of pipeline in sequence   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+Colors:
+- Enrolled: Sky blue (`text-sky-400`)
+- Active: Emerald (`text-emerald-400`)
+- Engaged: Amber (`text-amber-400`)
+- Converted: Violet (`text-violet-400`)
 
-## Design Details
-
-### Status Icons
-
-| Status | Icon | Color |
-|--------|------|-------|
-| Active | ● | `text-emerald-400` |
-| Paused | ● | `text-amber-400` |
-| Error | ● | `text-rose-400` |
-
-### Engagement Icons
-
-| State | Icon | Appearance |
-|-------|------|------------|
-| Not sent yet | 👁️ 👆 | `text-muted-foreground/30` (dimmed) |
-| Sent, not opened | 👁️ | `text-muted-foreground/50` |
-| Opened | 👁️ | `text-sky-400` (lit up) |
-| Clicked | 👆 | `text-violet-400` (lit up) |
-
-### Sidebar Visual
+### Pipeline Card
 
 ```text
-┌─────────────────────────────────┐
-│  📋 FILTER BY TYPE              │
-│  ───────────────────────────────│
-│  ● All Active            56    │ ← bg-muted, border-l-2 violet
-│    High Risk / Replace   12    │
-│    Code Violation         8    │
-│    Maintenance           30    │
-│    Warranty               6    │
-└─────────────────────────────────┘
+┌────────────────────────────────────┐
+│ 📊 Pipeline                        │
+│ ────────────────────────────────── │
+│                                    │
+│ 🔴 Replacements          12        │
+│ 🟡 Code Fixes             8        │
+│ 🔵 Maintenance           30        │
+│                                    │
+│ Total Value         ~$48,000       │
+└────────────────────────────────────┘
 ```
 
----
+### Activity Feed Item
+
+```text
+│ 👁️  Mrs. Johnson opened "Risk Report" email     │
+│     123 Maple Ave · Urgent Replace              │  2h ago
+│     [View Sequence]                             │
+```
+
+Activity types:
+- 👁️ Opened email
+- 👆 Clicked link
+- 🎉 Customer booked
+- ▶️ Sequence started
+- ⏹️ Sequence stopped
 
 ## Summary
 
-This redesign addresses all user requirements:
+This redesign transforms the contractor experience from a lead-centric card interface to a **sequence-centric automation dashboard**:
 
-1. **The Pulse Widget**: Quick glance at automation health from Lead Engine
-2. **Master Table**: Scannable rows instead of cards - see everything at once
-3. **Bucket Filters**: Left sidebar to filter by sequence type (owner checks "High Risk" daily)
-4. **Kill Switch Search**: Global search with one-click STOP when customer books
+1. **Main Dashboard** answers: "Is the machine running?" with the Pulse Widget hero
+2. **Sequences Page** provides the master table for "Who's in the pipeline?"
+3. **Global Search** enables instant "Kill Switch" when customers book
+4. **Activity Feed** shows engagement without needing to dig into tables
 
-The primary interaction model shifts to:
-- **Default**: Watch the table - it populates automatically
-- **Success metric**: "Engaged" numbers go up
-- **Primary action**: Search + Stop when customer books
+The primary interaction model becomes:
+- **Watch**: See the Pulse numbers trending up
+- **Monitor**: Glance at Activity Feed for engagement signals
+- **Intervene**: Search + Stop when customer calls to book
 
