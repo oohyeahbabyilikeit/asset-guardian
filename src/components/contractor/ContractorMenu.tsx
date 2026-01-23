@@ -1,7 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Home, 
-  Flame, 
   Settings, 
   BarChart3, 
   Plus, 
@@ -27,7 +26,6 @@ interface ContractorMenuProps {
 
 const navItems = [
   { label: 'Dashboard', icon: Home, path: '/contractor' },
-  { label: 'Lead Engine', icon: Flame, path: '/contractor' },
   { label: 'Sequences', icon: Zap, path: '/contractor/sequences' },
   { label: 'Reports', icon: BarChart3, path: '/contractor/reports' },
   { label: 'Settings', icon: Settings, path: '/contractor/settings' },
