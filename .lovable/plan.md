@@ -1,232 +1,265 @@
 
+# Outreach Sequences Page - Dedicated Automation Workspace
 
-# Lead Engine UI Refinement - Professional Navigation and Visual Polish
+## Overview
 
-## Problem Summary
-
-The current Lead Engine has two core issues:
-
-1. **Navigation**: The back arrow navigates to `/` (consumer onboarding) which makes no sense for a contractor. A hamburger menu with proper navigation options is needed.
-
-2. **Visual Quality**: The interface feels "cheap" due to:
-   - Flat color gradients without depth
-   - Thin, low-contrast borders
-   - Small, cramped typography
-   - Inconsistent visual hierarchy
-   - Missing subtle polish elements (shadows, glows, better spacing)
+Create a new `/contractor/sequences` page that provides a centralized hub for managing all nurturing sequences and templates. This separates the "automation system" from the "lead prioritization" workflow.
 
 ---
 
-## Solution Overview
+## Information Architecture
 
-### 1. Replace Back Button with Hamburger Menu
+```text
+/contractor (Lead Engine)
+├── CommandBar (hot lead, stats)
+├── Lead Lanes (categorized leads)
+└── [Lead Cards → PropertyReportDrawer → SequenceControlDrawer]
 
-Create a slide-out navigation drawer with:
-- Contractor profile header
-- Navigation links (Dashboard, Lead Engine, Settings)
-- Quick actions (Add Lead, Sync Data)
-- Logout option
+/contractor/sequences (NEW)
+├── Active Sequences Dashboard
+│   ├── Overdue (needs attention NOW)
+│   ├── Due Today 
+│   └── Upcoming
+├── Sequence Templates
+│   ├── View all templates
+│   ├── Create new template
+│   └── Edit existing template
+└── Performance Analytics
+    ├── Open/Click rates
+    └── Conversion attribution
+```
 
-### 2. Visual Polish Upgrade
+---
 
-Apply premium styling inspired by modern dashboards:
-- **Deeper gradients** with subtle glass-morphism
-- **Better shadows** and border treatments
-- **Improved typography** with proper weight hierarchy
-- **Micro-interactions** on hover/press states
-- **Consistent color system** with proper contrast
+## Page Layout
+
+### Header Section
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ [☰]  Outreach Sequences                              [+ New]    │
+│       Automate follow-up with customers                         │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Tab Navigation
+
+```text
+[ Active (7) ]  [ Templates (3) ]  [ Analytics ]
+```
+
+---
+
+## Tab 1: Active Sequences
+
+Shows all in-progress sequences grouped by urgency:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ ⚠️ OVERDUE (2)                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Williams Residence          Urgent Replace · Step 3/5          │
+│ Due: Yesterday              [Send Now] [Skip] [→]               │
+├─────────────────────────────────────────────────────────────────┤
+│ Johnson Family              Urgent Replace · Step 2/5          │
+│ Due: 2 days ago             [Send Now] [Skip] [→]               │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📅 DUE TODAY (1)                                                │
+├─────────────────────────────────────────────────────────────────┤
+│ Thompson Home               Code Violation · Step 4/5          │
+│ Due: Today at 2:00 PM       [Send Now] [Skip] [→]               │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📆 UPCOMING (4)                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ Martinez Residence          Maintenance · Step 1/4    ⏸ Paused │
+│ Due: Tomorrow               [Resume] [→]                        │
+├─────────────────────────────────────────────────────────────────┤
+│ Patel Residence             Code Violation · Step 2/5          │
+│ Due: In 3 days              [Pause] [→]                         │
+├─────────────────────────────────────────────────────────────────┤
+│ ... more ...                                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Sequence Row Actions
+
+| Button | Action |
+|--------|--------|
+| Send Now | Execute current step immediately |
+| Skip | Skip current step, advance sequence |
+| Pause/Resume | Toggle sequence status |
+| → (Arrow) | Open SequenceControlDrawer for full details |
+
+---
+
+## Tab 2: Templates
+
+A list of all sequence templates with ability to create/edit:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ Urgent Replacement - 5 Day                           [Edit]    │
+│ 5 steps · SMS, Email, Call                                     │
+│ Best for: Critical/High priority leads                         │
+├─────────────────────────────────────────────────────────────────┤
+│ Code Violation - 7 Day                               [Edit]    │
+│ 4 steps · SMS, Email                                           │
+│ Best for: Safety compliance issues                             │
+├─────────────────────────────────────────────────────────────────┤
+│ Maintenance Reminder                                 [Edit]    │
+│ 3 steps · SMS, Email                                           │
+│ Best for: Routine maintenance                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+                    [+ Create New Template]
+```
+
+### Template Editor (Drawer or Modal)
+
+When creating/editing a template:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ Template Name: [Urgent Replacement - 5 Day______]               │
+│ Trigger Type:  [Replacement Urgent        ▼]                   │
+├─────────────────────────────────────────────────────────────────┤
+│ STEPS                                                           │
+├─────────────────────────────────────────────────────────────────┤
+│ Day 1 │ SMS │ "Hi {name}, this is {company}..."      [🗑]     │
+│ Day 2 │ Email │ "Following up on your water..."     [🗑]     │
+│ Day 3 │ Call │ "Reminder: Call customer"            [🗑]     │
+│ Day 5 │ SMS │ "Just checking in about..."           [🗑]     │
+│                                                                 │
+│       [+ Add Step]                                              │
+├─────────────────────────────────────────────────────────────────┤
+│                              [Cancel]  [Save Template]          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Tab 3: Analytics
+
+Performance metrics for outreach effectiveness:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ LAST 30 DAYS                                                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Messages Sent        Open Rate         Click Rate             │
+│       47                68%               24%                  │
+│                                                                 │
+│  Sequences Started    Converted         Lost                   │
+│       12                 4                 2                   │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ TOP PERFORMING TEMPLATE                                         │
+│ Urgent Replacement - 5 Day                                      │
+│ 75% conversion rate (3/4)                                       │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## File Changes
 
-### New Components
+### New Files
 
 | File | Purpose |
 |------|---------|
-| `ContractorMenu.tsx` | Hamburger menu sheet with navigation and profile |
+| `src/pages/Sequences.tsx` | Main sequences page with tabs |
+| `src/components/contractor/ActiveSequencesList.tsx` | Grouped list of active sequences |
+| `src/components/contractor/SequenceRow.tsx` | Compact row for sequence in list |
+| `src/components/contractor/TemplatesList.tsx` | List of templates with edit buttons |
+| `src/components/contractor/TemplateEditor.tsx` | Create/edit template drawer |
+| `src/components/contractor/SequenceAnalytics.tsx` | Performance metrics component |
 
-### Modified Components
+### Modified Files
 
 | File | Changes |
 |------|---------|
-| `LeadEngine.tsx` | Replace back button with hamburger trigger, add ContractorMenu |
-| `CommandBar.tsx` | Enhanced visual styling with glass effect and better contrast |
-| `LeadCardCompact.tsx` | Improved card design with better shadows and typography |
-| `LeadLane.tsx` | Polished lane headers with depth and better spacing |
-| `CategoryTabs.tsx` | Enhanced chip styling with better active states |
+| `src/App.tsx` | Add route `/contractor/sequences` |
+| `src/components/contractor/ContractorMenu.tsx` | Add "Sequences" nav link |
+| `src/hooks/useNurturingSequences.ts` | Add mutations for template CRUD |
+
+### Files to Keep (Reused)
+
+| File | Why Keep |
+|------|----------|
+| `SequenceControlDrawer.tsx` | Still used for detailed step timeline from list |
+| `StepTimeline.tsx` | Reused inside drawer |
+| `StepCard.tsx` | Reused inside drawer |
 
 ---
 
-## Detailed Designs
+## Navigation Integration
 
-### 1. ContractorMenu Component
-
-A left-sliding Sheet with:
+Update `ContractorMenu.tsx` to add the Sequences link:
 
 ```text
-+------------------------------------------+
-|  [X]                                     |
-|                                          |
-|  ACME Plumbing                           |
-|  John Smith                              |
-|  ─────────────────────────────────────── |
-|                                          |
-|  🏠  Dashboard                           |
-|  🔥  Lead Engine              ← active   |
-|  ⚙️  Settings                            |
-|  📊  Reports                             |
-|                                          |
-|  ─────────────────────────────────────── |
-|                                          |
-|  ➕  Add Lead                            |
-|  🔄  Sync Now                            |
-|                                          |
-|  ─────────────────────────────────────── |
-|                                          |
-|  🚪  Log Out                             |
-+------------------------------------------+
+Current:                          Updated:
+🏠 Dashboard                      🏠 Dashboard
+🔥 Lead Engine    ← active       🔥 Lead Engine
+⚙️ Settings                       ⚡ Sequences     ← NEW
+📊 Reports                        ⚙️ Settings
+                                  📊 Reports
 ```
 
-### 2. Header Redesign
-
-Replace:
-```text
-[←]  Lead Engine                    [🔔]
-     12 active opportunities
-```
-
-With:
-```text
-[☰]  Lead Engine                    [🔔]
-     12 active opportunities
-```
-
-### 3. CommandBar Visual Upgrade
-
-Current (flat):
-```text
-┌─────────────────────────────────────────────────┐
-│ Williams LEAKING  [Call]  │  $$$ │ 7 │ 1       │
-└─────────────────────────────────────────────────┘
-```
-
-Upgraded (depth + polish):
-```text
-┌─────────────────────────────────────────────────┐
-│ ░░ Subtle gradient with inner shadow ░░░░░░░░░ │
-│ ░░                                         ░░░ │
-│ ░░ 🔥 Williams  LEAKING   [Call Now]       ░░░ │
-│ ░░    Step 3/5                             ░░░ │
-│ ░░                                         ░░░ │
-│ ░░──────────────────────────────────────── ░░░ │
-│ ░░ $$$$ Pipeline  ⚡7 Active   🏆 1 Won    ░░░ │
-└─────────────────────────────────────────────────┘
-```
-
-Key changes:
-- Deeper background gradient with subtle glass effect
-- Larger hot lead section with proper padding
-- Stats moved to a subtle bottom row
-- Better icon treatments with subtle backgrounds
-- Improved button styling with proper hover states
-
-### 4. LeadCardCompact Visual Upgrade
-
-Current:
-```text
-┌───────────────────────────────────────────┐
-│ • Williams Residence    LEAKING   18 [📞]│
-│   15yr Bradford 50g...   Urgent 3/5    → │
-└───────────────────────────────────────────┘
-```
-
-Upgraded:
-```text
-┌───────────────────────────────────────────┐
-│                                           │
-│   Williams Residence              18      │
-│   LEAKING                         [📞]    │
-│                                           │
-│   15yr Bradford White 50gal               │
-│   🔴 Urgent Replace · Step 3/5     →      │
-│                                           │
-└───────────────────────────────────────────┘
-```
-
-Key changes:
-- More vertical padding for touch targets
-- Health score as prominent badge with color coding
-- Urgency tag below name (not cramped inline)
-- Clearer sequence progress with colored dot
-- Subtle card shadow for depth
-- Hot lead gets a subtle glow ring
-
-### 5. LeadLane Visual Upgrade
-
-Current lane headers are basic colored blocks. Upgraded:
-- Subtle gradient backgrounds
-- Better icon sizing and spacing
-- Count badge with proper contrast
-- Smooth expand/collapse animation
-- Divider lines between cards
+The Lead Engine will still show sequence badges on cards and allow quick start via modal, but the Sequences page becomes the power-user hub for managing automation.
 
 ---
 
-## Technical Specifications
+## Technical Notes
 
-### ContractorMenu Props
+### Data Fetching
 
-```typescript
-interface ContractorMenuProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-```
+The new `ActiveSequencesList` will use an enhanced query that joins:
+- `nurturing_sequences` (status, current_step, next_action_at)
+- `demo_opportunities` (customer_name, property_address)
+- `sequence_templates` (template name, steps)
 
-### CSS Enhancements
+This provides all data needed for the list view without N+1 queries.
 
-Apply these utility classes for premium feel:
+### Template CRUD
 
-| Element | Classes |
-|---------|---------|
-| Cards | `shadow-lg shadow-black/20 border-white/10` |
-| Glass effect | `bg-gradient-to-b backdrop-blur-sm` |
-| Hot lead glow | `ring-2 ring-rose-500/50 shadow-rose-500/25` |
-| Active states | `hover:shadow-xl transition-all duration-200` |
-| Typography | `font-semibold tracking-tight` for headers |
+Add new mutations to `useNurturingSequences.ts`:
+- `useCreateTemplate()` - Insert new template
+- `useUpdateTemplate()` - Update existing template
+- `useDeleteTemplate()` - Soft delete (set is_active = false)
 
-### Color Refinements
+### State Management
 
-| Element | Current | Upgraded |
-|---------|---------|----------|
-| Card background | `bg-card` | `bg-card/80 backdrop-blur` |
-| Borders | `border-border` | `border-white/5` |
-| Hot lead ring | `ring-rose-500/40` | `ring-rose-500/60 shadow-lg shadow-rose-500/20` |
-| Health badge (critical) | `bg-destructive/10` | `bg-rose-500/20 border border-rose-500/30` |
+The page will use React Query for all data with optimistic updates for:
+- Pause/Resume toggling
+- Skip step
+- Send now
 
 ---
 
-## Implementation Order
+## Benefits
 
-1. **ContractorMenu.tsx** - Create new component with Sheet navigation
-2. **LeadEngine.tsx** - Swap back button for hamburger, wire up menu
-3. **CommandBar.tsx** - Apply visual polish and layout improvements
-4. **LeadCardCompact.tsx** - Enhanced card styling with better spacing
-5. **LeadLane.tsx** - Polished lane headers
-6. **CategoryTabs.tsx** - Subtle tab improvements
+| Aspect | Before | After |
+|--------|--------|-------|
+| View all sequences | One-at-a-time via lead cards | Full dashboard view |
+| Overdue visibility | Hidden | Prominent top section |
+| Template management | DB-only | Full UI editor |
+| Quick actions | Open lead → find sequence | Direct from list |
+| Analytics | None | Open/click/conversion rates |
 
 ---
 
 ## Summary
 
-This refinement transforms the Lead Engine from "functional but basic" to "professional and polished" by:
+This dedicated Sequences page transforms scattered automation controls into a unified workspace:
 
-1. **Proper navigation** - Hamburger menu instead of orphaned back button
-2. **Visual depth** - Shadows, glows, and gradients for premium feel
-3. **Better spacing** - Larger touch targets, more breathing room
-4. **Consistent hierarchy** - Clear typography weights and sizes
-5. **Subtle polish** - Glass effects, smooth transitions, color refinements
+1. **Active Sequences Dashboard** - See all sequences, prioritized by urgency
+2. **Template Builder** - Create and edit templates without touching the database
+3. **Analytics** - Track what's working and conversion attribution
+4. **Quick Actions** - Send, skip, pause directly from the list
 
-The result will feel like a modern SaaS dashboard that contractors can use confidently with clients.
-
+The Lead Engine stays focused on leads while Sequences becomes the automation command center.
