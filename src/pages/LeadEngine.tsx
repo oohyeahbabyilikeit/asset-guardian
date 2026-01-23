@@ -9,6 +9,7 @@ import { PropertyReportDrawer } from '@/components/contractor/PropertyReportDraw
 import { SalesCoachDrawer } from '@/components/contractor/SalesCoachDrawer';
 import { StartSequenceModal } from '@/components/contractor/StartSequenceModal';
 import { SequenceControlDrawer } from '@/components/contractor/SequenceControlDrawer';
+import { SequencesPulseWidget } from '@/components/contractor/SequencesPulseWidget';
 import { useContractorOpportunities } from '@/hooks/useContractorOpportunities';
 import { 
   useNurturingSequences, 
@@ -236,6 +237,9 @@ export default function LeadEngine() {
           </div>
         ) : (
           <>
+            {/* Pulse Widget - Automation Summary */}
+            <SequencesPulseWidget />
+
             {/* Command Bar - unified dashboard */}
             <CommandBar
               hotLead={hotLead}
