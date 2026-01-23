@@ -1,214 +1,247 @@
 
 
-## Lead Engine Refactor - Contractor Dashboard
+# Real Nurturing Sequence System - Feature Design
 
-### Vision Summary
-Transform the contractor dashboard from a generic "opportunities list" into a **Lead Engine** - a focused, actionable workspace where contractors can:
-1. **See leads by opportunity type** (Replacements, Code Fixes, Maintenance) at a glance
-2. **Track automated nurturing sequences** that are running on each lead
-3. **Take action quickly** with type-specific workflows
+## Current Gaps
+
+The current implementation has:
+- Sequences stored in DB with step/status
+- Badge showing "Step 2/5" on lead cards
+- Pause/Resume toggle
+- Aggregate stats panel
+
+But lacks the intuitive features contractors need to actually manage outreach.
 
 ---
 
-## Current State
+## Feature Requirements for a Real Nurture System
 
-```text
-+------------------+     +--------------------------------+
-|  Left Sidebar    |     |  Right Panel                   |
-|------------------|     |--------------------------------|
-| Today's Actions  |     |  Opportunity Feed              |
-| (priority counts)|     |  - All leads mixed together    |
-|                  |     |  - Filter by priority only     |
-| Pipeline Overview|     |  - Generic "Lead Card"         |
-| (New→Contacted→) |     |                                |
-|                  |     |                                |
-| Closes Breakdown |     |                                |
-| (maint/code/repl)|     |                                |
-|                  |     |                                |
-| Quick Actions    |     |                                |
-+------------------+     +--------------------------------+
+### 1. Sequence Lifecycle Management
+
+| Feature | Description |
+|---------|-------------|
+| **Start Sequence** | Button on lead card or drawer to enroll a lead in a sequence |
+| **Choose Template** | Modal/drawer showing available templates with preview |
+| **Stop Sequence** | Cancel entirely (different from pause) |
+| **Restart Sequence** | Re-enroll from step 1 after completion or cancel |
+
+### 2. Sequence Step Visibility
+
+| Feature | Description |
+|---------|-------------|
+| **Step Timeline View** | Visual timeline showing all steps, what's done, what's next |
+| **Step Details** | See the actual message content for each step |
+| **Scheduled Timing** | Show "Day 0", "Day 3", etc. and actual scheduled dates |
+| **Step Type Icons** | SMS, Email, Call Reminder with distinct icons |
+
+### 3. Event History / Activity Log
+
+| Feature | Description |
+|---------|-------------|
+| **Sent Log** | Record of every message sent with timestamp |
+| **Delivery Status** | Sent / Delivered / Failed |
+| **Open/Click Tracking** | Did they open the email? Click a link? |
+| **Reply Detection** | Flag when customer responds (stops automation) |
+
+### 4. Manual Controls
+
+| Feature | Description |
+|---------|-------------|
+| **Send Now** | Trigger the next step immediately |
+| **Skip Step** | Skip current step, advance to next |
+| **Jump to Step** | Go to a specific step in the sequence |
+| **Edit Message** | Customize the message for this specific lead |
+
+### 5. Outcome Tracking
+
+| Feature | Description |
+|---------|-------------|
+| **Mark Converted** | Lead booked appointment / closed deal |
+| **Mark Lost** | Lead declined / unsubscribed |
+| **Reason Codes** | Why did they convert or decline? |
+| **Sequence Attribution** | Which step led to conversion? |
+
+### 6. Template Management
+
+| Feature | Description |
+|---------|-------------|
+| **View Templates** | List all available sequence templates |
+| **Preview Steps** | See the full workflow before starting |
+| **Create Template** | Build custom sequences (advanced) |
+| **Enable/Disable** | Turn templates on/off |
+
+---
+
+## Proposed UI Components
+
+### 1. Sequence Control Drawer
+
+Opens when clicking "Details" on a sequence badge or "Start Sequence" on a lead without one.
+
+```
++----------------------------------------------------------+
+|  Nurturing Sequence                              [Close] |
++----------------------------------------------------------+
+|                                                          |
+|  ┌────────────────────────────────────────────────────┐  |
+|  │  Maria Santos · 123 Oak St                         │  |
+|  │  Rheem 50g · 12yr · CRITICAL                       │  |
+|  └────────────────────────────────────────────────────┘  |
+|                                                          |
+|  CURRENT SEQUENCE: Urgent Replace (5 steps)              |
+|  Status: Active · Step 2 of 5 · Next: Tomorrow           |
+|                                                          |
+|  ──────── Step Timeline ────────                         |
+|                                                          |
+|  [x] Day 0 · SMS · "Your water heater needs attention"   |
+|      Sent Jan 22, 2:30 PM · Delivered                    |
+|                                                          |
+|  [>] Day 1 · EMAIL · "Risk report PDF attached"          |
+|      Scheduled: Jan 23, 2:30 PM                          |
+|      [Send Now] [Skip] [Edit]                            |
+|                                                          |
+|  [ ] Day 3 · SMS · "Limited time financing available"    |
+|      Scheduled: Jan 25, 2:30 PM                          |
+|                                                          |
+|  [ ] Day 5 · CALL · "Call reminder to contractor"        |
+|      Scheduled: Jan 27, 2:30 PM                          |
+|                                                          |
+|  [ ] Day 7 · SMS · "Ready when you are"                  |
+|      Scheduled: Jan 29, 2:30 PM                          |
+|                                                          |
+|  ────────────────────────────────────────                |
+|                                                          |
+|  [Pause Sequence]  [Stop Sequence]  [Change Template]    |
+|                                                          |
++----------------------------------------------------------+
 ```
 
-**Problems:**
-- Leads are mixed together - replacement urgencies buried with annual checkups
-- No visibility into which leads have automated sequences running
-- No "lane-based" view by opportunity category
-- Priority-based sorting doesn't help contractor see the TYPE of work
+### 2. Start Sequence Modal
 
----
+Shows when starting a new sequence for a lead:
 
-## Proposed Lead Engine Layout
+```
++------------------------------------------+
+|  Start Nurturing Sequence                |
++------------------------------------------+
+|                                          |
+|  Choose a sequence for Maria Santos:     |
+|                                          |
+|  ┌────────────────────────────────────┐  |
+|  │ [x] Urgent Replacement - 5 Day     │  |
+|  │     5 steps · SMS + Email + Call   │  |
+|  │     Best for: Critical/High leads  │  |
+|  └────────────────────────────────────┘  |
+|                                          |
+|  ┌────────────────────────────────────┐  |
+|  │ [ ] Code Violation Awareness       │  |
+|  │     3 steps · Email + SMS + Call   │  |
+|  │     Best for: Safety issues        │  |
+|  └────────────────────────────────────┘  |
+|                                          |
+|  ┌────────────────────────────────────┐  |
+|  │ [ ] Maintenance Reminder - 30 Day  │  |
+|  │     4 steps · Email + SMS          │  |
+|  │     Best for: Routine maintenance  │  |
+|  └────────────────────────────────────┘  |
+|                                          |
+|  [Preview Steps]         [Start Now]     |
+|                                          |
++------------------------------------------+
+```
 
-```text
-+----------------------------------------------------------+
-|  Lead Engine                                    [Alerts] |
-+----------------------------------------------------------+
-|                                                          |
-|  [🔴 Replacements (4)]  [⚠️ Code Fixes (3)]  [🔧 Maint (5)] |
-|  ─────────────────────────────────────────────────────── |
-|                                                          |
-|  ┌─────────────────────────────────────────────────────┐ |
-|  │ REPLACEMENTS                              4 leads   │ |
-|  │                                                     │ |
-|  │ ┌─────────────────────────────────────────────────┐ │ |
-|  │ │ 🔴 Maria Santos · 123 Oak St                    │ │ |
-|  │ │    Rheem 50g · 12yr · LEAKING                   │ │ |
-|  │ │    ⚡ Nurture: Day 2 of "Urgent Replace"        │ │ |
-|  │ │    [Call] [Details] [Pause Sequence]            │ │ |
-|  │ └─────────────────────────────────────────────────┘ │ |
-|  │ ...                                                 │ |
-|  └─────────────────────────────────────────────────────┘ |
-|                                                          |
-|  ┌─────────────────────────────────────────────────────┐ |
-|  │ CODE FIXES                                3 leads   │ |
-|  │ (Missing PRV, Expansion Tank, etc.)                 │ |
-|  │ ┌─────────────────────────────────────────────────┐ │ |
-|  │ │ ⚠️ John Martinez · 456 Maple Ave               │ │ |
-|  │ │    95 PSI - No PRV installed                    │ │ |
-|  │ │    ⚡ Nurture: "Code Violation Awareness"       │ │ |
-|  │ └─────────────────────────────────────────────────┘ │ |
-|  └─────────────────────────────────────────────────────┘ |
-|                                                          |
-|  ┌─────────────────────────────────────────────────────┐ |
-|  │ MAINTENANCE                               5 leads   │ |
-|  │ (Flush due, Anode due, Descale, Annual checkup)     │ |
-|  │ ...                                                 │ |
-|  └─────────────────────────────────────────────────────┘ |
-|                                                          |
-|  ┌────────────────┐                                      |
-|  │ 📊 Sequences   │  Active: 8 | Paused: 2 | Done: 12   |
-|  │    Overview    │                                      |
-|  └────────────────┘                                      |
-+----------------------------------------------------------+
+### 3. Activity Log Tab (in PropertyReportDrawer)
+
+Add a tab to the existing drawer showing sequence history:
+
+```
++------------------------------------------+
+|  Activity                                |
++------------------------------------------+
+|                                          |
+|  Today                                   |
+|  ─────                                   |
+|  📧 Email sent: "Risk report PDF"        |
+|     2:30 PM · Delivered · Opened         |
+|                                          |
+|  Yesterday                               |
+|  ─────────                               |
+|  📱 SMS sent: "Your water heater needs   |
+|     attention"                           |
+|     3:45 PM · Delivered                  |
+|                                          |
+|  📋 Sequence started: Urgent Replace     |
+|     3:45 PM · By system                  |
+|                                          |
+|  🔍 Lead created from inspection         |
+|     3:30 PM · Tech: John Smith           |
+|                                          |
++------------------------------------------+
+```
+
+### 4. Enhanced Lead Card with Start Button
+
+For leads without a sequence:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ Maria Santos                                  Health: 28 │
+│ 123 Oak Street, Phoenix AZ                               │
+├──────────────────────────────────────────────────────────┤
+│ Rheem ProSeries · 50 gal · 12 years                      │
+│ LEAKING · High sediment                                  │
+├──────────────────────────────────────────────────────────┤
+│ ⚡ No sequence active                                    │
+│ [+ Start Sequence]                                       │
+├──────────────────────────────────────────────────────────┤
+│ [Call]  [Details]  [Coach]                    2 hours ago│
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Define Nurturing Sequence Data Model
+### Phase 1: Core Sequence Controls
 
-**New database table: `nurturing_sequences`**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| opportunity_id | uuid | FK to demo_opportunities |
-| sequence_type | text | e.g., 'urgent_replace', 'code_violation', 'maintenance_reminder' |
-| status | text | 'active', 'paused', 'completed', 'cancelled' |
-| current_step | integer | Which step in the sequence (1, 2, 3...) |
-| total_steps | integer | Total steps in sequence |
-| next_action_at | timestamptz | When the next automated action fires |
-| started_at | timestamptz | When sequence began |
-| completed_at | timestamptz | When sequence ended (if applicable) |
-
-**New database table: `sequence_templates`**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| name | text | e.g., "Urgent Replacement - 5 Day" |
-| trigger_type | text | 'replacement_urgent', 'prv_missing', etc. |
-| steps | jsonb | Array of steps with timing and action type |
-
-### Phase 2: Create Opportunity Categories
-
-**File: `src/lib/opportunityCategories.ts`**
-
-Define three lead lanes with clear categorization logic:
-
-```text
-REPLACEMENTS:
-  - opportunity_type: 'replacement_urgent' | 'replacement_recommended' | 'warranty_expiring'
-  - OR verdictAction === 'REPLACE'
-  - OR isLeaking === true
-  
-CODE FIXES (derived from forensicInputs):
-  - housePsi > 80 && !hasPrv → "Missing PRV"
-  - isClosedLoop && !hasExpTank → "Missing Expansion Tank"
-  - hardnessGPG > 15 && !hasSoftener → "Softener Recommended"
-  
-MAINTENANCE:
-  - opportunity_type: 'flush_due' | 'anode_due' | 'descale_due' | 'annual_checkup'
-```
-
-### Phase 3: Refactor Page Layout
-
-**File: `src/pages/Contractor.tsx`**
-
-Replace the current two-column layout with a single-column, lane-based layout:
-
-1. **Header**: "Lead Engine" branding with notification bell
-2. **Category Tabs**: Quick-filter chips showing counts per category
-3. **Lane Sections**: Collapsible sections for each category
-4. **Nurturing Overview**: Bottom panel showing sequence statistics
-
-### Phase 4: Create New Components
-
-**New components to build:**
-
+**New Components:**
 | Component | Purpose |
 |-----------|---------|
-| `LeadEnginePage.tsx` | New page layout replacing current Contractor |
-| `CategoryTabs.tsx` | Horizontal tabs for Replacements/Code Fixes/Maintenance |
-| `LeadLane.tsx` | Collapsible section showing leads of one category |
-| `EnhancedLeadCard.tsx` | Lead card with nurturing sequence indicator |
-| `NurturingBadge.tsx` | Shows sequence status on lead card |
-| `SequenceOverviewPanel.tsx` | Bottom panel with sequence stats |
-| `SequenceControlDrawer.tsx` | Drawer to pause/resume/customize sequences |
+| `SequenceControlDrawer.tsx` | Full drawer showing timeline, controls, history |
+| `StartSequenceModal.tsx` | Template picker when starting a new sequence |
+| `StepTimeline.tsx` | Visual timeline of sequence steps |
+| `StepCard.tsx` | Individual step with status, timing, actions |
 
-### Phase 5: Enhanced Lead Card Design
+**Database:**
+- Use existing `sequence_events` table to log sent messages
+- Add columns: `delivery_status`, `opened_at`, `clicked_at`
 
-The new `EnhancedLeadCard` will show:
+**Hooks:**
+| Hook | Purpose |
+|------|---------|
+| `useSequenceEvents(sequenceId)` | Fetch event history |
+| `useAdvanceStep()` | Mutation to send now or skip |
+| `useStopSequence()` | Cancel a sequence entirely |
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│ 🔴 Maria Santos                              Health: 28  │
-│    123 Oak Street, Phoenix AZ                            │
-├──────────────────────────────────────────────────────────┤
-│ Rheem ProSeries · 50 gal Gas · 12 years old              │
-│ LEAKING · High sediment · No PRV                         │
-├──────────────────────────────────────────────────────────┤
-│ ⚡ Nurture: "Urgent Replace" · Step 2/5 · Next: Tomorrow │
-│ [Pause] [Skip to Call]                                   │
-├──────────────────────────────────────────────────────────┤
-│ [📞 Call]  [📄 Details]  [🤖 Coach]           2 hours ago │
-└──────────────────────────────────────────────────────────┘
-```
+### Phase 2: Activity Feed
 
-### Phase 6: Sequence Templates (Predefined)
+**New Components:**
+| Component | Purpose |
+|-----------|---------|
+| `ActivityFeed.tsx` | Chronological log of all touchpoints |
+| `ActivityItem.tsx` | Single activity entry with icon/status |
 
-Create initial sequence templates:
+**Integration:**
+- Add "Activity" tab to `PropertyReportDrawer`
+- Combine sequence events + manual actions (calls logged, notes added)
 
-**Urgent Replacement (5 steps over 7 days):**
-1. Day 0: SMS - "Your water heater needs attention"
-2. Day 1: Email - Risk report PDF attached
-3. Day 3: SMS - "Limited time financing available"
-4. Day 5: Call reminder to contractor
-5. Day 7: Final SMS - "Ready when you are"
+### Phase 3: Template Management
 
-**Code Violation Awareness (3 steps over 14 days):**
-1. Day 0: Email - Educational content about the violation
-2. Day 7: SMS - "Your home may not be up to code"
-3. Day 14: Call reminder
-
-**Maintenance Reminder (4 steps over 30 days):**
-1. Day 0: Email - "Annual maintenance keeps you safe"
-2. Day 14: SMS - "Did you know sediment builds up?"
-3. Day 21: Email - Seasonal maintenance checklist
-4. Day 30: Call reminder
-
-### Phase 7: Hook Updates
-
-**File: `src/hooks/useContractorOpportunities.ts`**
-
-Add new exports:
-
-```text
-- getOpportunitiesByCategory(opportunities): { replacements, codeFixes, maintenance }
-- useNurturingSequences(): Fetch active sequences from new table
-- useSequenceTemplates(): Fetch available templates
-```
+**New Components:**
+| Component | Purpose |
+|-----------|---------|
+| `TemplatesListDrawer.tsx` | View all templates |
+| `TemplatePreview.tsx` | Full step-by-step preview |
 
 ---
 
@@ -216,64 +249,62 @@ Add new exports:
 
 | File | Description |
 |------|-------------|
-| `src/pages/LeadEngine.tsx` | New main page component |
-| `src/components/contractor/CategoryTabs.tsx` | Category filter tabs |
-| `src/components/contractor/LeadLane.tsx` | Collapsible lead section |
-| `src/components/contractor/EnhancedLeadCard.tsx` | Card with nurture status |
-| `src/components/contractor/NurturingBadge.tsx` | Sequence status indicator |
-| `src/components/contractor/SequenceOverviewPanel.tsx` | Sequence stats panel |
-| `src/components/contractor/SequenceControlDrawer.tsx` | Sequence management UI |
-| `src/lib/opportunityCategories.ts` | Category logic and types |
-| `src/hooks/useNurturingSequences.ts` | Sequence data hook |
+| `src/components/contractor/SequenceControlDrawer.tsx` | Main sequence management drawer |
+| `src/components/contractor/StartSequenceModal.tsx` | Template picker modal |
+| `src/components/contractor/StepTimeline.tsx` | Visual step timeline |
+| `src/components/contractor/StepCard.tsx` | Individual step UI |
+| `src/components/contractor/ActivityFeed.tsx` | Activity log component |
+| `src/hooks/useSequenceEvents.ts` | Fetch sequence event history |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add route for `/lead-engine` or replace `/contractor` |
-| `src/hooks/useContractorOpportunities.ts` | Add category grouping helper |
-| `src/data/mockContractorData.ts` | Add sequence-related types |
+| `src/components/contractor/EnhancedLeadCard.tsx` | Add "Start Sequence" button for leads without one |
+| `src/components/contractor/NurturingBadge.tsx` | Make clickable to open control drawer |
+| `src/components/contractor/PropertyReportDrawer.tsx` | Add Activity tab with sequence history |
+| `src/pages/LeadEngine.tsx` | Wire up new drawers and modals |
+| `src/hooks/useNurturingSequences.ts` | Add mutations for skip, stop, advance |
 
-## Database Migrations
+## Database Changes
 
-| Table | Purpose |
-|-------|---------|
-| `nurturing_sequences` | Track active sequences per opportunity |
-| `sequence_templates` | Store reusable sequence definitions |
-| `sequence_events` | Log of sent messages/actions |
-
----
-
-## Technical Notes
-
-**Why lanes instead of a single list:**
-- Contractors think in terms of "what TYPE of work do I have?" not just priority
-- Replacement jobs are high-value - need visibility
-- Code fixes have legal/safety urgency - separate from routine maintenance
-- Maintenance can be batched and scheduled differently
-
-**Nurturing sequence architecture:**
-- Sequences are triggered when opportunities are created (via edge function)
-- A background job (or Supabase scheduled function) processes due actions
-- Contractors can pause/resume sequences from the UI
-- When a contractor calls or converts, the sequence auto-completes
-
-**Mobile considerations:**
-- Category tabs scroll horizontally
-- Lanes are fully collapsible for focused viewing
-- Sequence controls in a bottom sheet on mobile
+Add columns to `sequence_events` table for tracking:
+```sql
+ALTER TABLE sequence_events 
+  ADD COLUMN delivery_status text DEFAULT 'pending',
+  ADD COLUMN opened_at timestamptz,
+  ADD COLUMN clicked_at timestamptz,
+  ADD COLUMN message_content text;
+```
 
 ---
 
-## Verification Steps
+## Technical Approach
 
-After implementation:
-1. Navigate to `/contractor` (or `/lead-engine`)
-2. See leads organized into three category lanes
-3. Each lane shows count and is collapsible
-4. Lead cards show nurturing sequence status
-5. Click a lead → see sequence controls in drawer
-6. Pause a sequence → badge updates to "Paused"
-7. Convert a lead → sequence auto-completes
-8. Sequence Overview panel shows accurate counts
+**Step Timing Calculation:**
+- Each template step has a `day` offset (0, 1, 3, 5, 7)
+- `scheduled_at = sequence.started_at + (step.day * 24 hours)`
+- Display shows actual date/time based on this calculation
+
+**Send Now Logic:**
+- Update `sequence_events` with `executed_at = now()`
+- Advance `current_step` in `nurturing_sequences`
+- Recalculate `next_action_at` for remaining steps
+
+**Outcome Tracking:**
+- When contractor marks "Converted", update sequence status to 'completed'
+- Store which step they were on at conversion (attribution)
+- Record reason code if applicable
+
+---
+
+## Summary
+
+This plan adds the missing pieces to make the nurturing system actually usable:
+
+1. **Start Sequence** - Enroll leads with template selection
+2. **View Steps** - See full timeline with scheduled dates
+3. **Control Steps** - Send now, skip, pause, stop
+4. **Track History** - Activity log showing what happened
+5. **Record Outcomes** - Mark converted/lost with attribution
 
