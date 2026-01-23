@@ -4,14 +4,12 @@ import { ArrowLeft, Bell, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryTabs } from '@/components/contractor/CategoryTabs';
 import { LeadLane } from '@/components/contractor/LeadLane';
-import { MoneyDashboard } from '@/components/contractor/MoneyDashboard';
-import { HotLeadPanel } from '@/components/contractor/HotLeadPanel';
-import { PerformanceRibbon } from '@/components/contractor/PerformanceRibbon';
+import { CommandBar } from '@/components/contractor/CommandBar';
 import { PropertyReportDrawer } from '@/components/contractor/PropertyReportDrawer';
 import { SalesCoachDrawer } from '@/components/contractor/SalesCoachDrawer';
 import { StartSequenceModal } from '@/components/contractor/StartSequenceModal';
 import { SequenceControlDrawer } from '@/components/contractor/SequenceControlDrawer';
-import { useContractorOpportunities, getClosesMetrics } from '@/hooks/useContractorOpportunities';
+import { useContractorOpportunities } from '@/hooks/useContractorOpportunities';
 import { 
   useNurturingSequences, 
   useToggleSequenceStatus,
@@ -73,41 +71,26 @@ export default function LeadEngine() {
   }, [sequences]);
   
   // Hot lead hook
-  const { hotLead, hotLeadSequence, skipCurrentLead } = useHotLead({
+  const { hotLead, hotLeadSequence } = useHotLead({
     opportunities: allCategorizedOpps,
     sequencesByOpp,
   });
   
   // Calculate stats
   const sequenceStats = useMemo(() => getSequenceStats(sequences), [sequences]);
-  const closesMetrics = useMemo(() => getClosesMetrics(opportunities), [opportunities]);
   
-  // Money Dashboard metrics
-  const dashboardMetrics = useMemo(() => {
-    // Today's actions: leads without sequences or with sequence steps due
-    const leadsNeedingAction = allCategorizedOpps.filter(opp => {
-      const seq = sequencesByOpp[opp.id];
-      if (!seq) return opp.priority === 'critical' || opp.priority === 'high';
-      if (seq.status === 'completed' || seq.status === 'cancelled') return false;
-      if (seq.nextActionAt) {
-        const nextAction = new Date(seq.nextActionAt);
-        const today = new Date();
-        return nextAction.toDateString() === today.toDateString() || nextAction < today;
-      }
-      return false;
-    });
-    
+  // Command Bar metrics
+  const commandBarMetrics = useMemo(() => {
     // Pipeline value based on replacement count (1-4 scale)
     const replacementCount = categorized.replacements.length;
     const pipelineValue = Math.min(4, Math.max(1, Math.ceil(replacementCount / 2)));
     
     return {
-      todayActionCount: leadsNeedingAction.length,
       pipelineValue,
       activeSequences: sequenceStats.active,
-      thisWeekWins: sequenceStats.completed,
+      weeklyWins: sequenceStats.completed,
     };
-  }, [allCategorizedOpps, sequencesByOpp, categorized.replacements.length, sequenceStats]);
+  }, [categorized.replacements.length, sequenceStats]);
   
   // Counts for category tabs
   const counts = {
@@ -246,30 +229,15 @@ export default function LeadEngine() {
           </div>
         ) : (
           <>
-            {/* Money Dashboard */}
-            <MoneyDashboard
-              todayActionCount={dashboardMetrics.todayActionCount}
-              pipelineValue={dashboardMetrics.pipelineValue}
-              activeSequences={dashboardMetrics.activeSequences}
-              thisWeekWins={dashboardMetrics.thisWeekWins}
-            />
-
-            {/* Hot Lead Panel */}
-            {hotLead && (
-              <HotLeadPanel
-                opportunity={hotLead}
-                sequence={hotLeadSequence}
-                onCall={() => handleCall(hotLead)}
-                onStartSequence={() => handleStartSequence(hotLead)}
-                onSkip={skipCurrentLead}
-                onViewDetails={() => handleViewDetails(hotLead)}
-              />
-            )}
-
-            {/* Performance Ribbon */}
-            <PerformanceRibbon 
-              metrics={closesMetrics} 
-              sequenceStats={sequenceStats}
+            {/* Command Bar - unified dashboard */}
+            <CommandBar
+              hotLead={hotLead}
+              hotLeadSequence={hotLeadSequence}
+              pipelineValue={commandBarMetrics.pipelineValue}
+              activeSequences={commandBarMetrics.activeSequences}
+              weeklyWins={commandBarMetrics.weeklyWins}
+              onCallHotLead={() => hotLead && handleCall(hotLead)}
+              onViewHotLead={() => hotLead && handleViewDetails(hotLead)}
             />
 
             {/* Lead Lanes */}
@@ -279,6 +247,7 @@ export default function LeadEngine() {
                   category="replacements"
                   opportunities={categorized.replacements}
                   sequences={sequencesByOpp}
+                  hotLeadId={hotLead?.id}
                   onCall={handleCall}
                   onViewDetails={handleViewDetails}
                   onOpenCoach={handleOpenCoach}
@@ -293,6 +262,7 @@ export default function LeadEngine() {
                   category="codeFixes"
                   opportunities={categorized.codeFixes}
                   sequences={sequencesByOpp}
+                  hotLeadId={hotLead?.id}
                   onCall={handleCall}
                   onViewDetails={handleViewDetails}
                   onOpenCoach={handleOpenCoach}
@@ -307,6 +277,7 @@ export default function LeadEngine() {
                   category="maintenance"
                   opportunities={categorized.maintenance}
                   sequences={sequencesByOpp}
+                  hotLeadId={hotLead?.id}
                   onCall={handleCall}
                   onViewDetails={handleViewDetails}
                   onOpenCoach={handleOpenCoach}

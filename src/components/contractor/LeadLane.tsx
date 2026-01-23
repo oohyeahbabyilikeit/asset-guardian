@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronRight, Flame, AlertTriangle, Wrench } from 'lucide-react';
-import { EnhancedLeadCard } from './EnhancedLeadCard';
+import { LeadCardCompact } from './LeadCardCompact';
 import { type CategorizedOpportunity, type LeadCategory } from '@/lib/opportunityCategories';
 import { type NurturingSequence } from '@/hooks/useNurturingSequences';
 
@@ -9,13 +9,13 @@ interface LeadLaneProps {
   category: LeadCategory;
   opportunities: CategorizedOpportunity[];
   sequences: Record<string, NurturingSequence>;
+  hotLeadId?: string;
   onCall: (opportunity: CategorizedOpportunity) => void;
   onViewDetails: (opportunity: CategorizedOpportunity) => void;
   onOpenCoach: (opportunity: CategorizedOpportunity) => void;
   onToggleSequence: (sequence: NurturingSequence) => void;
   onStartSequence: (opportunity: CategorizedOpportunity) => void;
   onOpenSequenceControl: (opportunity: CategorizedOpportunity, sequence: NurturingSequence) => void;
-  defaultExpanded?: boolean;
 }
 
 const categoryConfig = {
@@ -46,22 +46,23 @@ export function LeadLane({
   category,
   opportunities,
   sequences,
+  hotLeadId,
   onCall,
   onViewDetails,
-  onOpenCoach,
-  onToggleSequence,
-  onStartSequence,
-  onOpenSequenceControl,
-  defaultExpanded = true,
 }: LeadLaneProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const count = opportunities.length;
+  // Auto-collapse if 2 or fewer leads
+  const [isExpanded, setIsExpanded] = useState(count > 2);
   const config = categoryConfig[category];
   const Icon = config.icon;
-  const count = opportunities.length;
   
   if (count === 0) {
     return null;
   }
+  
+  // Preview names for collapsed state
+  const previewNames = opportunities.slice(0, 3).map(o => o.customerName.split(' ')[0]).join(', ');
+  const moreCount = count > 3 ? count - 3 : 0;
   
   return (
     <div className={cn(
@@ -73,51 +74,51 @@ export function LeadLane({
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
-          'w-full flex items-center justify-between px-4 py-3',
+          'w-full flex items-center justify-between px-4 py-2.5',
           config.bgColor,
           'hover:opacity-90 transition-opacity'
         )}
       >
-        <div className="flex items-center gap-2">
-          <Icon className={cn('w-4 h-4', config.color)} />
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className={cn('w-4 h-4 shrink-0', config.color)} />
           <span className={cn('font-medium text-sm', config.color)}>
             {config.label}
           </span>
           <span className={cn(
-            'text-xs px-2 py-0.5 rounded-full',
+            'text-xs px-2 py-0.5 rounded-full shrink-0',
             'bg-background/50 text-foreground/70'
           )}>
-            {count} lead{count !== 1 ? 's' : ''}
+            {count}
           </span>
+          
+          {/* Collapsed preview */}
+          {!isExpanded && (
+            <span className="text-xs text-muted-foreground truncate ml-1">
+              — {previewNames}{moreCount > 0 ? ` +${moreCount}` : ''}
+            </span>
+          )}
         </div>
         
         {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
       </button>
       
       {/* Lane Content */}
       {isExpanded && (
-        <div className="p-3 space-y-2 bg-background/50">
+        <div className="p-2 space-y-1.5 bg-background/50">
           {opportunities.map(opportunity => {
             const sequence = sequences[opportunity.id] || null;
             return (
-              <EnhancedLeadCard
+              <LeadCardCompact
                 key={opportunity.id}
                 opportunity={opportunity}
                 sequence={sequence}
+                isHotLead={opportunity.id === hotLeadId}
                 onCall={() => onCall(opportunity)}
-                onViewDetails={() => onViewDetails(opportunity)}
-                onOpenCoach={() => onOpenCoach(opportunity)}
-                onToggleSequence={() => {
-                  if (sequence) onToggleSequence(sequence);
-                }}
-                onStartSequence={() => onStartSequence(opportunity)}
-                onOpenSequenceControl={() => {
-                  if (sequence) onOpenSequenceControl(opportunity, sequence);
-                }}
+                onClick={() => onViewDetails(opportunity)}
               />
             );
           })}
