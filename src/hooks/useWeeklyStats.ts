@@ -9,16 +9,23 @@ export interface WeeklyStats {
   trend: number;
 }
 
+interface NurturingSequenceRow {
+  id: string;
+  outcome: string | null;
+  completed_at: string | null;
+  revenue_usd: number | null;
+}
+
 export function useWeeklyStats() {
   return useQuery({
     queryKey: ['weekly-stats'],
     queryFn: async (): Promise<WeeklyStats> => {
       const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
       
-      // Get converted sequences this week
-      const { data: conversions, error: convError } = await supabase
+      // Get converted sequences this week with revenue data
+      const { data, error: convError } = await supabase
         .from('nurturing_sequences')
-        .select('id, outcome, completed_at')
+        .select('id, outcome, completed_at, revenue_usd')
         .eq('outcome', 'converted')
         .gte('completed_at', weekStart.toISOString());
 
@@ -26,12 +33,15 @@ export function useWeeklyStats() {
         console.error('Error fetching conversions:', convError);
       }
 
-      const jobsBooked = conversions?.length ?? 0;
+      const conversions = (data || []) as unknown as NurturingSequenceRow[];
+      const jobsBooked = conversions.length;
       
-      // Estimate revenue based on conversions (demo purposes)
-      // In production this would come from actual booking/invoice data
-      const avgJobValue = 1400;
-      const revenue = jobsBooked * avgJobValue;
+      // Sum actual revenue from logged conversions
+      // Only count revenue that was manually entered via the celebration modal
+      const revenue = conversions.reduce(
+        (sum, c) => sum + (c.revenue_usd || 0), 
+        0
+      );
       
       // All booked jobs this week came from automation (in this demo)
       const fromAutomation = jobsBooked;

@@ -7,6 +7,7 @@ import {
   Eye,
   MousePointerClick,
   Loader2,
+  Flame,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
@@ -20,6 +21,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { 
   type EnrichedSequence,
@@ -51,6 +58,10 @@ export function SequenceTableRow({ sequence, onRowClick }: SequenceTableRowProps
   
   const hasOpened = latestSentEvent?.openedAt != null;
   const hasClicked = latestSentEvent?.clickedAt != null;
+  
+  // Count total clicks across all events - high interest if 2+
+  const totalClicks = events.filter(e => e.clickedAt != null).length;
+  const isHighInterest = totalClicks >= 2 && sequence.status === 'active';
   
   const isPaused = sequence.status === 'paused';
 
@@ -160,28 +171,58 @@ export function SequenceTableRow({ sequence, onRowClick }: SequenceTableRowProps
 
         {/* Engagement Icons */}
         <TableCell>
-          <div className="flex items-center gap-1.5">
-            <span title={hasOpened ? 'Opened' : 'Not opened'}>
-              <Eye 
-                className={cn(
-                  'w-4 h-4 transition-colors',
-                  hasOpened 
-                    ? 'text-sky-400' 
-                    : 'text-muted-foreground/30',
-                )}
-              />
-            </span>
-            <span title={hasClicked ? 'Clicked' : 'Not clicked'}>
-              <MousePointerClick 
-                className={cn(
-                  'w-4 h-4 transition-colors',
-                  hasClicked 
-                    ? 'text-violet-400' 
-                    : 'text-muted-foreground/30',
-                )}
-              />
-            </span>
-          </div>
+          <TooltipProvider>
+            <div className="flex items-center gap-1.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Eye 
+                      className={cn(
+                        'w-4 h-4 transition-colors',
+                        hasOpened 
+                          ? 'text-sky-400' 
+                          : 'text-muted-foreground/30',
+                      )}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{hasOpened ? 'Opened' : 'Not opened'}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <MousePointerClick 
+                      className={cn(
+                        'w-4 h-4 transition-colors',
+                        hasClicked 
+                          ? 'text-violet-400' 
+                          : 'text-muted-foreground/30',
+                      )}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{hasClicked ? 'Clicked' : 'Not clicked'}</p>
+                </TooltipContent>
+              </Tooltip>
+              {/* High Interest Nudge */}
+              {isHighInterest && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs ml-1">
+                      <Flame className="w-3 h-3" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-medium">High Interest</p>
+                    <p className="text-xs text-muted-foreground">Did they book? Verify status.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </TooltipProvider>
         </TableCell>
 
         {/* Next Touchpoint */}
