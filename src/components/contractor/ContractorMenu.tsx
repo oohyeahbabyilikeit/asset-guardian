@@ -8,6 +8,7 @@ import {
   RefreshCw, 
   LogOut,
   Building2,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -27,6 +28,7 @@ interface ContractorMenuProps {
 const navItems = [
   { label: 'Dashboard', icon: Home, path: '/contractor' },
   { label: 'Lead Engine', icon: Flame, path: '/contractor' },
+  { label: 'Sequences', icon: Zap, path: '/contractor/sequences' },
   { label: 'Reports', icon: BarChart3, path: '/contractor/reports' },
   { label: 'Settings', icon: Settings, path: '/contractor/settings' },
 ];
@@ -70,7 +72,7 @@ export function ContractorMenu({ open, onOpenChange }: ContractorMenuProps) {
         {/* Navigation */}
         <nav className="p-3 space-y-1">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path && item.label === 'Lead Engine';
+            const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.label}

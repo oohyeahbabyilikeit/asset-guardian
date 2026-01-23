@@ -233,6 +233,74 @@ export function useStartSequence() {
 }
 
 /**
+ * Mutation to create a new sequence template
+ */
+export function useCreateTemplate() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      name, 
+      triggerType, 
+      steps 
+    }: { 
+      name: string; 
+      triggerType: string; 
+      steps: SequenceStep[];
+    }) => {
+      const { error } = await supabase
+        .from('sequence_templates' as any)
+        .insert({
+          name,
+          trigger_type: triggerType,
+          steps: steps as any,
+          is_active: true,
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sequence-templates'] });
+    },
+  });
+}
+
+/**
+ * Mutation to update an existing sequence template
+ */
+export function useUpdateTemplate() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      id,
+      name, 
+      triggerType, 
+      steps 
+    }: { 
+      id: string;
+      name: string; 
+      triggerType: string; 
+      steps: SequenceStep[];
+    }) => {
+      const { error } = await supabase
+        .from('sequence_templates' as any)
+        .update({
+          name,
+          trigger_type: triggerType,
+          steps: steps as any,
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sequence-templates'] });
+    },
+  });
+}
+
+/**
  * Get a user-friendly label for sequence type
  */
 export function getSequenceTypeLabel(sequenceType: string): string {
