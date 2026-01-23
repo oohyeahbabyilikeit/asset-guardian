@@ -13,6 +13,8 @@ interface LeadLaneProps {
   onViewDetails: (opportunity: CategorizedOpportunity) => void;
   onOpenCoach: (opportunity: CategorizedOpportunity) => void;
   onToggleSequence: (sequence: NurturingSequence) => void;
+  onStartSequence: (opportunity: CategorizedOpportunity) => void;
+  onOpenSequenceControl: (opportunity: CategorizedOpportunity, sequence: NurturingSequence) => void;
   defaultExpanded?: boolean;
 }
 
@@ -48,6 +50,8 @@ export function LeadLane({
   onViewDetails,
   onOpenCoach,
   onToggleSequence,
+  onStartSequence,
+  onOpenSequenceControl,
   defaultExpanded = true,
 }: LeadLaneProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -97,20 +101,26 @@ export function LeadLane({
       {/* Lane Content */}
       {isExpanded && (
         <div className="p-3 space-y-2 bg-background/50">
-          {opportunities.map(opportunity => (
-            <EnhancedLeadCard
-              key={opportunity.id}
-              opportunity={opportunity}
-              sequence={sequences[opportunity.id] || null}
-              onCall={() => onCall(opportunity)}
-              onViewDetails={() => onViewDetails(opportunity)}
-              onOpenCoach={() => onOpenCoach(opportunity)}
-              onToggleSequence={() => {
-                const seq = sequences[opportunity.id];
-                if (seq) onToggleSequence(seq);
-              }}
-            />
-          ))}
+          {opportunities.map(opportunity => {
+            const sequence = sequences[opportunity.id] || null;
+            return (
+              <EnhancedLeadCard
+                key={opportunity.id}
+                opportunity={opportunity}
+                sequence={sequence}
+                onCall={() => onCall(opportunity)}
+                onViewDetails={() => onViewDetails(opportunity)}
+                onOpenCoach={() => onOpenCoach(opportunity)}
+                onToggleSequence={() => {
+                  if (sequence) onToggleSequence(sequence);
+                }}
+                onStartSequence={() => onStartSequence(opportunity)}
+                onOpenSequenceControl={() => {
+                  if (sequence) onOpenSequenceControl(opportunity, sequence);
+                }}
+              />
+            );
+          })}
         </div>
       )}
     </div>

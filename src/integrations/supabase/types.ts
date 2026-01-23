@@ -515,6 +515,10 @@ export type Database = {
           id: string
           next_action_at: string | null
           opportunity_id: string
+          outcome: string | null
+          outcome_at: string | null
+          outcome_reason: string | null
+          outcome_step: number | null
           sequence_type: string
           started_at: string
           status: string
@@ -528,6 +532,10 @@ export type Database = {
           id?: string
           next_action_at?: string | null
           opportunity_id: string
+          outcome?: string | null
+          outcome_at?: string | null
+          outcome_reason?: string | null
+          outcome_step?: number | null
           sequence_type: string
           started_at?: string
           status?: string
@@ -541,6 +549,10 @@ export type Database = {
           id?: string
           next_action_at?: string | null
           opportunity_id?: string
+          outcome?: string | null
+          outcome_at?: string | null
+          outcome_reason?: string | null
+          outcome_step?: number | null
           sequence_type?: string
           started_at?: string
           status?: string
@@ -882,10 +894,14 @@ export type Database = {
       sequence_events: {
         Row: {
           action_type: string
+          clicked_at: string | null
           created_at: string
+          delivery_status: string | null
           error_message: string | null
           executed_at: string | null
           id: string
+          message_content: string | null
+          opened_at: string | null
           scheduled_at: string
           sequence_id: string
           status: string
@@ -893,10 +909,14 @@ export type Database = {
         }
         Insert: {
           action_type: string
+          clicked_at?: string | null
           created_at?: string
+          delivery_status?: string | null
           error_message?: string | null
           executed_at?: string | null
           id?: string
+          message_content?: string | null
+          opened_at?: string | null
           scheduled_at: string
           sequence_id: string
           status?: string
@@ -904,10 +924,14 @@ export type Database = {
         }
         Update: {
           action_type?: string
+          clicked_at?: string | null
           created_at?: string
+          delivery_status?: string | null
           error_message?: string | null
           executed_at?: string | null
           id?: string
+          message_content?: string | null
+          opened_at?: string | null
           scheduled_at?: string
           sequence_id?: string
           status?: string
