@@ -69,6 +69,43 @@ export function useSequenceEvents(sequenceId: string | null) {
 }
 
 /**
+ * Fetch events for multiple sequences (for analytics)
+ */
+export function useAllSequenceEvents(sequenceIds: string[]) {
+  return useQuery({
+    queryKey: ['all-sequence-events', sequenceIds],
+    queryFn: async (): Promise<SequenceEvent[]> => {
+      if (sequenceIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('sequence_events' as any)
+        .select('*')
+        .in('sequence_id', sequenceIds)
+        .order('step_number', { ascending: true });
+      
+      if (error) throw error;
+      
+      const rows = (data || []) as unknown as SequenceEventRow[];
+      return rows.map(row => ({
+        id: row.id,
+        sequenceId: row.sequence_id,
+        stepNumber: row.step_number,
+        actionType: row.action_type as SequenceEvent['actionType'],
+        scheduledAt: new Date(row.scheduled_at),
+        executedAt: row.executed_at ? new Date(row.executed_at) : null,
+        status: row.status as SequenceEvent['status'],
+        deliveryStatus: (row.delivery_status || 'pending') as SequenceEvent['deliveryStatus'],
+        messageContent: row.message_content,
+        openedAt: row.opened_at ? new Date(row.opened_at) : null,
+        clickedAt: row.clicked_at ? new Date(row.clicked_at) : null,
+      }));
+    },
+    enabled: sequenceIds.length > 0,
+    staleTime: 30_000,
+  });
+}
+
+/**
  * Mutation to skip a step in a sequence
  */
 export function useSkipStep() {

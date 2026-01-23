@@ -1,6 +1,11 @@
 import { TrendingUp, Send, Eye, MousePointer, CheckCircle, XCircle, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { type NurturingSequence, useSequenceTemplates } from '@/hooks/useNurturingSequences';
+import { 
+  type NurturingSequence, 
+  normalizeSequenceType,
+  useSequenceTemplates,
+} from '@/hooks/useNurturingSequences';
+import { useAllSequenceEvents } from '@/hooks/useSequenceEvents';
 
 interface SequenceAnalyticsProps {
   sequences: NurturingSequence[];
@@ -36,42 +41,53 @@ function StatCard({ label, value, icon: Icon, iconColor = 'text-violet-400', sub
 export function SequenceAnalytics({ sequences }: SequenceAnalyticsProps) {
   const { data: templates = [] } = useSequenceTemplates();
   
-  // Calculate metrics
+  // Fetch all events for calculating real analytics
+  const sequenceIds = sequences.map(s => s.id);
+  const { data: allEvents = [] } = useAllSequenceEvents(sequenceIds);
+  
+  // Calculate metrics from actual events
+  const sentEvents = allEvents.filter(e => e.status === 'sent');
+  const openedEvents = allEvents.filter(e => e.openedAt !== null);
+  const clickedEvents = allEvents.filter(e => e.clickedAt !== null);
+  
+  // Calculate real rates
+  const openRate = sentEvents.length > 0 
+    ? Math.round((openedEvents.length / sentEvents.length) * 100) 
+    : 0;
+  const clickRate = sentEvents.length > 0 
+    ? Math.round((clickedEvents.length / sentEvents.length) * 100) 
+    : 0;
+  
+  // Messages sent = events with sent status
+  const messagesSent = sentEvents.length;
+  
+  // Calculate sequence outcomes
   const completedSequences = sequences.filter(s => s.status === 'completed');
   const convertedSequences = sequences.filter(s => 
-    s.status === 'completed' && (s as any).outcome === 'converted'
+    s.status === 'completed' && s.outcome === 'converted'
   );
   const lostSequences = sequences.filter(s => 
-    s.status === 'completed' && (s as any).outcome === 'lost'
+    s.status === 'completed' && s.outcome === 'lost'
   );
-  
-  // Estimate messages (steps completed)
-  const totalStepsCompleted = sequences.reduce((acc, seq) => {
-    if (seq.status === 'completed') return acc + seq.totalSteps;
-    return acc + (seq.currentStep - 1);
-  }, 0);
-  
-  // Mock rates for demo (in real app, calculate from sequence_events)
-  const openRate = sequences.length > 0 ? 68 : 0;
-  const clickRate = sequences.length > 0 ? 24 : 0;
   
   const conversionRate = completedSequences.length > 0 
     ? Math.round((convertedSequences.length / completedSequences.length) * 100)
     : 0;
   
-  // Find top template
+  // Find top template (using normalized matching)
   const templateUsage = sequences.reduce((acc, seq) => {
-    acc[seq.sequenceType] = (acc[seq.sequenceType] || 0) + 1;
+    const normalized = normalizeSequenceType(seq.sequenceType);
+    acc[normalized] = (acc[normalized] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
   
   const topTemplateType = Object.entries(templateUsage)
     .sort(([, a], [, b]) => b - a)[0]?.[0];
   
-  const topTemplate = templates.find(t => 
-    t.triggerType === topTemplateType || 
-    t.name.toLowerCase().includes((topTemplateType || '').replace('_', ' '))
-  );
+  const topTemplate = templates.find(t => {
+    const normalizedTrigger = normalizeSequenceType(t.triggerType);
+    return normalizedTrigger === topTemplateType;
+  });
   
   return (
     <div className="space-y-6">
@@ -85,7 +101,7 @@ export function SequenceAnalytics({ sequences }: SequenceAnalyticsProps) {
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           label="Messages Sent"
-          value={totalStepsCompleted}
+          value={messagesSent}
           icon={Send}
           iconColor="text-violet-400"
         />
@@ -94,12 +110,14 @@ export function SequenceAnalytics({ sequences }: SequenceAnalyticsProps) {
           value={`${openRate}%`}
           icon={Eye}
           iconColor="text-sky-400"
+          subtext={sentEvents.length > 0 ? `${openedEvents.length} of ${sentEvents.length}` : undefined}
         />
         <StatCard
           label="Click Rate"
           value={`${clickRate}%`}
           icon={MousePointer}
           iconColor="text-amber-400"
+          subtext={sentEvents.length > 0 ? `${clickedEvents.length} of ${sentEvents.length}` : undefined}
         />
         <StatCard
           label="Sequences Started"

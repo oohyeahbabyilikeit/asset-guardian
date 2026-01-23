@@ -1,23 +1,23 @@
 import { useState, useMemo } from 'react';
 import { AlertTriangle, Calendar, CalendarClock, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { type NurturingSequence } from '@/hooks/useNurturingSequences';
+import { type EnrichedSequence } from '@/hooks/useNurturingSequences';
 import { SequenceRow } from './SequenceRow';
 import { SequenceControlDrawer } from './SequenceControlDrawer';
 
 interface ActiveSequencesListProps {
-  sequences: NurturingSequence[];
+  sequences: EnrichedSequence[];
 }
 
 interface SequenceGroup {
   title: string;
   icon: React.ElementType;
-  sequences: NurturingSequence[];
+  sequences: EnrichedSequence[];
   urgency: 'overdue' | 'today' | 'upcoming';
 }
 
 export function ActiveSequencesList({ sequences }: ActiveSequencesListProps) {
-  const [selectedSequence, setSelectedSequence] = useState<NurturingSequence | null>(null);
+  const [selectedSequence, setSelectedSequence] = useState<EnrichedSequence | null>(null);
   
   // Group sequences by urgency
   const groups = useMemo((): SequenceGroup[] => {
@@ -26,9 +26,9 @@ export function ActiveSequencesList({ sequences }: ActiveSequencesListProps) {
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
     
-    const overdue: NurturingSequence[] = [];
-    const today: NurturingSequence[] = [];
-    const upcoming: NurturingSequence[] = [];
+    const overdue: EnrichedSequence[] = [];
+    const today: EnrichedSequence[] = [];
+    const upcoming: EnrichedSequence[] = [];
     
     sequences.forEach(seq => {
       if (!seq.nextActionAt) {
@@ -48,7 +48,7 @@ export function ActiveSequencesList({ sequences }: ActiveSequencesListProps) {
     });
     
     // Sort each group by next action date
-    const sortByNextAction = (a: NurturingSequence, b: NurturingSequence) => {
+    const sortByNextAction = (a: EnrichedSequence, b: EnrichedSequence) => {
       const aTime = a.nextActionAt?.getTime() || 0;
       const bTime = b.nextActionAt?.getTime() || 0;
       return aTime - bTime;
@@ -109,6 +109,8 @@ export function ActiveSequencesList({ sequences }: ActiveSequencesListProps) {
                 <SequenceRow
                   key={sequence.id}
                   sequence={sequence}
+                  customerName={sequence.customerName}
+                  propertyAddress={sequence.propertyAddress}
                   urgency={group.urgency}
                   onClick={() => setSelectedSequence(sequence)}
                 />
@@ -124,8 +126,8 @@ export function ActiveSequencesList({ sequences }: ActiveSequencesListProps) {
           open={!!selectedSequence}
           onClose={() => setSelectedSequence(null)}
           sequence={selectedSequence}
-          customerName={`Lead ${selectedSequence.opportunityId.slice(0, 8)}`}
-          propertyAddress="Property Address"
+          customerName={selectedSequence.customerName}
+          propertyAddress={selectedSequence.propertyAddress}
         />
       )}
     </>

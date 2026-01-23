@@ -24,6 +24,7 @@ import {
   type NurturingSequence, 
   type SequenceTemplate,
   getSequenceTypeLabel,
+  normalizeSequenceType,
   useToggleSequenceStatus,
   useSequenceTemplates,
 } from '@/hooks/useNurturingSequences';
@@ -64,12 +65,13 @@ export function SequenceControlDrawer({
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [showOutcomeDialog, setShowOutcomeDialog] = useState<'converted' | 'lost' | null>(null);
   
-  // Fetch template to get step details
+  // Fetch template to get step details (using normalized matching)
   const { data: templates = [] } = useSequenceTemplates();
-  const template = templates.find(t => 
-    t.triggerType === sequence.sequenceType || 
-    t.name.toLowerCase().includes(sequence.sequenceType.replace('_', ' '))
-  );
+  const normalizedSeqType = normalizeSequenceType(sequence.sequenceType);
+  const template = templates.find(t => {
+    const normalizedTrigger = normalizeSequenceType(t.triggerType);
+    return normalizedTrigger === normalizedSeqType;
+  });
   const steps = template?.steps || [];
   
   // Fetch events for this sequence
