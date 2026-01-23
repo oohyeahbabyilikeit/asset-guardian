@@ -1,265 +1,156 @@
 
-# Outreach Sequences Page - Dedicated Automation Workspace
+# Sequences Page Database Integration Fix
 
-## Overview
+## Issues Found
 
-Create a new `/contractor/sequences` page that provides a centralized hub for managing all nurturing sequences and templates. This separates the "automation system" from the "lead prioritization" workflow.
+After reviewing the code and database, I identified several critical gaps preventing the Sequences page from being cohesive and fully database-connected:
 
----
+### 1. Missing Customer Information
+The `ActiveSequencesList` and `SequenceRow` components display placeholder text like "Lead a000000" instead of actual customer names and addresses. The data exists in `demo_opportunities` but the sequences only store `opportunity_id` - there's no join being performed.
 
-## Information Architecture
+### 2. No Sequence Events Being Created
+When `useStartSequence` creates a nurturing sequence, it only inserts into `nurturing_sequences` but **never creates the corresponding `sequence_events` rows**. This means:
+- "Send Now" and "Skip" buttons fail (no event IDs exist)
+- `StepTimeline` shows empty execution history
+- No data for analytics calculations
 
-```text
-/contractor (Lead Engine)
-├── CommandBar (hot lead, stats)
-├── Lead Lanes (categorized leads)
-└── [Lead Cards → PropertyReportDrawer → SequenceControlDrawer]
+### 3. Inconsistent Trigger Type Matching
+- Sequences use: `urgent_replace`, `maintenance_reminder`
+- Templates use: `replacement_urgent`, `maintenance`
+- This causes template lookups to fail in some cases
 
-/contractor/sequences (NEW)
-├── Active Sequences Dashboard
-│   ├── Overdue (needs attention NOW)
-│   ├── Due Today 
-│   └── Upcoming
-├── Sequence Templates
-│   ├── View all templates
-│   ├── Create new template
-│   └── Edit existing template
-└── Performance Analytics
-    ├── Open/Click rates
-    └── Conversion attribution
-```
+### 4. Missing TypeScript Fields
+The `NurturingSequence` interface is missing the `outcome`, `outcomeReason`, and `outcomeAt` fields that exist in the database, causing `(s as any).outcome` workarounds.
+
+### 5. Analytics Using Mock Values
+Open rate (68%) and click rate (24%) are hardcoded instead of calculated from actual `sequence_events` data.
 
 ---
 
-## Page Layout
+## Solution
 
-### Header Section
+### 1. Create a New Hook to Fetch Enriched Sequences
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ [☰]  Outreach Sequences                              [+ New]    │
-│       Automate follow-up with customers                         │
-└──────────────────────────────────────────────────────────────────┘
+Create `useEnrichedSequences` that joins `nurturing_sequences` with `demo_opportunities` to get customer names and addresses in a single query:
+
+```typescript
+// Returns sequences with customerName and propertyAddress attached
+useEnrichedSequences() -> EnrichedSequence[]
 ```
 
-### Tab Navigation
+### 2. Fix `useStartSequence` to Create Events
 
-```text
-[ Active (7) ]  [ Templates (3) ]  [ Analytics ]
+When starting a sequence, also create `sequence_events` rows for each step from the template:
+
+```typescript
+// For each template step:
+INSERT INTO sequence_events {
+  sequence_id,
+  step_number,
+  action_type,
+  scheduled_at: (start_date + step.day days),
+  status: 'pending',
+  message_content: step.message
+}
 ```
 
----
+### 3. Update TypeScript Types
 
-## Tab 1: Active Sequences
+Add missing fields to `NurturingSequence`:
+- `outcome: 'converted' | 'lost' | 'stopped' | null`
+- `outcomeReason: string | null`
+- `outcomeAt: Date | null`
 
-Shows all in-progress sequences grouped by urgency:
+### 4. Fix Template Matching
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ ⚠️ OVERDUE (2)                                                  │
-├─────────────────────────────────────────────────────────────────┤
-│ Williams Residence          Urgent Replace · Step 3/5          │
-│ Due: Yesterday              [Send Now] [Skip] [→]               │
-├─────────────────────────────────────────────────────────────────┤
-│ Johnson Family              Urgent Replace · Step 2/5          │
-│ Due: 2 days ago             [Send Now] [Skip] [→]               │
-└─────────────────────────────────────────────────────────────────┘
+Create a unified mapping function that handles both naming conventions:
+- `urgent_replace` ↔ `replacement_urgent`
+- `maintenance_reminder` ↔ `maintenance`
 
-┌─────────────────────────────────────────────────────────────────┐
-│ 📅 DUE TODAY (1)                                                │
-├─────────────────────────────────────────────────────────────────┤
-│ Thompson Home               Code Violation · Step 4/5          │
-│ Due: Today at 2:00 PM       [Send Now] [Skip] [→]               │
-└─────────────────────────────────────────────────────────────────┘
+### 5. Calculate Real Analytics
 
-┌─────────────────────────────────────────────────────────────────┐
-│ 📆 UPCOMING (4)                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│ Martinez Residence          Maintenance · Step 1/4    ⏸ Paused │
-│ Due: Tomorrow               [Resume] [→]                        │
-├─────────────────────────────────────────────────────────────────┤
-│ Patel Residence             Code Violation · Step 2/5          │
-│ Due: In 3 days              [Pause] [→]                         │
-├─────────────────────────────────────────────────────────────────┤
-│ ... more ...                                                    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Sequence Row Actions
-
-| Button | Action |
-|--------|--------|
-| Send Now | Execute current step immediately |
-| Skip | Skip current step, advance sequence |
-| Pause/Resume | Toggle sequence status |
-| → (Arrow) | Open SequenceControlDrawer for full details |
-
----
-
-## Tab 2: Templates
-
-A list of all sequence templates with ability to create/edit:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Urgent Replacement - 5 Day                           [Edit]    │
-│ 5 steps · SMS, Email, Call                                     │
-│ Best for: Critical/High priority leads                         │
-├─────────────────────────────────────────────────────────────────┤
-│ Code Violation - 7 Day                               [Edit]    │
-│ 4 steps · SMS, Email                                           │
-│ Best for: Safety compliance issues                             │
-├─────────────────────────────────────────────────────────────────┤
-│ Maintenance Reminder                                 [Edit]    │
-│ 3 steps · SMS, Email                                           │
-│ Best for: Routine maintenance                                  │
-└─────────────────────────────────────────────────────────────────┘
-
-                    [+ Create New Template]
-```
-
-### Template Editor (Drawer or Modal)
-
-When creating/editing a template:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Template Name: [Urgent Replacement - 5 Day______]               │
-│ Trigger Type:  [Replacement Urgent        ▼]                   │
-├─────────────────────────────────────────────────────────────────┤
-│ STEPS                                                           │
-├─────────────────────────────────────────────────────────────────┤
-│ Day 1 │ SMS │ "Hi {name}, this is {company}..."      [🗑]     │
-│ Day 2 │ Email │ "Following up on your water..."     [🗑]     │
-│ Day 3 │ Call │ "Reminder: Call customer"            [🗑]     │
-│ Day 5 │ SMS │ "Just checking in about..."           [🗑]     │
-│                                                                 │
-│       [+ Add Step]                                              │
-├─────────────────────────────────────────────────────────────────┤
-│                              [Cancel]  [Save Template]          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Tab 3: Analytics
-
-Performance metrics for outreach effectiveness:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ LAST 30 DAYS                                                    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Messages Sent        Open Rate         Click Rate             │
-│       47                68%               24%                  │
-│                                                                 │
-│  Sequences Started    Converted         Lost                   │
-│       12                 4                 2                   │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│ TOP PERFORMING TEMPLATE                                         │
-│ Urgent Replacement - 5 Day                                      │
-│ 75% conversion rate (3/4)                                       │
-└─────────────────────────────────────────────────────────────────┘
-```
+Replace hardcoded rates with actual calculations from `sequence_events`:
+- Open rate = events with `opened_at` / total sent events
+- Click rate = events with `clicked_at` / total sent events
 
 ---
 
 ## File Changes
 
-### New Files
-
-| File | Purpose |
-|------|---------|
-| `src/pages/Sequences.tsx` | Main sequences page with tabs |
-| `src/components/contractor/ActiveSequencesList.tsx` | Grouped list of active sequences |
-| `src/components/contractor/SequenceRow.tsx` | Compact row for sequence in list |
-| `src/components/contractor/TemplatesList.tsx` | List of templates with edit buttons |
-| `src/components/contractor/TemplateEditor.tsx` | Create/edit template drawer |
-| `src/components/contractor/SequenceAnalytics.tsx` | Performance metrics component |
-
 ### Modified Files
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add route `/contractor/sequences` |
-| `src/components/contractor/ContractorMenu.tsx` | Add "Sequences" nav link |
-| `src/hooks/useNurturingSequences.ts` | Add mutations for template CRUD |
-
-### Files to Keep (Reused)
-
-| File | Why Keep |
-|------|----------|
-| `SequenceControlDrawer.tsx` | Still used for detailed step timeline from list |
-| `StepTimeline.tsx` | Reused inside drawer |
-| `StepCard.tsx` | Reused inside drawer |
+| `src/hooks/useNurturingSequences.ts` | Add `outcome` fields to interface, create `useEnrichedSequences` hook, fix `useStartSequence` to create events |
+| `src/components/contractor/ActiveSequencesList.tsx` | Use enriched sequences with real customer data |
+| `src/components/contractor/SequenceRow.tsx` | Accept and display customerName, propertyAddress props |
+| `src/components/contractor/SequenceControlDrawer.tsx` | Use enriched data, fix template matching |
+| `src/components/contractor/SequenceAnalytics.tsx` | Calculate real open/click rates from events |
+| `src/pages/Sequences.tsx` | Use enriched sequences hook |
 
 ---
 
-## Navigation Integration
+## Technical Details
 
-Update `ContractorMenu.tsx` to add the Sequences link:
+### Enriched Sequence Type
 
-```text
-Current:                          Updated:
-🏠 Dashboard                      🏠 Dashboard
-🔥 Lead Engine    ← active       🔥 Lead Engine
-⚙️ Settings                       ⚡ Sequences     ← NEW
-📊 Reports                        ⚙️ Settings
-                                  📊 Reports
+```typescript
+interface EnrichedSequence extends NurturingSequence {
+  customerName: string;
+  propertyAddress: string;
+  opportunityType: string;
+}
 ```
 
-The Lead Engine will still show sequence badges on cards and allow quick start via modal, but the Sequences page becomes the power-user hub for managing automation.
+### Database Query for Enrichment
+
+Since we can't use JOINs directly in Supabase JS client between tables without foreign keys, we'll:
+1. Fetch all nurturing sequences
+2. Fetch all demo_opportunities
+3. Map them client-side (efficient for small datasets)
+
+### Event Creation on Sequence Start
+
+```typescript
+// In useStartSequence mutation:
+const templateSteps = template.steps;
+const startDate = new Date();
+
+const events = templateSteps.map(step => ({
+  sequence_id: newSequenceId,
+  step_number: step.step,
+  action_type: step.action,
+  scheduled_at: addDays(startDate, step.day).toISOString(),
+  status: 'pending',
+  message_content: step.message,
+}));
+
+await supabase.from('sequence_events').insert(events);
+```
+
+### Template Type Mapping
+
+```typescript
+function normalizeSequenceType(type: string): string {
+  const mappings: Record<string, string> = {
+    'urgent_replace': 'replacement_urgent',
+    'replacement_urgent': 'replacement_urgent',
+    'maintenance_reminder': 'maintenance',
+    'maintenance': 'maintenance',
+    'code_violation': 'code_violation',
+  };
+  return mappings[type] || type;
+}
+```
 
 ---
 
-## Technical Notes
+## Outcome
 
-### Data Fetching
-
-The new `ActiveSequencesList` will use an enhanced query that joins:
-- `nurturing_sequences` (status, current_step, next_action_at)
-- `demo_opportunities` (customer_name, property_address)
-- `sequence_templates` (template name, steps)
-
-This provides all data needed for the list view without N+1 queries.
-
-### Template CRUD
-
-Add new mutations to `useNurturingSequences.ts`:
-- `useCreateTemplate()` - Insert new template
-- `useUpdateTemplate()` - Update existing template
-- `useDeleteTemplate()` - Soft delete (set is_active = false)
-
-### State Management
-
-The page will use React Query for all data with optimistic updates for:
-- Pause/Resume toggling
-- Skip step
-- Send now
-
----
-
-## Benefits
-
-| Aspect | Before | After |
-|--------|--------|-------|
-| View all sequences | One-at-a-time via lead cards | Full dashboard view |
-| Overdue visibility | Hidden | Prominent top section |
-| Template management | DB-only | Full UI editor |
-| Quick actions | Open lead → find sequence | Direct from list |
-| Analytics | None | Open/click/conversion rates |
-
----
-
-## Summary
-
-This dedicated Sequences page transforms scattered automation controls into a unified workspace:
-
-1. **Active Sequences Dashboard** - See all sequences, prioritized by urgency
-2. **Template Builder** - Create and edit templates without touching the database
-3. **Analytics** - Track what's working and conversion attribution
-4. **Quick Actions** - Send, skip, pause directly from the list
-
-The Lead Engine stays focused on leads while Sequences becomes the automation command center.
+After these changes:
+- Sequence rows show real customer names and property addresses
+- "Send Now" and "Skip" buttons work with actual event records
+- Template matching is consistent across the app
+- Analytics show calculated metrics based on real data
+- TypeScript types are complete without `any` casts
+- The entire Sequences page is fully database-connected
