@@ -20,9 +20,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { StepTimeline } from './StepTimeline';
+import { ConversionCelebrationModal } from './ConversionCelebrationModal';
 import { 
   type NurturingSequence, 
-  type SequenceTemplate,
   getSequenceTypeLabel,
   normalizeSequenceType,
   useToggleSequenceStatus,
@@ -63,7 +63,8 @@ export function SequenceControlDrawer({
   propertyAddress,
 }: SequenceControlDrawerProps) {
   const [showStopConfirm, setShowStopConfirm] = useState(false);
-  const [showOutcomeDialog, setShowOutcomeDialog] = useState<'converted' | 'lost' | null>(null);
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [showLostDialog, setShowLostDialog] = useState(false);
   
   // Fetch template to get step details (using normalized matching)
   const { data: templates = [] } = useSequenceTemplates();
@@ -141,15 +142,38 @@ export function SequenceControlDrawer({
     }
   };
   
-  const handleMarkOutcome = async (outcome: 'converted' | 'lost') => {
+  const handleMarkConverted = async (revenueUsd: number | null) => {
     try {
       await markOutcome.mutateAsync({
         sequenceId: sequence.id,
-        outcome,
+        outcome: 'converted',
+        currentStep: sequence.currentStep,
+        revenueUsd,
+      });
+      const formattedRevenue = revenueUsd 
+        ? `$${revenueUsd.toLocaleString()}` 
+        : '';
+      toast.success(
+        revenueUsd 
+          ? `🎉 ${formattedRevenue} logged! Great work!` 
+          : 'Marked as converted!'
+      );
+      setShowCelebrationModal(false);
+      onClose();
+    } catch {
+      toast.error('Failed to update outcome');
+    }
+  };
+  
+  const handleMarkLost = async () => {
+    try {
+      await markOutcome.mutateAsync({
+        sequenceId: sequence.id,
+        outcome: 'lost',
         currentStep: sequence.currentStep,
       });
-      toast.success(outcome === 'converted' ? 'Marked as converted!' : 'Marked as lost');
-      setShowOutcomeDialog(null);
+      toast.success('Marked as lost');
+      setShowLostDialog(false);
       onClose();
     } catch {
       toast.error('Failed to update outcome');
@@ -272,7 +296,7 @@ export function SequenceControlDrawer({
                 <Button
                   variant="default"
                   className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => setShowOutcomeDialog('converted')}
+                  onClick={() => setShowCelebrationModal(true)}
                 >
                   <CheckCircle className="w-4 h-4" />
                   Mark Converted
@@ -281,7 +305,7 @@ export function SequenceControlDrawer({
                 <Button
                   variant="outline"
                   className="flex-1 gap-2 text-muted-foreground"
-                  onClick={() => setShowOutcomeDialog('lost')}
+                  onClick={() => setShowLostDialog(true)}
                 >
                   <XCircle className="w-4 h-4" />
                   Mark Lost
@@ -329,32 +353,28 @@ export function SequenceControlDrawer({
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Outcome Dialog */}
-      <AlertDialog 
-        open={!!showOutcomeDialog} 
-        onOpenChange={() => setShowOutcomeDialog(null)}
-      >
+      {/* Celebration Modal for Conversions */}
+      <ConversionCelebrationModal
+        open={showCelebrationModal}
+        onClose={() => setShowCelebrationModal(false)}
+        customerName={customerName}
+        propertyAddress={propertyAddress}
+        onConfirm={handleMarkConverted}
+        isSubmitting={markOutcome.isPending}
+      />
+      
+      {/* Lost Dialog */}
+      <AlertDialog open={showLostDialog} onOpenChange={setShowLostDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {showOutcomeDialog === 'converted' 
-                ? 'Mark as Converted?' 
-                : 'Mark as Lost?'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Mark as Lost?</AlertDialogTitle>
             <AlertDialogDescription>
-              {showOutcomeDialog === 'converted' 
-                ? `This will mark ${customerName} as a successful conversion and complete the sequence.`
-                : `This will mark ${customerName} as lost and stop the sequence.`}
+              This will mark {customerName} as lost and stop the sequence.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => showOutcomeDialog && handleMarkOutcome(showOutcomeDialog)}
-              className={showOutcomeDialog === 'converted' 
-                ? 'bg-emerald-600 hover:bg-emerald-700' 
-                : ''}
-            >
+            <AlertDialogAction onClick={handleMarkLost}>
               Confirm
             </AlertDialogAction>
           </AlertDialogFooter>

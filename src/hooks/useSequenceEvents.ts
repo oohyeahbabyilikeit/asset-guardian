@@ -260,23 +260,32 @@ export function useMarkOutcome() {
       sequenceId, 
       outcome,
       reason,
-      currentStep 
+      currentStep,
+      revenueUsd,
     }: { 
       sequenceId: string;
       outcome: 'converted' | 'lost';
       reason?: string;
       currentStep: number;
+      revenueUsd?: number | null;
     }) => {
+      const updateData: Record<string, unknown> = {
+        status: 'completed',
+        outcome,
+        outcome_reason: reason,
+        outcome_step: currentStep,
+        outcome_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+      };
+      
+      // Add revenue if provided (only for conversions)
+      if (outcome === 'converted' && revenueUsd !== undefined) {
+        updateData.revenue_usd = revenueUsd;
+      }
+      
       const { error } = await supabase
         .from('nurturing_sequences' as any)
-        .update({
-          status: 'completed',
-          outcome,
-          outcome_reason: reason,
-          outcome_step: currentStep,
-          outcome_at: new Date().toISOString(),
-          completed_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', sequenceId);
       
       if (error) throw error;
@@ -284,6 +293,7 @@ export function useMarkOutcome() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nurturing-sequences'] });
       queryClient.invalidateQueries({ queryKey: ['nurturing-sequence'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-stats'] });
     },
   });
 }

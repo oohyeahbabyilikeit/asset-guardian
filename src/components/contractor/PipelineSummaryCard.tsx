@@ -1,7 +1,13 @@
-import { BarChart3, AlertTriangle, Wrench, Settings } from 'lucide-react';
+import { BarChart3, AlertTriangle, Wrench, Settings, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useContractorOpportunities, getClosesMetrics } from '@/hooks/useContractorOpportunities';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PipelineRowProps {
   icon: React.ElementType;
@@ -87,11 +93,23 @@ export function PipelineSummaryCard() {
           )}
         </div>
         <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-muted-foreground">Est. Value</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">Est. Value</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground/50" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs text-xs">Potential revenue based on opportunities in pipeline</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           {isLoading ? (
             <Skeleton className="h-5 w-16" />
           ) : (
-            <span className="text-sm font-bold text-emerald-400">
+            <span className="text-sm font-bold text-muted-foreground">
               ~${estimatedValue.toLocaleString()}
             </span>
           )}

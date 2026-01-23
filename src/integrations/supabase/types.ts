@@ -519,6 +519,7 @@ export type Database = {
           outcome_at: string | null
           outcome_reason: string | null
           outcome_step: number | null
+          revenue_usd: number | null
           sequence_type: string
           started_at: string
           status: string
@@ -536,6 +537,7 @@ export type Database = {
           outcome_at?: string | null
           outcome_reason?: string | null
           outcome_step?: number | null
+          revenue_usd?: number | null
           sequence_type: string
           started_at?: string
           status?: string
@@ -553,6 +555,7 @@ export type Database = {
           outcome_at?: string | null
           outcome_reason?: string | null
           outcome_step?: number | null
+          revenue_usd?: number | null
           sequence_type?: string
           started_at?: string
           status?: string
