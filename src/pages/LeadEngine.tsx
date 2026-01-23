@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Loader2 } from 'lucide-react';
+import { Menu, Bell, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryTabs } from '@/components/contractor/CategoryTabs';
 import { LeadLane } from '@/components/contractor/LeadLane';
 import { CommandBar } from '@/components/contractor/CommandBar';
+import { ContractorMenu } from '@/components/contractor/ContractorMenu';
 import { PropertyReportDrawer } from '@/components/contractor/PropertyReportDrawer';
 import { SalesCoachDrawer } from '@/components/contractor/SalesCoachDrawer';
 import { StartSequenceModal } from '@/components/contractor/StartSequenceModal';
@@ -25,7 +25,7 @@ import {
 import { toast } from 'sonner';
 
 export default function LeadEngine() {
-  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   
   // Data fetching
   const { data: opportunities = [], isLoading: oppsLoading } = useContractorOpportunities();
@@ -180,30 +180,37 @@ export default function LeadEngine() {
   
   return (
     <div className="min-h-screen bg-background">
+      {/* Contractor Menu */}
+      <ContractorMenu open={menuOpen} onOpenChange={setMenuOpen} />
+      
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
-        <div className="flex items-center justify-between px-4 py-3">
+      <header className="sticky top-0 z-40 bg-gradient-to-b from-background via-background to-background/95 backdrop-blur-sm border-b border-white/5">
+        <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
-              onClick={() => navigate('/')}
+              className="h-9 w-9 bg-muted/50 hover:bg-muted border border-white/5"
+              onClick={() => setMenuOpen(true)}
             >
-              <ArrowLeft className="h-4 w-4" />
+              <Menu className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">Lead Engine</h1>
+              <h1 className="text-lg font-semibold tracking-tight text-foreground">Lead Engine</h1>
               <p className="text-xs text-muted-foreground">
                 {counts.replacements + counts.codeFixes + counts.maintenance} active opportunities
               </p>
             </div>
           </div>
           
-          <Button variant="ghost" size="icon" className="relative h-9 w-9">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="relative h-9 w-9 bg-muted/50 hover:bg-muted border border-white/5"
+          >
             <Bell className="h-4 w-4" />
             {criticalCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center shadow-lg shadow-destructive/30">
                 {criticalCount}
               </span>
             )}
