@@ -128,6 +128,11 @@ erDiagram
     contractor_install_presets }o--|| profiles : "belongs_to"
     contractor_service_prices }o--|| profiles : "belongs_to"
     
+    %% Nurturing/Automation Layer
+    demo_opportunities ||--o{ nurturing_sequences : "has"
+    nurturing_sequences ||--o{ sequence_events : "contains"
+    sequence_templates ||--o{ nurturing_sequences : "uses"
+    
     %% Lookup Tables (no relationships)
     unit_prices
     price_lookup_cache
@@ -314,6 +319,52 @@ erDiagram
         number hardness_gpg
         string sanitizer_type
         number confidence
+    }
+    
+    demo_opportunities {
+        uuid id PK
+        string customer_name
+        string property_address
+        string opportunity_type
+        string priority
+        string status
+        jsonb forensic_inputs
+        integer health_score
+        numeric bio_age
+        numeric fail_probability
+        string verdict_action
+    }
+    
+    nurturing_sequences {
+        uuid id PK
+        uuid opportunity_id FK
+        string sequence_type
+        string status
+        integer current_step
+        integer total_steps
+        timestamptz next_action_at
+        string outcome
+        numeric revenue_usd
+    }
+    
+    sequence_events {
+        uuid id PK
+        uuid sequence_id FK
+        integer step_number
+        string action_type
+        string status
+        timestamptz scheduled_at
+        timestamptz executed_at
+        timestamptz opened_at
+        timestamptz clicked_at
+    }
+    
+    sequence_templates {
+        uuid id PK
+        string name
+        string trigger_type
+        jsonb steps
+        boolean is_active
     }
 ```
 
@@ -673,6 +724,95 @@ Complete column-level schema for all database tables.
 | `last_verified` | `timestamptz` | Yes | `now()` | Last verification |
 | `created_at` | `timestamptz` | Yes | `now()` | Record creation time |
 
+#### `demo_opportunities`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `customer_name` | `text` | No | - | Contact name |
+| `customer_phone` | `text` | Yes | - | Contact phone |
+| `customer_email` | `text` | Yes | - | Contact email |
+| `property_address` | `text` | No | - | Street address |
+| `property_city` | `text` | No | - | City |
+| `property_state` | `text` | No | `'AZ'` | State code |
+| `property_zip` | `text` | No | - | ZIP code |
+| `opportunity_type` | `text` | No | - | `replacement`, `code_violation`, `maintenance` |
+| `priority` | `text` | No | - | `critical`, `high`, `medium`, `low` |
+| `status` | `text` | No | `'pending'` | Pipeline status |
+| `job_complexity` | `text` | No | `'STANDARD'` | `STANDARD`, `COMPLEX`, `PREMIUM` |
+| `asset_brand` | `text` | No | - | Equipment brand |
+| `asset_age_years` | `numeric` | No | - | Equipment age |
+| `asset_capacity` | `integer` | No | `50` | Tank size (gallons) |
+| `asset_fuel_type` | `text` | No | `'GAS'` | Fuel type |
+| `asset_vent_type` | `text` | Yes | - | Vent configuration |
+| `asset_location` | `text` | Yes | - | Installation location |
+| `asset_warranty_years` | `integer` | No | `6` | Warranty duration |
+| `forensic_inputs` | `jsonb` | No | `'{}'` | Algorithm input data |
+| `health_score` | `integer` | Yes | - | 0-100 health score |
+| `bio_age` | `numeric` | Yes | - | Biological age |
+| `fail_probability` | `numeric` | Yes | - | 12-month failure probability |
+| `shield_life` | `numeric` | Yes | - | Anode shield remaining |
+| `risk_level` | `integer` | Yes | - | Risk tier (1-5) |
+| `anode_remaining` | `numeric` | Yes | - | Anode percentage remaining |
+| `verdict_title` | `text` | Yes | - | Recommendation headline |
+| `verdict_action` | `text` | Yes | - | `replace`, `maintain`, `monitor` |
+| `inspection_notes` | `text` | Yes | - | Technician notes |
+| `context_description` | `text` | Yes | - | Additional context |
+| `photo_urls` | `jsonb` | Yes | `'[]'` | Photo URLs |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `nurturing_sequences`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `opportunity_id` | `uuid` | No | - | FK to demo_opportunities |
+| `sequence_type` | `text` | No | - | `replacement_urgent`, `code_violation`, `maintenance` |
+| `status` | `text` | No | `'active'` | `active`, `paused`, `completed`, `cancelled` |
+| `current_step` | `integer` | No | `1` | Current step number |
+| `total_steps` | `integer` | No | - | Total steps in sequence |
+| `next_action_at` | `timestamptz` | Yes | - | When next action due |
+| `started_at` | `timestamptz` | No | `now()` | When sequence started |
+| `completed_at` | `timestamptz` | Yes | - | When sequence ended |
+| `outcome` | `text` | Yes | - | `converted`, `lost`, `stopped` |
+| `outcome_reason` | `text` | Yes | - | Reason for outcome |
+| `outcome_step` | `integer` | Yes | - | Step when outcome occurred |
+| `outcome_at` | `timestamptz` | Yes | - | When outcome recorded |
+| `revenue_usd` | `numeric` | Yes | - | **Manually-entered sale amount** |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
+#### `sequence_events`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `sequence_id` | `uuid` | No | - | FK to nurturing_sequences |
+| `step_number` | `integer` | No | - | Step position in sequence |
+| `action_type` | `text` | No | - | `sms`, `email`, `call_reminder` |
+| `status` | `text` | No | `'pending'` | `pending`, `sent`, `failed`, `skipped` |
+| `scheduled_at` | `timestamptz` | No | - | When action scheduled |
+| `executed_at` | `timestamptz` | Yes | - | When action executed |
+| `delivery_status` | `text` | Yes | `'pending'` | `pending`, `sent`, `delivered`, `failed` |
+| `message_content` | `text` | Yes | - | Message text |
+| `opened_at` | `timestamptz` | Yes | - | When recipient opened |
+| `clicked_at` | `timestamptz` | Yes | - | When recipient clicked |
+| `error_message` | `text` | Yes | - | Error if failed |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+
+#### `sequence_templates`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
+| `name` | `text` | No | - | Template name |
+| `trigger_type` | `text` | No | - | What triggers this sequence |
+| `steps` | `jsonb` | No | `'[]'` | Array of step definitions |
+| `is_active` | `boolean` | No | `true` | Template enabled |
+| `created_at` | `timestamptz` | No | `now()` | Record creation time |
+| `updated_at` | `timestamptz` | No | `now()` | Last update time |
+
 ---
 
 ### Enum Types
@@ -788,6 +928,31 @@ contractor (via contractor_id)
 - Status workflow: pending → sent → viewed → converted/dismissed
 - Auto-expire after 30 days
 
+#### 7. Nurturing Sequence Chain
+```
+demo_opportunities
+    ↓ opportunity_id
+nurturing_sequences
+    ↓ sequence_id
+sequence_events
+```
+
+**Key Points:**
+- Sequences are linked to demo opportunities (not core water_heaters)
+- Each sequence has multiple events (one per step)
+- Templates define reusable sequence blueprints
+- `revenue_usd` captures actual closed sale amounts (manual entry)
+- Status workflow: active → paused/completed/cancelled
+- Outcome: converted/lost/stopped
+
+**Revenue Tracking (Sidecar Model):**
+```
+1. Contractor clicks "Mark Converted" → ConversionCelebrationModal
+2. Contractor enters Final Sale Amount: $[    ]
+3. useMarkOutcome() saves to nurturing_sequences.revenue_usd
+4. useWeeklyStats() sums revenue_usd for dashboard display
+```
+
 ### Foreign Key Reference Table
 
 | Child Table | FK Column | Parent Table | Cascade? |
@@ -812,6 +977,8 @@ contractor (via contractor_id)
 | `contractor_property_relationships` | `property_id` | `properties` | No |
 | `opportunity_notifications` | `water_heater_id` | `water_heaters` | CASCADE |
 | `opportunity_notifications` | `contractor_id` | `profiles` | CASCADE |
+| `nurturing_sequences` | `opportunity_id` | `demo_opportunities` | CASCADE |
+| `sequence_events` | `sequence_id` | `nurturing_sequences` | CASCADE |
 
 ### Table Categories
 
@@ -826,6 +993,7 @@ contractor (via contractor_id)
 | **Contractor Config** | `contractor_install_presets`, `contractor_service_prices` | Pricing/labor config |
 | **Lookup/Cache** | `unit_prices`, `price_lookup_cache`, `water_districts` | Reference data |
 | **Access Control** | `contractor_property_relationships` | Permission grants |
+| **Nurturing/Automation** | `demo_opportunities`, `nurturing_sequences`, `sequence_events`, `sequence_templates` | Lead nurturing automation |
 
 ---
 
@@ -833,24 +1001,25 @@ contractor (via contractor_id)
 
 ### Overview Table
 
-| Function | Category | AI Model | Caching | Auth Required |
-|----------|----------|----------|---------|---------------|
-| `scan-data-plate` | Vision | gemini-2.5-flash | No | No |
-| `analyze-unit-condition` | Vision | gemini-2.5-flash | No | No |
-| `analyze-filter-condition` | Vision | gemini-2.5-flash | No | No |
-| `analyze-installation-context` | Vision | gemini-2.5-flash | No | No |
-| `read-error-codes` | Vision | gemini-2.5-flash | No | No |
-| `analyze-water-quality` | Content | gemini-2.5-flash | 365 days | No |
-| `generate-findings` | Content | gemini-2.5-flash | No | No |
-| `generate-replacement-rationale` | Content | gemini-2.5-flash | No | No |
-| `generate-maintain-rationale` | Content | gemini-2.5-flash | No | No |
-| `generate-educational-content` | Content | gemini-2.5-flash | No | No |
-| `chat-water-heater` | Content | gemini-2.5-flash | No | No |
-| `generate-issue-guidance` | Content | gemini-3-flash-preview | No | No |
-| `sync-inspection` | Data Ops | None | No | Yes |
-| `install-presets` | Data Ops | None | No | Yes |
-| `lookup-price` | Data Ops | gemini-2.5-flash | 30 days | No |
-| `seed-prices` | Data Ops | None | No | Admin |
+| Function | Category | AI Model | Caching | Auth Required | Streaming |
+|----------|----------|----------|---------|---------------|-----------|
+| `scan-data-plate` | Vision | gemini-2.5-flash | No | No | No |
+| `analyze-unit-condition` | Vision | gemini-3-flash-preview | No | No | No |
+| `analyze-filter-condition` | Vision | gemini-3-flash-preview | No | No | No |
+| `analyze-installation-context` | Vision | gemini-3-flash-preview | No | No | No |
+| `read-error-codes` | Vision | gemini-3-flash-preview | No | No | No |
+| `analyze-water-quality` | Content | gemini-2.5-flash | 365 days | No | No |
+| `generate-findings` | Content | gemini-3-flash-preview | No | No | No |
+| `generate-replacement-rationale` | Content | gemini-3-flash-preview | No | No | No |
+| `generate-maintain-rationale` | Content | gemini-3-flash-preview | No | No | No |
+| `generate-educational-content` | Content | gemini-3-flash-preview | No | No | No |
+| `chat-water-heater` | Content | gemini-3-flash-preview | No | No | **Yes** |
+| `generate-issue-guidance` | Content | gemini-3-flash-preview | No | No | No |
+| `sales-coach` | Content | gemini-3-flash-preview | No | No | **Yes** |
+| `sync-inspection` | Data Ops | None | No | Yes | No |
+| `install-presets` | Data Ops | None | No | No | No |
+| `lookup-price` | Data Ops | gemini-3-flash-preview | 30 days | No | No |
+| `seed-prices` | Data Ops | gemini-2.5-flash | No | No | No |
 
 ### AI Vision Functions
 
@@ -898,22 +1067,32 @@ interface ScanDataPlateResponse {
 
 #### `analyze-unit-condition`
 
-**Purpose:** Visual assessment of water heater physical condition.
+**Purpose:** Visual assessment of water heater physical condition, temperature dial, and plumbing equipment.
 
 **Request:**
 ```typescript
 interface AnalyzeConditionRequest {
-  imageBase64: string;
-  unitType?: 'tank' | 'tankless';
+  imageBase64: string;  // Base64 encoded image (JPEG/PNG)
 }
 ```
 
 **Response:**
 ```typescript
 interface AnalyzeConditionResponse {
-  success: boolean;
-  condition?: {
-    overallScore: number;  // 1-10
+  visualRust: boolean;
+  isLeaking: boolean;
+  rustSeverity: 'none' | 'minor' | 'moderate' | 'severe';
+  leakSeverity: 'none' | 'minor' | 'moderate' | 'severe';
+  rustDetails: string;
+  leakDetails: string;
+  overallCondition: 'good' | 'fair' | 'poor' | 'critical';
+  tempDialSetting: 'LOW' | 'NORMAL' | 'HOT' | null;
+  hasExpTankVisible: boolean | null;
+  expTankCondition: 'good' | 'aged' | null;
+  hasPrvVisible: boolean | null;
+  anodePortCondition: 'serviced' | 'corroded' | 'not_visible';
+  drainValveCondition: 'clean' | 'mineral_buildup' | 'leaking' | 'not_visible';
+  confidence: number;  // 0-100
     rustLevel: 'none' | 'surface' | 'moderate' | 'severe';
     leakIndicators: string[];
     sedimentSigns: boolean;
@@ -1216,31 +1395,145 @@ interface IssueGuidanceResponse {
 
 #### `chat-water-heater`
 
-**Purpose:** Conversational AI assistant for water heater questions.
+**Purpose:** Conversational AI assistant (Corrtex AI) for homeowner questions about their water heater assessment.
+
+**Streaming:** Yes - returns `text/event-stream`
 
 **Request:**
 ```typescript
 interface ChatRequest {
-  message: string;
-  conversationHistory?: Array<{
-    role: 'user' | 'assistant';
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system';
     content: string;
   }>;
-  context?: {
-    inputs?: Partial<ForensicInputs>;
-    opterraResult?: Partial<OpterraResult>;
+  context: {
+    inputs: {
+      manufacturer?: string;
+      modelNumber?: string;
+      calendarAgeYears?: number;
+      fuelType?: string;
+      tankCapacityGallons?: number;
+      hasPrv?: boolean;
+      hasExpTank?: boolean;
+      expTankStatus?: string;
+      isClosedLoop?: boolean;
+      streetHardnessGpg?: number;
+      hasSoftener?: boolean;
+      housePsi?: number;
+      visualRust?: boolean;
+      isLeaking?: boolean;
+      leakSource?: string;
+    };
+    metrics: {
+      healthScore?: number;
+      bioAge?: number;
+      failProbability?: number;
+      stressFactors?: Record<string, number>;
+    };
+    recommendation?: {
+      action?: string;
+      badge?: string;
+      title?: string;
+      description?: string;
+    };
+    findings: Array<{
+      title: string;
+      measurement?: string;
+      explanation: string;
+      severity: string;
+    }>;
+    serviceContext?: {
+      selectedServices: string[];
+      violationCount: number;
+      recommendationCount: number;
+      maintenanceCount: number;
+      addOnCount: number;
+    };
   };
 }
 ```
 
-**Response:**
+**AI Behavior:**
+- Uses qualitative labels (Good/Fair/Poor, High/Elevated/Normal) instead of raw numbers
+- Never mentions "biological age", percentages, or dollar amounts
+- References specific customer data when explaining concepts
+- Supports service selection context for explaining service options
+
+---
+
+#### `sales-coach`
+
+**Purpose:** AI-powered sales briefing generator for contractors preparing customer calls.
+
+**Streaming:** Yes - returns `text/event-stream`
+
+**Request:**
 ```typescript
-interface ChatResponse {
-  success: boolean;
-  reply: string;
-  suggestedActions?: string[];
-  error?: string;
+interface SalesCoachRequest {
+  opportunity: {
+    id: string;
+    customerName?: string;
+    propertyAddress: string;
+    priority: string;
+    opportunityType: string;
+    asset: {
+      brand: string;
+      model?: string;
+      age: number;
+      warrantyYears: number;
+      location: string;
+      capacity?: number;
+      fuelType?: string;
+    };
+    forensicInputs?: {
+      psiReading?: number;
+      hardness?: number;
+      hasExpansionTank?: boolean;
+      hasSoftener?: boolean;
+      anodeStatus?: string;
+      sedimentLevel?: string;
+      leakStatus?: string;
+      ventType?: string;
+      peopleCount?: number;
+      usageType?: 'low' | 'normal' | 'heavy';
+      runsOutOfHotWater?: boolean;
+      lukewarmWater?: boolean;
+    };
+    opterraResult?: {
+      healthScore: number;
+      bioAge: number;
+      failProb: number;
+      shieldLife: number;
+      verdictAction: string;
+      anodeRemaining?: number;
+    };
+    inspectionNotes?: string;
+  };
+  mode: 'briefing' | 'chat';
+  messages?: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+  }>;
 }
+```
+
+**Generated Sections (Briefing Mode):**
+- 🎯 **Call Opening** - Conversational intro referencing recent inspection
+- 💬 **Key Talking Points** - 3-5 compelling findings with customer benefits
+- 📦 **Upsell Opportunities** - 2-3 additional services with justification
+- 📏 **Sizing Opportunity** - Automatic tank sizing analysis (if undersized)
+- 🛡️ **Objection Handlers** - Responses to common objections
+- 🎬 **Closing Strategy** - Natural appointment request
+
+**Sizing Analysis Logic:**
+```typescript
+// Industry sizing: 10-12 gallons/person for normal usage
+const usageMultiplier = usageType === 'heavy' ? 15 : usageType === 'low' ? 8 : 12;
+const recommendedCapacity = peopleCount * usageMultiplier;
+
+// Undersized if shortfall > 10 gallons OR has symptoms
+const isUndersized = capacityShortfall > 10 || 
+  (capacityShortfall > 0 && (runsOutOfHotWater || lukewarmWater));
 ```
 
 ---
@@ -1989,6 +2282,87 @@ CREATE TYPE service_event_type AS ENUM (
   'exp_tank_install',
   'replacement'
 );
+```
+
+---
+
+## Appendix: Contractor Dashboard Hooks
+
+### Location: `src/hooks/useNurturingSequences.ts`
+
+#### `useNurturingSequences(opportunityId?: string)`
+
+Fetches all nurturing sequences, optionally filtered by opportunity.
+
+#### `useEnrichedSequences()`
+
+Fetches sequences with customer data from demo_opportunities (client-side join).
+
+```typescript
+interface EnrichedSequence extends NurturingSequence {
+  customerName: string;
+  propertyAddress: string;
+  opportunityType: string;
+}
+```
+
+### Location: `src/hooks/useSequenceEvents.ts`
+
+#### `useSequenceEvents(sequenceId: string)`
+
+Fetches all events for a specific sequence.
+
+#### `useMarkOutcome()`
+
+Marks a sequence as converted/lost with optional revenue capture.
+
+```typescript
+interface MarkOutcomeParams {
+  sequenceId: string;
+  outcome: 'converted' | 'lost';
+  reason?: string;
+  currentStep: number;
+  revenueUsd?: number | null;  // Manual sale amount entry
+}
+```
+
+### Location: `src/hooks/useWeeklyStats.ts`
+
+#### `useWeeklyStats()`
+
+Calculates weekly performance metrics from database.
+
+```typescript
+interface WeeklyStats {
+  jobsBooked: number;     // Converted sequences this week
+  revenue: number;        // Sum of revenue_usd from conversions
+  fromAutomation: number; // Bookings from automated sequences
+  trend: number;          // % change vs previous week
+}
+```
+
+**Key Distinction:**
+- `revenue` is derived from **manually-entered** `revenue_usd` values
+- This is NOT estimated - it's what the contractor actually logged
+
+### Location: `src/hooks/useRecentActivity.ts`
+
+#### `useRecentActivity(limit?: number)`
+
+Fetches recent engagement activity for the dashboard feed.
+
+```typescript
+type ActivityType = 'opened' | 'clicked' | 'booked' | 'started' | 'stopped';
+
+interface ActivityItem {
+  id: string;
+  type: ActivityType;
+  customerName: string;
+  propertyAddress: string;
+  sequenceType: string;
+  messageContent?: string;
+  timestamp: Date;
+}
 ```
 
 ---
