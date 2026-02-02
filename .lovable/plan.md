@@ -1,343 +1,220 @@
 
 
-# Update Backend Documentation with New Features
+# Opterra v9.1 Algorithm Patch - Gemini-Validated Physics Corrections
 
 ## Overview
 
-The `docs/backend.md` file needs to be updated to document the new Contractor Dashboard redesign and sidecar revenue tracking features that have been implemented. This includes:
-
-1. **New Database Tables**: `nurturing_sequences`, `sequence_events`, `sequence_templates`, `demo_opportunities`
-2. **New Revenue Column**: `revenue_usd` on `nurturing_sequences` for tracking actual closed sales
-3. **New Hooks**: `useWeeklyStats`, `useRecentActivity`, `useNurturingSequences`, `useSequenceEvents`
-4. **New Components**: Dashboard widgets for the contractor automation view
+This plan implements the three required code patches identified by Gemini's physics review of the Opterra tank water heater algorithm. All three fixes address mathematically or physically incorrect behavior that could lead to inaccurate health assessments.
 
 ---
 
-## Additions to Backend Documentation
+## Patch Summary
 
-### Section 1: Update ERDiagram (lines ~93-318)
+| Fix | Issue | Current Value | New Value | Impact |
+|-----|-------|---------------|-----------|--------|
+| 1 | Unreachable Verdict | `failProb > 60` | `failProb > 45` | Makes "End of Service Life" reachable before age-out |
+| 2 | Static ETA | `ETA = 13.0` (all tiers) | Dynamic ETA based on warranty | 6yr=13.0, 9yr=14.5, 12yr=16.0 |
+| 3 | Soft Water Naked Penalty | `2.5x` | `4.0x` | Reflects true corrosion rate of bare steel in soft water |
 
-Add the new nurturing/sequence tables to the entity relationship diagram:
+**Bonus Fix (Gemini Recommendation #8):**
+| 4 | Pressure Duty Cycle | `0.25` dampener | `0.50` for closed-loop | Better models fatigue from daily 60-120 PSI cycles |
 
-```text
-%% Nurturing Sequences Layer
-demo_opportunities ||--o{ nurturing_sequences : "has"
-nurturing_sequences ||--o{ sequence_events : "contains"
-sequence_templates ||--o{ nurturing_sequences : "uses"
-```
+---
 
-And table definitions:
-```text
-demo_opportunities {
-    uuid id PK
-    string customer_name
-    string property_address
-    string opportunity_type
-    string priority
-    string status
-    jsonb forensic_inputs
-    integer health_score
-}
+## Technical Implementation Details
 
-nurturing_sequences {
-    uuid id PK
-    uuid opportunity_id FK
-    string sequence_type
-    string status
-    integer current_step
-    integer total_steps
-    timestamptz next_action_at
-    string outcome
-    numeric revenue_usd
-}
+### Patch 1: Fix "Unreachable Verdict" Bug
 
-sequence_events {
-    uuid id PK
-    uuid sequence_id FK
-    integer step_number
-    string action_type
-    string status
-    timestamptz scheduled_at
-    timestamptz executed_at
-    timestamptz opened_at
-    timestamptz clicked_at
-}
+**Problem:**
+The current `failProb > 60` threshold is mathematically impossible to hit before the `LIMIT_AGE_MAX = 20` age-out. With Weibull parameters `ETA=13.0` and `BETA=3.2`, the hazard rate at Age 15 is only ~30% and doesn't cross 60% until Age 21.
 
-sequence_templates {
-    uuid id PK
-    string name
-    string trigger_type
-    jsonb steps
-    boolean is_active
-}
-```
+**Files:**
+- `src/lib/opterraAlgorithm.ts` (line ~1714)
+- `src/lib/opterraTypes.ts` (line ~505)
 
-### Section 2: New Table Schema Details (after line ~675)
+**Code Changes:**
 
-Add complete column-level schema documentation for the four new tables:
-
-#### `demo_opportunities`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `customer_name` | `text` | No | - | Contact name |
-| `customer_phone` | `text` | Yes | - | Contact phone |
-| `customer_email` | `text` | Yes | - | Contact email |
-| `property_address` | `text` | No | - | Street address |
-| `property_city` | `text` | No | - | City |
-| `property_state` | `text` | No | `'AZ'` | State code |
-| `property_zip` | `text` | No | - | ZIP code |
-| `opportunity_type` | `text` | No | - | `replacement`, `code_violation`, `maintenance` |
-| `priority` | `text` | No | - | `critical`, `high`, `medium`, `low` |
-| `status` | `text` | No | `'pending'` | Pipeline status |
-| `job_complexity` | `text` | No | `'STANDARD'` | `STANDARD`, `COMPLEX`, `PREMIUM` |
-| `asset_brand` | `text` | No | - | Equipment brand |
-| `asset_age_years` | `numeric` | No | - | Equipment age |
-| `forensic_inputs` | `jsonb` | No | `'{}'` | Algorithm input data |
-| `health_score` | `integer` | Yes | - | 0-100 health score |
-| `bio_age` | `numeric` | Yes | - | Biological age |
-| `fail_probability` | `numeric` | Yes | - | 12-month failure probability |
-| `verdict_action` | `text` | Yes | - | `replace`, `maintain`, `monitor` |
-
-#### `nurturing_sequences`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `opportunity_id` | `uuid` | No | - | FK to demo_opportunities |
-| `sequence_type` | `text` | No | - | `replacement_urgent`, `code_violation`, `maintenance` |
-| `status` | `text` | No | `'active'` | `active`, `paused`, `completed`, `cancelled` |
-| `current_step` | `integer` | No | `1` | Current step number |
-| `total_steps` | `integer` | No | - | Total steps in sequence |
-| `next_action_at` | `timestamptz` | Yes | - | When next action due |
-| `started_at` | `timestamptz` | No | `now()` | When sequence started |
-| `completed_at` | `timestamptz` | Yes | - | When sequence ended |
-| `outcome` | `text` | Yes | - | `converted`, `lost`, `stopped` |
-| `outcome_reason` | `text` | Yes | - | Reason for outcome |
-| `outcome_step` | `integer` | Yes | - | Step when outcome occurred |
-| `outcome_at` | `timestamptz` | Yes | - | When outcome recorded |
-| `revenue_usd` | `numeric` | Yes | - | **Manually-entered sale amount** |
-
-#### `sequence_events`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `sequence_id` | `uuid` | No | - | FK to nurturing_sequences |
-| `step_number` | `integer` | No | - | Step position in sequence |
-| `action_type` | `text` | No | - | `sms`, `email`, `call_reminder` |
-| `status` | `text` | No | `'pending'` | `pending`, `sent`, `failed`, `skipped` |
-| `scheduled_at` | `timestamptz` | No | - | When action scheduled |
-| `executed_at` | `timestamptz` | Yes | - | When action executed |
-| `delivery_status` | `text` | Yes | `'pending'` | `pending`, `sent`, `delivered`, `failed` |
-| `message_content` | `text` | Yes | - | Message text |
-| `opened_at` | `timestamptz` | Yes | - | When recipient opened |
-| `clicked_at` | `timestamptz` | Yes | - | When recipient clicked |
-| `error_message` | `text` | Yes | - | Error if failed |
-
-#### `sequence_templates`
-
-| Column | Type | Nullable | Default | Description |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | No | `gen_random_uuid()` | Primary key |
-| `name` | `text` | No | - | Template name |
-| `trigger_type` | `text` | No | - | What triggers this sequence |
-| `steps` | `jsonb` | No | `'[]'` | Array of step definitions |
-| `is_active` | `boolean` | No | `true` | Template enabled |
-
-### Section 3: Add New Relationship Chain (after line ~790)
-
-#### 7. Nurturing Sequence Chain
-```text
-demo_opportunities
-    ↓ opportunity_id
-nurturing_sequences
-    ↓ sequence_id
-sequence_events
-```
-
-**Key Points:**
-- Sequences are linked to demo opportunities (not core water_heaters)
-- Each sequence has multiple events (one per step)
-- Templates define reusable sequence blueprints
-- `revenue_usd` captures actual closed sale amounts (manual entry)
-
-### Section 4: Add FK Reference Table Rows
-
-| Child Table | FK Column | Parent Table | Cascade? |
-|-------------|-----------|--------------|----------|
-| `nurturing_sequences` | `opportunity_id` | `demo_opportunities` | CASCADE |
-| `sequence_events` | `sequence_id` | `nurturing_sequences` | CASCADE |
-
-### Section 5: Add New Table Category
-
-| Category | Tables | Purpose |
-|----------|--------|---------|
-| **Nurturing/Automation** | `demo_opportunities`, `nurturing_sequences`, `sequence_events`, `sequence_templates` | Lead nurturing automation |
-
-### Section 6: New Hooks Documentation (new section after Type Mappers)
-
-## Contractor Dashboard Hooks
-
-### Location: `src/hooks/useNurturingSequences.ts`
-
-#### `useNurturingSequences(opportunityId?: string)`
-
-Fetches all nurturing sequences, optionally filtered by opportunity.
-
+In `opterraAlgorithm.ts` (Verdict Engine - Tier 2A):
 ```typescript
-interface NurturingSequence {
-  id: string;
-  opportunityId: string;
-  sequenceType: string;
-  status: 'active' | 'paused' | 'completed' | 'cancelled';
-  currentStep: number;
-  totalSteps: number;
-  nextActionAt: Date | null;
-  startedAt: Date;
-  completedAt: Date | null;
-  outcome: 'converted' | 'lost' | 'stopped' | null;
-  outcomeReason: string | null;
-  outcomeAt: Date | null;
-}
+// BEFORE (line ~1714):
+if (metrics.failProb > 60 || data.calendarAge > CONSTANTS.LIMIT_AGE_MAX) {
+
+// AFTER:
+if (metrics.failProb > 45 || data.calendarAge > CONSTANTS.LIMIT_AGE_MAX) {
 ```
 
-#### `useEnrichedSequences()`
-
-Fetches sequences with customer data from demo_opportunities (client-side join).
-
+In `opterraTypes.ts` (CONSTANTS - line ~505):
 ```typescript
-interface EnrichedSequence extends NurturingSequence {
-  customerName: string;
-  propertyAddress: string;
-  opportunityType: string;
-}
-```
+// BEFORE:
+LIMIT_FAILPROB_FRAGILE: 60,
 
-#### `usePulseMetrics()`
-
-Aggregates automation health metrics for dashboard display.
-
-```typescript
-interface PulseMetrics {
-  enrolled7Days: number;   // Sequences created in last 7 days
-  activeNow: number;       // Currently active sequences
-  engaged24h: number;      // Opens/clicks in last 24 hours
-  converted: number;       // Total converted sequences
-}
+// AFTER:
+LIMIT_FAILPROB_FRAGILE: 45, // v9.1 Fix: Lowered to make End of Service Life reachable
 ```
 
 ---
 
-### Location: `src/hooks/useSequenceEvents.ts`
+### Patch 2: Dynamic ETA (Warranty-Aware Weibull)
 
-#### `useSequenceEvents(sequenceId: string)`
+**Problem:**
+A 6-year builder-grade tank and a 12-year professional-grade tank share the same death curve (ETA=13.0). This ignores the physical reality that premium tanks have better glass lining and dual anodes.
 
-Fetches all events for a specific sequence.
+**Files:**
+- `src/lib/opterraAlgorithm.ts` (line ~1359-1367)
 
-#### `useMarkOutcome()`
+**Code Changes:**
 
-Marks a sequence as converted/lost with optional revenue capture.
-
+Add dynamic ETA calculation before Weibull failProb:
 ```typescript
-interface MarkOutcomeParams {
-  sequenceId: string;
-  outcome: 'converted' | 'lost';
-  reason?: string;
-  currentStep: number;
-  revenueUsd?: number | null;  // Manual sale amount entry
-}
+// BEFORE (line ~1359-1367):
+// 5. WEIBULL FAILURE PROBABILITY
+const t = bioAge;
+const eta = CONSTANTS.ETA;
+const beta = CONSTANTS.BETA;
+
+const rNow = Math.exp(-Math.pow(t / eta, beta));
+const rNext = Math.exp(-Math.pow((t + 1) / eta, beta));
+
+// AFTER:
+// 5. WEIBULL FAILURE PROBABILITY
+// v9.1 FIX "Dynamic ETA": Warranty-aware characteristic life
+// Base ETA 13.0 is for 6-year warranty. Add 0.5 years per tier above baseline.
+// Result: 6yr=13.0, 9yr=14.5, 12yr=16.0, 15yr=17.5
+const warrantyBonus = ((data.warrantyYears ?? 6) - 6) * 0.5;
+const dynamicEta = CONSTANTS.ETA + warrantyBonus;
+
+const t = bioAge;
+const eta = dynamicEta;
+const beta = CONSTANTS.BETA;
+
+const rNow = Math.exp(-Math.pow(t / eta, beta));
+const rNext = Math.exp(-Math.pow((t + 1) / eta, beta));
 ```
 
 ---
 
-### Location: `src/hooks/useWeeklyStats.ts`
+### Patch 3: Correct Soft Water Naked Physics
 
-#### `useWeeklyStats()`
+**Problem:**
+The current 2.5x conductivity penalty for bare steel in soft water is too lenient. Research shows corrosion rates can be 4.0x to 5.0x higher in soft water vs. hard water due to the absence of passivating scale.
 
-Calculates weekly performance metrics from database.
+**Files:**
+- `src/lib/opterraAlgorithm.ts` (line ~1351)
+
+**Code Changes:**
 
 ```typescript
-interface WeeklyStats {
-  jobsBooked: number;     // Converted sequences this week
-  revenue: number;        // Sum of revenue_usd from conversions
-  fromAutomation: number; // Bookings from automated sequences
-  trend: number;          // % change vs previous week
-}
-```
+// BEFORE (line ~1351):
+const waterConductivity = data.hasSoftener ? 2.5 : 1.0;
 
-**Key Distinction:**
-- `revenue` is derived from **manually-entered** `revenue_usd` values
-- This is NOT estimated - it's what the contractor actually logged
+// AFTER:
+// v9.1 FIX "Soft Water Physics": Increased from 2.5x to 4.0x
+// Research shows carbon steel corrosion in soft water is 4.0-5.0x faster
+// than in hard water (0.25 mm/y vs 0.05 mm/y) due to lack of passivation.
+// Nernst's Principle: High conductivity = higher corrosion current
+const waterConductivity = data.hasSoftener ? 4.0 : 1.0;
+```
 
 ---
 
-### Location: `src/hooks/useRecentActivity.ts`
+### Patch 4: Pressure Duty Cycle Correction (Bonus)
 
-#### `useRecentActivity(limit?: number)`
+**Problem:**
+The 0.25 dampener for transient pressure is too lenient. Daily cycling from 60 to 120 PSI in closed-loop systems causes significant glass lining fatigue.
 
-Fetches recent engagement activity for the dashboard feed.
+**Files:**
+- `src/lib/opterraAlgorithm.ts` (line ~1164)
+
+**Code Changes:**
 
 ```typescript
-type ActivityType = 'opened' | 'clicked' | 'booked' | 'started' | 'stopped';
+// BEFORE (line ~1164):
+pressureStress = 1.0 + (cyclicFatiguePenalty * 0.25);
 
-interface ActivityItem {
-  id: string;
-  type: ActivityType;
-  customerName: string;
-  propertyAddress: string;
-  sequenceType: string;
-  messageContent?: string;
-  timestamp: Date;
-}
+// AFTER:
+// v9.1 FIX "Pressure Duty Cycle": Increased from 0.25 to 0.50 for closed-loop
+// Daily 60→120→60 PSI cycles are more damaging than 0.25 implies
+// Fatigue failure follows power law (S^N) - cyclic stress is cumulative
+const closedLoopDampener = 0.50;
+const openLoopDampener = 0.25;
+const effectiveDampener = (data.isClosedLoop || data.hasPrv || data.hasCircPump) 
+  ? closedLoopDampener 
+  : openLoopDampener;
+pressureStress = 1.0 + (cyclicFatiguePenalty * effectiveDampener);
 ```
-
-### Section 7: Revenue Tracking Architecture (new section)
-
-## Revenue Tracking (Sidecar Model)
-
-The platform operates as a "sidecar" without integration to external invoicing systems. Revenue tracking uses manual entry with gamification.
-
-### Data Flow
-
-```text
-1. Contractor clicks "Mark Converted" in SequenceControlDrawer
-         ↓
-2. ConversionCelebrationModal opens with confetti animation
-         ↓
-3. Contractor enters Final Sale Amount: $[    ]
-         ↓
-4. useMarkOutcome() saves to nurturing_sequences.revenue_usd
-         ↓
-5. useWeeklyStats() sums revenue_usd for dashboard display
-```
-
-### Est. Value vs Revenue Distinction
-
-| Metric | Source | Display | Purpose |
-|--------|--------|---------|---------|
-| **Est. Value** | Calculated from opportunity types | `~$18,000` (tilde prefix) | Pipeline potential |
-| **Revenue** | Sum of `revenue_usd` entries | `$9,000` (solid, green) | Actual closed sales |
-
-**Pitch:** "We generated $18k in opportunities. You closed $9k. Let's go get the rest."
-
-### High Interest Nudge
-
-Sequences with 2+ clicks display a "High Interest" indicator (flame icon) in the table to prompt the contractor to verify if the customer has booked externally.
 
 ---
 
-## File Changes Summary
+## Documentation Updates
 
-| File | Action |
-|------|--------|
-| `docs/backend.md` | Add new sections documenting nurturing tables, hooks, and revenue tracking |
+### Update `docs/algorithm-changelog.md`
 
-The documentation update will add approximately 400-500 lines covering:
-- 4 new table schemas with full column details
-- New relationship chain documentation
-- 5 new hooks with TypeScript interfaces
-- Revenue tracking architecture explanation
-- Updated ERDiagram with nurturing entities
+Add a new v9.1 section at the top:
+
+```markdown
+## v9.1 (Gemini Physics Audit - 4 Corrections)
+
+**Validated by Gemini AI Physics Review (2026-02-02)**
+
+**FIX 1 "Unreachable Verdict":**
+- Lowered `failProb` threshold from 60% to 45%
+- With Weibull(η=13, β=3.2), hazard rate at Age 15 was only ~30%
+- The old threshold was unreachable before age-out (Age 21 to hit 60%)
+- Now properly triggers "End of Service Life" at practical ages
+
+**FIX 2 "Dynamic ETA":**
+- Weibull ETA now scales with warranty tier
+- 6-year tank: η=13.0 (baseline)
+- 9-year tank: η=14.5 (+1.5)
+- 12-year tank: η=16.0 (+3.0)
+- 15-year tank: η=17.5 (+4.5)
+- Reflects physical reality: premium tanks have better glass and dual anodes
+
+**FIX 3 "Soft Water Naked Penalty":**
+- Increased conductivity multiplier from 2.5x to 4.0x
+- Research shows soft water corrodes bare steel at 4-5x the rate of hard water
+- Hard water forms passivating calcium carbonate scale
+- Soft water accelerates ion transfer per Nernst's Principle
+
+**FIX 4 "Pressure Duty Cycle":**
+- Increased closed-loop dampener from 0.25 to 0.50
+- Reflects cumulative fatigue damage from daily thermal expansion cycles
+- Open-loop systems retain 0.25 dampener (less frequent cycling)
+```
+
+---
+
+## Validation Approach
+
+After implementation, validate using the existing Algorithm Validation Test Suite:
+
+1. **Run `scenarioValidation.ts`** to ensure 40+ scenarios still pass
+2. **Check boundary cases:**
+   - 12-year tank should now hit `failProb > 45` earlier than before
+   - 12-year professional tank should have longer projected life than 12-year builder tank
+   - Naked tank with softener should show ~60% higher bioAge than v8.2
+
+---
+
+## Risk Assessment
+
+| Change | Risk Level | Mitigation |
+|--------|------------|------------|
+| Lower failProb threshold | Medium | May push some borderline units to REPLACE; validate with test suite |
+| Dynamic ETA | Low | Only affects units with 9+ year warranty; improves accuracy |
+| Soft water penalty | Medium | More aggressive on naked+softener combos; matches physical reality |
+| Pressure dampener | Low | Only affects closed-loop transient pressure scenarios |
+
+---
+
+## Summary
+
+This patch corrects four physics/math errors identified by Gemini's review:
+
+1. **Unreachable verdict** - Statistical threshold was impossible to hit
+2. **Static death curve** - Premium tanks had no survival advantage
+3. **Soft water underestimate** - Conductivity penalty was 40% too lenient
+4. **Pressure dampener** - Fatigue damage was underweighted for closed-loop
+
+All changes are scientifically defensible and improve the algorithm's predictive accuracy without adding new features or complexity.
 
