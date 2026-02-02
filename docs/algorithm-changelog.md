@@ -4,6 +4,37 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.1.2 (Gemini Physics Audit - 4 Corrections)
+
+**Validated by Gemini AI Physics Review (2026-02-02)**
+
+**FIX 1 "Unreachable Verdict":**
+- Lowered `LIMIT_FAILPROB_FRAGILE` threshold from 60% to 45%
+- With Weibull(η=13, β=3.2), hazard rate at Age 15 was only ~30%
+- The old threshold was unreachable before age-out (Age 21 to hit 60%)
+- Now properly triggers "End of Service Life" at practical ages
+
+**FIX 2 "Dynamic ETA":**
+- Weibull ETA now scales with warranty tier
+- 6-year tank: η=13.0 (baseline)
+- 9-year tank: η=14.5 (+1.5)
+- 12-year tank: η=16.0 (+3.0)
+- 15-year tank: η=17.5 (+4.5)
+- Reflects physical reality: premium tanks have better glass and dual anodes
+
+**FIX 3 "Soft Water Naked Penalty":**
+- Increased conductivity multiplier from 2.5x to 4.0x
+- Research shows soft water corrodes bare steel at 4-5x the rate of hard water
+- Hard water forms passivating calcium carbonate scale
+- Soft water accelerates ion transfer per Nernst's Principle
+
+**FIX 4 "Pressure Duty Cycle":**
+- Increased closed-loop dampener from 0.25 to 0.50
+- Reflects cumulative fatigue damage from daily thermal expansion cycles
+- Open-loop systems retain 0.25 dampener (less frequent cycling)
+
+---
+
 ## v9.1.1 (Closed-Loop Detection Alignment)
 
 **Problem Solved:**
