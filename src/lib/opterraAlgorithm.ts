@@ -1,13 +1,13 @@
 /**
- * OPTERRA v8.2 Risk Calculation Engine
+ * OPTERRA v9.1.2 Risk Calculation Engine
  * 
  * A physics-based reliability algorithm with economic optimization logic.
  * 
- * v8.2 Scientific Defensibility Fixes:
- * - FIX "Arrhenius Violation": Replaced sqrt() with proper exponential 2^((temp-120)/18)
- * - FIX "Naked Gap": Added 2.5x conductivity penalty for soft water in naked phase
- * - FIX "Sediment Fuel-Type": Gas=100%, Electric=20%, Hybrid=40% burst risk factor
- * - FIX "Weibull Recalibration": ETA=13.0, BETA=3.2 for cliff-edge failure modeling
+ * v9.1.2 Gemini Physics Audit Fixes:
+ * - FIX "Unreachable Verdict": Lowered failProb threshold from 60% to 45% (reachable before age-out)
+ * - FIX "Dynamic ETA": Weibull ETA now scales with warranty tier (6yr=13.0, 12yr=16.0)
+ * - FIX "Soft Water Physics": Increased naked conductivity penalty from 2.5x to 4.0x
+ * - FIX "Pressure Duty Cycle": Increased closed-loop dampener from 0.25 to 0.50
  *
  * v8.1 Bug Fixes:
  * - FIX "Statistical Ceiling": Raised MAX_BIO_AGE from 25 to 50 (allows 85% failProb)
@@ -1160,8 +1160,15 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     const spikePsi = CONSTANTS.PSI_THERMAL_SPIKE; // 120 PSI
     const spikeExcess = spikePsi - CONSTANTS.PSI_SAFE_LIMIT; // 120 - 80 = 40
     const cyclicFatiguePenalty = Math.pow(spikeExcess / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
-    // Apply duty cycle dampener (v6.6) - not every spike is max amplitude
-    pressureStress = 1.0 + (cyclicFatiguePenalty * 0.25);
+    // v9.1 FIX "Pressure Duty Cycle": Increased from 0.25 to 0.50 for closed-loop
+    // Daily 60→120→60 PSI cycles are more damaging than 0.25 implies
+    // Fatigue failure follows power law (S^N) - cyclic stress is cumulative
+    const closedLoopDampener = 0.50;
+    const openLoopDampener = 0.25;
+    const effectiveDampener = (data.isClosedLoop || data.hasPrv || data.hasCircPump) 
+      ? closedLoopDampener 
+      : openLoopDampener;
+    pressureStress = 1.0 + (cyclicFatiguePenalty * effectiveDampener);
   }
 
   // THEN check static high pressure (additive if both present)
@@ -1348,7 +1355,11 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // DANGEROUS for naked phase (high conductivity accelerates bare steel corrosion).
   // Physics: Hard water forms protective mineral film; soft water corrodes 2-3x faster.
   // Nernst's Principle: High conductivity = higher corrosion current (I_corr)
-  const waterConductivity = data.hasSoftener ? 2.5 : 1.0;
+  // v9.1 FIX "Soft Water Physics": Increased from 2.5x to 4.0x
+  // Research shows carbon steel corrosion in soft water is 4.0-5.0x faster
+  // than in hard water (0.25 mm/y vs 0.05 mm/y) due to lack of passivation.
+  // Nernst's Principle: High conductivity = higher corrosion current
+  const waterConductivity = data.hasSoftener ? 4.0 : 1.0;
   const nakedStress = Math.min(mechanicalWithTempExpansion * chemicalStress * waterConductivity, CONSTANTS.MAX_STRESS_CAP);
   const nakedAging = timeNaked * nakedStress;
 
@@ -1357,8 +1368,15 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   const bioAge = Math.min(rawBioAge, CONSTANTS.MAX_BIO_AGE);
 
   // 5. WEIBULL FAILURE PROBABILITY
+  // v9.1 FIX "Dynamic ETA": Warranty-aware characteristic life
+  // Base ETA 13.0 is for 6-year warranty. Add 0.5 years per tier above baseline.
+  // Result: 6yr=13.0, 9yr=14.5, 12yr=16.0, 15yr=17.5
+  // Reflects physical reality: premium tanks have better glass lining and dual anodes
+  const warrantyBonus = ((data.warrantyYears ?? 6) - 6) * 0.5;
+  const dynamicEta = CONSTANTS.ETA + warrantyBonus;
+  
   const t = bioAge;
-  const eta = CONSTANTS.ETA;
+  const eta = dynamicEta;
   const beta = CONSTANTS.BETA;
   
   const rNow = Math.exp(-Math.pow(t / eta, beta));
@@ -1700,7 +1718,7 @@ export function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInpu
   // We added || age > 20 to ensure old tanks don't slip through the math
   // v9.1.1 SAFETY NET: Young tanks cannot hit "End of Service Life"
   // If they have high failProb but no specific issue was caught above, redirect to MAINTAIN
-  if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach && metrics.failProb > 60) {
+  if (data.calendarAge <= YOUNG_TANK_ABSOLUTE_THRESHOLD && !isPhysicalBreach && metrics.failProb > CONSTANTS.LIMIT_FAILPROB_FRAGILE) {
     return {
       action: 'MAINTAIN',
       title: 'Elevated Wear Detected',
@@ -1711,7 +1729,7 @@ export function getRawRecommendation(metrics: OpterraMetrics, data: ForensicInpu
     };
   }
   
-  if (metrics.failProb > 60 || data.calendarAge > CONSTANTS.LIMIT_AGE_MAX) {
+  if (metrics.failProb > CONSTANTS.LIMIT_FAILPROB_FRAGILE || data.calendarAge > CONSTANTS.LIMIT_AGE_MAX) {
     return {
       action: 'REPLACE',
       title: 'End of Service Life',

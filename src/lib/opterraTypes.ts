@@ -502,7 +502,7 @@ export const CONSTANTS = {
   LIMIT_SEDIMENT_LOCKOUT: 10.0,
   LIMIT_SEDIMENT_FLUSH: 2.0,
   LIMIT_AGE_FRAGILE: 10,
-  LIMIT_FAILPROB_FRAGILE: 60,
+  LIMIT_FAILPROB_FRAGILE: 45, // v9.1 Fix: Lowered from 60 to make End of Service Life reachable before age-out
   LIMIT_AGE_MAX: 20,
   
   // Economic Thresholds
