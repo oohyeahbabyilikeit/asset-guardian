@@ -4,6 +4,23 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.1.8 (Thermal Expansion Spike Correction)
+
+**FIX "Undervalued Thermal Spike":**
+- Increased `PSI_THERMAL_SPIKE` from 120 to **140 PSI** — real-world thermal expansion in closed-loop systems without expansion tanks reaches ~140 PSI (T&P relief valves are set at 150 PSI as the last safety margin)
+- Previous 120 PSI spike undervalued mechanical stress penalty by ~33%
+
+**Impact:**
+| Metric | Before (120 PSI) | After (140 PSI) |
+|--------|-------------------|-----------------|
+| spikeExcess | 120 - 80 = 40 | 140 - 80 = 60 |
+| cyclicFatiguePenalty | (40/20)² = 4.0 | (60/20)² = 9.0 |
+| pressureStress (0.50 dampener) | 1.0 + (4.0 × 0.50) = **3.0** | 1.0 + (9.0 × 0.50) = **5.5** |
+
+A missing expansion tank on a closed loop is one of the most damaging conditions a tank can face — this correction properly reflects that severity.
+
+---
+
 ## v9.1.7 (Zombie Expansion Tank Bypass Fix)
 
 **FIX "Zombie Expansion Tank Bypass":**
