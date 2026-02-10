@@ -522,10 +522,11 @@ const CONSTANTS = {
   PSI_SCALAR: 20,          
   PSI_QUADRATIC_EXP: 2.0,  
   
-  // Thermal Expansion Spike Baseline
-  // In a closed loop without an expansion tank, pressure rises until 
-  // the T&P weeps or a fixture leaks. We model this as a chronic 120 PSI spike.
-  PSI_THERMAL_SPIKE: 120, 
+   // Thermal Expansion Spike Baseline
+   // In a closed loop without an expansion tank, pressure rises until 
+   // the T&P weeps or a fixture leaks. We model this as a chronic 140 PSI spike.
+   // v9.1.8: Corrected from 120 to 140 PSI (T&P relief valves set at 150 PSI)
+   PSI_THERMAL_SPIKE: 140, 
   
   // Sediment Accumulation
   SEDIMENT_FACTOR_GAS: 0.044, 
@@ -768,7 +769,7 @@ function getPressureProfile(data: ForensicInputs): { effectivePsi: number; isTra
   // Scenario 1: House pressure is normal (e.g. 60), but Closed Loop creates spikes
   if (isActuallyClosed && !hasWorkingExpTank) {
     if (data.housePsi < CONSTANTS.PSI_THERMAL_SPIKE) {
-      effectivePsi = CONSTANTS.PSI_THERMAL_SPIKE; // Spike to 120
+      effectivePsi = CONSTANTS.PSI_THERMAL_SPIKE; // Spike to 140 PSI (v9.1.8)
       isTransient = true; // This is a Duty Cycle spike (not constant)
     }
   }
@@ -1164,16 +1165,16 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
 
   let pressureStress = 1.0;
   
-  // FIX v8.1 "Silent Killer": Transient pressure penalty applies INDEPENDENTLY
-  // A tank cycling 60→120→60 PSI suffers cyclic fatigue EVEN IF static pressure is safe
-  // The Thermal Expansion spike (PSI_THERMAL_SPIKE = 120) is the damage source
-  if (isTransient && !hasWorkingExpTank) {
-    // Calculate penalty based on thermal spike magnitude, not static PSI
-    const spikePsi = CONSTANTS.PSI_THERMAL_SPIKE; // 120 PSI
-    const spikeExcess = spikePsi - CONSTANTS.PSI_SAFE_LIMIT; // 120 - 80 = 40
+   // FIX v8.1 "Silent Killer": Transient pressure penalty applies INDEPENDENTLY
+   // A tank cycling 60→140→60 PSI suffers cyclic fatigue EVEN IF static pressure is safe
+   // The Thermal Expansion spike (PSI_THERMAL_SPIKE = 140) is the damage source (v9.1.8)
+   if (isTransient && !hasWorkingExpTank) {
+     // Calculate penalty based on thermal spike magnitude, not static PSI
+     const spikePsi = CONSTANTS.PSI_THERMAL_SPIKE; // 140 PSI (v9.1.8)
+     const spikeExcess = spikePsi - CONSTANTS.PSI_SAFE_LIMIT; // 140 - 80 = 60
     const cyclicFatiguePenalty = Math.pow(spikeExcess / CONSTANTS.PSI_SCALAR, CONSTANTS.PSI_QUADRATIC_EXP);
     // v9.1 FIX "Pressure Duty Cycle": Increased from 0.25 to 0.50 for closed-loop
-    // Daily 60→120→60 PSI cycles are more damaging than 0.25 implies
+    // Daily 60→140→60 PSI cycles are more damaging than 0.25 implies
     // Fatigue failure follows power law (S^N) - cyclic stress is cumulative
     const closedLoopDampener = 0.50;
     const openLoopDampener = 0.25;
