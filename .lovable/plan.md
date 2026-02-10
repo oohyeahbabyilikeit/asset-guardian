@@ -1,99 +1,39 @@
 
 
-# Fix: Year-Over-Year Stress Acceleration in Life Projection
+# v9.1.8: Thermal Expansion Spike Correction (140 PSI)
 
 ## Problem
 
-The current projection divides remaining capacity by a **constant** stress rate:
-```
-yearsLeftCurrent = remainingCapacity / effectiveNakedRate
-```
+The `PSI_THERMAL_SPIKE` constant is set to **120 PSI**, but real-world thermal expansion in a closed-loop system without an expansion tank generates spikes of **~140 PSI** (T&P relief valves are set at 150 PSI as the last safety margin). This undervalues the mechanical stress penalty by ~33%.
 
-This assumes the tank degrades at the same speed in Year 1 as in Year 10. In reality, naked tanks experience **compounding degradation**:
-- Sediment continues accumulating (insulation worsens)
-- Corrosion products reduce wall thickness (stress concentrates)
-- Scale builds on fittings (flow restriction increases temperature)
+Additionally, the pressure profile function (`getPressureProfile`) only spikes to 120, so even when the penalty logic fires correctly, it's calculating damage from a 40 PSI excess (120 - 80) instead of the correct 60 PSI excess (140 - 80).
 
-The result: projections are still too optimistic for high-stress naked tanks.
+## Impact of the Fix
 
-## What's Already Correct (No Changes Needed)
+Current math (120 PSI spike):
+- spikeExcess = 120 - 80 = 40
+- cyclicFatiguePenalty = (40/20)^2 = 4.0
+- With 0.50 dampener: pressureStress = 1.0 + (4.0 * 0.50) = **3.0**
 
-Past damage tracking is solid:
-- `yearsWithoutAnode` preserves historical naked exposure (v8.0 "Lazarus Effect" fix)
-- `yearsWithoutSoftener` splits burn rate history correctly (v9.0 "Time Machine Bug" fix)
-- `protectedAging + nakedAging` correctly sums phase-weighted biological age
-- New anode/softener installs do NOT retroactively heal past damage
+Corrected math (140 PSI spike):
+- spikeExcess = 140 - 80 = 60
+- cyclicFatiguePenalty = (60/20)^2 = 9.0
+- With 0.50 dampener: pressureStress = 1.0 + (9.0 * 0.50) = **5.5**
 
-## Proposed Fix: Iterative Year-by-Year Projection
+This is a significant and appropriate increase -- a missing expansion tank on a closed loop is one of the most damaging conditions a tank can face.
 
-Replace the single-division projection with a **year-by-year simulation** that compounds stress annually.
+## Changes
 
-### File: `src/lib/opterraAlgorithm.ts` (lines ~1463-1472)
+### File: `src/lib/opterraAlgorithm.ts`
 
-**Current (flat rate):**
-```typescript
-const effectiveNakedRate = Math.max(nakedStress, 2.0);
-yearsLeftCurrent = remainingCapacity / effectiveNakedRate;
-```
+1. Update `PSI_THERMAL_SPIKE` from `120` to `140` in the CONSTANTS object
+2. Update all comments referencing "120 PSI" thermal spikes to "140 PSI"
 
-**New (compounding projection):**
-```typescript
-// v9.1.5 FIX "Flat Projection": Use iterative year-by-year simulation
-// Each year of naked exposure slightly increases the degradation rate
-// due to compounding sediment, wall thinning, and scale buildup.
-// Acceleration factor: 3% per year of additional naked time (conservative)
-const ANNUAL_ACCELERATION = 0.03; // 3% compounding per year
-const effectiveNakedRate = Math.max(nakedStress, 2.0);
-const effectiveOptNakedRate = Math.max(optimizedNakedStress, 1.5);
+### File: `docs/algorithm-changelog.md`
 
-let capacityLeft = remainingCapacity;
-let yearsCount = 0;
-while (capacityLeft > 0 && yearsCount < MAX_YEARS_LEFT) {
-  const yearRate = effectiveNakedRate * (1 + ANNUAL_ACCELERATION * yearsCount);
-  capacityLeft -= yearRate;
-  yearsCount++;
-}
-yearsLeftCurrent = yearsCount > 0 && capacityLeft < 0
-  ? yearsCount - 1 + (capacityLeft + effectiveNakedRate * (1 + ANNUAL_ACCELERATION * (yearsCount - 1))) / (effectiveNakedRate * (1 + ANNUAL_ACCELERATION * (yearsCount - 1)))
-  : yearsCount;
-
-// Same for optimized
-let optCapLeft = remainingCapacity;
-let optYears = 0;
-while (optCapLeft > 0 && optYears < MAX_YEARS_LEFT) {
-  const yearRate = effectiveOptNakedRate * (1 + ANNUAL_ACCELERATION * optYears);
-  optCapLeft -= yearRate;
-  optYears++;
-}
-yearsLeftOptimized = optYears > 0 && optCapLeft < 0
-  ? optYears - 1 + (optCapLeft + effectiveOptNakedRate * (1 + ANNUAL_ACCELERATION * (optYears - 1))) / (effectiveOptNakedRate * (1 + ANNUAL_ACCELERATION * (optYears - 1)))
-  : optYears;
-```
-
-### Same acceleration for two-phase (active anode) path
-
-Apply the same compounding to the naked-after-anode-depletes portion (lines ~1454-1462), so the post-anode projection also accounts for acceleration rather than using flat `nakedStress`.
-
-## Impact
-
-| Scenario | Before (flat) | After (3% compound) | Why |
-|----------|---------------|----------------------|-----|
-| 5yr naked, stress 2.0x, ceiling 16.25 | 5.6 yr | ~5.1 yr | Modest reduction |
-| 10yr naked, stress 3.5x, ceiling 16.25 | 1.8 yr | ~1.7 yr | Minimal (already low) |
-| 3yr naked, stress 2.0x, ceiling 16.25 | 6.6 yr | ~5.9 yr | Meaningful reduction on young tanks |
-
-The 3% annual acceleration is conservative and prevents over-projection without being alarmist. The hard cap of 15 years remains as a safety net.
+Add v9.1.8 entry documenting the correction with the math comparison.
 
 ## Validation
 
-- Run all 28 scenario tests to confirm no regressions
-- Verify that naked tanks with low stress don't project unrealistic lifespans
-- Confirm that protected (anode active) tanks are minimally affected since acceleration only applies to the naked phase
-
-## Technical Details
-
-- **File changed:** `src/lib/opterraAlgorithm.ts`
-- **Lines affected:** ~1449-1481 (projection block)
-- **Version bump:** v9.1.5
-- **Changelog update:** `docs/algorithm-changelog.md`
+Re-run the 28-scenario test suite to confirm no unintended verdict changes. The scenarios involving closed-loop / missing expansion tank should show increased stress (which is the correct behavior).
 
