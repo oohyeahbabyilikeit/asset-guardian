@@ -763,8 +763,8 @@ function getPressureProfile(data: ForensicInputs): { effectivePsi: number; isTra
 
   // FIX v7.8 "Zombie Expansion Tank": Check FUNCTIONAL status, not just presence
   // A waterlogged tank (dead bladder) provides ZERO protection
-  const hasWorkingExpTank = data.expTankStatus === 'FUNCTIONAL' || 
-    (data.hasExpTank && data.expTankStatus !== 'WATERLOGGED');
+  // FIX v9.1.8: Must gate on hasExpTank — expTankStatus can default to FUNCTIONAL even when no tank exists
+  const hasWorkingExpTank = data.hasExpTank && data.expTankStatus !== 'WATERLOGGED';
 
   // Scenario 1: House pressure is normal (e.g. 60), but Closed Loop creates spikes
   if (isActuallyClosed && !hasWorkingExpTank) {
@@ -1160,8 +1160,8 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
   // v9.1.7 FIX "Zombie Expansion Tank Bypass": Use functional status, not just presence
   // A waterlogged tank (dead bladder) provides ZERO thermal expansion protection
-  const hasWorkingExpTank = data.expTankStatus === 'FUNCTIONAL' || 
-    (data.hasExpTank && data.expTankStatus !== 'WATERLOGGED');
+  // FIX v9.1.8: Must gate on hasExpTank — expTankStatus can default to FUNCTIONAL even when no tank exists
+  const hasWorkingExpTank = data.hasExpTank && data.expTankStatus !== 'WATERLOGGED';
 
   let pressureStress = 1.0;
   

@@ -373,7 +373,7 @@ function detectAllIssues(inputs: ForensicInputs, result: OpterraResult): Issue[]
         id: 'no_exp_tank',
         severity: 'critical',
         title: 'Missing Expansion Tank',
-        detail: 'Closed loop system without expansion tank causes thermal pressure spikes up to 120+ PSI.',
+        detail: 'Closed loop system without expansion tank causes thermal pressure spikes up to 140 PSI.',
         value: 'MISSING'
       });
     } else if (inputs.expTankStatus === 'WATERLOGGED') {
