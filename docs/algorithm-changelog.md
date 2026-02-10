@@ -4,6 +4,16 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.1.7 (Zombie Expansion Tank Bypass Fix)
+
+**FIX "Zombie Expansion Tank Bypass":**
+- Transient pressure penalty (line 1158) and loopPenalty (line 1213) now use `hasWorkingExpTank` instead of `data.hasExpTank`
+- Waterlogged expansion tanks (dead bladder) previously bypassed both mechanical stress calculations
+- A homeowner with a dead expansion tank now correctly receives pressure cycling and thermal expansion penalties
+- Aligns main stress calculations with `getPressureProfile()` which already used the functional check
+
+---
+
 ## v9.1.6 (Sediment-Aware Naked Floor)
 
 **FIX "Sediment Blindspot":**
