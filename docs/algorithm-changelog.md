@@ -4,6 +4,25 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.1.5 (Compounding Stress Projection)
+
+**FIX "Flat Projection":**
+- Replaced flat `remainingCapacity / nakedStress` division with iterative year-by-year simulation
+- Each projected year of naked exposure compounds degradation at 3% annually
+- Models real-world physics: sediment accumulation, wall thinning, and scale buildup accelerate over time
+- Applied to both naked-only tanks and the post-anode-depletion phase of protected tanks
+- Protected phase remains linear (anode prevents compounding corrosion)
+- Hard cap of 15 years remains as safety net
+
+**Impact:**
+| Scenario | Before (flat) | After (3% compound) |
+|----------|---------------|---------------------|
+| 5yr naked, stress 2.0x | 5.6 yr | ~5.1 yr |
+| 3yr naked, stress 2.0x | 6.6 yr | ~5.9 yr |
+| 10yr naked, stress 3.5x | 1.8 yr | ~1.7 yr |
+
+---
+
 ## v9.1.2 (Gemini Physics Audit - 4 Corrections)
 
 **Validated by Gemini AI Physics Review (2026-02-02)**

@@ -1446,39 +1446,59 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     yearsLeftCurrent = 0;
     yearsLeftOptimized = 0;
   } else {
-    // Two-phase projection: protected years + naked years
+    // v9.1.4: Hard cap projections to prevent absurd numbers
+    const MAX_YEARS_LEFT = 15;
+
+    // v9.1.5 FIX "Flat Projection": Use iterative year-by-year simulation
+    // Each year of naked exposure slightly increases the degradation rate
+    // due to compounding sediment, wall thinning, and scale buildup.
+    // Acceleration factor: 3% per year of additional naked time (conservative)
+    const ANNUAL_ACCELERATION = 0.03; // 3% compounding per year
+    const effectiveNakedRate = Math.max(nakedStress, 2.0);
+    const effectiveOptNakedRate = Math.max(optimizedNakedStress, 1.5);
+
+    // Helper: iterative compounding projection for naked phase
+    const projectWithAcceleration = (capacity: number, baseRate: number): number => {
+      if (capacity <= 0) return 0;
+      let capLeft = capacity;
+      let years = 0;
+      while (capLeft > 0 && years < MAX_YEARS_LEFT) {
+        const yearRate = baseRate * (1 + ANNUAL_ACCELERATION * years);
+        capLeft -= yearRate;
+        years++;
+      }
+      // Fractional last year interpolation
+      if (years > 0 && capLeft < 0) {
+        const lastYearRate = baseRate * (1 + ANNUAL_ACCELERATION * (years - 1));
+        return years - 1 + (capLeft + lastYearRate) / lastYearRate;
+      }
+      return years;
+    };
+
     if (isAnodeActive) {
-      // Project how far we get on protected rate before anode depletes
+      // Two-phase projection: protected years (linear) + naked years (compounding)
       const protectedCapacityUsed = anodeRemainingYears * currentAgingRate;
       const capacityAfterProtection = Math.max(0, remainingCapacity - protectedCapacityUsed);
-      // Then continue on naked rate
-      const nakedYearsAfter = capacityAfterProtection > 0 ? capacityAfterProtection / nakedStress : 0;
+      const nakedYearsAfter = projectWithAcceleration(capacityAfterProtection, effectiveNakedRate);
       yearsLeftCurrent = anodeRemainingYears + nakedYearsAfter;
       
       // Same for optimized
       const optProtectedUsed = anodeRemainingYears * optimizedAgingRate;
       const optCapacityAfter = Math.max(0, remainingCapacity - optProtectedUsed);
-      const optNakedAfter = optCapacityAfter > 0 ? optCapacityAfter / optimizedNakedStress : 0;
+      const optNakedAfter = projectWithAcceleration(optCapacityAfter, effectiveOptNakedRate);
       yearsLeftOptimized = anodeRemainingYears + optNakedAfter;
     } else {
-      // Anode depleted, simple projection
-      // v9.1.4 FIX: Naked tanks degrade faster than linear projection suggests.
-      // Apply minimum naked aging rate of 2.0x (bare steel always corrodes faster
-      // than protected steel, even in ideal water conditions).
-      // Also apply diminishing returns: each year of naked exposure compounds.
-      const effectiveNakedRate = Math.max(nakedStress, 2.0);
-      const effectiveOptNakedRate = Math.max(optimizedNakedStress, 1.5); // Optimized still has some base penalty
-      yearsLeftCurrent = remainingCapacity / effectiveNakedRate;
-      yearsLeftOptimized = remainingCapacity / effectiveOptNakedRate;
+      // Anode depleted: full compounding projection
+      yearsLeftCurrent = projectWithAcceleration(remainingCapacity, effectiveNakedRate);
+      yearsLeftOptimized = projectWithAcceleration(remainingCapacity, effectiveOptNakedRate);
     }
   }
   
   
-  // v9.1.4: Hard cap projections to prevent absurd numbers
-  // No residential tank realistically lasts more than 20 years from current state
-  const MAX_YEARS_LEFT = 15;
-  yearsLeftCurrent = Math.min(yearsLeftCurrent, MAX_YEARS_LEFT);
-  yearsLeftOptimized = Math.min(yearsLeftOptimized, MAX_YEARS_LEFT);
+  // Apply hard cap (MAX_YEARS_LEFT already enforced inside projectWithAcceleration)
+  const MAX_YEARS_LEFT_CAP = 15;
+  yearsLeftCurrent = Math.min(yearsLeftCurrent, MAX_YEARS_LEFT_CAP);
+  yearsLeftOptimized = Math.min(yearsLeftOptimized, MAX_YEARS_LEFT_CAP);
   
   const lifeExtension = isBreach ? 0 : Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
 
