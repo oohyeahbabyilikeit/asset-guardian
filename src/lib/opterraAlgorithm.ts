@@ -1149,13 +1149,17 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // Uses getPressureProfile() to distinguish constant vs transient pressure
   const { effectivePsi, isTransient } = getPressureProfile(data);
   const isActuallyClosed = data.isClosedLoop || data.hasPrv;
+  // v9.1.7 FIX "Zombie Expansion Tank Bypass": Use functional status, not just presence
+  // A waterlogged tank (dead bladder) provides ZERO thermal expansion protection
+  const hasWorkingExpTank = data.expTankStatus === 'FUNCTIONAL' || 
+    (data.hasExpTank && data.expTankStatus !== 'WATERLOGGED');
 
   let pressureStress = 1.0;
   
   // FIX v8.1 "Silent Killer": Transient pressure penalty applies INDEPENDENTLY
   // A tank cycling 60→120→60 PSI suffers cyclic fatigue EVEN IF static pressure is safe
   // The Thermal Expansion spike (PSI_THERMAL_SPIKE = 120) is the damage source
-  if (isTransient && !data.hasExpTank) {
+  if (isTransient && !hasWorkingExpTank) {
     // Calculate penalty based on thermal spike magnitude, not static PSI
     const spikePsi = CONSTANTS.PSI_THERMAL_SPIKE; // 120 PSI
     const spikeExcess = spikePsi - CONSTANTS.PSI_SAFE_LIMIT; // 120 - 80 = 40
@@ -1206,7 +1210,7 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   // E. Closed Loop (Thermal Expansion Fatigue)
   // FIX v8.1 "Suppressible Fatigue": This is MECHANICAL (metal flexing), not chemical
   // The anode CANNOT prevent thermal expansion stress - it's pure physics, not corrosion
-  const loopPenalty = (isActuallyClosed && !data.hasExpTank) ? 1.2 : 1.0;
+  const loopPenalty = (isActuallyClosed && !hasWorkingExpTank) ? 1.2 : 1.0;
   
   // Combine mechanical stresses - these hurt the tank from Day 1
   // NEW v6.9: Include undersizing penalty (more cycling = more fatigue)
