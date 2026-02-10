@@ -838,7 +838,15 @@ export function applySmartProxies(inputs: ForensicInputs): ForensicInputs {
     proxied.anodeCount = (proxied.warrantyYears ?? 6) >= 9 ? 2 : 1;
   }
   
-  // PROXY 6: Closed Loop from PRV/Expansion Tank Presence
+  // PROXY 6: House PSI Default
+  // v9.1.7 FIX "Silent Pressure": If housePsi is not provided, default to 60 PSI
+  // (national average residential pressure). Without this, closed-loop systems
+  // with no expansion tank silently skip ALL pressure penalties.
+  if (proxied.housePsi === undefined || proxied.housePsi === null) {
+    proxied.housePsi = 60;
+  }
+
+  // PROXY 7: Closed Loop from PRV/Expansion Tank Presence
   // Logic: If either exists, system is likely closed (check valve somewhere)
   if (proxied.isClosedLoop === undefined || proxied.isClosedLoop === null) {
     proxied.isClosedLoop = proxied.hasPrv || proxied.hasExpTank;
