@@ -1462,10 +1462,23 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
       yearsLeftOptimized = anodeRemainingYears + optNakedAfter;
     } else {
       // Anode depleted, simple projection
-      yearsLeftCurrent = remainingCapacity / currentAgingRate;
-      yearsLeftOptimized = remainingCapacity / optimizedAgingRate;
+      // v9.1.4 FIX: Naked tanks degrade faster than linear projection suggests.
+      // Apply minimum naked aging rate of 2.0x (bare steel always corrodes faster
+      // than protected steel, even in ideal water conditions).
+      // Also apply diminishing returns: each year of naked exposure compounds.
+      const effectiveNakedRate = Math.max(nakedStress, 2.0);
+      const effectiveOptNakedRate = Math.max(optimizedNakedStress, 1.5); // Optimized still has some base penalty
+      yearsLeftCurrent = remainingCapacity / effectiveNakedRate;
+      yearsLeftOptimized = remainingCapacity / effectiveOptNakedRate;
     }
   }
+  
+  
+  // v9.1.4: Hard cap projections to prevent absurd numbers
+  // No residential tank realistically lasts more than 20 years from current state
+  const MAX_YEARS_LEFT = 15;
+  yearsLeftCurrent = Math.min(yearsLeftCurrent, MAX_YEARS_LEFT);
+  yearsLeftOptimized = Math.min(yearsLeftOptimized, MAX_YEARS_LEFT);
   
   const lifeExtension = isBreach ? 0 : Math.max(0, yearsLeftOptimized - yearsLeftCurrent);
 
