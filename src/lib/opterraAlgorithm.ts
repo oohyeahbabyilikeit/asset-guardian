@@ -1425,7 +1425,12 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
   const optimizedAgingRate = isAnodeActive ? optimizedProtectedStress : optimizedNakedStress;
 
   // Calculate remaining capacity and life projection
-  const remainingCapacity = Math.max(0, CONSTANTS.MAX_BIO_AGE - bioAge);
+  // v9.1.3 FIX: Use dynamic ETA (warranty-aware Weibull) as practical life ceiling
+  // instead of MAX_BIO_AGE (50). No tank realistically survives to bioAge 50.
+  // The Weibull characteristic life (dynamicEta) represents the 63.2% failure point,
+  // which is the appropriate engineering ceiling for "expected remaining life".
+  const practicalLifeCeiling = dynamicEta * 1.25; // Allow up to 25% beyond characteristic life
+  const remainingCapacity = Math.max(0, practicalLifeCeiling - bioAge);
   
   // CRITICAL: If tank is breached (leaking or rust), remaining life is ZERO
   const isBreach = data.visualRust || data.isLeaking;
