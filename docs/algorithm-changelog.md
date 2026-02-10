@@ -4,6 +4,17 @@ This document contains the changelog for the OPTERRA Risk Calculation Engine.
 
 ---
 
+## v9.1.6 (Sediment-Aware Naked Floor)
+
+**FIX "Sediment Blindspot":**
+- Naked aging floor now scales with sediment load: `floor = 2.0 + sedimentLbs × 0.15`
+- 0 lbs sediment → 2.0x floor (unchanged), 5.5 lbs → 2.825x, 10 lbs → 3.5x
+- Physics: more sediment insulates the tank bottom, creating hot spots that accelerate bare-steel corrosion
+- Optimized path gets half the sediment penalty (maintenance reduces sediment impact)
+- Prevents unrealistic projections for neglected naked tanks with heavy sediment
+
+---
+
 ## v9.1.5 (Compounding Stress Projection)
 
 **FIX "Flat Projection":**

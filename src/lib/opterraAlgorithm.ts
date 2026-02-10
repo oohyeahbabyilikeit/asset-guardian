@@ -1454,8 +1454,14 @@ export function calculateHealth(rawInputs: ForensicInputs): OpterraMetrics {
     // due to compounding sediment, wall thinning, and scale buildup.
     // Acceleration factor: 3% per year of additional naked time (conservative)
     const ANNUAL_ACCELERATION = 0.03; // 3% compounding per year
-    const effectiveNakedRate = Math.max(nakedStress, 2.0);
-    const effectiveOptNakedRate = Math.max(optimizedNakedStress, 1.5);
+    // v9.1.6 FIX "Sediment Blindspot": Naked floor scales with sediment load.
+    // More sediment = more insulation = faster hot-spot corrosion on bare steel.
+    // 0 lbs → floor 2.0x, 5.5 lbs → floor 2.825x, 10 lbs → floor 3.5x
+    const SEDIMENT_NAKED_PENALTY = 0.15; // per lb of sediment
+    const sedimentAwareFloor = 2.0 + sedimentLbs * SEDIMENT_NAKED_PENALTY;
+    const sedimentAwareOptFloor = 1.5 + sedimentLbs * SEDIMENT_NAKED_PENALTY * 0.5; // Optimized gets half penalty (maintenance reduces sediment impact)
+    const effectiveNakedRate = Math.max(nakedStress, sedimentAwareFloor);
+    const effectiveOptNakedRate = Math.max(optimizedNakedStress, sedimentAwareOptFloor);
 
     // Helper: iterative compounding projection for naked phase
     const projectWithAcceleration = (capacity: number, baseRate: number): number => {
